@@ -67,7 +67,8 @@ actor LocalLanguageModel {
         return text
     }
 
-    /// Tokens of `text` under the model's tokenizer (for chunking).
+    /// Tokens of `text` under the model's tokenizer. Not called by the app: the Mac summary bench (README) measured
+    /// `TranscriptTitler.reservedTokens` and the characters per token with it, so it stays with this file.
     func tokenCount(_ text: String) async throws -> Int {
         try await load()
         guard let container else { throw CancellationError() }
