@@ -36,15 +36,15 @@ class ScribeUITestCase: XCTestCase {
         XCTAssertEqual(app.textFields["Title"].value as? String, title, "the card shows \(title)")
     }
 
-    /// The transcript card is up: the grabber ("Minimize") at the top centre, the transcript's actions in the bottom
+    /// The transcript card is up: the back button ("Minimize") at the top left, the transcript's actions in the bottom
     /// toolbar, no navigation bar with a Back button, and the tab bar and the record accessory covered.
     @MainActor
     func assertCard(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
-        let grabber = app.buttons["Minimize"]
-        XCTAssertTrue(grabber.waitForExistence(timeout: 10), "the card's grabber", file: file, line: line)
-        let window = app.windows.firstMatch.frame
-        XCTAssertLessThan(grabber.frame.minY, 100, "the grabber at the top: \(grabber.frame)", file: file, line: line)
-        XCTAssertEqual(grabber.frame.midX, window.midX, accuracy: 2, "centred: \(grabber.frame)", file: file, line: line)
+        let back = app.buttons["Minimize"]
+        XCTAssertTrue(back.waitForExistence(timeout: 10), "the card's back button", file: file, line: line)
+        XCTAssertLessThan(back.frame.minY, 100, "the back button at the top: \(back.frame)", file: file, line: line)
+        XCTAssertLessThan(back.frame.minX, 40, "at the leading edge: \(back.frame)", file: file, line: line)
+        XCTAssertGreaterThanOrEqual(back.frame.width, 40, "a 44 pt glass circle: \(back.frame)", file: file, line: line)
         XCTAssertTrue(app.buttons["Share Transcript"].waitForExistence(timeout: 10), "the bottom toolbar",
                       file: file, line: line)
         // The navigation bar of the screen the card covers (Settings › People › person) stays in the tree: only a
@@ -56,11 +56,19 @@ class ScribeUITestCase: XCTestCase {
                        file: file, line: line)
     }
 
-    /// The grabber closes the card; returns once it is gone.
+    /// The back button closes the card; returns once it is gone.
     @MainActor
     func closeCard(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
         app.buttons["Minimize"].tap()
         XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "the card closed", file: file, line: line)
+    }
+
+    /// Swipes the card away to the right: a pan from the left screen edge (the back gesture) across most of the width.
+    @MainActor
+    func swipeCardRight(_ app: XCUIApplication) {
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.45))
+        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 320, dy: 0)),
+                    withVelocity: .fast, thenHoldForDuration: 0)
     }
 
     /// The record accessory without a recording ("● Transcribe").

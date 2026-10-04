@@ -6,8 +6,8 @@ import UIKit
 /// transcript it turns into: at the top the name the transcript will get and its date line (start time, then the
 /// place once it is found), in the transcript's fonts and at its positions; the live transcript below; at the bottom
 /// the level meter and the big timer above a large Stop. MainView owns the session (it starts it and handles
-/// Saved/Discarded), so swiping the card down, or its grabber, shrinks it back into the accessory and recording goes
-/// on. On Stop the card turns into the transcript in place (`turn`): title and date line stay put, the timer
+/// Saved/Discarded), so swiping the card to the right, or its back button, shrinks it back into the accessory and
+/// recording goes on. On Stop the card turns into the transcript in place (`turn`): title and date line stay put, the timer
 /// shrinks into the date line's duration, the live text fades out, and the Stop melts into the transcript's toolbar
 /// (TranscriptCard). Preparation, model download and every failure are shown as in-screen overlays.
 struct RecordView: View {
@@ -20,9 +20,8 @@ struct RecordView: View {
     var melts = false
     /// Where the Stop and the card's safe area are, for the melt.
     var geometry: Binding<RecordGeometry>? = nil
-    let onClose: () -> Void                        // a failure screen's Close / Cancel
+    let onClose: () -> Void                        // the back button (into the accessory, still recording), a failure screen's Close / Cancel
     let onRetry: () -> Void
-    let onMinimize: () -> Void                     // back into the accessory, still recording
 
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -30,6 +29,8 @@ struct RecordView: View {
     @State private var stoppedAt: Date?       // ... frozen at Stop, not counting on while saving
     @ScaledMetric(relativeTo: .subheadline) private var dateLineSize: CGFloat = 15   // .subheadline's size
     @State private var timerFrames = TimerFrames()
+    @State private var stopPresses = 0        // haptic on the press itself
+    @State private var showsPreparing = false // "Preparing…" only once preparing has taken a moment
 
     /// The live text's, meter's and caption's fade-out at Stop; then the transcript's body fades in (TranscriptCard).
     /// 0.2 s, not 0.15: even if a frame or two are held up, the fade is still seen as one.
@@ -67,6 +68,16 @@ struct RecordView: View {
         return false
     }
 
+    private var isPreparing: Bool {
+        switch session.state {
+        case .idle, .preparing: true
+        default: false
+        }
+    }
+
+    /// How long preparing may take before "Preparing…" is shown.
+    static let preparingDelay: Duration = .milliseconds(400)
+
     private var isFailed: Bool {
         if case .failed = session.state { return true }
         return false
@@ -97,8 +108,8 @@ struct RecordView: View {
             }
             .overlay { stateOverlay }
         }
-        // The card's grabber, as on a transcript: back into the accessory, still recording.
-        .cardGrabber(hint: "Back to the transcripts; recording goes on", action: onMinimize)
+        // The card's back button, as on a transcript: back into the accessory, still recording.
+        .cardCloseButton(hint: "Back to the transcripts; recording goes on", action: onClose)
         .safeAreaBar(edge: .bottom) {                  // a bar: text scrolling under it fades out (scroll edge effect)
             controls
         }
@@ -130,12 +141,14 @@ struct RecordView: View {
         #if DEBUG
         .onAppear { InteractionTrace.shown("transcribe"); InteractionTrace.shown("reopen") }
         #endif
-        .sensoryFeedback(trigger: session.state) { old, new in
-            switch (old, new) {
-            case (_, .recording): .impact(weight: .medium)        // recording started
-            case (.recording, _): .impact(weight: .light)         // stopped: button, interruption or failure
-            default: nil
-            }
+        .sensoryFeedback(.impact(weight: .light), trigger: stopPresses)   // with the press, not with the state
+        // The spinner comes only when preparing takes a noticeable time (the speech model's first load, a slow
+        // permission prompt); normally the card opens straight onto the empty transcript.
+        .task(id: isPreparing) {
+            showsPreparing = false
+            guard isPreparing else { return }
+            do { try await Task.sleep(for: Self.preparingDelay) } catch { return }
+            showsPreparing = true
         }
         .onChange(of: session.state, initial: true) { _, state in
             if case .recording(let since) = state {
@@ -149,7 +162,7 @@ struct RecordView: View {
 
     // MARK: Header
 
-    /// The transcript's title and date line, at the transcript's positions (RecordingDetailView: same grabber band,
+    /// The transcript's title and date line, at the transcript's positions (RecordingDetailView: same top offset,
     /// margin, fonts and spacing; a Text title sat 1 pt higher than the transcript's TextField, so it is one too).
     private var header: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -179,7 +192,7 @@ struct RecordView: View {
                 .accessibilityHidden(true)
             }
         }
-        .padding(.top, CardGrabber.contentTop)
+        .padding(.top, CardCloseButton.contentTop)
         .padding(.horizontal, TranscriptStyle.margin)
         .frame(maxWidth: TranscriptStyle.maxWidth, alignment: .leading)
         .frame(maxWidth: .infinity)
@@ -275,6 +288,7 @@ struct RecordView: View {
                 #if DEBUG
                 InteractionTrace.begin("stop")
                 #endif
+                stopPresses += 1
                 Task { await session.stop() }
             } label: {
                 // Busy (dimmed, a spinner) while saving or discarding without a turn: during a turn the Stop is
@@ -314,9 +328,12 @@ struct RecordView: View {
     private var stateOverlay: some View {
         switch session.state {
         case .idle, .preparing:
-            VStack(spacing: 24) {
-                ProgressView("Preparing…")
-                Button("Cancel") { session.cancel() }
+            if showsPreparing {
+                VStack(spacing: 24) {
+                    ProgressView("Preparing…")
+                    Button("Cancel") { session.cancel() }
+                }
+                .transition(.opacity)
             }
         case .downloadingSpeechModel:
             ContentUnavailableView {
@@ -443,7 +460,6 @@ struct LevelMeter: View {
 #Preview {
     RecordView(session: AppServices(container: PreviewData.container).makeRecordingSession(),
                onClose: {},
-               onRetry: {},
-               onMinimize: {})
+               onRetry: {})
 }
 #endif

@@ -44,7 +44,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		E406F03383AA517B93B751E0 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		E406F03383AA517B93B751E0 /* Exceptions for "Recorder" folder in "Recorder" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -57,11 +57,7 @@
 		C04E4651EFDBD721DCF3BA71 /* Recorder */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				E406F03383AA517B93B751E0 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
+				E406F03383AA517B93B751E0 /* Exceptions for "Recorder" folder in "Recorder" target */,
 			);
 			path = Recorder;
 			sourceTree = "<group>";

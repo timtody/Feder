@@ -92,7 +92,7 @@ final class RecordingSession: Identifiable {
             return
         }
         do {
-            try capture.activateSession()                    // audio session first, then the analyzer (Apple's order)
+            try await capture.activateSession()              // audio session first, then the analyzer (Apple's order)
             #if DEBUG
             print("[Scribe] audio session active, requested locale \(Self.transcriptionLocale.identifier), preferred \(Locale.preferredLanguages)")
             #endif
@@ -102,7 +102,7 @@ final class RecordingSession: Identifiable {
                 self.state = .downloadingSpeechModel
             }
             guard state != .discarded else {                  // cancelled during prepare/download: nothing captured yet
-                _ = capture.stop()                            // deactivates the audio session
+                await capture.shutDown()                      // deactivates the audio session
                 return
             }
             downloadProgress = nil
@@ -113,11 +113,12 @@ final class RecordingSession: Identifiable {
             // until the live diarizer gets it below, once recording has really started, so nothing is lost.
             let liveSamples = liveDiarizer.map { _ in AsyncStream<[Float]>.makeStream() }
             let levels = AsyncStream<Float>.makeStream(bufferingPolicy: .bufferingNewest(1))
-            let input = try capture.start(writingTo: AudioFileStore.url(for: fileName), analyzerFormat: setup.audioFormat,
-                                          liveSamples: liveSamples?.continuation, levels: levels.continuation)
+            let input = try await capture.start(writingTo: AudioFileStore.url(for: fileName), analyzerFormat: setup.audioFormat,
+                                                liveSamples: liveSamples?.continuation, levels: levels.continuation)
             try await transcriber.start(input: input) { [weak self] event in self?.handle(event) }
             guard state != .discarded else {                  // cancelled while the analyzer was starting
-                _ = capture.stop()
+                _ = capture.seal()
+                await capture.shutDown()
                 try? await transcriber.finish()
                 AudioFileStore.delete(fileName: fileName)
                 return
@@ -132,7 +133,8 @@ final class RecordingSession: Identifiable {
             showLevels(levels.stream)
             if let liveDiarizer, let liveSamples { startLiveDiarization(liveDiarizer, samples: liveSamples.stream) }
         } catch {
-            _ = capture.stop()
+            _ = capture.seal()
+            await capture.shutDown()
             if let fileName { AudioFileStore.delete(fileName: fileName) }
             guard state != .discarded else { return }         // a cancelled start may still throw; keep .discarded
             state = .failed(error as? RecorderError ?? .audioEngineFailed(error.localizedDescription))
@@ -160,8 +162,11 @@ final class RecordingSession: Identifiable {
         state = .finishing
         stopObservingInterruptions()
         refresh?.cancel()
-        let duration = capture.stop()                         // finishes the input, live sample and level streams
+        let duration = capture.seal()                         // finishes the input, live sample and level streams
         recordedDuration = duration                           // same update as .finishing: the card's timer lands on it
+        // Stopping the engine and deactivating the session (~70 ms) run on the audio hardware's actor, so the first
+        // frame of the card's turn isn't held up; the next recording's activation queues behind them there.
+        Task { await capture.shutDown() }
         let finished = await finishTranscription(within: .seconds(2))
         transcriptionEnded = true                             // a late finish() delivers into the void
         // Past the cap the provisional tail is kept as words; the full-accuracy pass after Stop re-transcribes anyway.
@@ -276,7 +281,7 @@ final class RecordingSession: Identifiable {
                 let next = max(input, level * 0.7)
                 level = next < 0.02 ? 0 : next        // settle at exactly 0, so silence stops redrawing the meter
             }
-            self?.level = 0                                   // the stream ends with the recording (capture.stop())
+            self?.level = 0                                   // the stream ends with the recording (capture.seal())
         }
     }
 

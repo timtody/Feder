@@ -5,7 +5,8 @@ import Synchronization
 
 /// DEBUG timing of the interaction paths, from a press to the first frame of what it causes: the Transcribe tap to the
 /// card's first frame, Stop to the first frame of the turn, a row to the transcript's first frame, a tab to the tab, a
-/// keystroke to the results. Always as signposts (Instruments: subsystem de.cofinpro.recorder, category "Interaction");
+/// keystroke to the results. Always as signposts (Instruments: Points of Interest, so a Time Profiler recording can be
+/// read per press);
 /// with the launch argument `-interactionTrace` also one log line per press (`log stream --predicate 'subsystem ==
 /// "de.cofinpro.recorder" AND category == "Interaction"'`): how long the press's own turn of the main thread took
 /// ("turn": everything SwiftUI did before it could commit a frame), and when the first frame of the new state was
@@ -17,7 +18,7 @@ nonisolated enum InteractionTrace {
         var turn: Duration?
     }
 
-    private static let signposter = OSSignposter(subsystem: "de.cofinpro.recorder", category: "Interaction")
+    private static let signposter = OSSignposter(subsystem: "de.cofinpro.recorder", category: .pointsOfInterest)
     private static let logger = Logger(subsystem: "de.cofinpro.recorder", category: "Interaction")
     private static let verbose = ProcessInfo.processInfo.arguments.contains("-interactionTrace")
     private static let pending = Mutex<[String: Pending]>([:])

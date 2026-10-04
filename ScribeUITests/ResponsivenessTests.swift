@@ -48,11 +48,12 @@ final class ResponsivenessTests: ScribeUITestCase {
     }
 
     /// The record button reacts at once: the card is up (its Minimize control and the transcript's name) long before
-    /// preparation is over (`-fakePrepareSeconds 4`: the fake speech model takes 4 s to prepare), and the large Stop
-    /// follows once it is.
+    /// preparation is over (`-fakePrepareSeconds 6`: the fake speech model takes 6 s to prepare), and the large Stop
+    /// follows once it is. (XCUITest itself takes 1-2 s to tap and to see the card, so the bound is loose; the
+    /// timings themselves come from InteractionTrace.)
     @MainActor
     func testTranscribeOpensCardBeforePreparationFinishes() throws {
-        let app = launch(["-fakePrepareSeconds", "4"])
+        let app = launch(["-fakePrepareSeconds", "6"])
         let record = transcribe(app)
         XCTAssertTrue(record.waitForExistence(timeout: 5))
         let tapped = Date.now
@@ -60,14 +61,14 @@ final class ResponsivenessTests: ScribeUITestCase {
         let minimize = app.buttons["Minimize"]
         XCTAssertTrue(minimize.waitForExistence(timeout: 3), "the card opens without waiting for preparation")
         let opened = Date.now.timeIntervalSince(tapped)
-        note("Card opened", "\(opened) s after the tap (preparation takes 4 s)")
-        XCTAssertLessThan(opened, 2, "the card is up long before preparation is over: \(opened) s")
+        note("Card opened", "\(opened) s after the tap (preparation takes 6 s)")
+        XCTAssertLessThan(opened, 4, "the card is up long before preparation is over: \(opened) s")
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'New Transcript '")).firstMatch.exists,
                       "the name the transcript will get is shown from the start")
         XCTAssertFalse(app.buttons["Stop"].firstMatch.exists, "no Stop before the model is prepared")
         shot("Card before preparation", app)
-        XCTAssertTrue(app.buttons["Stop"].firstMatch.waitForExistence(timeout: 10), "the Stop once prepared")
-        XCTAssertGreaterThan(Date.now.timeIntervalSince(tapped), 3, "preparation really took its time")
+        XCTAssertTrue(app.buttons["Stop"].firstMatch.waitForExistence(timeout: 12), "the Stop once prepared")
+        XCTAssertGreaterThan(Date.now.timeIntervalSince(tapped), 5, "preparation really took its time")
         app.buttons["Stop"].firstMatch.tap()
         XCTAssertTrue(minimize.waitForNonExistence(timeout: 15) || app.buttons["Share Transcript"].waitForExistence(timeout: 15))
         if app.buttons["Share Transcript"].exists {

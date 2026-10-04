@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 /// One saved recording, the transcript card's content (`TranscriptCard`; Music's "Now Playing" for a transcript): the
-/// grabber at the top, inline-editable title, date and duration, the automatic summary, tags, speaker-identification
+/// back button at the top left, inline-editable title, date and duration, the automatic summary, tags, speaker-identification
 /// status and the transcript grouped by speaker; its actions in the system's bottom toolbar (Liquid Glass): Share,
 /// Speakers and Delete. No top bar. Tapping a speaker's name row (or "Rename Speaker…" in its long-press menu) opens
 /// the rename sheet for that speaker, once speakers are final.
@@ -21,7 +21,7 @@ struct RecordingDetailView: View {
     /// until then: this view's own title and date line are hidden under them, and its toolbar under the melted
     /// Stop's replicas (with a stand-in for its scroll edge effect).
     var turning = false
-    /// The grabber and Delete: MainView closes the card (back to the list).
+    /// The back button and Delete: MainView closes the card (back to the list).
     let onClose: () -> Void
 
     @Environment(AppServices.self) private var services
@@ -129,10 +129,9 @@ struct RecordingDetailView: View {
                    height: geometry.visibleRect.height - geometry.contentInsets.top - geometry.contentInsets.bottom)
         }, action: { _, visible in hitGeometry.visible = visible })
         .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { width = $0 })
-        // The grabber floats over the top on an opaque band: the content starts below it, and what scrolls up goes
-        // under a short fade into the band (also under the status bar).
-        .contentMargins(.top, CardGrabber.contentTop, for: .scrollContent)
-        .cardGrabber(hint: "Back to the transcripts", action: onClose)
+        // The back button floats over the top left: the content starts below it and scrolls under its glass.
+        .contentMargins(.top, CardCloseButton.contentTop, for: .scrollContent)
+        .cardCloseButton(hint: "Back to the transcripts", action: onClose)
         .task(id: search) { await showFirstHit() }
         #if DEBUG
         .onAppear { InteractionTrace.shown("open") }
@@ -295,9 +294,9 @@ struct RecordingDetailView: View {
         withAnimation { reveal(hits[hitIndex]) }
     }
 
-    /// Like Safari's Find on Page: scrolls a hit to the centre only when it isn't wholly visible between the grabber's
-    /// band and the bottom toolbar. A hit already on screen (at the start, often the first turns) leaves the card where
-    /// it is: centring it pulled the title up against the grabber.
+    /// Like Safari's Find on Page: scrolls a hit to the centre only when it isn't wholly visible between the top
+    /// margin and the bottom toolbar. A hit already on screen (at the start, often the first turns) leaves the card
+    /// where it is: centring it pulled the title up under the back button.
     private func reveal(_ hit: UUID) {
         if let frame = hitGeometry.frames[hit], hitGeometry.visible.contains(frame) { return }
         position.scrollTo(id: hit, anchor: .center)

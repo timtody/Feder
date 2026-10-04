@@ -13,6 +13,7 @@ struct RecordAccessory: View {
     @Binding var isInline: Bool
 
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
+    @State private var presses = 0                     // Transcribe and Stop: the haptic comes with the press
 
     private var inline: Bool { placement == .inline }
 
@@ -34,13 +35,17 @@ struct RecordAccessory: View {
         .padding(.horizontal, inline ? 12 : 18)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
+        .sensoryFeedback(trigger: presses) { _, _ in session == nil ? .impact(weight: .medium) : .impact(weight: .light) }
         .onChange(of: inline, initial: true) { _, value in
             if isInline != value { isInline = value }
         }
     }
 
     private var idle: some View {
-        Button(action: start) {
+        Button {
+            presses += 1
+            start()
+        } label: {
             HStack(spacing: 10) {
                 RecordDot(size: inline ? 12 : 14)
                 Text("Transcribe")
@@ -80,6 +85,7 @@ struct RecordAccessory: View {
                 #if DEBUG
                 InteractionTrace.begin("stop")
                 #endif
+                presses += 1
                 Task { await session.stop() }
             } label: {
                 RoundedRectangle(cornerRadius: 3, style: .continuous)

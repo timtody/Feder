@@ -37,10 +37,10 @@ final class SearchTests: ScribeUITestCase {
         XCTAssertTrue(count.waitForExistence(timeout: 5), "n of m")
         assertHitNavigatorInBottomBar(app)
         XCTAssertEqual(app.staticTexts["Paragraph.1"].value as? String, "Current match", "Jonas's first turn is marked")
-        // That turn is on screen already: the card stays at its top, the title clear of the grabber (centring the
-        // hit pulled the title up onto the grabber's line).
+        // That turn is on screen already: the card stays at its top, the title clear of the back button (centring
+        // the hit pulled the title up under it).
         XCTAssertGreaterThan(app.textFields["Title"].frame.minY, app.buttons["Minimize"].frame.maxY + 4,
-                             "the title below the grabber: \(app.textFields["Title"].frame)")
+                             "the title below the back button: \(app.textFields["Title"].frame)")
         shot("Result opened", app)
         app.buttons["Next Match"].tap()
         XCTAssertTrue(app.staticTexts["Match 2 of 2"].waitForExistence(timeout: 5))

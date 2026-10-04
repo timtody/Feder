@@ -35,33 +35,38 @@ nonisolated enum TranscriptionEvent: Sendable {
     case failed(RecorderError)          // the engine died mid-session; no further events follow
 }
 
-/// What the capture must feed the transcriber. Main-actor only (AVAudioFormat is not Sendable).
-struct TranscriberSetup {
+/// What the capture must feed the transcriber (AVAudioFormat is Sendable since the iOS 26 SDK).
+nonisolated struct TranscriberSetup: Sendable {
     let locale: Locale
     let audioFormat: AVAudioFormat
 }
 
-/// Microphone -> file + analyzer stream (+ live-diarizer samples). One instance per recording.
-@MainActor
-protocol AudioCapture: AnyObject {
+/// Microphone -> file + analyzer stream (+ live-diarizer samples). One instance per recording. The blocking calls
+/// (activating the session, starting and stopping the engine) run on the audio hardware's own actor, never on the
+/// main actor (MicrophoneCapture); only `seal()` is synchronous, for the main actor at Stop.
+nonisolated protocol AudioCapture: AnyObject, Sendable {
     /// Configures and activates the AVAudioSession for recording. Called BEFORE the transcriber is prepared: Apple's
     /// sample sets the session up first, and a SpeechAnalyzer prepared before the session switches to .playAndRecord
-    /// may never deliver results on iOS. stop() deactivates it.
-    func activateSession() throws
+    /// may never deliver results on iOS. shutDown() deactivates it.
+    func activateSession() async throws
     /// Opens `fileURL` for writing in `analyzerFormat`, installs the input tap, starts the engine.
     /// Every converted buffer is written to the file AND yielded as AnalyzerInput(buffer:, bufferStartTime:) with the
     /// cumulative frame position, so file time == transcript time. Single consumer.
     /// With `liveSamples`, the same frames are also resampled (one persistent converter) to mono Float32 at
     /// `LiveAudio.sampleRate` and yielded there in order, never dropped, so live-diarizer sample 0 == file frame 0.
-    /// `liveSamples` is finished by stop(), or at once when the resampler can't be built (no live labels then). When
+    /// `liveSamples` is finished by seal(), or at once when the resampler can't be built (no live labels then). When
     /// start throws, nothing was yielded to it and the caller just drops its stream.
     /// With `levels`, every buffer's input level is yielded there too (0 at -50 dBFS or quieter ... 1 at -10 dBFS or
-    /// louder, RMS), for the level meter; finished by stop().
+    /// louder, RMS), for the level meter; finished by seal().
     func start(writingTo fileURL: URL, analyzerFormat: AVAudioFormat, liveSamples: AsyncStream<[Float]>.Continuation?,
-               levels: AsyncStream<Float>.Continuation?) throws -> AsyncStream<AnalyzerInput>
-    /// Removes the tap, stops the engine, finishes the streams, closes the file, deactivates the session.
-    /// Returns the recorded duration in seconds (from the file length). Safe to call when not started.
-    func stop() -> TimeInterval
+               levels: AsyncStream<Float>.Continuation?) async throws -> AsyncStream<AnalyzerInput>
+    /// Stop's first step, synchronous: finishes the streams and closes the file (later buffers are dropped), and
+    /// returns the recorded duration in seconds (from the file length). Safe to call when not started. The engine
+    /// keeps running until shutDown().
+    func seal() -> TimeInterval
+    /// Removes the tap, stops the engine and deactivates the session, in that order (Apple: stop the IO before
+    /// deactivating), off the main actor. Safe to call when not started.
+    func shutDown() async
 }
 
 /// Live speech-to-text. One instance per recording; prepare -> start -> finish, in that order.

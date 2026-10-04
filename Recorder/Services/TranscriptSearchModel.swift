@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 /// The Transcripts screen's search (`Models/TranscriptSearch.swift` does the matching). It keeps one folded
 /// `SearchDocument` per recording, built when search is first presented and afterwards only for recordings whose
@@ -7,6 +8,8 @@ import Foundation
 @Observable
 final class TranscriptSearchModel {
     static let debounce: Duration = .milliseconds(80)
+    /// Recordings whose segments are read per turn of the main actor while indexing.
+    static let batch = 8
 
     /// Results of `resultsQuery`, by recording id. They lag the typed query by the debounce and the scan.
     private(set) var results: [UUID: SearchResult] = [:]
@@ -29,22 +32,33 @@ final class TranscriptSearchModel {
         let keys = recordings.map(\.searchKey)
         refreshCandidates(recordings, keys: keys, people: people)
 
-        // Documents to (re)build; reading `segments` here, on the main actor, is the SwiftData load.
+        // Documents to (re)build. Reading `segments` is the SwiftData load, on the main actor: in batches of a few
+        // recordings per turn of the main actor, so the first presentation of Search (every transcript at once:
+        // 300–400 ms on the simulator with 70 transcripts) doesn't hold up the tab's first frame or the keyboard.
         let live = Set(order)
-        documents = documents.filter { live.contains($0.key) }
-        var sources: [SearchDocument.Source] = []
+        if documents.count > live.count || documents.keys.contains(where: { !live.contains($0) }) {
+            documents = documents.filter { live.contains($0.key) }
+        }
+        var pending: [(Recording, Int)] = []
         for (recording, key) in zip(recordings, keys)
         where documents[recording.id]?.key != key && building[recording.id] != key {
             building[recording.id] = key
-            sources.append(recording.searchSource(key: key))
+            pending.append((recording, key))
         }
-        if !sources.isEmpty {
+        if !pending.isEmpty {
             let previous = indexing
             indexing = Task {
                 await previous?.value
-                for document in await TranscriptSearch.documentsInBackground(sources) {
-                    if building[document.id] == document.key { building[document.id] = nil }
-                    documents[document.id] = document
+                for batch in stride(from: 0, to: pending.count, by: Self.batch) {
+                    let sources = pending[batch..<min(batch + Self.batch, pending.count)].compactMap { recording, key in
+                        // Deleted meanwhile: a detached model traps when read; its document is dropped above.
+                        recording.isDeleted || recording.modelContext == nil ? nil : recording.searchSource(key: key)
+                    }
+                    for document in await TranscriptSearch.documentsInBackground(sources) {
+                        if building[document.id] == document.key { building[document.id] = nil }
+                        documents[document.id] = document
+                    }
+                    await Task.yield()                        // a frame between the batches
                 }
             }
         }

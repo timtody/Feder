@@ -12,7 +12,7 @@ struct SettingsView: View {
     @State private var words = Vocabulary.custom
     @State private var usesBuiltIn = Vocabulary.usesBuiltIn
     @AppStorage(TranscriptCorrector.settingKey) private var smartCorrections = false
-    private let correctionsAvailable = TranscriptCorrector().isAvailable
+    private static let correctionsAvailable = TranscriptCorrector().isAvailable   // once: a system query
     @State private var draft = ""
     @FocusState private var isAdding: Bool
     @AppStorage(AppServices.liveSpeakerLabelsKey) private var liveSpeakerLabels = true
@@ -100,9 +100,9 @@ struct SettingsView: View {
 
                 Section {
                     Toggle("Smart Corrections (Experimental)", isOn: $smartCorrections)
-                        .disabled(!correctionsAvailable)
+                        .disabled(!Self.correctionsAvailable)
                 } footer: {
-                    Text(correctionsAvailable
+                    Text(Self.correctionsAvailable
                          ? Self.correctionsFooter
                          : "Needs Apple Intelligence on this iPhone (iPhone 15 Pro or newer, turned on in Settings).")
                 }

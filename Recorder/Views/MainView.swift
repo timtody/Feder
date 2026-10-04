@@ -84,14 +84,16 @@ struct MainView: View {
                 SettingsView()
             }
             Tab("Transcripts", systemImage: "waveform", value: AppTab.transcripts) {
-                RecordingsListView(isSearch: false, searchState: searchState,
-                                   openSearch: openSearch, closeSearch: closeSearch)
+                RecordingsListView(isSearch: false, searchState: searchState)
             }
             Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: isBarMinimized ? .search : nil) {
-                RecordingsListView(isSearch: true, searchState: searchState,
-                                   openSearch: openSearch, closeSearch: closeSearch)
+                RecordingsListView(isSearch: true, searchState: searchState)
             }
         }
+        // Through the environment, not as closure properties: with closures the lists compared unequal on every
+        // MainView update (a tab, the card, the bar minimizing) and both re-ran their bodies (~50 ms each on the
+        // simulator: the @Query and every row); with plain properties SwiftUI skips them.
+        .environment(\.searchActions, SearchActions(open: openSearch, close: closeSearch))
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory {
             RecordAccessory(session: activeSession, start: startRecording, open: openRecorder,
@@ -206,7 +208,9 @@ struct MainView: View {
 
     // MARK: Recording
 
-    /// Transcribe (the accessory): a fresh session, started here so it survives the card being swiped down.
+    /// Transcribe (the accessory): a fresh session, started here so it survives the card being swiped down. Started
+    /// at once: the audio session and the engine come up on the audio hardware's actor (MicrophoneCapture), so the
+    /// card's zoom runs on a free main thread (started on it, the card only came up after "Preparing…").
     private func startRecording() {
         #if DEBUG
         InteractionTrace.begin(activeSession == nil ? "transcribe" : "reopen")
@@ -215,16 +219,8 @@ struct MainView: View {
         let session = services.makeRecordingSession()
         activeSession = session
         openRecorder()
-        Task {
-            // Once the card is on its way: starting activates the audio session and the engine on the main thread,
-            // which held it long enough that the card only came up after "Preparing…", without a visible zoom.
-            try? await Task.sleep(for: Self.startDelay)
-            await session.start()
-        }
+        Task { await session.start() }
     }
-
-    /// From the tap on Transcribe to starting the session (see startRecording).
-    private static let startDelay: Duration = .milliseconds(120)
 
     /// The accessory opens the card on the recording, out of itself. Presented on the next turn of the main actor, so
     /// the accessory has laid out its new state (Transcribe → Preparing…) before the zoom takes it as its source.

@@ -10,9 +10,8 @@ import SwiftData
 struct RecordingsListView: View {
     let isSearch: Bool
     @Bindable var searchState: SearchState
-    var openSearch: (SearchToken?) -> Void
-    var closeSearch: () -> Void
 
+    @Environment(\.searchActions) private var searchActions
     @Environment(AppServices.self) private var services
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openTranscript) private var openTranscript
@@ -132,7 +131,7 @@ struct RecordingsListView: View {
                 } onEnd: { pull in
                     isDraggingList = false
                     pullArmed = false
-                    if canPullToSearch, pull >= Self.pullToSearch { openSearch(nil) }
+                    if canPullToSearch, pull >= Self.pullToSearch { searchActions.open(nil) }
                 }
             }
             .sensoryFeedback(.impact(weight: .light), trigger: pullArmed) { _, armed in armed }
@@ -146,10 +145,10 @@ struct RecordingsListView: View {
                     // Our own field at the top of the Search tab, like Apple Music's; the tokens float under it as
                     // glass chips.
                     TranscriptSearchBar(query: $searchState.query, tokens: $searchState.tokens,
-                                        focusRequest: searchState.focusRequest, close: closeSearch)
+                                        focusRequest: searchState.focusRequest, close: searchActions.close)
                 }
             }
-            .task(id: query) {                                 // debounce: search once typing pauses
+            .task(id: isSearch ? query : "") {                 // debounce: search once typing pauses (Search tab only)
                 guard !query.isEmpty else { appliedQuery = ""; return }   // cleared: at once
                 try? await Task.sleep(for: Self.typingPause)
                 guard !Task.isCancelled else { return }        // typed again meanwhile
@@ -256,7 +255,7 @@ struct RecordingsListView: View {
     /// A tag chip: in the Search tab it becomes a token; in the Transcripts tab it opens the Search tab with it.
     private func addTagToken(_ tag: String) {
         let token = SearchToken(kind: .tag, value: tag)
-        if isSearch { searchState.add(token) } else { openSearch(token) }
+        if isSearch { searchState.add(token) } else { searchActions.open(token) }
     }
 
     // MARK: Row
@@ -420,10 +419,21 @@ private struct ChipLabelStyle: LabelStyle {
     }
 }
 
+/// Opening the Search tab (pull-to-search, a tag chip; with a token to add) and closing it (the search bar's close
+/// button): MainView's, handed to the lists through the environment.
+struct SearchActions {
+    let open: (SearchToken?) -> Void
+    let close: () -> Void
+}
+
+extension EnvironmentValues {
+    @Entry var searchActions = SearchActions(open: { _ in }, close: {})
+}
+
 #if DEBUG
 #Preview("With Recordings") {
     let _ = PreviewData.sample()
-    RecordingsListView(isSearch: false, searchState: SearchState(), openSearch: { _ in }, closeSearch: {})
+    RecordingsListView(isSearch: false, searchState: SearchState())
         .modelContainer(PreviewData.container)
         .environment(AppServices(container: PreviewData.container))
 }

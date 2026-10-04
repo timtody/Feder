@@ -1,8 +1,8 @@
 import XCTest
 
 /// The Transcripts list: the scrolling headings, Voice Memos-style swipe actions (wide pills, title under them), the
-/// record accessory's flow and the transcript card (opened from a row or out of the accessory, closed by its grabber or
-/// a swipe down; its bottom toolbar).
+/// record accessory's flow and the transcript card (opened from a row or out of the accessory, closed by its back
+/// button or a swipe to the right; its bottom toolbar).
 final class TranscriptListTests: ScribeUITestCase {
 
     /// The "Transcripts" and "Settings" headings are not pinned in a navigation bar: they are the first row (section
@@ -99,7 +99,7 @@ final class TranscriptListTests: ScribeUITestCase {
 
     /// Recording like Music's "Now Playing": Transcribe (the accessory) opens the transcript card with the live view and
     /// a large Stop; at its top, like Voice Memos' recording sheet, the name the transcript will get ("New Transcript
-    /// N") and its date line with the start time, where the transcript has them. Minimize (the grabber) shrinks it back
+    /// N") and its date line with the start time, where the transcript has them. Minimize (the back button) shrinks it back
     /// into the accessory, which shows "Recording" and Stop while the list can be browsed; a tap on the accessory opens
     /// it again; Stop saves it and the SAME card turns into the transcript in place (no push, no Back): the same title
     /// and date line at the same place, the timer landed as the duration beside the date, and the bottom toolbar where
@@ -115,7 +115,7 @@ final class TranscriptListTests: ScribeUITestCase {
         let bigStop = app.buttons["Stop"].firstMatch
         XCTAssertTrue(bigStop.waitForExistence(timeout: 10), "a large Stop")
         XCTAssertGreaterThanOrEqual(bigStop.frame.width, 70, "large: \(bigStop.frame)")
-        XCTAssertTrue(app.buttons["Minimize"].exists, "the grabber")
+        XCTAssertTrue(app.buttons["Minimize"].exists, "the back button")
         XCTAssertFalse(isOnScreen(app.buttons["Settings"].firstMatch, app), "full screen, like Now Playing")
 
         // The transcript's header already: its name and the start time (not the time of Stop) under it.
@@ -157,7 +157,7 @@ final class TranscriptListTests: ScribeUITestCase {
         let field = app.textFields["Title"]
         XCTAssertTrue(field.waitForExistence(timeout: 15), "the transcript in the card")
         XCTAssertEqual(field.value as? String, name, "saved with the name the recording showed")
-        // Its bottom toolbar replaces the Stop (shown once the turn is over), the grabber stays.
+        // Its bottom toolbar replaces the Stop (shown once the turn is over), the back button stays.
         XCTAssertTrue(app.buttons["Share Transcript"].waitForExistence(timeout: 15), "the transcript's toolbar")
         assertCard(app)
         XCTAssertFalse(app.buttons["Stop"].exists, "the Stop gave way to the toolbar")
@@ -284,11 +284,11 @@ final class TranscriptListTests: ScribeUITestCase {
         return [0, 60].map { "Today at " + tapped.addingTimeInterval($0).formatted(.dateTime.hour().minute().locale(locale)) }
     }
 
-    /// A tap on a row opens the transcript card (zooming out of the row; no push): the grabber at the top centre, the
-    /// bottom toolbar, no Back. The grabber closes it back to the list, and so does swiping the card down (the zoom
-    /// transition's interactive dismissal).
+    /// A tap on a row opens the transcript card (zooming out of the row; no push): the back button at the top left, the
+    /// bottom toolbar, no navigation bar. The back button closes it back to the list, and so does swiping the card to
+    /// the right from the left edge; swiping it down does not (that only scrolls).
     @MainActor
-    func testRowOpensCardAndGrabberOrSwipeClosesIt() throws {
+    func testRowOpensCardAndBackOrSwipeRightClosesIt() throws {
         let app = launch()
         open("Project Kickoff", in: app)
         shot("Card", app)
@@ -305,17 +305,73 @@ final class TranscriptListTests: ScribeUITestCase {
         XCTAssertTrue(app.cells.firstMatch.isHittable, "back in the list")
         XCTAssertTrue(transcribe(app).waitForExistence(timeout: 5) && transcribe(app).isHittable, "with the accessory")
 
-        open("Budget Review", in: app)                                      // the card shows the row that was tapped
-        let grabber = app.buttons["Minimize"]
-        let start = grabber.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: 450)),
-                    withVelocity: .fast, thenHoldForDuration: 0)
-        XCTAssertTrue(grabber.waitForNonExistence(timeout: 5), "swiping down closes the card")
+        open("Project Kickoff", in: app)                                    // (on a simulator with many transcripts
+        let back = app.buttons["Minimize"]                                  // Budget Review is below the screen)
+        // Swiping down (from the text, and from the top where the grabber used to be) leaves the card up.
+        for dy in [0.5, 0.12] {
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: dy))
+            start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: 450)),
+                        withVelocity: .fast, thenHoldForDuration: 0)
+            RunLoop.current.run(until: .now + 1)
+            XCTAssertTrue(back.exists && app.textFields["Title"].exists, "swiping down doesn't close the card")
+        }
+        shot("Swiped down, still up", app)
+        swipeCardRight(app)
+        XCTAssertTrue(back.waitForNonExistence(timeout: 5), "swiping right closes the card")
         XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Budget Review"].exists && app.staticTexts["Project Kickoff"].exists,
-                      "both transcripts still listed")
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].exists, "still listed")
         XCTAssertTrue(transcribe(app).isHittable, "the accessory is back")
-        shot("Swiped down", app)
+        shot("Swiped right", app)
+    }
+
+    /// Swiping right closes the recording card too (back into the accessory, recording goes on), and in a long
+    /// transcript swiping down and up scrolls it, keeping the card up; a swipe right then closes it.
+    @MainActor
+    func testSwipeRightClosesRecordingAndLongTranscriptScrolls() throws {
+        let app = launch(["-fakeBacklogMinutes", "3"])                      // a transcript long enough to scroll
+        startRecording(app)
+        XCTAssertTrue(app.buttons["Stop"].firstMatch.waitForExistence(timeout: 10))
+        swipeCardRight(app)
+        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "swiping right closes the recording card")
+        let accessory = app.buttons["Recording"].firstMatch
+        XCTAssertTrue(accessory.waitForExistence(timeout: 5), "recording goes on in the accessory")
+        accessory.tap()
+        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 5))
+        app.buttons["Stop"].firstMatch.tap()
+        let title = app.textFields["Title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 15), "the transcript in the card")
+        XCTAssertTrue(app.buttons["Share Transcript"].waitForExistence(timeout: 15))
+        RunLoop.current.run(until: .now + 1)
+        app.swipeUp()                                                       // scrolls the transcript: the title goes
+        XCTAssertTrue(waitUntil { !(title.exists && title.isHittable) }, "swiping up scrolls the transcript")
+        XCTAssertTrue(app.buttons["Minimize"].exists, "the card is still up")
+        app.swipeDown()
+        app.swipeDown()
+        XCTAssertTrue(waitUntil { title.exists && title.isHittable }, "swiping down scrolls back up")
+        XCTAssertTrue(app.buttons["Minimize"].exists, "swiping down doesn't close the card")
+        shot("Scrolled back", app)
+        swipeCardRight(app)
+        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "swiping right closes the transcript")
+        // Delete the recording, so test recordings don't pile up in the simulator's store.
+        let rows = app.buttons.matching(NSPredicate(format: "label CONTAINS ', Today at '"))
+        XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 5))
+        rows.element(boundBy: 0).tap()
+        assertCard(app)
+        app.buttons["Delete Transcript"].tap()
+        let confirm = app.buttons["Delete"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
+    }
+
+    @MainActor
+    private func waitUntil(timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
+        let end = Date.now.addingTimeInterval(timeout)
+        while Date.now < end {
+            if condition() { return true }
+            RunLoop.current.run(until: .now + 0.2)
+        }
+        return condition()
     }
 
     /// The card's actions are in the system's bottom toolbar (like Photos and Mail; Liquid Glass), not in a top menu:

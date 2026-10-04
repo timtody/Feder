@@ -39,6 +39,17 @@ final class SettingsTests: ScribeUITestCase {
         XCTAssertGreaterThan(expandedSearch.midX, width * 0.6, "Search at the right end: \(expandedSearch)")
 
         app.swipeUp()
+        // While the bar collapses for the first time after launch the accessory must never run under the Search
+        // circle (it did, for ~0.3 s, before the Search role was primed at launch; see MainView.isBarMinimized).
+        // Sampled as fast as XCUITest reads frames (every ~0.1 s) for 1.5 s.
+        var overlaps: [String] = []
+        let end = Date.now.addingTimeInterval(1.5)
+        while Date.now < end {
+            let r = record.frame, s = search.frame
+            if abs(r.midY - s.midY) < 6, r.maxX > s.minX + 1 { overlaps.append("record \(r) search \(s)") }
+        }
+        note("First collapse", overlaps.isEmpty ? "no overlap" : overlaps.joined(separator: "\n"))
+        XCTAssertTrue(overlaps.isEmpty, "the accessory ran under the Search circle during the first collapse: \(overlaps)")
         let minimized = waitFor { record.frame.midY > expandedSearch.minY - 10 }   // the accessory moves into the bar
         note("Minimized", "search \(search.frame), record \(record.frame), transcripts \(transcripts.frame), "
              + "settings \(settings.exists ? "\(settings.frame) hittable \(settings.isHittable)" : "gone")")

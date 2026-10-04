@@ -2,8 +2,9 @@ import SwiftUI
 
 /// The one full-screen card a transcript is always shown in, Apple Music's "Now Playing" for a transcript: the live
 /// recording (`RecordView`) while a session records, the saved transcript (`RecordingDetailView`) otherwise. A
-/// NavigationStack only for the system's bottom toolbar and the detail's sheets: there is no top bar (no Back, nothing
-/// at the top right); the grabber at the top and swiping down close the card (`onClose`).
+/// NavigationStack only for the system's bottom toolbar and the detail's sheets: there is no top bar (nothing at the
+/// top right); the glass back button at the top left and swiping the card to the right close it (`onClose`), as a
+/// pushed page is swiped away. Swiping down only scrolls the content (the zoom's own interactive dismissal is off).
 ///
 /// When Stop saves a recording, the same card turns into its transcript in place (no push, no new page), like Voice
 /// Memos' recording sheet: the recording already shows the transcript's title and date line where the transcript has
@@ -11,8 +12,8 @@ import SwiftUI
 /// transcript's fades in below; and the large Stop's Liquid Glass melts into the transcript's bottom toolbar (`Turn`).
 struct TranscriptCard: View {
     let content: TranscriptCardContent
-    /// The grabber, a failure screen's Close/Cancel and Delete: MainView dismisses the card (during a recording back
-    /// into the accessory, which keeps recording).
+    /// The back button, the swipe to the right, a failure screen's Close/Cancel and Delete: MainView dismisses the
+    /// card (during a recording back into the accessory, which keeps recording).
     let onClose: () -> Void
     let onRetry: () -> Void
     let namespace: Namespace.ID
@@ -23,6 +24,8 @@ struct TranscriptCard: View {
     @State private var turn: Turn?
     @State private var recordGeometry = RecordGeometry()
     @State private var transcriptReady = false       // the transcript has been on screen for a few frames
+    @State private var swipe: CGFloat = 0            // how far the card has been swiped to the right
+    @State private var width: CGFloat = 402
 
     /// What happens between Stop and the transcript's own toolbar.
     private struct Turn {
@@ -48,7 +51,7 @@ struct TranscriptCard: View {
                 // The recording stays under the transcript until the turn is over: its live text is still fading out.
                 if let session = turn?.session ?? (content.transcript == nil ? content.session : nil) {
                     RecordView(session: session, turn: turn?.clock, melts: turn?.melts == true,
-                               geometry: $recordGeometry, onClose: onClose, onRetry: onRetry, onMinimize: onClose)
+                               geometry: $recordGeometry, onClose: onClose, onRetry: onRetry)
                         .id(session.id)
                         .transition(.identity)              // the transcript's identical title and date line take over
                 }
@@ -79,6 +82,13 @@ struct TranscriptCard: View {
                     .opacity(0.01)
             }
         }
+        // Swiped to the right it follows the finger, then closes (zooming back into its source) or springs back.
+        .offset(x: swipe)
+        .background {
+            CardSwipeToClose(onChange: { swipe = $0 }, onEnd: swipeEnded)
+        }
+        .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { width = $0 })
+        .interactiveDismissDisabled()                // not the zoom's swipe down: vertical drags scroll the content
         .navigationTransition(.zoom(sourceID: content.sourceID, in: namespace))   // out of / back into its source
         // `initial`: a card opened while the recording is being saved (Stop, swiped down, the accessory's "Saving…"
         // tapped) turns too; without it, it never did, and its Stop looked active but did nothing.
@@ -97,6 +107,13 @@ struct TranscriptCard: View {
             }
         }
         .onChange(of: content.transcript.map(ObjectIdentifier.init)) { transcriptArrived() }
+    }
+
+    /// Lifted after a swipe: past a third of the width, or flicked, the card closes (UIKit's back gesture decides
+    /// alike); either way the content slides back into place, while the card zooms back or stays.
+    private func swipeEnded(translation: CGFloat, velocity: CGFloat) {
+        if translation > width / 3 || velocity > 500 { onClose() }
+        withAnimation(.easeOut(duration: 0.3)) { swipe = 0 }
     }
 
     private func meltLayer(clock: TurnClock?) -> some View {
@@ -357,58 +374,43 @@ final class TranscriptCardContent {
     static let recorderSource = "recorder"
 }
 
-/// Music's "Now Playing" grabber: a short bar at the top centre of the card says it can be swiped down; a tap closes it
-/// too. `hint` says where it goes (back into the accessory while recording, back to the list for a transcript).
-struct CardGrabber: View {
+/// The card's back button at the top left: a glass circle with a chevron, where a pushed page has its Back and where
+/// Photos puts it over a zoomed photo, the same glass as the search bar's close button. It says the card is swiped
+/// away to the right; a tap closes it too. `hint` says where it goes (back into the accessory while recording, back
+/// to the list for a transcript). Content scrolls under it (the glass shows it), so there is no band and no fade.
+struct CardCloseButton: View {
     let hint: LocalizedStringKey
     let action: () -> Void
 
-    /// The opaque band at the top that the grabber sits on (its 28 pt row, 8 pt from the top, and a little below it):
-    /// content scrolled up disappears under it, so nothing ever sits beside or under the grabber (Music's Now Playing).
-    static let band: CGFloat = 34
-    /// Below the band, scrolled-away content fades out over this height instead of being cut off at a line.
-    static let fade: CGFloat = 12
-    /// Where the card's content starts: below the band and its fade (at rest nothing is faded). The recording and the
-    /// transcript both start their title here.
-    static let contentTop: CGFloat = band + fade
+    static let size: CGFloat = 44
+    /// From the top safe area and from the leading edge (a navigation bar's leading item).
+    static let inset: CGFloat = 8, leading: CGFloat = 16
+    /// Where the card's content starts: below the button. The recording and the transcript both start their title here.
+    static let contentTop: CGFloat = inset + size + 8
 
     var body: some View {
         Button(action: action) {
-            Capsule()
-                .fill(.tertiary)
-                .frame(width: 36, height: 5)
-                .frame(width: 80, height: 28)
-                .contentShape(Rectangle())
+            Image(systemName: "chevron.left")
+                .font(.body.weight(.semibold))
+                .frame(width: Self.size, height: Self.size)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: Circle())
         .accessibilityLabel("Minimize")
         .accessibilityHint(hint)
     }
 }
 
 extension View {
-    /// The card's grabber floating over the top of this view on an opaque band (also under the status bar), with a
-    /// short fade below it. Not a top `safeAreaBar` (which gave the system's scroll edge effect): on iOS 27 that switched
-    /// off the transcript's text selection, a long press selected nothing and showed no Copy
-    /// (testLongPressMenusKeepTextSelection).
-    func cardGrabber(hint: LocalizedStringKey, action: @escaping () -> Void) -> some View {
-        overlay(alignment: .top) {
-            CardGrabber(hint: hint, action: action)
-                .padding(.top, 8)
-                .frame(maxWidth: .infinity)
-                .background(alignment: .top) {
-                    VStack(spacing: 0) {
-                        Color.clear
-                            .frame(height: CardGrabber.band)
-                            .background(Color(uiColor: .systemBackground).ignoresSafeArea(edges: .top))   // + status bar
-                        LinearGradient(colors: [Color(uiColor: .systemBackground),
-                                                Color(uiColor: .systemBackground).opacity(0)],
-                                       startPoint: .top, endPoint: .bottom)
-                            .frame(height: CardGrabber.fade)
-                    }
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-                }
+    /// The card's back button floating over the top left of this view. An overlay, not a top `safeAreaBar` (which
+    /// gave the system's scroll edge effect): on iOS 27 that switched off the transcript's text selection, a long
+    /// press selected nothing and showed no Copy (testLongPressMenusKeepTextSelection).
+    func cardCloseButton(hint: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+        overlay(alignment: .topLeading) {
+            CardCloseButton(hint: hint, action: action)
+                .padding(.top, CardCloseButton.inset)
+                .padding(.leading, CardCloseButton.leading)
         }
     }
 }

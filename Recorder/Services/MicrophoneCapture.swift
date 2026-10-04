@@ -4,12 +4,25 @@ import CoreMedia
 import Speech
 import Synchronization
 
+/// The audio hardware's own executor. Activating or deactivating the AVAudioSession and starting or stopping the
+/// AVAudioEngine block the calling thread (Apple: activation is "a synchronous (blocking) operation"; stopping the
+/// engine took ~70 ms on the simulator, which held the first frame of the Stop → toolbar turn), so none of it runs
+/// on the main actor. One actor for all of it keeps Apple's order even across recordings: a recording's engine
+/// stops and its session deactivates before the next recording activates the session.
+@globalActor
+actor AudioHardware {
+    static let shared = AudioHardware()
+}
+
 /// AVAudioEngine input tap -> AVAudioConverter (mic format -> analyzer format) -> AVAudioFile + AsyncStream<AnalyzerInput>,
 /// plus (live speaker labels) a second persistent converter -> mono Float32 at LiveAudio.sampleRate -> AsyncStream<[Float]>.
-@MainActor
-final class MicrophoneCapture: AudioCapture {
+@AudioHardware
+final class MicrophoneCapture: nonisolated AudioCapture {
     private let engine = AVAudioEngine()
-    private var tap: CaptureTap?
+    /// Everything the tap thread touches; the main actor seals it at Stop (seal), this actor replaces and drops it.
+    nonisolated private let tap = Mutex<CaptureTap?>(nil)
+
+    nonisolated init() {}
 
     func activateSession() throws {
         let session = AVAudioSession.sharedInstance()
@@ -88,17 +101,19 @@ final class MicrophoneCapture: AudioCapture {
             _ = tap.close()                // finishes the streams
             throw RecorderError.audioEngineFailed(error.localizedDescription)
         }
-        self.tap = tap
+        self.tap.withLock { $0 = tap }
         return stream
     }
 
-    func stop() -> TimeInterval {
+    nonisolated func seal() -> TimeInterval {
+        tap.withLock { $0?.close() ?? 0 }       // finishes the streams, closes the file (flushes the WAV header, iOS 18+)
+    }
+
+    func shutDown() {
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
-        let duration = tap?.close() ?? 0  // finishes the streams, closes the file (flushes the WAV header, iOS 18+)
-        tap = nil
+        tap.withLock { $0 = nil }
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        return duration
     }
 
     /// The tap closures MUST be built in a nonisolated context: a closure literal written inside a @MainActor method
