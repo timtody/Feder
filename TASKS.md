@@ -5,7 +5,8 @@ Known gaps left over from the recent work, most important first. Remove an item 
 ## Verify on the real device
 
 - [ ] **Try it on the iPhone 17.** Everything since the one-card redesign has been checked only in the simulator. That covers the Stop → toolbar melt, the timer flight, and the start time and place on the recording screen.
-- [ ] **Test on iOS 26.5.** The suite runs on both runtimes (`build/qa/uitests.sh`, about 25 minutes); iOS 26 gets the crossfade instead of the melt; check that this looks right on screen.
+- [ ] **Two iOS 26.5 failures that predate this pass.** `testSearchTabFocusAndKeyboardLeaveWithTab`: choosing the Transcripts tab from Search leaves the keyboard up on iOS 26.5 (MainView's `endEditing` doesn't reach it there). `testHeadingsScrollAway`: after scrolling the list and opening and closing Search, the tab bar stays minimized on iOS 26.5, so the Settings tab can't be tapped. Both fail identically with the baseline code (checked in a worktree of the first commit). Decide whether 26.5 gets a fix (e.g. expand the bar on a tab change) or the tests get a 27-only guard.
+- [ ] **iOS 26.5 on screen.** iOS 26 gets the crossfade instead of the melt; check that it looks right (the suite passes functionally apart from the two items above).
 - [ ] **Swipe to close and the audio actor on the iPhone.** The left-edge swipe, the back button, the haptics on the presses and the audio session/engine on the `AudioHardware` actor (start and Stop, AirPods route, interruptions) have been checked only in the simulator.
 - [ ] **Check VoiceOver under the open card.** While the card is up, the list and the tab bar underneath are probably still reachable with VoiceOver. A likely fix is `.accessibilityHidden(true)` on the TabView while the card is presented.
 
