@@ -279,13 +279,13 @@ Processing is fully on-device; only the models are fetched once (all FluidAudio 
 
 Every press should answer in its own frame; what is slow runs off the main actor and appears afterwards. Measured with `InteractionTrace` (DEBUG, `-interactionTrace`): a press's main-thread *turn* (everything SwiftUI and UIKit did before the run loop was free again) and the *first frame* of the new state (the view's first appearance, read on the next turn), driven by `ResponsivenessTests.testInteractionPathsTrace` on the iPhone 17 simulator (iOS 27, Debug, about 70 transcripts in the store; `build/qa/perf.sh <name>` builds, runs the test twice and streams the log). Two runs each, before and after this pass:
 
-| Press → first frame | before | after |
+| Press → first frame (two runs) | before | after |
 |---|---|---|
-| Transcribe → the card's first frame | 758 / 487 ms | 323 / 243 ms |
-| Stop → the turn's first frame | 130 / 115 ms | 76 / 49 ms |
-| a row → the transcript's first frame | 100 / 135 ms | 110 / 135 ms |
-| a tab (Settings, Transcripts, Search) | 168 / 86 / 480 ms | 179 / 94 / 259–645 ms |
-| the first results in Search | 432 / 293 ms | 621 / 215 ms |
+| Transcribe → the card's first frame | 758 / 487 ms | 364 / 241 ms |
+| Stop → the turn's first frame | 130 / 115 ms | 64 / 66 ms |
+| a row → the transcript's first frame (short / long transcript) | 100 / 130 ms | 98 / 130 ms |
+| a tab: Settings, Transcripts, Search (first time) | 170 / 87 / 480–340 ms | 161–177 / 86–89 / 254–262 ms |
+| the first results in Search | 432 / 293 ms | 211 / 218 ms |
 | a keystroke in Search | 5–19 ms | 3–13 ms |
 
 What changed and what is left (Time Profiler per press, `build/qa/perf/profile.sh`, symbolicated with `atos` against `Recorder.debug.dylib`): the Transcribe press used to block the main thread with the audio session's activation and the engine's start (now on the `AudioHardware` actor; the 120 ms start delay that hid it is gone) and Stop with the engine's stop (~70 ms, now off the main actor); the lists' bodies no longer re-run on every MainView update (the search actions moved from closure properties into the environment). The app's own code is now a single-digit share of each press (`MetaLineLayout`, a few SwiftData getters); the rest of a press is UIKit's presentation transition and SwiftUI's graph update in a Debug simulator build (the zoom presentation alone is ~50–95 ms there), and the first Search presentation is the keyboard plus the results' rows. The search index now reads the segments in batches of 8 recordings between frames (it read all of them in one update). Not measured on the iPhone, where a Release build without the simulator's software rendering is expected to be several times faster on every line.
