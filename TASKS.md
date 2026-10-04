@@ -25,6 +25,23 @@ Known gaps left over from the recent work, most important first. Remove an item 
 - [ ] **Midnight edge case.** `testRecordAccessoryFlow` checks for "Today at …". A recording that starts right at midnight would fail it.
 - [x] **Decide on `-fakeSilence`.** Kept, with its test: it is the only way to reach the discarded path.
 
+## Vocabulary: "Cofinpro" comes out as "Kufen Bro"
+
+Findings (Mac, macOS 27, a synthesized German sentence): Apple's dictation model with the vocabulary as contextual strings writes "Cofinpro" (without it "Coin Pro"; the live model writes "KoFin Pro" with or without, it ignores contextual strings), so the biasing itself works. On the phone three things can still swallow it, all silently: the dictation pass runs under `try?` (a missing asset or an error leaves the words as they are); the merge window (the term's dictation time range ± 0.15 s must contain the middle of every replaced Parakeet word) can exclude the second word, so only "Kufen" is compared; and the edit-distance gate is at its limit for this pair ("kufenbro" vs "cofinpro" is 4 edits, the maximum at 8 letters; "Kufen Brot" fails). The pass also runs late (after the speakers, ~1 s per audio minute on an M5, slower on the phone).
+
+- [ ] **Diagnose on the iPhone.** DEBUG-log which terms the dictation pass found, where, and why a merge was rejected (window or distance); store per transcript whether the pass ran. One recording saying "Cofinpro" then names the failing gate (`[Scribe] full-accuracy pass: … terms merged` in Console).
+- [ ] **Phonetic matching as a second path** in `VocabularyMerge`: Kölner Phonetik codes "Cofinpro", "Kufen Bro", "Kufenbro" and "KoFin Pro" all as 43617 ("BaFin"/"Bufin" 136, "MaRisk"/"Marisk" 6784). Scan Parakeet's words in windows of 1–3 words and replace a span with the term's code, gated by a Parakeet confidence below 0.7 or a word the spell checker doesn't know ("Kaufen Pro" has the same code: the gate's test case). Works without the dictation pass and before it has run.
+- [ ] **Loosen the merge:** window = the dictation word's range plus the gaps to its neighbours; distance limit relative to the shorter string.
+- [ ] **People's names into the contextual strings** (acoustic biasing for free).
+- [ ] **Measure** on the 80-clip harness: term accuracy and false replacements before and after. A Mac probe (`swiftc` + Speech, `say -v Anna`) reproduces the chain without a phone.
+
+## Post-stop pipeline: visibility and order
+
+- [ ] **Time each step on the iPhone** (signposts at the `[Scribe] queue:` boundaries; durations stored on the `Recording`, additive): words (Parakeet), speakers (Nemotron), vocabulary pass, title/summary. Nothing in this pipeline has been timed on a device.
+- [ ] **Run the title before the vocabulary pass** (it needs only the final words), skip the vocabulary pass when the vocabulary is empty, keep Parakeet loaded briefly after a job.
+- [ ] **Show the pipeline:** a step row under the date line ("Words · Speakers · Vocabulary · Summary", the active one with `.variableColor.iterative`, finished ones with a drawn checkmark and their time) replacing the three status strings; brief highlights on words changed by Parakeet and by the vocabulary pass; a shimmering placeholder and a streamed summary (`TitleAndSummary` is `@Generable`, Foundation Models can stream it; MLX streams too) with the `apple.intelligence` glyph; a pulsing `person.2.wave.2` in list rows while a transcript is in flight. Reduce Motion variants for all of it.
+- [ ] **Smart Corrections with Gemma: an experiment, not a switch.** Whole-transcript context plus a glossary (People, vocabulary, place), edit list only, the existing code-side guards plus "never introduce a glossary term where nothing was suspect"; measure WER/CER, term and name accuracy and false edits on the 80 clips with Parakeet words. Ship only if not worse on WER and clearly better on terms; otherwise remove Smart Corrections (measured 11.0 → 11.2 % with Apple's model).
+
 ## Polish
 
 - [x] **Faint chip edge in the grabber fade.** Gone with the grabber and its band: the content scrolls under the back button's glass.
