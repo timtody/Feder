@@ -53,7 +53,8 @@ struct RecordingDetailView: View {
 
     var body: some View {
         let segments = recording.segments                 // read once per body (the SwiftData array is decoded on access)
-        let showsPipeline = recording.speakerStatus != .done || services.identifier.progress[recording.id] != nil
+        let statusText = PipelineStatusLine.text(for: recording, identifier: services.identifier)
+        let showsNote = SpeakerStatusNote.applies(to: recording, identifier: services.identifier)
         ScrollViewReader { proxy in
           ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -76,6 +77,12 @@ struct RecordingDetailView: View {
                                            place: recording.placeName)
                             .opacity(turning ? 0 : 1)
                             .animation(nil, value: turning)
+                        // What is being done to the transcript right now, one line, until the last step ends.
+                        if statusText != nil {
+                            PipelineStatusLine(recording: recording)
+                                .opacity(bodyShown ? 1 : 0)
+                                .transition(.opacity)
+                        }
                         // The automatic summary (TranscriptTitler), once there is one; while the model writes it, its
                         // text as far as it goes, and before that a placeholder.
                         if let summary = recording.summary, !summary.isEmpty {
@@ -90,13 +97,14 @@ struct RecordingDetailView: View {
                     TagEditor(recording: recording)
                         .opacity(bodyShown ? 1 : 0)
 
-                    if showsPipeline {
-                        PipelineStatusRow(recording: recording)
+                    if showsNote {
+                        SpeakerStatusNote(recording: recording)
                             .opacity(bodyShown ? 1 : 0)
                             .transition(.opacity)
                     }
                 }
-                .animation(.snappy, value: showsPipeline)        // the row goes away softly after the last step
+                .animation(.snappy, value: statusText == nil)    // the line goes away softly after the last step
+                .animation(.snappy, value: showsNote)
                 // No spacing above: the first name row brings its own (the space above a name is part of its target).
                 TranscriptView(segments: segments, speakerName: recording.speakerName(_:),
                                preliminary: recording.speakerStatus != .done, preliminaryNotice: preliminaryNotice,

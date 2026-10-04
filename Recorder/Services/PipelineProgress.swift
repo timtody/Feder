@@ -1,6 +1,6 @@
 import Foundation
 
-/// What happens to a transcript after Stop, as the card shows it (PipelineStatusRow): one step each for the words
+/// What happens to a transcript after Stop, as the card shows it (PipelineStatusLine): one step each for the words
 /// (Parakeet or Apple's recognizer), the speakers (Nemotron or pyannote, voices, recognition), the vocabulary pass and
 /// the title and summary. A step is listed only when it applies to the transcript (an older transcript described by
 /// the title sweep has only the summary step). SpeakerIdentifier keeps one per transcript in flight and drops it a
