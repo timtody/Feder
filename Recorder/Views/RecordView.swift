@@ -127,6 +127,9 @@ struct RecordView: View {
         .background(Color(uiColor: .systemBackground).ignoresSafeArea())
         // A failure after Stop (the turn had begun) crossfades to its screen instead of cutting to it.
         .animation(.easeOut(duration: 0.25), value: isFailed)
+        #if DEBUG
+        .onAppear { InteractionTrace.shown("transcribe"); InteractionTrace.shown("reopen") }
+        #endif
         .sensoryFeedback(trigger: session.state) { old, new in
             switch (old, new) {
             case (_, .recording): .impact(weight: .medium)        // recording started
@@ -269,6 +272,9 @@ struct RecordView: View {
         case .recording, .finishing, .finished:
             let isBusy = !isRecording
             Button {
+                #if DEBUG
+                InteractionTrace.begin("stop")
+                #endif
                 Task { await session.stop() }
             } label: {
                 // Busy (dimmed, a spinner) while saving or discarding without a turn: during a turn the Stop is

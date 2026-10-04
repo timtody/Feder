@@ -21,6 +21,10 @@ final class FakeTranscriber: Transcriber {
     nonisolated static var silent: Bool { ProcessInfo.processInfo.arguments.contains("-fakeSilence") }
 
     func prepare(locale: Locale, onDownloadProgress: @escaping @MainActor (Progress) -> Void) async throws -> TranscriberSetup {
+        // `-fakePrepareSeconds 5`: preparing takes that long, as a slow speech-model load would (the UI tests check
+        // that the card is up long before).
+        let seconds = UserDefaults.standard.double(forKey: "fakePrepareSeconds")
+        if seconds > 0 { try await Task.sleep(for: .seconds(seconds)) }
         let format = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16_000, channels: 1, interleaved: true)!
         return TranscriberSetup(locale: locale, audioFormat: format)
     }

@@ -134,6 +134,9 @@ struct RecordingDetailView: View {
         .contentMargins(.top, CardGrabber.contentTop, for: .scrollContent)
         .cardGrabber(hint: "Back to the transcripts", action: onClose)
         .task(id: search) { await showFirstHit() }
+        #if DEBUG
+        .onAppear { InteractionTrace.shown("open") }
+        #endif
         .onChange(of: recording.segments) { findHits() }   // the vocabulary pass or a new speaker count rewrote them
         .onChange(of: recording.speakerStatusRaw) {        // "Speakers: n" re-runs identification: numbers change
             if recording.speakerStatus != .done { renaming = nil }

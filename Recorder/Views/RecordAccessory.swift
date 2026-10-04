@@ -77,6 +77,9 @@ struct RecordAccessory: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { open() }
             Button {
+                #if DEBUG
+                InteractionTrace.begin("stop")
+                #endif
                 Task { await session.stop() }
             } label: {
                 RoundedRectangle(cornerRadius: 3, style: .continuous)

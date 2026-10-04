@@ -155,6 +155,10 @@ struct RecordingsListView: View {
                 guard !Task.isCancelled else { return }        // typed again meanwhile
                 appliedQuery = query
             }
+            #if DEBUG
+            .onChange(of: query) { if isSearch { InteractionTrace.begin("type"); InteractionTrace.shown("type") } }
+            .onChange(of: search.resultsQuery) { if isSearch { InteractionTrace.begin("results"); InteractionTrace.shown("results") } }
+            #endif
             .onChange(of: searchInput, initial: true) { _, input in
                 guard let input else { return }
                 search.update(recordings: recordings, people: input.people, query: input.query)

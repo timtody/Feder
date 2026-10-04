@@ -188,6 +188,9 @@ final class TurnClock {
     /// same date. Past the end once it is over. Not observed: it changes in every frame, during the views' updates.
     func time(at date: Date) -> TimeInterval {
         if isOver { return .infinity }
+        #if DEBUG
+        if lastFrame == nil { InteractionTrace.shown("stop") }   // the first frame drawn after Stop
+        #endif
         if let lastFrame {
             guard date > lastFrame else { return elapsed }
             elapsed += min(date.timeIntervalSince(lastFrame), Self.maxStep)

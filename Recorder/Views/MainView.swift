@@ -39,7 +39,12 @@ struct MainView: View {
     @State private var tab: AppTab = .transcripts
     @State private var searchState = SearchState()
     @State private var tabBeforeSearch: AppTab = .transcripts
-    @State private var isBarMinimized = false            // the accessory is inline: Search shows as its own circle
+    /// The accessory is inline (the bar minimized): Search shows as its own circle (`Tab(role: .search)`). It starts
+    /// `true` and the accessory sets it right on its first appearance (before the first frame): the Search circle
+    /// then exists from launch. Created only at the first collapse, the circle came late to the minimized bar's
+    /// layout, and the accessory was first laid out as wide as without it, running under the circle for ~0.3 s
+    /// before it snapped to its width (iPhone 17 simulator, iOS 27, frame by frame); every later collapse was fine.
+    @State private var isBarMinimized = true
     // The card. Its content stays until the cover's onDismiss: cleared in the same update that closed it, the card
     // went blank and lost its zoom back while it was still shrinking.
     @State private var showsCard = false
@@ -123,6 +128,9 @@ struct MainView: View {
     /// The tab selection; a tap on Search, also on the current one, asks the search field for the focus (keyboard up).
     private var tabSelection: Binding<AppTab> {
         Binding(get: { tab }, set: { new in
+            #if DEBUG
+            InteractionTrace.begin("tab"); InteractionTrace.shown("tab")   // the tabs are alive: the next commit shows it
+            #endif
             if new == .search { searchState.focusRequest += 1 }
             tab = new
         })
@@ -150,6 +158,9 @@ struct MainView: View {
 
     /// A transcript from a list: the card zooms out of its row.
     private func openCard(_ recording: Recording, search: TranscriptSearchContext?, sourceID: String) {
+        #if DEBUG
+        InteractionTrace.begin("open")
+        #endif
         endEditing()
         present(CardRequest(transcript: recording, search: search, sourceID: sourceID))
     }
@@ -197,6 +208,9 @@ struct MainView: View {
 
     /// Transcribe (the accessory): a fresh session, started here so it survives the card being swiped down.
     private func startRecording() {
+        #if DEBUG
+        InteractionTrace.begin(activeSession == nil ? "transcribe" : "reopen")
+        #endif
         guard activeSession == nil else { openRecorder(); return }
         let session = services.makeRecordingSession()
         activeSession = session
