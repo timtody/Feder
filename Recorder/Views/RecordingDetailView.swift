@@ -33,7 +33,7 @@ struct RecordingDetailView: View {
     @State private var deleteOnDisappear = false
     @State private var hits: [UUID] = []             // paragraphs with search hits, in transcript order
     @State private var hitIndex = 0
-    @State private var position = ScrollPosition(idType: UUID.self)
+    @State private var scroller: ScrollViewProxy?    // scrolls to a search hit (reveal)
     @State private var renaming: SpeakerRenameTarget?
     @State private var bodyShown: Bool
     @State private var hitGeometry = HitGeometry()
@@ -53,7 +53,9 @@ struct RecordingDetailView: View {
 
     var body: some View {
         let segments = recording.segments                 // read once per body (the SwiftData array is decoded on access)
-        ScrollView {
+        let showsPipeline = recording.speakerStatus != .done || services.identifier.progress[recording.id] != nil
+        ScrollViewReader { proxy in
+          ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 20) {
                     // Tap the title to rename: a plain text field, no menu. A blank title falls back to "Untitled
@@ -74,9 +76,13 @@ struct RecordingDetailView: View {
                                            place: recording.placeName)
                             .opacity(turning ? 0 : 1)
                             .animation(nil, value: turning)
-                        // The automatic summary (TranscriptTitler), once there is one.
+                        // The automatic summary (TranscriptTitler), once there is one; while the model writes it, its
+                        // text as far as it goes, and before that a placeholder.
                         if let summary = recording.summary, !summary.isEmpty {
                             SummaryText(summary: summary, highlights: search?.highlights(in: summary) ?? [])
+                                .opacity(bodyShown ? 1 : 0)
+                        } else if case .running = services.identifier.progress[recording.id]?.state(of: .summary) {
+                            SummaryInProgress(recordingID: recording.id)   // reads the streamed text itself
                                 .opacity(bodyShown ? 1 : 0)
                         }
                     }
@@ -84,25 +90,24 @@ struct RecordingDetailView: View {
                     TagEditor(recording: recording)
                         .opacity(bodyShown ? 1 : 0)
 
-                    if recording.speakerStatus != .done {
-                        SpeakerStatusRow(recording: recording)
-                            .padding(12)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+                    if showsPipeline {
+                        PipelineStatusRow(recording: recording)
                             .opacity(bodyShown ? 1 : 0)
+                            .transition(.opacity)
                     }
                 }
+                .animation(.snappy, value: showsPipeline)        // the row goes away softly after the last step
                 // No spacing above: the first name row brings its own (the space above a name is part of its target).
                 TranscriptView(segments: segments, speakerName: recording.speakerName(_:),
                                preliminary: recording.speakerStatus != .done, preliminaryNotice: preliminaryNotice,
                                renameSpeaker: { renaming = SpeakerRenameTarget(speaker: $0) },
                                search: search, currentHit: hits.indices.contains(hitIndex) ? hits[hitIndex] : nil,
-                               hitFrame: search == nil ? nil : { id, frame in hitGeometry.frames[id] = frame })
+                               hitFrame: search == nil ? nil : { id, frame in hitGeometry.frames[id] = frame },
+                               flashes: flashes)
                     .animation(.snappy, value: segments)             // refined speakers re-split it: no jump
                     .opacity(bodyShown ? 1 : 0)
             }
             .coordinateSpace(.named(TranscriptView.contentSpace))
-            .scrollTargetLayout()
             .padding(.horizontal, TranscriptStyle.margin)
             .padding(.bottom, 24)
             .frame(maxWidth: TranscriptStyle.maxWidth)
@@ -110,7 +115,10 @@ struct RecordingDetailView: View {
             .animation(.snappy, value: recording.speakerStatusRaw)   // row collapse + paragraph -> speaker turns
         }
         .scrollDismissesKeyboard(.interactively)        // swiping the transcript ends (and saves) an edit
-        .scrollPosition($position, anchor: .center)
+        // A ScrollViewReader, not a `scrollPosition` binding, for the search hits: the binding tracked the paragraph
+        // near the anchor and kept it in place when the content changed (the steps row making the content taller
+        // than the screen, then the refined speakers inserting a turn), which moved the title and date line 10 pt
+        // (pixel track on the iPhone 17 simulator; testRecordAccessoryFlow measured 4-23 pt).
         // The soft edge under the bottom toolbar, as in Notes and Mail (and as the live view has under its Stop).
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaBar(edge: .bottom) {
@@ -173,6 +181,8 @@ struct RecordingDetailView: View {
             AudioFileStore.delete(fileName: recording.audioFileName)
             modelContext.delete(recording)
             try? modelContext.save()
+        }
+        .onAppear { scroller = proxy }
         }
     }
 
@@ -298,7 +308,7 @@ struct RecordingDetailView: View {
     /// where it is: centring it pulled the title up under the back button.
     private func reveal(_ hit: UUID) {
         if let frame = hitGeometry.frames[hit], hitGeometry.visible.contains(frame) { return }
-        position.scrollTo(id: hit, anchor: .center)
+        scroller?.scrollTo(hit, anchor: .center)
     }
 
     /// The "Speakers" picker: automatic or an exact count. Choosing re-runs speaker identification; with names given,
@@ -336,6 +346,41 @@ struct RecordingDetailView: View {
         renaming = SpeakerRenameTarget(speaker: speaker)
     }
     #endif
+
+    /// The flashes for a paragraph: the recently replaced words (SpeakerIdentifier.recentChanges) that fall into it,
+    /// as ranges of its text. The paragraph's text is its words joined by spaces (TranscriptAligner.fold); when that
+    /// doesn't hold (older data), nothing flashes.
+    private var flashes: ((TranscriptSegment) -> [ChangeFlash])? {
+        guard let changes = services.identifier.recentChanges[recording.id], !changes.isEmpty else { return nil }
+        let words = recording.words
+        return { segment in
+            // Words are in time order: from the first that starts at the paragraph (binary search), while inside it.
+            // Called per paragraph on screen only (the transcript is a LazyVStack).
+            var low = 0, high = words.count
+            while low < high {
+                let mid = (low + high) / 2
+                if words[mid].start < segment.start - 0.001 { low = mid + 1 } else { high = mid }
+            }
+            let inside = words[low...].prefix { $0.end <= segment.end + 0.001 }
+            guard inside.map(\.text).joined(separator: " ") == segment.text else { return [] }
+            var result: [ChangeFlash] = []
+            var index = segment.text.startIndex
+            for word in inside {
+                let end = segment.text.index(index, offsetBy: word.text.count)
+                if let change = changes.first(where: { word.start < $0.end + 0.001 && word.end > $0.start - 0.001 }) {
+                    if let last = result.last, last.range.upperBound == index || segment.text[last.range.upperBound..<index] == " ",
+                       last.vocabulary == change.vocabulary {
+                        result[result.count - 1].range = last.range.lowerBound..<end
+                    } else {
+                        result.append(ChangeFlash(range: index..<end, vocabulary: change.vocabulary, at: change.at))
+                    }
+                }
+                guard end < segment.text.endIndex else { break }
+                index = segment.text.index(after: end)              // the space
+            }
+            return result
+        }
+    }
 
     private var titleText: Binding<String> {
         Binding(get: { recording.name }, set: { name in

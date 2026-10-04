@@ -22,6 +22,9 @@ struct TranscriptView: View {
     /// Gets each paragraph's frame in `contentSpace` (set by the card opened from a search, to reveal a hit only when
     /// it is off screen).
     var hitFrame: ((UUID, CGRect) -> Void)? = nil
+    /// The stretches of a paragraph whose words a pass just replaced (RecordingDetailView, from
+    /// SpeakerIdentifier.recentChanges): shown with a tint that fades (ChangeFlash); nil: none.
+    var flashes: ((TranscriptSegment) -> [ChangeFlash])? = nil
 
     /// The coordinate space of the scroll view's content the paragraph frames are in.
     nonisolated static let contentSpace = "TranscriptContent"
@@ -66,7 +69,7 @@ struct TranscriptView: View {
     }
 
     private func paragraph(index: Int, segment: TranscriptSegment) -> some View {
-        SearchHighlight.text(segment.text, search?.highlights(in: segment.text) ?? [])
+        paragraphText(segment)
             .textSelection(.enabled)
             .background {
                 if segment.id == currentHit {
@@ -80,6 +83,17 @@ struct TranscriptView: View {
             }
             .accessibilityValue(segment.id == currentHit ? "Current match" : "")
             .accessibilityIdentifier("Paragraph.\(index)")
+    }
+
+    /// The paragraph's text: with its search hits highlighted, or, right after a pass replaced some of its words, with
+    /// those flashing (not both: a card opened from a search shows the hits).
+    @ViewBuilder
+    private func paragraphText(_ segment: TranscriptSegment) -> some View {
+        if search == nil, let flashes = flashes?(segment), !flashes.isEmpty {
+            ChangeFlashText(text: segment.text, flashes: flashes)
+        } else {
+            SearchHighlight.text(segment.text, search?.highlights(in: segment.text) ?? [])
+        }
     }
 
     @ViewBuilder

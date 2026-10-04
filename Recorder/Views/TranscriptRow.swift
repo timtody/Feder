@@ -10,6 +10,9 @@ struct TranscriptRow: View {
     let result: SearchResult?
     let addTagToken: (String) -> Void
 
+    @Environment(AppServices.self) private var services
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
@@ -43,8 +46,12 @@ struct TranscriptRow: View {
             }
             if recording.speakerStatus != .done {
                 Spacer()
+                // Pulsing while the transcript is being worked on, still while it waits (offline, model missing).
                 Image(systemName: "person.2.wave.2")
                     .foregroundStyle(.secondary)
+                    .symbolEffect(.pulse, options: .repeating,
+                                  isActive: !reduceMotion && (services.identifier.inFlight.contains(recording.id)
+                                                              || services.identifier.progress[recording.id] != nil))
                     .accessibilityLabel("Speakers not identified yet")
             }
         }

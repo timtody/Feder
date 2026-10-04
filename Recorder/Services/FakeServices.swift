@@ -29,15 +29,35 @@ final class FakeTranscriber: Transcriber {
         return TranscriberSetup(locale: locale, audioFormat: format)
     }
 
+    /// The canned text, cycled; FakeFileTranscriber reproduces it with the same timing (`-fakeWordChanges`).
+    nonisolated static let sentences = [
+        "Okay, let's get started with a quick test of the live transcript.",
+        "New words show up at once, and provisional ones stay a little lighter until they're final.",
+        "A new speaker starts a new paragraph at once, and the name follows when the label holds.",
+        "Scroll up to reread something, and the view stops following until you jump back to live.",
+    ].map { $0.split(separator: " ").map(String.init) }
+
+    /// The canned words as the live pass times them (0.3 s apart from 0.3 s, a 2.5 s pause after every second
+    /// sentence), up to `duration` seconds.
+    nonisolated static func cannedWords(upTo duration: TimeInterval) -> [TranscriptWord] {
+        var words: [TranscriptWord] = []
+        var clock: TimeInterval = 0.3
+        var index = 0
+        while clock < duration {
+            for token in sentences[index % sentences.count] where clock < duration {
+                words.append(TranscriptWord(text: token, start: clock, end: clock + 0.25))
+                clock += 0.3
+            }
+            if index % 2 == 1 { clock += 2.5 }
+            index += 1
+        }
+        return words
+    }
+
     func start(input: AsyncStream<AnalyzerInput>, onEvent: @escaping @MainActor (TranscriptionEvent) -> Void) async throws {
         drain = Task { for await _ in input {} }
         guard !Self.silent else { return }              // the audio is drained (and written), nothing is heard
-        let sentences = [
-            "Okay, let's get started with a quick test of the live transcript.",
-            "New words show up at once, and provisional ones stay a little lighter until they're final.",
-            "A new speaker starts a new paragraph at once, and the name follows when the label holds.",
-            "Scroll up to reread something, and the view stops following until you jump back to live.",
-        ].map { $0.split(separator: " ").map(String.init) }
+        let sentences = Self.sentences
         producer = Task {
             var clock: TimeInterval = 0.3
             var first = 0                                 // first sentence after the backlog
@@ -87,16 +107,37 @@ final class FakeTranscriber: Transcriber {
 
 /// The simulator has no SpeechTranscriber: the full-accuracy pass "finds nothing better", so the live words stay, and
 /// the vocabulary pass changes nothing (both after a delay, so their status rows and the background pass show).
+/// QA: `-fakeWordChanges` makes the full-accuracy pass return the canned words with two of them changed ("quick" ->
+/// "brief", "lighter" -> "fainter") and the vocabulary pass replace "transcript" with "Protokoll", so the card's
+/// flashes for replaced words can be seen.
 final class FakeFileTranscriber: FileTranscriber {
+    nonisolated static var changesWords: Bool { ProcessInfo.processInfo.arguments.contains("-fakeWordChanges") }
+
     func transcribe(fileURL: URL, locale: Locale) async throws -> FileTranscript {
         try await Task.sleep(for: .seconds(1))
-        return FileTranscript(words: [], confidences: [], alignmentOffset: 0)
+        guard Self.changesWords else { return FileTranscript(words: [], confidences: [], alignmentOffset: 0) }
+        let duration = (try? AVAudioFile(forReading: fileURL)).map { Double($0.length) / $0.fileFormat.sampleRate } ?? 12
+        let words = FakeTranscriber.cannedWords(upTo: duration).map { word in
+            var word = word
+            switch word.text.trimmingCharacters(in: .punctuationCharacters) {
+            case "quick": word.text = word.text.replacingOccurrences(of: "quick", with: "brief")
+            case "lighter": word.text = word.text.replacingOccurrences(of: "lighter", with: "fainter")
+            default: break
+            }
+            return word
+        }
+        return FileTranscript(words: words, confidences: words.map { _ in 0.9 }, alignmentOffset: 0)
     }
 
     func applyVocabulary(to words: [TranscriptWord], confidences: [Double]?, fileURL: URL,
                          locale: Locale) async -> [TranscriptWord] {
         try? await Task.sleep(for: .seconds(2))
-        return words
+        guard Self.changesWords else { return words }
+        return words.map { word in
+            var word = word
+            word.text = word.text.replacingOccurrences(of: "transcript", with: "Protokoll")
+            return word
+        }
     }
 }
 

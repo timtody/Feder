@@ -23,7 +23,12 @@ final class SpeakerIdentifier {
 
     private(set) var modelError: RecorderError?      // last prepare() failure (typically: offline on first launch)
     private(set) var inFlight: Set<UUID> = []        // Recording.ids queued or being identified (or getting new voices)
-    private(set) var refining: Set<UUID> = []        // ... of which these are in the full-accuracy pass (the words)
+    /// The steps after Stop per transcript in flight (the card's status row); dropped shortly after the last step.
+    private(set) var progress: [UUID: PipelineProgress] = [:]
+    /// Words a pass just replaced, per transcript, for a few seconds (the card flashes them).
+    private(set) var recentChanges: [UUID: [WordChange]] = [:]
+    /// The summary as the model writes it, per transcript, until it is saved.
+    private(set) var partialSummaries: [UUID: String] = [:]
 
     private let diarizer: any SpeakerDiarizer
     private let fileTranscriber: any FileTranscriber
@@ -37,7 +42,7 @@ final class SpeakerIdentifier {
     @ObservationIgnored private var sweepPasses: [BackgroundPass] = []   // older transcripts' titles, newest first
     @ObservationIgnored private var backgroundWorker: Task<Void, Never>?
     @ObservationIgnored private var isRecording = false
-    @ObservationIgnored private var waitingForGemma: [Recording] = []   // described when the recording ends
+    @ObservationIgnored private var waitingForGemma: [(id: UUID, recording: Recording)] = []   // described when the recording ends
     @ObservationIgnored private var sweepWaiters: [CheckedContinuation<Void, Never>] = []   // sweeps waiting for Stop
     @ObservationIgnored private var migratingVoices = false        // refreshVoices() is running
     @ObservationIgnored private var fingerprintsMigrated = true    // false while it still refreshes people's samples
@@ -67,7 +72,9 @@ final class SpeakerIdentifier {
         // Transcripts whose Gemma description waited for the recording to end (or was stopped by it) go again first.
         let waiting = waitingForGemma
         waitingForGemma = []
-        for recording in waiting where !isGone(recording) { enqueueBackgroundPass(recording, confidences: nil, fresh: true) }
+        for entry in waiting where !isGone(entry.recording) {
+            enqueueBackgroundPass(entry.recording, confidences: nil, fresh: true)
+        }
         let waiters = sweepWaiters
         sweepWaiters = []
         for waiter in waiters { waiter.resume() }
@@ -114,7 +121,43 @@ final class SpeakerIdentifier {
 
     /// Used right after a recording is saved, by "Try Again" in the detail view and by the launch sweep.
     func enqueue(_ recording: Recording) {
+        guard !inFlight.contains(recording.id) else { return }
+        let wordsToCome = !recording.wordsRefined
+        progress[recording.id] = nil                   // a re-run (Try Again, Speakers: n) starts from a clean row
+        track(recording.id) { progress in              // what the card will show while the recording is queued
+            if wordsToCome { progress.expect(.words) }
+            progress.expect(.speakers)
+            if wordsToCome || recording.vocabularyPending { progress.expect(.vocabulary) }
+            if canDescribe { progress.expect(.summary) }
+        }
         enqueueJob(for: recording) { await self.identify(recording) }
+    }
+
+    /// A model that writes titles and summaries is there (Apple's, or Gemma).
+    private var canDescribe: Bool { titler.isAvailable || betterSummaries.activeModel != nil }
+
+    /// Shows the words a pass replaced for a few seconds.
+    private func flash(_ changes: [WordChange], in id: UUID) {
+        guard !changes.isEmpty else { return }
+        recentChanges[id] = changes
+        Task {
+            try? await Task.sleep(for: .seconds(6))
+            if recentChanges[id] == changes { recentChanges[id] = nil }
+        }
+    }
+
+    /// Records a step of `id`'s pipeline; once every listed step has ended, the record goes after a moment (the
+    /// row shows the last checkmark, then disappears).
+    private func track(_ id: UUID, _ change: (inout PipelineProgress) -> Void) {
+        var record = progress[id] ?? PipelineProgress()
+        change(&record)
+        // Nothing listed (a sweep found nothing to do): no record, so no empty row.
+        progress[id] = record.steps.isEmpty ? nil : record
+        guard record.isComplete else { return }
+        Task {
+            try? await Task.sleep(for: .seconds(2.5))
+            if progress[id]?.isComplete == true { progress[id] = nil }
+        }
     }
 
     /// The detail menu's "Speakers" choice: stores it, resets the speaker names (indices change), and re-runs
@@ -215,8 +258,9 @@ final class SpeakerIdentifier {
     }
 
     private func identify(_ recording: Recording) async {
-        guard !isGone(recording), recording.speakerStatus != .done else { return }
+        guard !isGone(recording) else { return }
         let id = recording.id
+        guard recording.speakerStatus != .done else { progress[id] = nil; return }
         #if DEBUG
         print("[Scribe] queue: identify \(id.uuidString.prefix(8))")
         #endif
@@ -234,39 +278,54 @@ final class SpeakerIdentifier {
         // pass is due once speakers are done.
         var confidences: [Double]?
         if needsWords {
-            refining.insert(id)
+            track(id) { $0.begin(.words) }
             let transcript = try? await fileTranscriber.transcribe(fileURL: url, locale: locale)
-            refining.remove(id)
-            guard !isGone(recording) else { return }
+            guard !isGone(recording) else { progress[id] = nil; return }
             if let transcript, !transcript.words.isEmpty {
+                let changes = WordChange.changes(from: recording.words, to: transcript.words, vocabulary: false)
                 recording.words = transcript.words
                 recording.alignmentOffset = transcript.alignmentOffset
                 recording.segments = TranscriptAligner.segments(words: transcript.words, turns: liveTurns)
                 confidences = transcript.confidences
+                flash(changes, in: id)
             }
             recording.wordsRefined = true
             recording.vocabularyPending = true
             try? modelContext.save()
+            track(id) { $0.finish(.words, failed: transcript == nil) }   // threw; "nothing better" is still done
         }
 
-        // 2. Diarization of the same file.
+        // 2. Diarization of the same file. DEBUG: the parts of the speakers step, since "Speakers · 36 s" on an iPhone
+        // says nothing about which of them it was (the first-run model compile, the turns, or the voices).
+        track(id) { $0.begin(.speakers) }
+        let speakersStarted = ContinuousClock.now
         let ready = await prepareModel()
-        guard !isGone(recording) else { return }
+        #if DEBUG
+        print("[Scribe] queue: speakers \(id.uuidString.prefix(8)): model ready after \(Self.ms(since: speakersStarted))")
+        #endif
+        guard !isGone(recording) else { progress[id] = nil; return }
         guard ready else {
             recording.speakerStatus = .pending                // retried by the next prepareAndRetryPending()
             try? modelContext.save()
+            progress[id] = nil                                // the row shows the download note instead
             return
         }
         do {
             let diarization = try await diarizer.diarization(fileURL: url,
                                                              speakers: override.map { .exactly($0) } ?? .automatic)
-            guard !isGone(recording) else { return }
+            #if DEBUG
+            print("[Scribe] queue: speakers \(id.uuidString.prefix(8)): turns after \(Self.ms(since: speakersStarted))")
+            #endif
+            guard !isGone(recording) else { progress[id] = nil; return }
             // 3. + 4. The final labels, and each speaker's voice from them.
             let words = recording.words
             let labels = TranscriptAligner.finalSpeakers(words: words, turns: diarization.turns,
                                                          offset: recording.alignmentOffset)
             let voices = try? await diarizer.voices(fileURL: url, windows: VoiceWindows.windows(words: words, speakers: labels))
-            guard !isGone(recording) else { return }
+            #if DEBUG
+            print("[Scribe] queue: speakers \(id.uuidString.prefix(8)): voices after \(Self.ms(since: speakersStarted))")
+            #endif
+            guard !isGone(recording) else { progress[id] = nil; return }
             recording.speakerTurns = diarization.turns
             recording.diarizer = diarization.diarizer            // pyannote's speakers are recognized more strictly
             recording.segments = Self.finalSegments(of: recording)   // current words: the vocabulary pass may have run
@@ -275,14 +334,18 @@ final class SpeakerIdentifier {
             recording.speakerStatus = .done
             // 5. Known voices get their names, once the voice migration has refreshed people's samples.
             if fingerprintsMigrated { people.recognize(recording, save: false) } else { awaitingRecognition.insert(id) }
+            track(id) { $0.finish(.speakers) }
         } catch {
-            guard !isGone(recording) else { return }
+            guard !isGone(recording) else { progress[id] = nil; return }
             recording.speakerStatus = .failed
+            progress[id] = nil                                // the row shows the failure instead
         }
         try? modelContext.save()
         if recording.speakerStatus == .done,
            recording.vocabularyPending || recording.summaryVersion < summaryVersion {
             enqueueBackgroundPass(recording, confidences: confidences, fresh: true)
+        } else if recording.speakerStatus == .done {
+            track(id) { $0.drop(.vocabulary); $0.drop(.summary) }
         }
     }
 
@@ -354,18 +417,29 @@ final class SpeakerIdentifier {
     /// The words get the vocabulary terms (and smart corrections) and are aligned with the stored turns again: speaker
     /// numbers stay, so names, links and voices stay valid. If something else replaced the words meanwhile, the result
     /// is dropped.
+    #if DEBUG
+    private static func ms(since start: ContinuousClock.Instant) -> String {
+        (ContinuousClock.now - start).formatted(.units(allowed: [.seconds, .milliseconds], width: .narrow))
+    }
+    #endif
+
     private func applyVocabulary(to recording: Recording, confidences: [Double]?) async {
-        guard !isGone(recording), recording.vocabularyPending else { return }
+        guard !isGone(recording) else { return }
+        let id = recording.id
+        guard recording.vocabularyPending else { track(id) { $0.drop(.vocabulary) }; return }
+        track(id) { $0.begin(.vocabulary) }
         let words = recording.words
         let improved = await fileTranscriber.applyVocabulary(to: words, confidences: confidences, fileURL: recording.audioURL,
                                                              locale: Locale(identifier: recording.localeIdentifier))
-        guard !isGone(recording) else { return }
+        guard !isGone(recording) else { progress[id] = nil; return }
         if improved != words, recording.words == words {
             recording.words = improved
             recording.segments = Self.finalSegments(of: recording, keepingIDsOf: recording.segments)
+            flash(WordChange.changes(from: words, to: improved, vocabulary: true), in: id)
         }
         recording.vocabularyPending = false
         try? modelContext.save()
+        track(id) { $0.finish(.vocabulary) }
     }
 
     /// The summary, and the title while the transcript still has a name the app gave it ("New Transcript 3") and the
@@ -374,7 +448,27 @@ final class SpeakerIdentifier {
     /// updating, time-out), nothing changes and the next launch or return to the foreground tries again.
     private func describe(_ recording: Recording) async {
         let target = summaryVersion
-        guard !isGone(recording), recording.speakerStatus == .done, recording.summaryVersion < target else { return }
+        guard !isGone(recording) else { return }
+        let id = recording.id
+        guard recording.speakerStatus == .done, recording.summaryVersion < target else {
+            track(id) { $0.drop(.summary) }
+            return
+        }
+        track(id) { $0.begin(.summary) }
+        defer {
+            partialSummaries[id] = nil
+            if case .running = progress[id]?.state(of: .summary) {   // not now: waiting for Stop, or given up
+                let waits = waitingForGemma.contains { $0.id == id }
+                track(id) { waits ? $0.expect(.summary, again: true) : $0.drop(.summary) }
+            }
+        }
+        // Each piece hops to the main actor; one arriving after the summary was saved (or given up) is dropped.
+        let partial: @Sendable (String) -> Void = { text in
+            Task { @MainActor in
+                guard case .running = self.progress[id]?.state(of: .summary) else { return }
+                self.partialSummaries[id] = text.isEmpty ? nil : text   // "": a new attempt, the shimmer again
+            }
+        }
         let locale = Locale(identifier: recording.localeIdentifier)
         let paragraphs = recording.segments.map { segment in
             TranscriptTitler.paragraph(segment.text, speaker: segment.speakerIndex.map(recording.speakerName))
@@ -384,26 +478,28 @@ final class SpeakerIdentifier {
         do {
             if betterSummaries.activeModel != nil {
                 guard !isRecording else {                      // Gemma never runs while recording: after Stop
-                    if !waitingForGemma.contains(where: { $0.id == recording.id }) { waitingForGemma.append(recording) }
+                    waitForGemma(recording, id: id)
                     return
                 }
                 do {
                     let titler = titler
                     description = try await betterSummaries.run { model in
-                        try await titler.describe(paragraphs: paragraphs, locale: locale, writer: .local(model))
+                        try await titler.describe(paragraphs: paragraphs, locale: locale, writer: .local(model),
+                                                  partial: partial)
                     }
                     version = TranscriptTitler.localVersion
                 } catch is TranscriptTitler.LocalModelFailed {
                     guard titler.canDescribe(locale) else { return }   // Gemma can't run: Apple's model this time
-                    description = try await titler.describe(paragraphs: paragraphs, locale: locale)
+                    partialSummaries[id] = nil                         // Gemma's half-written text goes
+                    description = try await titler.describe(paragraphs: paragraphs, locale: locale, partial: partial)
                 }
             } else {
                 guard titler.canDescribe(locale) else { return }
-                description = try await titler.describe(paragraphs: paragraphs, locale: locale)
+                description = try await titler.describe(paragraphs: paragraphs, locale: locale, partial: partial)
             }
         } catch {
             // TranscriptTitler.RetryLater: not marked described. Stopped because a recording started: again after it.
-            if isRecording, !waitingForGemma.contains(where: { $0.id == recording.id }) { waitingForGemma.append(recording) }
+            if isRecording, !isGone(recording) { waitForGemma(recording, id: id) }
             return
         }
         guard !isGone(recording) else { return }
@@ -419,6 +515,13 @@ final class SpeakerIdentifier {
         }
         recording.summaryVersion = max(recording.summaryVersion, version)
         try? modelContext.save()
+        track(id) { $0.finish(.summary) }
+    }
+
+    /// Gemma can't run while a recording is made: described right after Stop (setRecording). Ids, not models, are
+    /// compared: a transcript deleted meanwhile is detached, and reading it traps.
+    private func waitForGemma(_ recording: Recording, id: UUID) {
+        if !waitingForGemma.contains(where: { $0.id == id }) { waitingForGemma.append((id, recording)) }
     }
 
     /// The summaryVersion transcripts should have: Gemma's while "Better Summaries" is on, else Apple's.

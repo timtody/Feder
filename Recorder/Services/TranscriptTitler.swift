@@ -70,24 +70,29 @@ final class TranscriptTitler {
     /// usable model answer. Throws RetryLater when the model can't answer right now (Gemma: stopped because the app
     /// left the foreground); a part summary failing that way stops the whole description, so no title is ever written
     /// from some of the parts only. Throws LocalModelFailed when Gemma can't run.
-    func describe(paragraphs: [String], locale recordingLocale: Locale, writer: Writer = .apple) async throws -> Description? {
+    /// `partial` gets the summary as the model writes it (the final request only, not the parts of a long transcript),
+    /// so the card can show it growing.
+    func describe(paragraphs: [String], locale recordingLocale: Locale, writer: Writer = .apple,
+                  partial: (@Sendable (String) -> Void)? = nil) async throws -> Description? {
         let locale = Self.textLocale(Self.withoutNames(paragraphs)) ?? recordingLocale
         if case .apple = writer, !canDescribe(locale) { return nil }
         var limit = writer.chunkCharacters
         for _ in 0..<3 {
             do {
-                return try await describe(paragraphs, locale: locale, writer: writer, limit: limit)
+                return try await describe(paragraphs, locale: locale, writer: writer, limit: limit, partial: partial)
             } catch is ContextExceeded {
                 #if DEBUG
                 print("[Scribe] title: context exceeded at \(limit) characters per part, smaller parts")
                 #endif
+                partial?("")                                    // what was streamed is abandoned
                 limit = limit * 6 / 10
             }
         }
         return nil
     }
 
-    private func describe(_ paragraphs: [String], locale: Locale, writer: Writer, limit: Int) async throws -> Description? {
+    private func describe(_ paragraphs: [String], locale: Locale, writer: Writer, limit: Int,
+                          partial: (@Sendable (String) -> Void)?) async throws -> Description? {
         let language = Self.languageName(locale)
         var parts = Self.chunks(paragraphs, limit: limit)
         guard !parts.isEmpty else { return nil }
@@ -112,15 +117,19 @@ final class TranscriptTitler {
         let answer: TitleAndSummary?
         switch writer {
         case .apple:
-            answer = try await generate(TitleAndSummary.self, prompt: prompt,
+            answer = try await generate(prompt: prompt,
                                         instructions: Self.titleInstructions(language: language, locale: locale,
                                                                              fromSummaries: fromSummaries),
-                                        plain: Self.parseLabelled)
+                                        partial: partial)
         case .local(let model):
             let instructions = Self.localTitleInstructions(language: language, locale: locale, fromSummaries: fromSummaries)
             // The task again after the transcript: without it Gemma went on with the transcript ("Anna Schmidt: …").
             let request = prompt + "\n\n" + Self.localReminder
-            let text = try await Self.local { try await model.respond(instructions: instructions, prompt: request) }
+            let text = try await Self.local {
+                try await model.respond(instructions: instructions, prompt: request) { text in
+                    if let summary = Self.partialSummary(in: text) { partial?(summary) }
+                }
+            }
             #if DEBUG
             print("[Scribe] title (Gemma): \(text)")
             #endif
@@ -173,19 +182,29 @@ final class TranscriptTitler {
     /// conversations (`.refusal` for "ich möchte gerne Geld auf mein Konto einzahlen" with these instructions); then
     /// once more with the guardrails for transforming the user's own text, which only apply to plain-text answers
     /// (`plain` reads the answer).
-    private func generate<Content: Generable>(_ type: Content.Type, prompt: String, instructions: String,
-                                              plain: (String) -> Content?) async throws -> Content? {
+    private func generate(prompt: String, instructions: String,
+                          partial: (@Sendable (String) -> Void)?) async throws -> TitleAndSummary? {
         do {
-            return try await LanguageModelSession(instructions: instructions)
-                .respond(to: prompt, generating: type, options: Self.options).content
+            let session = LanguageModelSession(instructions: instructions)
+            guard let partial else {
+                return try await session.respond(to: prompt, generating: TitleAndSummary.self, options: Self.options).content
+            }
+            // Streamed: every snapshot carries the summary as far as it is written (the topics come first, so the
+            // summary starts a moment after the model does).
+            let stream = session.streamResponse(to: prompt, generating: TitleAndSummary.self, options: Self.options)
+            for try await snapshot in stream {
+                if let summary = snapshot.content.summary, !summary.isEmpty { partial(summary) }
+            }
+            return try await stream.collect().content
         } catch let error where Self.isRefusal(error) {
             #if DEBUG
             print("[Scribe] title: refused, plain text instead")
             #endif
+            partial?("")                                        // the refused attempt's text goes
             let permissive = SystemLanguageModel(guardrails: .permissiveContentTransformations)
             let session = LanguageModelSession(model: permissive, instructions: instructions + "\n" + Self.plainFormat)
             do {
-                return plain(try await session.respond(to: prompt, options: Self.options).content)
+                return Self.parseLabelled(try await session.respond(to: prompt, options: Self.options).content)
             } catch {
                 #if DEBUG
                 print("[Scribe] title, plain text: \(error)")
@@ -334,6 +353,13 @@ final class TranscriptTitler {
         "lines: \"Summary: …\" and then \"Title: …\"."
 
     /// The "Summary: …" and "Title: …" lines of a plain-text answer.
+    /// The summary line of a plain-text answer as far as it is written (Gemma's three lines arrive token by token).
+    nonisolated static func partialSummary(in text: String) -> String? {
+        guard let match = text.firstMatch(of: /(?i)(?:summary|zusammenfassung)\s*\**:\s*\**([^\n]*)/) else { return nil }
+        let summary = String(match.1).replacingOccurrences(of: "*", with: "").trimmingCharacters(in: .whitespaces)
+        return summary.isEmpty ? nil : summary
+    }
+
     nonisolated static func parseLabelled(_ text: String) -> TitleAndSummary? {
         var title: String?, summary: String?
         for line in text.split(whereSeparator: \.isNewline) {

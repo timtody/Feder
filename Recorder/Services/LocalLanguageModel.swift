@@ -51,7 +51,8 @@ actor LocalLanguageModel {
 
     /// The answer to `prompt` under `instructions` (a system turn), at most `maxTokens` long. Checks for cancellation
     /// between tokens and throws CancellationError then.
-    func respond(instructions: String, prompt: String, maxTokens: Int = 400) async throws -> String {
+    func respond(instructions: String, prompt: String, maxTokens: Int = 400,
+                 partial: (@Sendable (String) -> Void)? = nil) async throws -> String {
         try await load()
         guard let container else { throw CancellationError() }
         let input = UserInput(chat: [.system(instructions), .user(prompt)],
@@ -61,7 +62,10 @@ actor LocalLanguageModel {
         var text = ""
         for await generation in try await container.generate(input: prepared, parameters: parameters) {
             try Task.checkCancellation()                         // leaving the loop ends the generation
-            if let chunk = generation.chunk { text += chunk }
+            if let chunk = generation.chunk {
+                text += chunk
+                partial?(text)
+            }
         }
         try Task.checkCancellation()
         return text
