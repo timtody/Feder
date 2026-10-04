@@ -4,8 +4,8 @@ import SwiftUI
 /// (size-preserving: the run keeps the surrounding `.font`, unlike setting the `font` attribute), on a light tint
 /// background. Built as one AttributedString: `Text + Text` is deprecated in iOS 26.
 enum SearchHighlight {
-    static func attributed(_ text: String, _ ranges: [Range<String.Index>], tint: Color = .accentColor,
-                           background: Bool = true) -> AttributedString {
+    static func attributed(_ text: String, _ ranges: [Range<String.Index>]) -> AttributedString {
+        let tint = Color.accentColor
         var result = AttributedString(text)
         for range in ranges {
             // Character offsets map String ranges onto the AttributedString built from the same text.
@@ -15,14 +15,14 @@ enum SearchHighlight {
             let end = result.characters.index(start, offsetBy: length)
             result[start..<end].inlinePresentationIntent = .stronglyEmphasized
             result[start..<end].foregroundColor = tint
-            if background { result[start..<end].backgroundColor = tint.opacity(0.16) }
+            result[start..<end].backgroundColor = tint.opacity(0.16)
         }
         return result
     }
 
     /// `Text` with highlighted ranges; plain `Text(verbatim:)` without any.
-    static func text(_ string: String, _ ranges: [Range<String.Index>], tint: Color = .accentColor) -> Text {
-        ranges.isEmpty ? Text(verbatim: string) : Text(attributed(string, ranges, tint: tint))
+    static func text(_ string: String, _ ranges: [Range<String.Index>]) -> Text {
+        ranges.isEmpty ? Text(verbatim: string) : Text(attributed(string, ranges))
     }
 
     /// Only the matched part bold (suggestion rows).

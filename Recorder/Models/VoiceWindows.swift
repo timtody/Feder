@@ -28,7 +28,7 @@ nonisolated enum VoiceWindows {
     static let maxPieces = 60                  // per speaker, likewise (about 0.5 s of embedding on an M-series Mac)
 
     /// speakerIndex -> windows. `speakers[i]` is word i's final label (TranscriptAligner.speakers), nil = unlabelled.
-    static func windows(words: [TranscriptWord], speakers: [Int?], maxSpeech: TimeInterval = maxSpeech) -> [Int: [Window]] {
+    static func windows(words: [TranscriptWord], speakers: [Int?]) -> [Int: [Window]] {
         precondition(words.count == speakers.count)
         var result: [Int: [Window]] = [:]
         for speaker in Set(speakers.compactMap { $0 }) {

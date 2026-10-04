@@ -82,9 +82,7 @@ struct RecordAccessory: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { open() }
             Button {
-                #if DEBUG
                 InteractionTrace.begin("stop")
-                #endif
                 presses += 1
                 Task { await session.stop() }
             } label: {
@@ -121,7 +119,7 @@ struct RecordAccessory: View {
 
 /// The solid red record mark (Voice Memos' red), opaque so it reads on the glass in light and dark mode.
 struct RecordDot: View {
-    var size: CGFloat = 20
+    let size: CGFloat
 
     var body: some View {
         Circle()

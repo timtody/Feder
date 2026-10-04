@@ -16,14 +16,10 @@ nonisolated enum TranscriptAligner {
 
     /// Entry point. With no turns every segment has `speakerIndex == nil` (live labels off, undiarized recordings).
     /// Words ending after `labelledUntil` (audio the live diarizer has not processed yet) stay unlabelled instead of
-    /// borrowing the nearest turn. Segments starting where a segment of `previous` started keep its id, so SwiftUI
-    /// keeps those rows (and their measured heights) when text is appended or a label changes. `smoothing`: see
-    /// `speakers`.
-    static func segments(words: [TranscriptWord], turns: [SpeakerTurn], labelledUntil: TimeInterval = .infinity,
-                         keepingIDsOf previous: [TranscriptSegment] = [], smoothing: Bool = true) -> [TranscriptSegment] {
-        keepingIDs(of: previous, in: fold(words: words, speakers: speakers(words: words, turns: turns,
-                                                                           labelledUntil: labelledUntil,
-                                                                           smoothing: smoothing)))
+    /// borrowing the nearest turn. With island smoothing (see `speakers`): the live labels, and the live labels
+    /// re-applied to the full-accuracy words.
+    static func segments(words: [TranscriptWord], turns: [SpeakerTurn], labelledUntil: TimeInterval = .infinity) -> [TranscriptSegment] {
+        fold(words: words, speakers: speakers(words: words, turns: turns, labelledUntil: labelledUntil))
     }
 
     /// One speaker per word (what `segments` folds): nil for every word without turns, and for words ending after

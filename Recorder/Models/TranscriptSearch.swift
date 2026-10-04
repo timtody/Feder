@@ -14,7 +14,6 @@ nonisolated enum SearchFolding {
     /// index the original string: highlights are found again in the original with `range(of:options:)`.
     static func fold(_ s: String) -> String { s.folding(options: options, locale: nil) }
 
-    static func equal(_ a: String, _ b: String) -> Bool { fold(a) == fold(b) }
 
     /// All non-overlapping occurrences of `needle` in `haystack` (original indices), at most `limit`.
     static func ranges(of needle: String, in haystack: String, limit: Int = 64) -> [Range<String.Index>] {
@@ -71,7 +70,6 @@ nonisolated struct SearchQuery: Sendable, Equatable {
 
     var isEmpty: Bool { people.isEmpty && tags.isEmpty && tagTerms.isEmpty && terms.isEmpty }
     /// What the detail transcript highlights when opened from this search (matched speakers are passed separately).
-    var highlightTerms: [String] { terms }
 }
 
 // MARK: - Documents (immutable snapshot of one Recording)
@@ -80,7 +78,6 @@ nonisolated struct SearchDocument: Sendable {
     struct Segment: Sendable {
         var id: UUID
         var text: String
-        var start: TimeInterval
         var speakerIndex: Int?
     }
 
@@ -107,7 +104,6 @@ nonisolated struct SearchDocument: Sendable {
     let key: Int
 
     // Precomputed folds.
-    fileprivate let foldedTitle: String
     fileprivate let foldedPlace: String
     fileprivate let foldedSummary: String
     fileprivate let foldedTags: [String]
@@ -130,7 +126,6 @@ nonisolated struct SearchDocument: Sendable {
         self.speakerNames = speakerNames
         self.segments = segments
         self.key = key
-        foldedTitle = SearchFolding.fold(title)
         foldedPlace = place.map(SearchFolding.fold) ?? ""
         foldedSummary = summary.map(SearchFolding.fold) ?? ""
         foldedTags = tags.map(SearchFolding.fold)
@@ -206,8 +201,6 @@ nonisolated struct Snippet: Sendable, Equatable {
     var text: String                          // one paragraph excerpt, with "…" where cut
     var highlights: [Range<String.Index>]     // ranges in `text`
     var segmentID: UUID
-    var segmentIndex: Int
-    var start: TimeInterval
     var speakerIndex: Int?
 }
 
@@ -217,12 +210,9 @@ nonisolated struct SearchResult: Sendable, Identifiable {
     var titleHighlights: [Range<String.Index>] = []
     var matchedSpeakers: [Int] = []                   // speaker indices whose name matched a token or term
     var matchedTags: [String] = []                    // tags (original spelling) that matched a token or term
-    var placeMatched = false
     var snippet: Snippet?
     var summaryExcerpt: String?                       // when only the summary matched a term: an excerpt of it
     var summaryHighlights: [Range<String.Index>] = [] // ranges in `summaryExcerpt`
-    var textHitCount = 0                              // occurrences of the snippet's term in the transcript (capped)
-    var score = 0                                     // for optional relevance ordering; the list keeps date order
 }
 
 // MARK: - Search
@@ -245,20 +235,17 @@ nonisolated enum TranscriptSearch {
             let hits = doc.foldedSpeakers.filter { $0.folded == f }.map(\.index)
             guard !hits.isEmpty else { return nil }
             result.matchedSpeakers.append(contentsOf: hits)
-            result.score += 50
         }
         for tag in query.tags {
             let f = SearchFolding.fold(tag)
             guard let i = doc.foldedTags.firstIndex(of: f) else { return nil }
             result.matchedTags.append(doc.tags[i])
-            result.score += 50
         }
         for t in query.tagTerms {
             let f = SearchFolding.fold(t)
             let hits = doc.foldedTags.indices.filter { doc.foldedTags[$0].contains(f) }
             guard !hits.isEmpty else { return nil }
             result.matchedTags.append(contentsOf: hits.map { doc.tags[$0] })
-            result.score += 30
         }
 
         // Free-text terms: each must be found somewhere.
@@ -275,30 +262,26 @@ nonisolated enum TranscriptSearch {
             if !titleRanges.isEmpty {
                 found = true
                 result.titleHighlights.append(contentsOf: titleRanges)
-                result.score += titleRanges.contains { SearchFolding.startsWord($0, in: doc.title) } ? 40 : 20
             }
             if let place = doc.place, doc.foldedPlace.contains(f), !hit(place).isEmpty {
-                found = true; result.placeMatched = true; result.score += 10
+                found = true
             }
             if let summary = doc.summary, doc.foldedSummary.contains(f), let first = hit(summary).first {
-                found = true; result.score += 10
+                found = true
                 if summaryAnchor == nil { summaryAnchor = first }
             }
             for (i, ft) in doc.foldedTags.enumerated() where ft.contains(f) && !hit(doc.tags[i]).isEmpty {
                 found = true
                 result.matchedTags.append(doc.tags[i])
-                result.score += 30
             }
             for s in doc.foldedSpeakers where s.folded.contains(f) && !hit(doc.speakerNames[s.index] ?? "").isEmpty {
                 found = true
                 result.matchedSpeakers.append(s.index)
-                result.score += 30
             }
             let hits = doc.bodyHits(Array(f.utf8), limit: maxHitsCounted, wordStartsOnly: wordStartsOnly)
             if !hits.isEmpty {
                 found = true
                 bodyTerms.append((term, hits))
-                result.score += hits.contains(where: doc.bodyHitStartsWord) ? 20 : 10
             }
             guard found else { return nil }
         }
@@ -307,14 +290,12 @@ nonisolated enum TranscriptSearch {
 
         if !bodyTerms.isEmpty {
             result.snippet = snippet(doc, bodyTerms: bodyTerms, allTerms: query.terms)
-            result.textHitCount = bodyTerms.map(\.hits.count).max() ?? 0
         } else if let speaker = result.matchedSpeakers.first,
                   let i = doc.segments.firstIndex(where: { $0.speakerIndex == speaker }) {
             // Person only: show the first thing that person said.
             let seg = doc.segments[i]
             let text = Snippets.excerpt(of: seg.text, around: nil)
-            result.snippet = Snippet(text: text, highlights: [], segmentID: seg.id, segmentIndex: i,
-                                     start: seg.start, speakerIndex: seg.speakerIndex)
+            result.snippet = Snippet(text: text, highlights: [], segmentID: seg.id, speakerIndex: seg.speakerIndex)
         } else if let summary = doc.summary, let summaryAnchor {
             // Found in the summary only: show that part of it.
             let text = Snippets.excerpt(of: summary, around: summaryAnchor)
@@ -368,8 +349,7 @@ nonisolated enum TranscriptSearch {
         let anchor = candidates.first { SearchFolding.startsWord($0, in: seg.text) } ?? candidates.first
         let text = Snippets.excerpt(of: seg.text, around: anchor)
         let highlights = Snippets.highlightRanges(terms: allTerms, in: text)
-        return Snippet(text: text, highlights: highlights, segmentID: seg.id, segmentIndex: bestSegment,
-                       start: seg.start, speakerIndex: seg.speakerIndex)
+        return Snippet(text: text, highlights: highlights, segmentID: seg.id, speakerIndex: seg.speakerIndex)
     }
 
     private static func unique(_ xs: [String]) -> [String] {

@@ -52,6 +52,7 @@ struct RecordingDetailView: View {
     }
 
     var body: some View {
+        let segments = recording.segments                 // read once per body (the SwiftData array is decoded on access)
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 20) {
@@ -84,7 +85,7 @@ struct RecordingDetailView: View {
                         .opacity(bodyShown ? 1 : 0)
 
                     if recording.speakerStatus != .done {
-                        speakerStatusRow
+                        SpeakerStatusRow(recording: recording)
                             .padding(12)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
@@ -92,12 +93,12 @@ struct RecordingDetailView: View {
                     }
                 }
                 // No spacing above: the first name row brings its own (the space above a name is part of its target).
-                TranscriptView(segments: recording.segments, speakerName: recording.speakerName(_:),
+                TranscriptView(segments: segments, speakerName: recording.speakerName(_:),
                                preliminary: recording.speakerStatus != .done, preliminaryNotice: preliminaryNotice,
                                renameSpeaker: { renaming = SpeakerRenameTarget(speaker: $0) },
                                search: search, currentHit: hits.indices.contains(hitIndex) ? hits[hitIndex] : nil,
                                hitFrame: search == nil ? nil : { id, frame in hitGeometry.frames[id] = frame })
-                    .animation(.snappy, value: recording.segments)   // refined speakers re-split it: no jump
+                    .animation(.snappy, value: segments)             // refined speakers re-split it: no jump
                     .opacity(bodyShown ? 1 : 0)
             }
             .coordinateSpace(.named(TranscriptView.contentSpace))
@@ -133,10 +134,8 @@ struct RecordingDetailView: View {
         .contentMargins(.top, CardCloseButton.contentTop, for: .scrollContent)
         .cardCloseButton(hint: "Back to the transcripts", action: onClose)
         .task(id: search) { await showFirstHit() }
-        #if DEBUG
         .onAppear { InteractionTrace.shown("open") }
-        #endif
-        .onChange(of: recording.segments) { findHits() }   // the vocabulary pass or a new speaker count rewrote them
+        .onChange(of: segments) { findHits() }             // the vocabulary pass or a new speaker count rewrote them
         .onChange(of: recording.speakerStatusRaw) {        // "Speakers: n" re-runs identification: numbers change
             if recording.speakerStatus != .done { renaming = nil }
         }
@@ -350,46 +349,6 @@ struct RecordingDetailView: View {
         let trimmed = recording.name.trimmingCharacters(in: .whitespacesAndNewlines)
         recording.name = trimmed.isEmpty ? "Untitled Transcript" : trimmed
     }
-
-    @ViewBuilder
-    private var speakerStatusRow: some View {
-        let preliminary = recording.speakerCount > 0     // live labels saved at Stop; the row only shows until .done
-        switch recording.speakerStatus {
-        case .processing:
-            HStack {
-                ProgressView()
-                Text(services.identifier.refining.contains(recording.id) ? "Improving transcript accuracy…"
-                     : preliminary ? "Refining speakers…" : "Identifying speakers…")
-            }
-            .foregroundStyle(.secondary)
-        case .pending where services.identifier.inFlight.contains(recording.id) && services.identifier.modelError == nil:
-            // Just saved and queued (or waiting behind another): it is on its way, so the progress, not a retry button
-            // that read as an error for the moment before identification starts.
-            HStack {
-                ProgressView()
-                Text(preliminary ? "Refining speakers…" : "Identifying speakers…")
-            }
-            .foregroundStyle(.secondary)
-        case .pending:
-            VStack(alignment: .leading, spacing: 8) {
-                Label(services.identifier.modelError == nil
-                      ? (preliminary ? "Speaker labels are preliminary and will be refined shortly."
-                                     : "Speakers will be identified shortly.")
-                      : (preliminary ? "Speaker labels are preliminary. They'll be refined once the speaker model (21 MB) has downloaded. Connect to the internet and try again."
-                                     : "Speakers will be identified once the speaker model (21 MB) has downloaded. Connect to the internet and try again."),
-                      systemImage: "person.2.wave.2")
-                Button("Try Again") { services.identifier.enqueue(recording) }
-            }
-        case .failed:
-            VStack(alignment: .leading, spacing: 8) {
-                Label(preliminary ? "Couldn't refine speakers. The labels shown are preliminary." : "Couldn't identify speakers.",
-                      systemImage: "exclamationmark.triangle")
-                Button("Try Again") { services.identifier.enqueue(recording) }
-            }
-        case .done:
-            EmptyView()
-        }
-    }
 }
 
 /// Where the hit paragraphs are (in the content's coordinates) and what the scroll view shows of it, read when a hit is
@@ -397,68 +356,6 @@ struct RecordingDetailView: View {
 private final class HitGeometry {
     var frames: [UUID: CGRect] = [:]
     var visible = CGRect.null
-}
-
-/// The automatic summary under the date line: secondary text, at most three lines; a longer one shows "More" and the
-/// whole summary is the button that expands it (and collapses it again). Opened from a search, its hits are highlighted,
-/// so a transcript found only by its summary shows why. VoiceOver reads all of it either way.
-private struct SummaryText: View {
-    let summary: String
-    let highlights: [Range<String.Index>]
-
-    @State private var isExpanded = false
-    @State private var fullHeight: CGFloat = 0           // of the whole summary at this width
-    @State private var clippedHeight: CGFloat = 0        // of its first three lines
-
-    private static let lines = 3
-
-    private var isLong: Bool { fullHeight > clippedHeight + 1 }
-
-    var body: some View {
-        if isLong {
-            Button {
-                withAnimation(.snappy) { isExpanded.toggle() }
-            } label: {
-                content.contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Summary")
-            .accessibilityValue(summary)
-            .accessibilityHint(isExpanded ? "Shows only its first lines." : "Shows all of it.")
-        } else {
-            content
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Summary")
-                .accessibilityValue(summary)
-        }
-    }
-
-    private var content: some View {
-        let text = SearchHighlight.text(summary, highlights)
-        return VStack(alignment: .leading, spacing: 2) {
-            text
-                .lineLimit(isExpanded ? nil : Self.lines)
-                .fixedSize(horizontal: false, vertical: true)
-                .foregroundStyle(.secondary)
-                .background(alignment: .topLeading) {      // invisible copies: is there more than three lines' worth?
-                    ZStack(alignment: .topLeading) {
-                        text.fixedSize(horizontal: false, vertical: true)
-                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
-                        text.lineLimit(Self.lines).fixedSize(horizontal: false, vertical: true)
-                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { clippedHeight = $0 }
-                    }
-                    .hidden()
-                    .accessibilityHidden(true)
-                }
-            if isLong {
-                Text(isExpanded ? "Less" : "More")
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.tint)
-            }
-        }
-        .font(.subheadline)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
 }
 
 #if DEBUG

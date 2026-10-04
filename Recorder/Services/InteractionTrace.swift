@@ -61,4 +61,10 @@ nonisolated enum InteractionTrace {
         String(format: "%.1f", Double(duration.components.seconds) * 1000 + Double(duration.components.attoseconds) / 1e15)
     }
 }
+#else
+/// Release: nothing is traced; the calls compile to nothing.
+nonisolated enum InteractionTrace {
+    @inlinable @MainActor static func begin(_ name: String) {}
+    @inlinable @MainActor static func shown(_ name: String) {}
+}
 #endif

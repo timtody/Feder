@@ -39,9 +39,12 @@ final class PeopleDirectory {
     }
 
     /// Names unnamed speakers of `recording` whose voice matches a known person. Called after diarization. Stricter for
-    /// speakers from pyannote (VoiceMatch.threshold(for:)).
-    func recognize(_ recording: Recording) {
-        let people = allPeople().filter { !$0.fingerprint.isEmpty }
+    /// speakers from pyannote (VoiceMatch.threshold(for:)). `save`: false when the caller saves right after.
+    func recognize(_ recording: Recording, save: Bool = true) {
+        recognize(recording, among: allPeople().filter { !$0.fingerprint.isEmpty }, save: save)
+    }
+
+    private func recognize(_ recording: Recording, among people: [Person], save: Bool) {
         guard !people.isEmpty else { return }
         let unnamed = recording.speakerVoices.filter { recording.speakerNames[$0.key] == nil }
         guard !unnamed.isEmpty else { return }
@@ -55,7 +58,7 @@ final class PeopleDirectory {
             recording.setSpeakerName(person.name, for: index)
             recording.speakerPeople[index] = id
         }
-        try? modelContext.save()
+        if save { try? modelContext.save() }
     }
 
     /// New voices for a transcript (SpeakerIdentifier.refreshVoices): each sample from it gets the new voice of the same
@@ -84,8 +87,7 @@ final class PeopleDirectory {
             guard let person = byID[id], let voice = new[index] else { continue }
             person.setSample(VoiceSample(recordingID: recording.id, speakerIndex: index, embedding: voice))
         }
-        recording.speakerVoices = voices
-        try? modelContext.save()
+        recording.speakerVoices = voices                      // the caller saves (SpeakerIdentifier.refreshVoices)
     }
 
     /// The transcripts people's fingerprints come from: those of their samples, and those with a name the user typed for
@@ -99,10 +101,6 @@ final class PeopleDirectory {
         return ids
     }
 
-    /// Recognition in every finished transcript with unnamed speakers that have a voice.
-    func recognizeAll() {
-        recognizeEverywhere()
-    }
 
     /// Diarization ran again (new speaker numbers): drop this transcript's links and samples, keep the people.
     func resetSpeakers(of recording: Recording) {
@@ -130,17 +128,18 @@ final class PeopleDirectory {
         try? modelContext.save()
     }
 
-    func transcripts(of person: Person) -> [Recording] {
-        allRecordings().filter { $0.speakerPeople.values.contains(person.id) }
-    }
-
     // MARK: Private
 
-    private func recognizeEverywhere() {
+    /// Recognition in every finished transcript with unnamed speakers that have a voice: the people are fetched once
+    /// and everything is saved once (each save re-runs every list's @Query).
+    func recognizeEverywhere() {
+        let people = allPeople().filter { !$0.fingerprint.isEmpty }
+        guard !people.isEmpty else { return }
         for recording in allRecordings() where recording.speakerStatus == .done
             && recording.speakerVoices.keys.contains(where: { recording.speakerNames[$0] == nil }) {
-            recognize(recording)
+            recognize(recording, among: people, save: false)
         }
+        try? modelContext.save()
     }
 
     private func person(named name: String) -> Person? {

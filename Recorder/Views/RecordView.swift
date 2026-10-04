@@ -26,7 +26,6 @@ struct RecordView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var startedAt: Date?       // keeps the time on screen through `.finishing`
-    @State private var stoppedAt: Date?       // ... frozen at Stop, not counting on while saving
     @ScaledMetric(relativeTo: .subheadline) private var dateLineSize: CGFloat = 15   // .subheadline's size
     @State private var timerFrames = TimerFrames()
     @State private var stopPresses = 0        // haptic on the press itself
@@ -138,9 +137,7 @@ struct RecordView: View {
         .background(Color(uiColor: .systemBackground).ignoresSafeArea())
         // A failure after Stop (the turn had begun) crossfades to its screen instead of cutting to it.
         .animation(.easeOut(duration: 0.25), value: isFailed)
-        #if DEBUG
         .onAppear { InteractionTrace.shown("transcribe"); InteractionTrace.shown("reopen") }
-        #endif
         .sensoryFeedback(.impact(weight: .light), trigger: stopPresses)   // with the press, not with the state
         // The spinner comes only when preparing takes a noticeable time (the speech model's first load, a slow
         // permission prompt); normally the card opens straight onto the empty transcript.
@@ -151,12 +148,7 @@ struct RecordView: View {
             showsPreparing = true
         }
         .onChange(of: session.state, initial: true) { _, state in
-            if case .recording(let since) = state {
-                startedAt = since
-                stoppedAt = nil
-            } else if startedAt != nil, stoppedAt == nil {
-                stoppedAt = .now
-            }
+            if case .recording(let since) = state { startedAt = since }
         }
     }
 
@@ -227,12 +219,12 @@ struct RecordView: View {
 
     /// What the timer says at `date`: the time recorded so far (m:ss, h:mm:ss from an hour); from Stop the saved
     /// duration as the transcript shows it (the file's length, rounded: a little longer than the time on screen),
-    /// so it lands on the transcript's digits. RecordingSession sets it together with `.finishing`, so the text is
-    /// final before the flight begins.
+    /// so it lands on the transcript's digits. RecordingSession sets it in the same update as `.finishing`, so the
+    /// text is final before the flight begins and never counts on while saving.
     private func timerText(at date: Date) -> String {
         guard let startedAt else { return "0:00" }
         if let duration = session.recordedDuration { return duration.clockFormatted }
-        let seconds = max(0, (stoppedAt ?? date).timeIntervalSince(startedAt).rounded(.down))
+        let seconds = max(0, date.timeIntervalSince(startedAt).rounded(.down))
         return Duration.seconds(seconds).formatted(.time(pattern: seconds >= 3600 ? .hourMinuteSecond : .minuteSecond))
     }
 
@@ -285,9 +277,7 @@ struct RecordView: View {
         case .recording, .finishing, .finished:
             let isBusy = !isRecording
             Button {
-                #if DEBUG
                 InteractionTrace.begin("stop")
-                #endif
                 stopPresses += 1
                 Task { await session.stop() }
             } label: {
@@ -388,71 +378,6 @@ struct RecordView: View {
                 Button("Close") { onClose() }
             }
         }
-    }
-}
-
-/// The recording's timer: big (44 pt light, rounded) above the Stop, and, landed (`progress` 1), the date line's
-/// duration (subheadline, secondary). One text throughout whose font size changes with `progress` (crisp in every
-/// frame, unlike a scale effect), the two styles crossfading: a matched-geometry frame between two texts truncated the
-/// big one to "0:…" while it shrank.
-private struct FlyingTimer: View {
-    let text: String
-    let dimmed: Bool                               // not recording yet: "0:00", lighter
-    let progress: CGFloat
-    let smallSize: CGFloat
-
-    static let bigSize: CGFloat = 44
-
-    var body: some View {
-        let size = Self.bigSize + (smallSize - Self.bigSize) * progress
-        ZStack {
-            Text(verbatim: text)
-                .font(.system(size: size, weight: .light, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(dimmed ? .tertiary : .primary)
-                .opacity(1 - progress)
-            Text(verbatim: text)
-                .font(.system(size: size))
-                .foregroundStyle(.secondary)
-                .opacity(progress)
-                .accessibilityHidden(true)
-        }
-        .fixedSize()
-    }
-}
-
-/// Where the timer is while recording and where it lands, in RecordView's coordinates.
-private struct TimerFrames {
-    var hero: CGRect?
-    var slot: CGRect?
-}
-
-/// Microphone level as five small rounded bars, red while recording: the centre bar follows the level fastest and the
-/// outer ones more slowly, so speech ripples outwards; short pills in silence. Scales with Dynamic Type. Reduce Motion: no easing.
-struct LevelMeter: View {
-    let session: RecordingSession                  // read here, so only the meter redraws with the level
-    let isActive: Bool
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @ScaledMetric(relativeTo: .subheadline) private var height: CGFloat = 16
-
-    private static let weights: [CGFloat] = [0.45, 0.75, 1, 0.75, 0.45]
-    private static let response: [Double] = [0.32, 0.22, 0.12, 0.22, 0.32]   // seconds to follow a change
-
-    var body: some View {
-        let level = isActive ? CGFloat(session.level) : 0
-        let barWidth = max(3, (height * 0.19).rounded())   // 3 pt at the default size
-        let rest = barWidth * 1.5                          // a short pill at rest, not a dot
-        HStack(spacing: barWidth * 0.67) {
-            ForEach(Self.weights.indices, id: \.self) { i in
-                Capsule()
-                    .frame(width: barWidth, height: rest + (height - rest) * level * Self.weights[i])
-                    .animation(reduceMotion ? nil : .easeOut(duration: Self.response[i]), value: level)
-            }
-        }
-        .frame(height: height)
-        .foregroundStyle(isActive ? Color.red : Color.secondary)
-        .accessibilityHidden(true)
     }
 }
 

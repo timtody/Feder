@@ -222,8 +222,7 @@ final class NemotronModel {
         do {
             try await diarizer.download { [weak self] fraction in
                 Task { @MainActor in
-                    guard let self, case .downloading = self.state else { return }
-                    self.state = .downloading(fraction)
+                    if let self, let next = self.state.advanced(to: fraction) { self.state = next }
                 }
             }
             state = .ready

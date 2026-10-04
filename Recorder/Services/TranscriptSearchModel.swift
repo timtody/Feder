@@ -25,11 +25,11 @@ final class TranscriptSearchModel {
     @ObservationIgnored private var indexing: Task<Void, Never>?
     @ObservationIgnored private var searching: Task<Void, Never>?
 
-    /// Call with the current recordings and query whenever either changes while search is presented.
-    func update(recordings: [Recording], people: [String], query: SearchQuery) {
+    /// Call with the current recordings (and their `searchKey`s, which the caller compares already) and query
+    /// whenever either changes while search is presented.
+    func update(recordings: [Recording], keys: [Int], people: [String], query: SearchQuery) {
         self.query = query
         order = recordings.map(\.id)
-        let keys = recordings.map(\.searchKey)
         refreshCandidates(recordings, keys: keys, people: people)
 
         // Documents to (re)build. Reading `segments` is the SwiftData load, on the main actor: in batches of a few
@@ -108,17 +108,14 @@ extension Recording {
         hasher.combine(wordsRefined)
         hasher.combine(vocabularyPending)
         hasher.combine(speakerCountOverride)
-        for (index, name) in speakerNames.sorted(by: { $0.key < $1.key }) {
-            hasher.combine(index)
-            hasher.combine(name)
-        }
+        hasher.combine(speakerNames)                 // order-independent; the key is only ever compared in memory
         return hasher.finalize()
     }
 
     fileprivate func searchSource(key: Int) -> SearchDocument.Source {
         SearchDocument.Source(
             id: id, title: name, place: placeName, summary: summary, tags: tags, speakerNames: speakerNames,
-            segments: segments.map { .init(id: $0.id, text: $0.text, start: $0.start, speakerIndex: $0.speakerIndex) },
+            segments: segments.map { .init(id: $0.id, text: $0.text, speakerIndex: $0.speakerIndex) },
             key: key)
     }
 }

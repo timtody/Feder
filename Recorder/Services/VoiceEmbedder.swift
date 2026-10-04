@@ -54,12 +54,10 @@ nonisolated struct VoiceEmbedder {
             }
             guard !units.isEmpty else { continue }
             var sum = [Float](repeating: 0, count: units[0].count)
-            var seconds: TimeInterval = 0
             for k in Self.mainVoice(units, weights) {
                 for d in sum.indices { sum[d] += weights[k] * units[k][d] }
-                seconds += TimeInterval(weights[k])
             }
-            result[speaker] = SpeakerVoice(embedding: VoiceMatch.unit(sum), seconds: seconds)
+            result[speaker] = SpeakerVoice(embedding: VoiceMatch.unit(sum))
         }
         return result
     }

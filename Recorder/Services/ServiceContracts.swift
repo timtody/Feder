@@ -120,23 +120,15 @@ nonisolated protocol SpeakerDiarizer: Sendable {
     func voices(fileURL: URL, windows: [Int: [VoiceWindows.Window]]) async throws -> [Int: SpeakerVoice]
 }
 
-extension SpeakerDiarizer {
-    /// The turns alone.
-    nonisolated func diarize(fileURL: URL, speakers: SpeakerCount) async throws -> [SpeakerTurn] {
-        try await diarization(fileURL: fileURL, speakers: speakers).turns
-    }
-}
-
 /// A diarizer's result: the speaker turns and which model made them (recognition is stricter for pyannote's speakers).
 nonisolated struct Diarization: Sendable, Equatable {
     var turns: [SpeakerTurn]
     var diarizer: DiarizerKind
 }
 
-/// A speaker's voice: unit-length WeSpeaker embedding (256 values) and the seconds of speech it was made from.
+/// A speaker's voice: a unit-length WeSpeaker embedding (256 values).
 nonisolated struct SpeakerVoice: Codable, Hashable, Sendable {
     var embedding: [Float]
-    var seconds: TimeInterval
 }
 
 /// How many speakers the offline pass should find.

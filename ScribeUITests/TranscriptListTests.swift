@@ -127,7 +127,7 @@ final class TranscriptListTests: ScribeUITestCase {
         let name = title.label, day = date.label
         let titleFrame = title.frame, dateFrame = date.frame
         XCTAssertTrue(startTexts(from: tapped).contains(day), "the start time: \(day), tapped at \(tapped)")
-        XCTAssertLessThan(titleFrame.minY, 120, "at the top, under the grabber: \(titleFrame)")
+        XCTAssertLessThan(titleFrame.minY, 140, "at the top, under the back button: \(titleFrame)")
         XCTAssertLessThanOrEqual(titleFrame.maxY, dateFrame.minY + 1, "the date line under the title: \(dateFrame)")
         XCTAssertEqual(titleFrame.minX, dateFrame.minX, accuracy: 1, "one leading margin")
         XCTAssertLessThan(dateFrame.maxY, bigStop.frame.minY, "the Stop at the bottom")

@@ -93,7 +93,8 @@ struct RecordingsListView: View {
                         Button {
                             open(recording)
                         } label: {
-                            row(recording, result: searchQuery.isEmpty ? nil : search.results[recording.id])
+                            TranscriptRow(recording: recording, result: searchQuery.isEmpty ? nil : search.results[recording.id],
+                                          addTagToken: addTagToken)
                                 .frame(minHeight: Self.minRowHeight - 16, alignment: .leading)   // with the insets
                                 .contentShape(Rectangle())
                                 .cardSource(OpenTranscriptAction.rowSource(listName, recording))
@@ -125,13 +126,16 @@ struct RecordingsListView: View {
             }
             .background {
                 // Search opens only when the finger lifts while the list is pulled past the threshold: not on a bounce
-                // after a fling, not after pulling down and pushing back up while holding.
-                ScrollDragObserver {
-                    isDraggingList = true
-                } onEnd: { pull in
-                    isDraggingList = false
-                    pullArmed = false
-                    if canPullToSearch, pull >= Self.pullToSearch { searchActions.open(nil) }
+                // after a fling, not after pulling down and pushing back up while holding. Only where pulling can
+                // open search: in the Search tab the observer would only re-render the list per drag.
+                if canPullToSearch {
+                    ScrollDragObserver {
+                        isDraggingList = true
+                    } onEnd: { pull in
+                        isDraggingList = false
+                        pullArmed = false
+                        if pull >= Self.pullToSearch { searchActions.open(nil) }
+                    }
                 }
             }
             .sensoryFeedback(.impact(weight: .light), trigger: pullArmed) { _, armed in armed }
@@ -154,13 +158,11 @@ struct RecordingsListView: View {
                 guard !Task.isCancelled else { return }        // typed again meanwhile
                 appliedQuery = query
             }
-            #if DEBUG
             .onChange(of: query) { if isSearch { InteractionTrace.begin("type"); InteractionTrace.shown("type") } }
             .onChange(of: search.resultsQuery) { if isSearch { InteractionTrace.begin("results"); InteractionTrace.shown("results") } }
-            #endif
             .onChange(of: searchInput, initial: true) { _, input in
                 guard let input else { return }
-                search.update(recordings: recordings, people: input.people, query: input.query)
+                search.update(recordings: recordings, keys: input.keys, people: input.people, query: input.query)
             }
             .overlay {
                 if recordings.isEmpty {
@@ -239,6 +241,10 @@ struct RecordingsListView: View {
 
     private var listName: String { isSearch ? Self.searchList : Self.transcriptsList }
 
+    /// Pull-to-search works on the Transcripts tab's plain list, also during a recording: minimized into the
+    /// accessory it leaves the list visible and usable (and while the card is up, the list can't be pulled anyway).
+    private var canPullToSearch: Bool { !isSearch }
+
     /// The transcript card, out of this row; from a search result with its highlights and "n of m".
     private func open(_ recording: Recording) {
         openTranscript?(recording, search: searchContext(for: recording),
@@ -248,7 +254,7 @@ struct RecordingsListView: View {
     /// What the transcript card highlights when a result is opened; nil outside a search.
     private func searchContext(for recording: Recording) -> TranscriptSearchContext? {
         guard !searchQuery.isEmpty, let result = search.results[recording.id] else { return nil }
-        return TranscriptSearchContext(terms: searchQuery.highlightTerms, speakers: Set(result.matchedSpeakers),
+        return TranscriptSearchContext(terms: searchQuery.terms, speakers: Set(result.matchedSpeakers),
                                        firstHit: result.snippet?.segmentID)
     }
 
@@ -256,127 +262,6 @@ struct RecordingsListView: View {
     private func addTagToken(_ tag: String) {
         let token = SearchToken(kind: .tag, value: tag)
         if isSearch { searchState.add(token) } else { searchActions.open(token) }
-    }
-
-    // MARK: Row
-
-    /// One transcript. With a search result: the title's hits highlighted, the matched people, the tags (matched ones
-    /// filled) and a two-line excerpt around the hit with its speaker's name.
-    private func row(_ recording: Recording, result: SearchResult?) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 3) {
-                SearchHighlight.text(recording.name, result?.title == recording.name ? result?.titleHighlights ?? [] : [])
-                    .font(.headline)
-                    .foregroundStyle(Color.primary)            // a button's label: not the accent colour
-                    .lineLimit(1)                              // two-line rows keep Voice Memos' swipe pills
-                // One line: date · duration (· place) and the people/tag chips that fit, "+n" for the rest. Keeps a row
-                // two lines tall, so iOS draws the swipe actions as Voice Memos' pills (see `minRowHeight`).
-                metaLine(recording, result: result)
-                if let snippet = result?.snippet {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        if recording.speakerStatus == .done, let speaker = snippet.speakerIndex {
-                            Text(recording.speakerName(speaker))
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                        SearchHighlight.text(snippet.text, snippet.highlights)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-                    .padding(.top, 2)
-                } else if let excerpt = result?.summaryExcerpt {
-                    SearchHighlight.text(excerpt, result?.summaryHighlights ?? [])
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .padding(.top, 2)
-                }
-            }
-            if recording.speakerStatus != .done {
-                Spacer()
-                Image(systemName: "person.2.wave.2")
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel("Speakers not identified yet")
-            }
-        }
-    }
-
-    /// Date · duration, the place, the people/tag chips and "+n" counters for `MetaLineLayout`, which shows what fits.
-    /// (Not ViewThatFits: iOS 26 measures its candidates on SwiftUI's async render thread, and their main-actor
-    /// ForEach closures trapped in Swift 6's isolation check when the rows re-laid out.)
-    /// VoiceOver reads the line as one element with all of it (date, duration, place, people, tags) and offers a
-    /// "Filter by tag" action per tag: the layout parks what doesn't fit off-screen, where it stayed in the
-    /// accessibility tree ("1 more, 2 more…") and hidden chips could not be reached anyway.
-    private func metaLine(_ recording: Recording, result: SearchResult?) -> some View {
-        var seen = Set<String>()                           // two speakers may share a name: one chip
-        let people = (result?.matchedSpeakers ?? []).compactMap { recording.speakerNames[$0] }.filter { seen.insert($0).inserted }
-        let tags = recording.tags
-        let chipCount = people.count + tags.count
-        return MetaLineLayout(chips: chipCount, hasPlace: recording.placeName != nil) {
-            HStack(spacing: 4) {
-                Text(recording.createdAt.relativeDayText())
-                Text("·").accessibilityHidden(true)            // VoiceOver: "Today at 9:41, 0:42", not "·"
-                Text(recording.duration.clockFormatted)
-            }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            if let place = recording.placeName {
-                HStack(spacing: 4) {
-                    Text("·").accessibilityHidden(true)
-                    Text(place)
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            }
-            ForEach(people, id: \.self) { name in
-                chip(Label(name, systemImage: "person.fill").labelStyle(ChipLabelStyle()), matched: true)
-                    .accessibilityLabel("Speaker \(name)")
-            }
-            ForEach(tags, id: \.self) { tag in
-                Button {
-                    addTagToken(tag)
-                } label: {
-                    chip(Text(tag), matched: result?.matchedTags.contains(tag) ?? false)
-                }
-                .buttonStyle(.borderless)                      // inside a List row: tapping the chip does not open the row
-                .accessibilityLabel("Filter by tag \(tag)")
-            }
-            ForEach(Array(stride(from: 1, through: max(1, chipCount), by: 1)), id: \.self) { hidden in
-                Text("+\(hidden)")                            // one counter per possible number of hidden chips
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(metaAccessibilityLabel(recording, people: people))
-        .accessibilityActions {
-            ForEach(tags, id: \.self) { tag in
-                Button("Filter by tag \(tag)") { addTagToken(tag) }
-            }
-        }
-    }
-
-    /// The meta line for VoiceOver: "Today at 9:41, 0:42, Berlin, Speaker Jonas Weber, Tags: work, planning".
-    private func metaAccessibilityLabel(_ recording: Recording, people: [String]) -> String {
-        var parts = [recording.createdAt.relativeDayText(), recording.duration.clockFormatted]
-        if let place = recording.placeName { parts.append(place) }
-        parts += people.map { "Speaker \($0)" }
-        if !recording.tags.isEmpty {
-            parts.append((recording.tags.count == 1 ? "Tag: " : "Tags: ") + recording.tags.joined(separator: ", "))
-        }
-        return parts.joined(separator: ", ")
-    }
-
-    private func chip(_ content: some View, matched: Bool) -> some View {
-        content
-            .font(.caption.weight(matched ? .semibold : .regular))
-            .foregroundStyle(matched ? AnyShapeStyle(.white) : AnyShapeStyle(.tint))
-            .padding(.horizontal, 7)
-            .padding(.vertical, 2)
-            .background(matched ? AnyShapeStyle(.tint) : AnyShapeStyle(.tint.opacity(0.12)), in: Capsule())   // no glass
     }
 
     // MARK: Actions
@@ -409,16 +294,6 @@ private struct SearchInput: Equatable {
     var query: SearchQuery
 }
 
-/// Icon and title close together, for chips.
-private struct ChipLabelStyle: LabelStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 3) {
-            configuration.icon.imageScale(.small)
-            configuration.title
-        }
-    }
-}
-
 /// Opening the Search tab (pull-to-search, a tag chip; with a token to add) and closing it (the search bar's close
 /// button): MainView's, handed to the lists through the environment.
 struct SearchActions {
@@ -439,9 +314,3 @@ extension EnvironmentValues {
 }
 #endif
 
-
-extension RecordingsListView {
-    /// Pull-to-search works on the Transcripts tab's plain list, also during a recording: minimized into the
-    /// accessory it leaves the list visible and usable (and while the card is up, the list can't be pulled anyway).
-    var canPullToSearch: Bool { !isSearch }
-}

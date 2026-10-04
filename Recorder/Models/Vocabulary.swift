@@ -1,8 +1,8 @@
 import Foundation
 
 /// Words the speech recognizer should expect (Apple's contextual strings): the user's own words plus, optionally, a
-/// built-in list of German consulting, banking and finance terms. Used by the live transcriber and by the full-accuracy
-/// pass after Stop. Stored in UserDefaults; changes apply from the next recording.
+/// built-in list of German consulting, banking and finance terms. Used by the vocabulary pass after Stop
+/// (SpeechFileTranscriber), not by the live transcriber. Stored in UserDefaults; changes apply from the next recording.
 nonisolated enum Vocabulary {
     static let customKey = "vocabularyCustom"          // [String], the user's words in the order they were added
     static let builtInKey = "vocabularyUseBuiltIn"     // Bool, absent means on

@@ -38,8 +38,7 @@ final class ParakeetModel {
         do {
             _ = try await AsrModels.download(version: Self.version) { [weak self] progress in
                 Task { @MainActor in
-                    guard let self, case .downloading = self.state else { return }
-                    self.state = .downloading(progress.fractionCompleted)
+                    if let self, let next = self.state.advanced(to: progress.fractionCompleted) { self.state = next }
                 }
             }
             FluidAudioDiarizer.excludeModelsFromBackup()

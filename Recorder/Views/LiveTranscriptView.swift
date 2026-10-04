@@ -142,9 +142,7 @@ private struct LiveParagraphRow: View, Equatable {
     let paragraph: LiveParagraph
 
     var body: some View {
-        #if DEBUG
         let _ = LiveTrace.body(paragraph: paragraph.id)
-        #endif
         let text = paragraph.styledText            // built once per change, not once per frame
         VStack(alignment: .leading, spacing: 6) {
             if paragraph.showsName, let speaker = paragraph.speakerIndex {
@@ -177,9 +175,7 @@ final class LiveTranscriptModel {
     /// did not change are kept as they are (a long recording has hundreds; usually only the last one or two change), then
     /// a word diff from the first paragraph whose text changed assigns the births.
     func update(_ live: LiveText, fades: Bool) {
-        #if DEBUG
         let start = ContinuousClock.now
-        #endif
         var kept = 0                               // not the last segment's paragraph: provisional words may continue it
         let keepable = min(live.segments.count, segments.count - 1, paragraphs.count)
         while kept < keepable, live.segments[kept] == segments[kept] { kept += 1 }
@@ -231,11 +227,9 @@ final class LiveTranscriptModel {
             drafts[i].births = births
             if let latest = births.max() { newest = max(newest ?? latest, latest) }
         }
-        #if DEBUG
         LiveTrace.modelUpdated(start: start, firstChanged: drafts.indices.dropFirst(same).first {   // nil: nothing new
             $0 >= paragraphs.count || drafts[$0] != paragraphs[$0]
         })
-        #endif
         guard drafts.count != paragraphs.count || drafts[same...] != paragraphs[same...] else { return }
         paragraphs = drafts
         settle?.cancel()
@@ -299,9 +293,7 @@ nonisolated struct WordFadeRenderer: TextRenderer {
     var now: Date
 
     func draw(layout: Text.Layout, in context: inout GraphicsContext) {
-        #if DEBUG
         LiveTrace.drawn()
-        #endif
         for line in layout {
             for run in line {
                 guard let born = run[WordBirth.self]?.date else { context.draw(run); continue }

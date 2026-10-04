@@ -32,8 +32,6 @@ actor LocalLanguageModel {
         self.directory = directory
     }
 
-    var isLoaded: Bool { container != nil }
-
     /// Loads the weights (memory-mapped; a few seconds) unless they are loaded already.
     func load() async throws {
         guard container == nil else { return }

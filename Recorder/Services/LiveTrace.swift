@@ -129,4 +129,14 @@ nonisolated enum LiveTrace {
         Double(duration.components.seconds) * 1000 + Double(duration.components.attoseconds) / 1e15
     }
 }
+#else
+/// Release: nothing is traced; the calls compile to nothing.
+nonisolated enum LiveTrace {
+    @inlinable static func received(_ kind: String) {}
+    @inlinable static func published(changed: Bool, words: Int, paragraphs: Int) {}
+    @inlinable static func modelUpdated(start: ContinuousClock.Instant, firstChanged: Int?) {}
+    @inlinable static func body(paragraph id: Int) {}
+    @inlinable static func drawn() {}
+    @inlinable static func summary() {}
+}
 #endif

@@ -163,7 +163,8 @@ final class RecordingSession: Identifiable {
         stopObservingInterruptions()
         refresh?.cancel()
         let duration = capture.seal()                         // finishes the input, live sample and level streams
-        recordedDuration = duration                           // same update as .finishing: the card's timer lands on it
+        recordedDuration = duration                           // same update as .finishing: RecordView's timer shows it
+                                                              // from the first frame of the turn and lands on it
         // Stopping the engine and deactivating the session (~70 ms) run on the audio hardware's actor, so the first
         // frame of the card's turn isn't held up; the next recording's activation queues behind them there.
         Task { await capture.shutDown() }
@@ -172,9 +173,7 @@ final class RecordingSession: Identifiable {
         // Past the cap the provisional tail is kept as words; the full-accuracy pass after Stop re-transcribes anyway.
         let words = finished ? live.words : live.words + live.provisionalWords
         await finishLiveDiarization()                         // usually done already: it finalized during finish()
-        #if DEBUG
         LiveTrace.summary()
-        #endif
         guard !words.isEmpty else {
             AudioFileStore.delete(fileName: fileName)
             state = failure.map { .failed($0) } ?? .discarded
@@ -213,10 +212,10 @@ final class RecordingSession: Identifiable {
         guard !transcriptionEnded else { return }
         switch event {
         case .volatile(let tail):
-            trace("volatile")
+            LiveTrace.received("volatile")
             live.revise(tail)
         case .finalized(let newWords):
-            trace("final")
+            LiveTrace.received("final")
             live.finalize(newWords)
         case .failed(let error):
             Task { await self.stop(failure: error) }
@@ -239,7 +238,7 @@ final class RecordingSession: Identifiable {
     private func apply(_ snapshot: LiveSpeakerTurns) {
         liveTurns = snapshot
         guard case .recording = state else { return }         // stop() builds the saved segments itself
-        trace("labels")
+        LiveTrace.received("labels")
         live.apply(snapshot)
         show()
     }
@@ -252,25 +251,16 @@ final class RecordingSession: Identifiable {
         guard state != .finishing else { return }
         let changed = live.text != text
         if changed { text = live.text }
-        #if DEBUG
         LiveTrace.published(changed: changed, words: live.words.count, paragraphs: text.segments.count)
-        #endif
         guard refresh == nil, let due = live.nextChange else { return }
         refresh = Task { [weak self] in
             try? await Task.sleep(until: due)
             guard let self, case .recording = self.state else { return }
             self.refresh = nil
-            self.trace("due")
+            LiveTrace.received("due")
             self.live.refresh()
             self.show()
         }
-    }
-
-    /// DEBUG: starts timing an update of the live screen (LiveTrace).
-    private func trace(_ kind: String) {
-        #if DEBUG
-        LiveTrace.received(kind)
-        #endif
     }
 
     /// Level meter: rises at once, falls back over about a second (one step per tap buffer, about 0.1 s), then rests at 0.
@@ -288,24 +278,15 @@ final class RecordingSession: Identifiable {
     /// Waits at most `limit` for the transcriber's last words: usually about 0.1 s, but up to 47 s were measured on a
     /// loaded Mac. Returns false on timeout; finish() then completes in the background and its late words are ignored.
     private func finishTranscription(within limit: Duration) async -> Bool {
-        let (outcome, continuation) = AsyncStream<Bool>.makeStream()
         let transcriber = transcriber
-        Task {
-            do { try await transcriber.finish() } catch { }   // keep what we have
-            continuation.yield(true)
+        let finish = Task { try? await transcriber.finish() }     // unstructured: past the cap it still finishes cleanly
+        return await withTaskGroup(of: Bool.self) { group in
+            group.addTask { await finish.value; return true }
+            group.addTask { try? await Task.sleep(for: limit); return false }
+            let first = await group.next() ?? false
+            group.cancelAll()
+            return first
         }
-        let deadline = Task {
-            try? await Task.sleep(for: limit)
-            continuation.yield(false)
-        }
-        var finished = false
-        for await first in outcome {
-            finished = first
-            break
-        }
-        deadline.cancel()
-        continuation.finish()
-        return finished
     }
 
     /// Waits at most 0.5 s for the last snapshot. Past that, the last one received is kept: words it doesn't cover

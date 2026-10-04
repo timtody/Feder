@@ -8,8 +8,6 @@ import Speech
 /// Needs only NSMicrophoneUsageDescription (no SFSpeechRecognizer authorization).
 @MainActor
 final class SpeechTranscriberEngine: Transcriber {
-    static var isAvailable: Bool { SpeechTranscriber.isAvailable }
-
     private var transcriber: SpeechTranscriber?
     private var analyzer: SpeechAnalyzer?
     private var resultsTask: Task<Void, Never>?

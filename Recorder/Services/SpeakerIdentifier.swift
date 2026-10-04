@@ -21,7 +21,6 @@ final class SpeakerIdentifier {
     /// diarizer's centroids, or no voices after the old live fallback). Older voices are recomputed once (refreshVoices).
     nonisolated static let voicesVersion = 1
 
-    private(set) var isModelReady = false
     private(set) var modelError: RecorderError?      // last prepare() failure (typically: offline on first launch)
     private(set) var inFlight: Set<UUID> = []        // Recording.ids queued or being identified (or getting new voices)
     private(set) var refining: Set<UUID> = []        // ... of which these are in the full-accuracy pass (the words)
@@ -32,8 +31,8 @@ final class SpeakerIdentifier {
     private let people: PeopleDirectory
     private let titler = TranscriptTitler()
     private let betterSummaries: BetterSummaries
-    private var queue: Task<Void, Never>?            // the last queued job: identification and voice refreshes
-    private var backgroundQueued: Set<UUID> = []
+    @ObservationIgnored private var queue: Task<Void, Never>?       // the last queued job: identification and voice refreshes
+    @ObservationIgnored private var backgroundQueued: Set<UUID> = []
     @ObservationIgnored private var freshPasses: [BackgroundPass] = []   // finished recordings: before the sweep
     @ObservationIgnored private var sweepPasses: [BackgroundPass] = []   // older transcripts' titles, newest first
     @ObservationIgnored private var backgroundWorker: Task<Void, Never>?
@@ -158,7 +157,7 @@ final class SpeakerIdentifier {
             recognizeAwaiting()
         }
         for recording in rest { await migrateVoices(of: recording) }
-        people.recognizeAll()
+        people.recognizeEverywhere()
     }
 
     // MARK: Jobs
@@ -275,7 +274,7 @@ final class SpeakerIdentifier {
             recording.voicesVersion = voices == nil ? 0 : Self.voicesVersion    // failed: refreshVoices retries
             recording.speakerStatus = .done
             // 5. Known voices get their names, once the voice migration has refreshed people's samples.
-            if fingerprintsMigrated { people.recognize(recording) } else { awaitingRecognition.insert(id) }
+            if fingerprintsMigrated { people.recognize(recording, save: false) } else { awaitingRecognition.insert(id) }
         } catch {
             guard !isGone(recording) else { return }
             recording.speakerStatus = .failed
@@ -444,11 +443,9 @@ final class SpeakerIdentifier {
     private func prepareModel() async -> Bool {
         do {
             try await diarizer.prepare()
-            isModelReady = true
-            modelError = nil
+            if modelError != nil { modelError = nil }      // only a change is published: the open card re-renders on it
             return true
         } catch {
-            isModelReady = false
             modelError = error as? RecorderError ?? .diarizationFailed(error.localizedDescription)
             return false
         }

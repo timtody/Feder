@@ -42,7 +42,15 @@ struct SpeakerNameSheet: View {
                                        typed: draft == initialName ? "" : draft)   // the prefilled name filters nothing
     }
 
+    /// Transcripts per person, counted once per body (not once per row per keystroke).
+    private var transcriptCounts: [UUID: Int] {
+        var counts: [UUID: Int] = [:]
+        for recording in recordings { for id in Set(recording.speakerPeople.values) { counts[id, default: 0] += 1 } }
+        return counts
+    }
+
     var body: some View {
+        let counts = transcriptCounts
         NavigationStack {
             List {
                 Section {
@@ -62,7 +70,7 @@ struct SpeakerNameSheet: View {
                         ForEach(choices) { choice in
                             // Always names (so confirms) the speaker, also with its current name: a recognized
                             // speaker's voice then becomes a sample of that person.
-                            Button { name(choice.name) } label: { row(choice) }
+                            Button { name(choice.name) } label: { row(choice, transcripts: counts[choice.id] ?? 0) }
                                 .accessibilityIdentifier("PersonChoice.\(choice.name)")
                         }
                     }
@@ -123,7 +131,7 @@ struct SpeakerNameSheet: View {
         .frame(minHeight: 56)
     }
 
-    private func row(_ choice: SpeakerNameChoices.Choice) -> some View {
+    private func row(_ choice: SpeakerNameChoices.Choice, transcripts: Int) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "person.crop.circle.fill")
                 .font(.title)
@@ -132,7 +140,7 @@ struct SpeakerNameSheet: View {
                 SearchHighlight.bold(choice.name, choice.matched)
                     .font(.body)
                     .foregroundStyle(Color.primary)                     // not the button's tint
-                Text(caption(choice))
+                Text(caption(choice, transcripts: transcripts))
                     .font(.footnote)
                     .foregroundStyle(Color.secondary)
             }
@@ -149,7 +157,7 @@ struct SpeakerNameSheet: View {
         .accessibilityAddTraits(choice.reason == .current ? .isSelected : [])
     }
 
-    private func caption(_ choice: SpeakerNameChoices.Choice) -> String {
+    private func caption(_ choice: SpeakerNameChoices.Choice, transcripts count: Int) -> String {
         switch choice.reason {
         case .current: return "This speaker"
         case .similarVoice: return "Similar voice"
@@ -157,7 +165,6 @@ struct SpeakerNameSheet: View {
             if recording.speakerPeople.contains(where: { $0.value == choice.id && $0.key != speaker }) {
                 return "Already in this transcript"
             }
-            let count = recordings.count { $0.speakerPeople.values.contains(choice.id) }
             return count == 1 ? "1 transcript" : "\(count) transcripts"
         }
     }

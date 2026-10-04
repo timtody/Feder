@@ -16,13 +16,21 @@ struct PeopleView: View {
         return q.isEmpty ? people : people.filter { $0.name.localizedStandardContains(q) }
     }
 
+    /// Transcripts per person, counted once per body (not once per row).
+    private var transcriptCounts: [UUID: Int] {
+        var counts: [UUID: Int] = [:]
+        for recording in recordings { for id in Set(recording.speakerPeople.values) { counts[id, default: 0] += 1 } }
+        return counts
+    }
+
     var body: some View {
+        let counts = transcriptCounts
         List(filtered) { person in
             NavigationLink(value: person) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(person.name)
                         .font(.headline)
-                    Text(summary(person))
+                    Text(summary(person, transcripts: counts[person.id] ?? 0))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -56,8 +64,7 @@ struct PeopleView: View {
         }
     }
 
-    private func summary(_ person: Person) -> String {
-        let count = recordings.filter { $0.speakerPeople.values.contains(person.id) }.count
+    private func summary(_ person: Person, transcripts count: Int) -> String {
         let transcripts = count == 1 ? "1 transcript" : "\(count) transcripts"
         return person.fingerprint.isEmpty ? "\(transcripts) · voice not known yet" : transcripts
     }

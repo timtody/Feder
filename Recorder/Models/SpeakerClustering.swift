@@ -180,15 +180,6 @@ nonisolated enum SpeakerClustering {
         return sums.map(VoiceMatch.unit)
     }
 
-    static func nearest(_ x: [Float], _ centroids: [[Float]]) -> Int {
-        var best = 0, bestScore = -Float.infinity
-        for (c, m) in centroids.enumerated() {
-            let s = dot(x, m)
-            if s > bestScore { best = c; bestScore = s }
-        }
-        return best
-    }
-
     private static func dot(_ a: [Float], _ b: [Float]) -> Float { zip(a, b).reduce(0) { $0 + $1.0 * $1.1 } }
     private static func norm(_ a: [Float]) -> Float { dot(a, a).squareRoot() }
 }

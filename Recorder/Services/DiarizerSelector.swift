@@ -5,7 +5,7 @@ import Foundation
 /// speaker-count clustering always use FluidAudioDiarizer's WeSpeaker models, so its 21 MB bundle is required
 /// (`prepare`), Nemotron's 100 MB model is optional (NemotronModel downloads it).
 nonisolated struct DiarizerSelector: SpeakerDiarizer {
-    let nemotron: NemotronDiarizer?            // nil: pyannote only
+    let nemotron: NemotronDiarizer
     let pyannote: FluidAudioDiarizer
 
     func prepare() async throws {
@@ -13,7 +13,7 @@ nonisolated struct DiarizerSelector: SpeakerDiarizer {
     }
 
     func diarization(fileURL: URL, speakers: SpeakerCount) async throws -> Diarization {
-        if let nemotron, NemotronDiarizer.isDownloaded {
+        if NemotronDiarizer.isDownloaded {
             do {
                 let turns = try await nemotron.diarize(fileURL: fileURL)
                 guard case .exactly(let count) = speakers, !turns.isEmpty,

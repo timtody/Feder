@@ -114,7 +114,7 @@ final class TranscriptTitler {
         case .apple:
             answer = try await generate(TitleAndSummary.self, prompt: prompt,
                                         instructions: Self.titleInstructions(language: language, locale: locale,
-                                                                             fromSummaries: fromSummaries, sentences: "one or two"),
+                                                                             fromSummaries: fromSummaries),
                                         plain: Self.parseLabelled)
         case .local(let model):
             let instructions = Self.localTitleInstructions(language: language, locale: locale, fromSummaries: fromSummaries)
@@ -369,8 +369,7 @@ final class TranscriptTitler {
         return Locale(identifier: "en").localizedString(forLanguageCode: code) ?? "English"
     }
 
-    nonisolated static func titleInstructions(language: String, locale: Locale, fromSummaries: Bool,
-                                              sentences: String = "one or two") -> String {
+    nonisolated static func titleInstructions(language: String, locale: Locale, fromSummaries: Bool) -> String {
         let example = locale.language.languageCode?.identifier == "de" ? "Testphase Kreditprojekt und Abnahme"
                                                                        : "Credit Project Test Phase and Sign-off"
         let source = fromSummaries
@@ -380,7 +379,7 @@ final class TranscriptTitler {
               "sense. Each line starts with the speaker's name and a colon (\"Speaker 2\" while the name is unknown)."
         return """
         You write the title and a short summary of a recorded conversation. Write both in \(language).
-        Summary: \(sentences) complete, short sentences that state what was said, asked or decided, in the third person \
+        Summary: one or two complete, short sentences that state what was said, asked or decided, in the third person \
         (never "ich", "wir", "I" or "we"). Name people by their names where the text gives them, but never write \
         "Speaker 1" or similar. Prefer the active voice. State the content directly; do not begin with phrases like \
         "In dem Gespräch" or "Die Diskussion".

@@ -147,8 +147,7 @@ final class BetterSummaries {
             do {
                 try await Self.fetchFiles { fraction in
                     Task { @MainActor in
-                        guard case .downloading = self.state else { return }
-                        self.state = .downloading(fraction)
+                        if let next = self.state.advanced(to: fraction) { self.state = next }
                     }
                 }
                 model = LocalLanguageModel(directory: Self.modelDirectory)
@@ -164,10 +163,6 @@ final class BetterSummaries {
             downloadTask = nil
             UIApplication.shared.isIdleTimerDisabled = false
         }
-    }
-
-    func cancelDownload() {
-        downloadTask?.cancel()
     }
 
     /// Removes the model files (all revisions) and frees the memory. Summaries it wrote stay.
@@ -207,7 +202,7 @@ final class BetterSummaries {
 
     /// One file, with progress: a session whose delegate gets `didWriteData` (the async `download(from:delegate:)` does
     /// not report progress to a task delegate). Cancelling the Swift task cancels the download.
-    private final class FileDownload: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    nonisolated private final class FileDownload: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
         private let report: @Sendable (Int64) -> Void
         private var continuation: CheckedContinuation<URL, any Error>?
         private let lock = NSLock()

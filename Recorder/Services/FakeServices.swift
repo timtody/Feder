@@ -131,9 +131,8 @@ nonisolated struct FakeDiarizer: SpeakerDiarizer {
         let delay = UserDefaults.standard.double(forKey: "fakeVoicesSeconds")
         if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
         var voices: [Int: SpeakerVoice] = [:]
-        for (index, speakerWindows) in windows {
-            voices[index] = SpeakerVoice(embedding: VoiceMatch.unit((0..<256).map { Float(($0 * (index + 3)) % 17) - 8 }),
-                                         seconds: speakerWindows.reduce(0) { $0 + $1.speech })
+        for index in windows.keys {
+            voices[index] = SpeakerVoice(embedding: VoiceMatch.unit((0..<256).map { Float(($0 * (index + 3)) % 17) - 8 }))
         }
         return voices
     }
