@@ -1,0 +1,470 @@
+import SwiftUI
+import SwiftData
+
+/// One saved recording, the transcript card's content (`TranscriptCard`; Music's "Now Playing" for a transcript): the
+/// grabber at the top, inline-editable title, date and duration, the automatic summary, tags, speaker-identification
+/// status and the transcript grouped by speaker; its actions in the system's bottom toolbar (Liquid Glass): Share,
+/// Speakers and Delete. No top bar. Tapping a speaker's name row (or "Rename Speaker…" in its long-press menu) opens
+/// the rename sheet for that speaker, once speakers are final.
+/// Opened from a search result (`search`), the transcript highlights the hits, starts at the result's paragraph and
+/// steps through the paragraphs with hits from the bottom toolbar ("2 of 5"), next to Share, Speakers and Delete.
+/// Turned from the recording (TranscriptCard), its title and date line lie exactly where the recording had them, what
+/// the recording didn't have fades in below them, and its toolbar takes over from the melted Stop.
+struct RecordingDetailView: View {
+    @Bindable var recording: Recording
+    var search: TranscriptSearchContext? = nil
+    /// Turned from the recording: everything below the date line fades in, once `holdsBody` is false (the recording's
+    /// live text has faded out; TranscriptCard). Otherwise shown at once.
+    var fadesInBody = false
+    var holdsBody = false
+    /// The card is still turning from the recording (TranscriptCard), whose title, date line and flying timer show
+    /// until then: this view's own title and date line are hidden under them, and its toolbar under the melted
+    /// Stop's replicas (with a stand-in for its scroll edge effect).
+    var turning = false
+    /// The grabber and Delete: MainView closes the card (back to the list).
+    let onClose: () -> Void
+
+    @Environment(AppServices.self) private var services
+    @Environment(\.modelContext) private var modelContext
+
+    @State private var confirmDelete = false
+    @State private var pendingSpeakerCount: Int??    // a count waiting for "names will be reset" confirmation
+    @FocusState private var titleFocused: Bool
+    @State private var deleteOnDisappear = false
+    @State private var hits: [UUID] = []             // paragraphs with search hits, in transcript order
+    @State private var hitIndex = 0
+    @State private var position = ScrollPosition(idType: UUID.self)
+    @State private var renaming: SpeakerRenameTarget?
+    @State private var bodyShown: Bool
+    @State private var hitGeometry = HitGeometry()
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var width: CGFloat = 402
+
+    init(recording: Recording, search: TranscriptSearchContext? = nil, fadesInBody: Bool = false, holdsBody: Bool = false,
+         turning: Bool = false, onClose: @escaping () -> Void) {
+        self.recording = recording
+        self.search = search
+        self.fadesInBody = fadesInBody
+        self.holdsBody = holdsBody
+        self.turning = turning
+        self.onClose = onClose
+        _bodyShown = State(initialValue: !fadesInBody)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 20) {
+                    // Tap the title to rename: a plain text field, no menu. A blank title falls back to "Untitled
+                    // Transcript". Any edit marks the name as the user's, so an automatic title never replaces it.
+                    TextField("Title", text: titleText)
+                        .font(.title2.weight(.bold))
+                        .submitLabel(.done)
+                        .onSubmit(normalizeTitle)
+                        .onChange(of: titleFocused) { _, focused in if !focused { normalizeTitle() } }
+                        .focused($titleFocused)
+                        .accessibilityLabel("Title")
+                        .opacity(turning ? 0 : 1)
+                        .animation(nil, value: turning)            // takes over from the recording's in one frame
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        // Date, duration and place on one line when they fit, otherwise the place moves to a second line.
+                        TranscriptDateLine(date: recording.createdAt, duration: Text(recording.duration.clockFormatted),
+                                           place: recording.placeName)
+                            .opacity(turning ? 0 : 1)
+                            .animation(nil, value: turning)
+                        // The automatic summary (TranscriptTitler), once there is one.
+                        if let summary = recording.summary, !summary.isEmpty {
+                            SummaryText(summary: summary, highlights: search?.highlights(in: summary) ?? [])
+                                .opacity(bodyShown ? 1 : 0)
+                        }
+                    }
+
+                    TagEditor(recording: recording)
+                        .opacity(bodyShown ? 1 : 0)
+
+                    if recording.speakerStatus != .done {
+                        speakerStatusRow
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+                            .opacity(bodyShown ? 1 : 0)
+                    }
+                }
+                // No spacing above: the first name row brings its own (the space above a name is part of its target).
+                TranscriptView(segments: recording.segments, speakerName: recording.speakerName(_:),
+                               preliminary: recording.speakerStatus != .done, preliminaryNotice: preliminaryNotice,
+                               renameSpeaker: { renaming = SpeakerRenameTarget(speaker: $0) },
+                               search: search, currentHit: hits.indices.contains(hitIndex) ? hits[hitIndex] : nil,
+                               hitFrame: search == nil ? nil : { id, frame in hitGeometry.frames[id] = frame })
+                    .animation(.snappy, value: recording.segments)   // refined speakers re-split it: no jump
+                    .opacity(bodyShown ? 1 : 0)
+            }
+            .coordinateSpace(.named(TranscriptView.contentSpace))
+            .scrollTargetLayout()
+            .padding(.horizontal, TranscriptStyle.margin)
+            .padding(.bottom, 24)
+            .frame(maxWidth: TranscriptStyle.maxWidth)
+            .frame(maxWidth: .infinity)
+            .animation(.snappy, value: recording.speakerStatusRaw)   // row collapse + paragraph -> speaker turns
+        }
+        .scrollDismissesKeyboard(.interactively)        // swiping the transcript ends (and saves) an edit
+        .scrollPosition($position, anchor: .center)
+        // The soft edge under the bottom toolbar, as in Notes and Mail (and as the live view has under its Stop).
+        .scrollEdgeEffectStyle(.soft, for: .bottom)
+        .safeAreaBar(edge: .bottom) {
+            // While the toolbar is hidden under the melt's replicas: a stand-in of its height (52 pt, the inset the bar
+            // adds), so the soft edge is already there and doesn't switch on at once when the real bar takes over.
+            // Its content must be real: Color.clear (or an empty but visible bar) gave no edge effect.
+            if turning {
+                Rectangle()
+                    .fill(Color(uiColor: .systemBackground).opacity(0.001))
+                    .frame(height: 52)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
+        .onScrollGeometryChange(for: CGRect.self, of: { geometry in   // what is visible between the band and the bar
+            CGRect(x: 0, y: geometry.visibleRect.minY + geometry.contentInsets.top, width: geometry.visibleRect.width,
+                   height: geometry.visibleRect.height - geometry.contentInsets.top - geometry.contentInsets.bottom)
+        }, action: { _, visible in hitGeometry.visible = visible })
+        .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { width = $0 })
+        // The grabber floats over the top on an opaque band: the content starts below it, and what scrolls up goes
+        // under a short fade into the band (also under the status bar).
+        .contentMargins(.top, CardGrabber.contentTop, for: .scrollContent)
+        .cardGrabber(hint: "Back to the transcripts", action: onClose)
+        .task(id: search) { await showFirstHit() }
+        .onChange(of: recording.segments) { findHits() }   // the vocabulary pass or a new speaker count rewrote them
+        .onChange(of: recording.speakerStatusRaw) {        // "Speakers: n" re-runs identification: numbers change
+            if recording.speakerStatus != .done { renaming = nil }
+        }
+        .sheet(item: $renaming) { target in
+            SpeakerNameSheet(recording: recording, speaker: target.speaker)
+        }
+        #if DEBUG
+        .task { await renameFirstSpeakerForQA() }
+        #endif
+        // Like Photos, Mail and Notes: the transcript's actions in the system's bottom toolbar (Liquid Glass), within
+        // thumb reach, where the recording had its large Stop.
+        .toolbar { bottomBar }
+        .toolbar(turning ? .hidden : .visible, for: .bottomBar)
+        .task(id: holdsBody) {
+            // Started when it is let go rather than with a `.delay`: with a delay the value is already set, and a part
+            // re-made in the meantime (the speaker status row, as identification starts) appeared at once. A task, so
+            // a transcript inserted after the live text was gone still fades in rather than appearing with its view.
+            guard !holdsBody, !bodyShown else { return }
+            withAnimation(.easeOut(duration: 0.25)) { bodyShown = true }
+        }
+        .confirmationDialog("Identify speakers again?", isPresented: Binding(
+            get: { pendingSpeakerCount != nil }, set: { if !$0 { pendingSpeakerCount = nil } }
+        ), titleVisibility: .visible) {
+            Button("Identify Again") {
+                if let count = pendingSpeakerCount { services.identifier.setSpeakerCount(count, for: recording) }
+            }
+        } message: {
+            Text("The speaker names you entered will be reset.")
+        }
+        .onDisappear {
+            // Delete only once the card has closed: this view keeps re-reading the model while the card shrinks away,
+            // and reading a deleted-and-saved (detached) @Model traps.
+            guard deleteOnDisappear, !recording.isDeleted else { return }
+            services.people.forget(recording)
+            AudioFileStore.delete(fileName: recording.audioFileName)
+            modelContext.delete(recording)
+            try? modelContext.save()
+        }
+    }
+
+    // MARK: Bottom toolbar
+
+    /// Share and Speakers on the left, Delete on the right; opened from a search, the hits' "n of m" with
+    /// previous/next between them (like Safari's Find on Page).
+    @ToolbarContentBuilder
+    private var bottomBar: some ToolbarContent {
+        if combinesActions {
+            // Seven items don't fit a narrower iPhone (or large text): iOS would hide Next and Delete in an overflow
+            // menu. Share and Speakers share one menu instead, so the navigator and Delete stay visible.
+            ToolbarItem(placement: .bottomBar) {
+                Menu {
+                    shareButton
+                    speakersPicker.pickerStyle(.menu)       // a submenu here
+                } label: {
+                    Label("More", systemImage: "ellipsis")
+                }
+            }
+        } else {
+            ToolbarItem(placement: .bottomBar) { shareButton }
+            ToolbarItem(placement: .bottomBar) {
+                Menu {
+                    speakersPicker
+                } label: {
+                    Label("Speakers", systemImage: "person.2")
+                }
+            }
+        }
+        ToolbarSpacer(.flexible, placement: .bottomBar)
+        if !hits.isEmpty {
+            ToolbarItem(placement: .bottomBar) {
+                Text("\(hitIndex + 1) of \(hits.count)")
+                    .monospacedDigit()
+                    .fixedSize()                        // iOS 26.5 truncated it to "1…" otherwise
+                    .padding(.leading, 6)
+                    .accessibilityLabel("Match \(hitIndex + 1) of \(hits.count)")
+            }
+            ToolbarItem(placement: .bottomBar) {
+                Button("Previous Match", systemImage: "chevron.up") { step(-1) }
+            }
+            ToolbarItem(placement: .bottomBar) {
+                Button("Next Match", systemImage: "chevron.down") { step(1) }
+            }
+            // Only a small gap to Delete: with a second flexible spacer the bar no longer fit an iPhone 17 and moved
+            // Next and Delete into an overflow menu.
+            ToolbarSpacer(.fixed, placement: .bottomBar)
+        }
+        ToolbarItem(placement: .bottomBar) {
+            Button("Delete Transcript", systemImage: "trash", role: .destructive) {
+                confirmDelete = true
+            }
+            // On the button, not the view: iOS anchors the confirmation to its source, so it comes out of the trash
+            // button as in Photos and Notes (on the whole view it floated mid-card, pointing at the text).
+            .confirmationDialog("Delete this transcript?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Delete", role: .destructive) {
+                    deleteOnDisappear = true
+                    onClose()
+                }
+            }
+        }
+    }
+
+    /// The same system share sheet as the list's Share swipe action (title and app symbol in its header), presented
+    /// at once: ShareLink of the plain text showed a generic text icon and the first line instead.
+    private var shareButton: some View {
+        Button("Share Transcript", systemImage: "square.and.arrow.up") {
+            ShareSheet.present(text: recording.plainText, title: recording.name)
+        }
+    }
+
+    private var speakersPicker: some View {
+        Picker(selection: speakerCountChoice) {
+            Text("Automatic").tag(Int?.none)
+            ForEach(2...6, id: \.self) { Text("\($0) Speakers").tag(Int?.some($0)) }
+        } label: {
+            Label("Speakers", systemImage: "person.2")
+        }
+        .disabled(services.identifier.inFlight.contains(recording.id))
+    }
+
+    /// With the hit navigator, on an iPhone narrower than the 17's 402 pt or with accessibility text sizes.
+    private var combinesActions: Bool {
+        !hits.isEmpty && (width < 400 || dynamicTypeSize.isAccessibilitySize)
+    }
+
+    // MARK: Search hits
+
+    private func findHits() {
+        guard let search else { hits = []; return }
+        let current = hits.indices.contains(hitIndex) ? hits[hitIndex] : search.firstHit
+        hits = search.hits(in: recording.segments)
+        hitIndex = current.flatMap { hits.firstIndex(of: $0) } ?? 0
+    }
+
+    /// Starts at the result's snippet paragraph (or the first hit). The short wait lets the lazy transcript lay out
+    /// before scrolling to a paragraph far down.
+    private func showFirstHit() async {
+        hits = []
+        findHits()
+        guard hits.indices.contains(hitIndex) else { return }
+        do { try await Task.sleep(for: .milliseconds(50)) } catch { return }
+        reveal(hits[hitIndex])
+        #if DEBUG
+        let steps = UserDefaults.standard.integer(forKey: "stepHits")   // QA hook: `-stepHits 5` taps Next 5 times
+        if steps > 0 {
+            do { try await Task.sleep(for: .seconds(1)) } catch { return }
+            for _ in 0..<steps { step(1) }
+        }
+        #endif
+    }
+
+    /// Next/previous paragraph with a hit, wrapping around.
+    private func step(_ delta: Int) {
+        guard !hits.isEmpty else { return }
+        hitIndex = (hitIndex + delta + hits.count) % hits.count
+        withAnimation { reveal(hits[hitIndex]) }
+    }
+
+    /// Like Safari's Find on Page: scrolls a hit to the centre only when it isn't wholly visible between the grabber's
+    /// band and the bottom toolbar. A hit already on screen (at the start, often the first turns) leaves the card where
+    /// it is: centring it pulled the title up against the grabber.
+    private func reveal(_ hit: UUID) {
+        if let frame = hitGeometry.frames[hit], hitGeometry.visible.contains(frame) { return }
+        position.scrollTo(id: hit, anchor: .center)
+    }
+
+    /// The "Speakers" picker: automatic or an exact count. Choosing re-runs speaker identification; with names given,
+    /// it asks first, because the speaker numbers change.
+    private var speakerCountChoice: Binding<Int?> {
+        Binding(
+            get: { recording.speakerCountOverride },
+            set: { count in
+                guard count != recording.speakerCountOverride else { return }
+                if recording.speakerNames.isEmpty {
+                    services.identifier.setSpeakerCount(count, for: recording)
+                } else {
+                    pendingSpeakerCount = .some(count)
+                }
+            }
+        )
+    }
+
+    /// What tapping a name says while speakers are not final: preliminary (live) speaker numbers are not the offline
+    /// ones, so a name given now could land on a different person when the offline pass replaces the segments.
+    private var preliminaryNotice: String {
+        recording.speakerStatus == .failed ? "Speakers couldn't be identified — try again above, then name them"
+                                           : "Speakers are still being identified — you can name them in a moment"
+    }
+
+    #if DEBUG
+    /// QA hook: `-renameFirstSpeaker` opens the rename sheet for the first speaker once speakers are final.
+    private func renameFirstSpeakerForQA() async {
+        guard ProcessInfo.processInfo.arguments.contains("-renameFirstSpeaker") else { return }
+        for _ in 0..<100 where recording.speakerStatus != .done {
+            do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
+        }
+        guard recording.speakerStatus == .done, let speaker = recording.segments.lazy.compactMap(\.speakerIndex).first
+        else { return }
+        renaming = SpeakerRenameTarget(speaker: speaker)
+    }
+    #endif
+
+    private var titleText: Binding<String> {
+        Binding(get: { recording.name }, set: { name in
+            guard name != recording.name else { return }
+            recording.name = name
+            recording.nameIsUserSet = true
+        })
+    }
+
+    private func normalizeTitle() {
+        let trimmed = recording.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        recording.name = trimmed.isEmpty ? "Untitled Transcript" : trimmed
+    }
+
+    @ViewBuilder
+    private var speakerStatusRow: some View {
+        let preliminary = recording.speakerCount > 0     // live labels saved at Stop; the row only shows until .done
+        switch recording.speakerStatus {
+        case .processing:
+            HStack {
+                ProgressView()
+                Text(services.identifier.refining.contains(recording.id) ? "Improving transcript accuracy…"
+                     : preliminary ? "Refining speakers…" : "Identifying speakers…")
+            }
+            .foregroundStyle(.secondary)
+        case .pending where services.identifier.inFlight.contains(recording.id) && services.identifier.modelError == nil:
+            // Just saved and queued (or waiting behind another): it is on its way, so the progress, not a retry button
+            // that read as an error for the moment before identification starts.
+            HStack {
+                ProgressView()
+                Text(preliminary ? "Refining speakers…" : "Identifying speakers…")
+            }
+            .foregroundStyle(.secondary)
+        case .pending:
+            VStack(alignment: .leading, spacing: 8) {
+                Label(services.identifier.modelError == nil
+                      ? (preliminary ? "Speaker labels are preliminary and will be refined shortly."
+                                     : "Speakers will be identified shortly.")
+                      : (preliminary ? "Speaker labels are preliminary. They'll be refined once the speaker model (21 MB) has downloaded. Connect to the internet and try again."
+                                     : "Speakers will be identified once the speaker model (21 MB) has downloaded. Connect to the internet and try again."),
+                      systemImage: "person.2.wave.2")
+                Button("Try Again") { services.identifier.enqueue(recording) }
+            }
+        case .failed:
+            VStack(alignment: .leading, spacing: 8) {
+                Label(preliminary ? "Couldn't refine speakers. The labels shown are preliminary." : "Couldn't identify speakers.",
+                      systemImage: "exclamationmark.triangle")
+                Button("Try Again") { services.identifier.enqueue(recording) }
+            }
+        case .done:
+            EmptyView()
+        }
+    }
+}
+
+/// Where the hit paragraphs are (in the content's coordinates) and what the scroll view shows of it, read when a hit is
+/// revealed. Not view state: it changes with every layout and scroll, and nothing is drawn from it.
+private final class HitGeometry {
+    var frames: [UUID: CGRect] = [:]
+    var visible = CGRect.null
+}
+
+/// The automatic summary under the date line: secondary text, at most three lines; a longer one shows "More" and the
+/// whole summary is the button that expands it (and collapses it again). Opened from a search, its hits are highlighted,
+/// so a transcript found only by its summary shows why. VoiceOver reads all of it either way.
+private struct SummaryText: View {
+    let summary: String
+    let highlights: [Range<String.Index>]
+
+    @State private var isExpanded = false
+    @State private var fullHeight: CGFloat = 0           // of the whole summary at this width
+    @State private var clippedHeight: CGFloat = 0        // of its first three lines
+
+    private static let lines = 3
+
+    private var isLong: Bool { fullHeight > clippedHeight + 1 }
+
+    var body: some View {
+        if isLong {
+            Button {
+                withAnimation(.snappy) { isExpanded.toggle() }
+            } label: {
+                content.contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Summary")
+            .accessibilityValue(summary)
+            .accessibilityHint(isExpanded ? "Shows only its first lines." : "Shows all of it.")
+        } else {
+            content
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Summary")
+                .accessibilityValue(summary)
+        }
+    }
+
+    private var content: some View {
+        let text = SearchHighlight.text(summary, highlights)
+        return VStack(alignment: .leading, spacing: 2) {
+            text
+                .lineLimit(isExpanded ? nil : Self.lines)
+                .fixedSize(horizontal: false, vertical: true)
+                .foregroundStyle(.secondary)
+                .background(alignment: .topLeading) {      // invisible copies: is there more than three lines' worth?
+                    ZStack(alignment: .topLeading) {
+                        text.fixedSize(horizontal: false, vertical: true)
+                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
+                        text.lineLimit(Self.lines).fixedSize(horizontal: false, vertical: true)
+                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { clippedHeight = $0 }
+                    }
+                    .hidden()
+                    .accessibilityHidden(true)
+                }
+            if isLong {
+                Text(isExpanded ? "Less" : "More")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.tint)
+            }
+        }
+        .font(.subheadline)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+#if DEBUG
+#Preview {
+    NavigationStack {
+        RecordingDetailView(recording: PreviewData.sample(), onClose: {})
+    }
+    .modelContainer(PreviewData.container)
+    .environment(AppServices(container: PreviewData.container))
+}
+#endif

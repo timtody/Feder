@@ -1,0 +1,126 @@
+# XcodeGen spec. Run `xcodegen generate` here to (re)create Recorder.xcodeproj. Info.plist is generated from `info:`.
+name: Recorder
+options:
+  bundleIdPrefix: de.cofinpro                # placeholder: your reverse-DNS prefix
+  deploymentTarget:
+    iOS: "26.0"                              # SpeechTranscriber needs iOS 26; the installed simulator runtime is 26.5
+  xcodeVersion: "27.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+packages:
+  FluidAudio:
+    url: https://github.com/FluidInference/FluidAudio
+    exactVersion: 0.17.4                     # pinned; tag v0.17.4 (2026-09-24). Must be a real semver, no "v".
+  MLXSwiftLM:                                # Gemma 4 E2B for "Better Summaries" (LocalLanguageModel)
+    url: https://github.com/ml-explore/mlx-swift-lm
+    exactVersion: 3.32.3                     # 2026-09-30
+  MLXSwift:
+    url: https://github.com/ml-explore/mlx-swift
+    exactVersion: 0.32.3                     # the version mlx-swift-lm 3.32.3 requires (MLX.GPU cache control)
+  SwiftTransformers:
+    url: https://github.com/huggingface/swift-transformers
+    exactVersion: 1.3.4                      # Gemma's tokenizer and chat template
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"                                      # Swift 6 language mode (strict concurrency = errors)
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor                  # Xcode 27 app-template default
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
+    SWIFT_UPCOMING_FEATURE_NONISOLATED_NONSENDING_BY_DEFAULT: YES   # explicit: APPROACHABLE is a Swift<6 UI setting
+    SWIFT_UPCOMING_FEATURE_INFER_ISOLATED_CONFORMANCES: YES
+    SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    STRING_CATALOG_GENERATE_SYMBOLS: YES
+  configs:
+    debug:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+
+targets:
+  Recorder:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: Recorder
+        type: syncedFolder                   # Xcode 16+ synchronized group: new files need no regeneration
+        excludes:
+          - "Info.plist"
+    dependencies:
+      - package: FluidAudio
+        product: FluidAudio
+      - package: MLXSwiftLM
+        product: MLXLLM
+      - package: MLXSwiftLM
+        product: MLXLMCommon
+      - package: MLXSwift
+        product: MLX
+      - package: SwiftTransformers
+        product: Tokenizers
+    entitlements:
+      path: Recorder/Recorder.entitlements
+      properties:
+        com.apple.developer.kernel.increased-memory-limit: true   # Gemma's ~3 GB next to the app on an 8 GB iPhone
+    info:
+      path: Recorder/Info.plist
+      properties:
+        CFBundleDisplayName: Scribe
+        NSMicrophoneUsageDescription: "Scribe uses the microphone to record and transcribe audio. Everything stays on this iPhone."
+        NSLocationWhenInUseUsageDescription: "Scribe saves where a transcript was started, so you can see and search it later."
+        UIBackgroundModes: [audio]
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.cofinpro.recorder       # placeholder
+        PRODUCT_NAME: Recorder
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1"                           # iPhone only
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_PREVIEWS: YES
+        SUPPORTS_MACCATALYST: NO
+        CODE_SIGN_STYLE: Automatic                            # signing lives at target level (xcodegen injects CODE_SIGN_IDENTITY here)
+        DEVELOPMENT_TEAM: GL55J24MCR                          # signing team for device builds
+        CODE_SIGN_IDENTITY: "Apple Development"
+        "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": ""
+        "CODE_SIGNING_REQUIRED[sdk=iphonesimulator*]": NO
+        "CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]": NO
+
+  ScribeUITests:                             # XCUITest: speaker naming (hit area, rename sheet, menu), search, record control
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: ScribeUITests
+    dependencies:
+      - target: Recorder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.cofinpro.recorder.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Recorder
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated              # XCTestCase overrides; UI calls are in @MainActor tests
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: GL55J24MCR
+        "CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]": NO
+
+schemes:
+  Recorder:
+    build:
+      targets:
+        Recorder: all
+        ScribeUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug                          # the UI tests need the DEBUG launch hooks and the simulator fakes
+      targets:
+        - ScribeUITests
+    archive:
+      config: Release

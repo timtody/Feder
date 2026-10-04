@@ -1,0 +1,443 @@
+import SwiftUI
+import UIKit
+
+/// The transcript card while recording (Music's "Now Playing" for a recording; `TranscriptCard`), opened out of the tab
+/// bar's record accessory with a zoom transition. Laid out like Voice Memos' recording sheet and exactly like the
+/// transcript it turns into: at the top the name the transcript will get and its date line (start time, then the
+/// place once it is found), in the transcript's fonts and at its positions; the live transcript below; at the bottom
+/// the level meter and the big timer above a large Stop. MainView owns the session (it starts it and handles
+/// Saved/Discarded), so swiping the card down, or its grabber, shrinks it back into the accessory and recording goes
+/// on. On Stop the card turns into the transcript in place (`turn`): title and date line stay put, the timer
+/// shrinks into the date line's duration, the live text fades out, and the Stop melts into the transcript's toolbar
+/// (TranscriptCard). Preparation, model download and every failure are shown as in-screen overlays.
+struct RecordView: View {
+    let session: RecordingSession
+    /// Stop has saved, or is saving, something: the card is turning into the transcript, timed by this clock. The
+    /// timer moves into the date line's duration (Reduce Motion: it fades out and the duration in), the live text,
+    /// meter and caption fade out, and the Stop gives way to the melt (`melts`: TranscriptCard draws its glass from this
+    /// frame on) or fades.
+    var turn: TurnClock? = nil
+    var melts = false
+    /// Where the Stop and the card's safe area are, for the melt.
+    var geometry: Binding<RecordGeometry>? = nil
+    let onClose: () -> Void                        // a failure screen's Close / Cancel
+    let onRetry: () -> Void
+    let onMinimize: () -> Void                     // back into the accessory, still recording
+
+    @Environment(\.openURL) private var openURL
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var startedAt: Date?       // keeps the time on screen through `.finishing`
+    @State private var stoppedAt: Date?       // ... frozen at Stop, not counting on while saving
+    @ScaledMetric(relativeTo: .subheadline) private var dateLineSize: CGFloat = 15   // .subheadline's size
+    @State private var timerFrames = TimerFrames()
+
+    /// The live text's, meter's and caption's fade-out at Stop; then the transcript's body fades in (TranscriptCard).
+    /// 0.2 s, not 0.15: even if a frame or two are held up, the fade is still seen as one.
+    static let fadeOut: TimeInterval = 0.2
+
+    /// From Stop until the timer has landed in the date line. Until then the card keeps showing this view's title,
+    /// date line and timer (TranscriptCard): the transcript is often saved within 0.15 s, and showing its own date
+    /// line then cut the flight short.
+    static func flightDuration(reduceMotion: Bool) -> TimeInterval { reduceMotion ? 0.25 : 0.45 }
+
+    private var turning: Bool { turn != nil }
+
+    /// The turn's timelines tick until everything has arrived, and stand still otherwise.
+    private var isMoving: Bool { turn.map { !$0.isOver } ?? false }
+
+    /// The turn's time in a frame (0 while recording).
+    private func time(_ date: Date) -> TimeInterval { turn?.time(at: date) ?? 0 }
+
+    /// What is left of something fading out over `duration` from the turn's start: 1 before, 0 after.
+    private func remaining(_ date: Date, over duration: TimeInterval) -> Double {
+        guard turn != nil else { return 1 }
+        return 1 - min(max(time(date) / duration, 0), 1)
+    }
+
+    /// The timer's flight, 0 on the big timer, 1 landed; eased in and out (Reduce Motion: linear, it only fades).
+    private func flightProgress(_ date: Date) -> CGFloat {
+        guard turn != nil else { return 0 }
+        let t = min(max(time(date) / Self.flightDuration(reduceMotion: reduceMotion), 0), 1)
+        if reduceMotion { return t }
+        return t < 0.5 ? 4 * t * t * t : 1 - pow(-2 * t + 2, 3) / 2
+    }
+
+    private var isRecording: Bool {
+        if case .recording = session.state { return true }
+        return false
+    }
+
+    private var isFailed: Bool {
+        if case .failed = session.state { return true }
+        return false
+    }
+
+    /// The transcript area is replaced by a state overlay outside of recording/finishing.
+    private var showsOverlay: Bool {
+        switch session.state {
+        case .recording, .finishing, .finished, .discarded: false
+        case .idle, .preparing, .downloadingSpeechModel, .failed: true
+        }
+    }
+
+    private var localeCaption: String {
+        let identifier = (session.locale ?? RecordingSession.transcriptionLocale).identifier
+        let name = Locale.current.localizedString(forIdentifier: identifier) ?? ""
+        return "\(name) · On device"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+                .opacity(isFailed ? 0 : 1)
+            TimelineView(.animation(paused: !isMoving)) { context in
+                transcript
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .opacity(remaining(context.date, over: Self.fadeOut))
+            }
+            .overlay { stateOverlay }
+        }
+        // The card's grabber, as on a transcript: back into the accessory, still recording.
+        .cardGrabber(hint: "Back to the transcripts; recording goes on", action: onMinimize)
+        .safeAreaBar(edge: .bottom) {                  // a bar: text scrolling under it fades out (scroll edge effect)
+            controls
+        }
+        .coordinateSpace(.named(Self.space))
+        .overlay {
+            // The one timer: big above the Stop while recording, then shrinking into the date line's duration (both
+            // places are hidden stand-ins, measured before Stop).
+            if !isFailed, let hero = timerFrames.hero {
+                TimelineView(.animation(paused: !isMoving)) { context in
+                    let progress = flightProgress(context.date)
+                    let slot = reduceMotion ? hero : timerFrames.slot ?? hero
+                    timer(progress: progress)
+                        .position(x: hero.midX + (slot.midX - hero.midX) * progress,
+                                  y: hero.midY + (slot.midY - hero.midY) * progress)
+                        .opacity(reduceMotion ? 1 - progress : 1)
+                }
+                .accessibilityHidden(true)                   // read with the meter ("Recording")
+            }
+        }
+        .onGeometryChange(for: RecordGeometry.self) { proxy in
+            RecordGeometry(safeArea: proxy.frame(in: .global), bottomInset: proxy.safeAreaInsets.bottom)
+        } action: { value in
+            geometry?.wrappedValue.safeArea = value.safeArea
+            geometry?.wrappedValue.bottomInset = value.bottomInset
+        }
+        .background(Color(uiColor: .systemBackground).ignoresSafeArea())
+        // A failure after Stop (the turn had begun) crossfades to its screen instead of cutting to it.
+        .animation(.easeOut(duration: 0.25), value: isFailed)
+        .sensoryFeedback(trigger: session.state) { old, new in
+            switch (old, new) {
+            case (_, .recording): .impact(weight: .medium)        // recording started
+            case (.recording, _): .impact(weight: .light)         // stopped: button, interruption or failure
+            default: nil
+            }
+        }
+        .onChange(of: session.state, initial: true) { _, state in
+            if case .recording(let since) = state {
+                startedAt = since
+                stoppedAt = nil
+            } else if startedAt != nil, stoppedAt == nil {
+                stoppedAt = .now
+            }
+        }
+    }
+
+    // MARK: Header
+
+    /// The transcript's title and date line, at the transcript's positions (RecordingDetailView: same grabber band,
+    /// margin, fonts and spacing; a Text title sat 1 pt higher than the transcript's TextField, so it is one too).
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            TextField("Title", text: .constant(session.transcriptName))
+                .font(.title2.weight(.bold))
+                .allowsHitTesting(false)                    // named once it is saved, in the transcript
+                .accessibilityRepresentation {
+                    Text(session.transcriptName).accessibilityAddTraits(.isHeader)
+                }
+            TimelineView(.animation(paused: !isMoving)) { context in
+                let progress = flightProgress(context.date)
+                TranscriptDateLine(date: startedAt ?? .now, duration: turning ? durationSlot(progress) : nil,
+                                   place: session.place?.name, reveal: reduceMotion ? 1 : progress)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(alignment: .topLeading) {
+                // The same line with the duration, where the timer will land, measured all along: the flight's end
+                // has to be known when it starts, and stays put during it. Its text is the timer's.
+                TimelineView(.periodic(from: startedAt ?? .now, by: 1)) { context in
+                    TranscriptDateLine(date: startedAt ?? .now, duration: Text(timerText(at: context.date))
+                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { frame in
+                            // Fixed from Stop on (measured once more if the card came up during the turn).
+                            if !turning || timerFrames.slot == nil { timerFrames.slot = frame }
+                        }, place: session.place?.name)
+                }
+                .hidden()
+                .accessibilityHidden(true)
+            }
+        }
+        .padding(.top, CardGrabber.contentTop)
+        .padding(.horizontal, TranscriptStyle.margin)
+        .frame(maxWidth: TranscriptStyle.maxWidth, alignment: .leading)
+        .frame(maxWidth: .infinity)
+    }
+
+    /// The duration in the date line: where the timer lands (with Reduce Motion the duration itself fades in).
+    private func durationSlot(_ progress: CGFloat) -> some View {
+        Text((session.recordedDuration ?? 0).clockFormatted)
+            .opacity(reduceMotion ? progress : 0)
+    }
+
+    // MARK: Timer and Stop
+
+    nonisolated private static let space = "RecordView"
+
+    // The turn's motion (timer flight, place moving aside, live text and controls fading) is drawn frame by frame
+    // (TimelineViews) on the turn's clock (TurnClock: the frames' own time from the first one drawn after Stop), not
+    // with SwiftUI animations: right after Stop the main thread is busy for ~0.1 s (saving, inserting the transcript;
+    // simulator), and an implicit fade only started after that, over the timer already in flight. Timed from the
+    // moment of Stop instead, the first frame drawn already showed the live text half faded and the timer 24 pt up.
+    // (A matched geometry effect for the flight also re-placed the timer without animation when the duration's text
+    // changed in a later update.)
+
+    /// The timer, ticking once a second: a TimelineView's text, not a timer text (`Text(_:style: .timer)`), which
+    /// can't be stopped on the saved duration without becoming another text.
+    private func timer(progress: CGFloat) -> some View {
+        TimelineView(.periodic(from: startedAt ?? .now, by: 1)) { context in
+            FlyingTimer(text: timerText(at: context.date), dimmed: startedAt == nil, progress: progress,
+                        smallSize: dateLineSize)
+        }
+    }
+
+    /// What the timer says at `date`: the time recorded so far (m:ss, h:mm:ss from an hour); from Stop the saved
+    /// duration as the transcript shows it (the file's length, rounded: a little longer than the time on screen),
+    /// so it lands on the transcript's digits. RecordingSession sets it together with `.finishing`, so the text is
+    /// final before the flight begins.
+    private func timerText(at date: Date) -> String {
+        guard let startedAt else { return "0:00" }
+        if let duration = session.recordedDuration { return duration.clockFormatted }
+        let seconds = max(0, (stoppedAt ?? date).timeIntervalSince(startedAt).rounded(.down))
+        return Duration.seconds(seconds).formatted(.time(pattern: seconds >= 3600 ? .hourMinuteSecond : .minuteSecond))
+    }
+
+    /// Voice Memos' bottom: the big timer (with the level meter) above the large Stop, and what it transcribes.
+    @ViewBuilder
+    private var controls: some View {
+        if !isFailed {
+            TimelineView(.animation(paused: !isMoving)) { context in
+                controls(fading: remaining(context.date, over: Self.fadeOut))
+            }
+        }
+    }
+
+    private func controls(fading opacity: Double) -> some View {
+        VStack(spacing: 14) {
+            VStack(spacing: 4) {
+                HStack(spacing: 10) {
+                    LevelMeter(session: session, isActive: isRecording)
+                    timer(progress: 0)
+                        .hidden()
+                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { frame in
+                            if !turning || timerFrames.hero == nil { timerFrames.hero = frame }   // fixed from Stop on
+                        }
+                    LevelMeter(session: session, isActive: false)
+                        .hidden()                         // the timer stays centred
+                }
+                // For VoiceOver one element: "Recording" and the time (the timer drawn is the overlay's).
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Recording")
+                .accessibilityAddTraits([.isStaticText, .updatesFrequently])
+                .accessibilityValue(startedAt.map { Text($0, style: .timer) } ?? Text("0:00"))
+                Text(localeCaption)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .opacity(opacity)
+            // Melting: gone in the frame the melt's identical glass appears, not faded out over it.
+            stopControl
+                .opacity(melts ? (turning ? 0 : 1) : opacity)
+        }
+        .padding(.bottom, 12)
+        .frame(maxWidth: .infinity)
+    }
+
+    /// The large Stop, dimmed with a spinner while discarding (nothing transcribed); while preparing a stand-in of its
+    /// size, so the timer doesn't move (the overlay has Cancel).
+    @ViewBuilder
+    private var stopControl: some View {
+        switch session.state {
+        case .recording, .finishing, .finished:
+            let isBusy = !isRecording
+            Button {
+                Task { await session.stop() }
+            } label: {
+                // Busy (dimmed, a spinner) while saving or discarding without a turn: during a turn the Stop is
+                // replaced by the melt (or fades) as it stands. (Not `text.isEmpty`: a card opened while saving has no
+                // turn, and its Stop looked fully active but did nothing.)
+                StopButtonLabel(isBusy: isBusy && !turning)
+            }
+            .buttonStyle(.plain)
+            .disabled(isBusy)
+            .accessibilityLabel("Stop")
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { geometry?.wrappedValue.stop = $0 }
+            .allowsHitTesting(!turning)
+            .accessibilityHidden(turning)
+        default:
+            StopButtonLabel()
+                .hidden()
+        }
+    }
+
+    // MARK: Transcript
+
+    @ViewBuilder
+    private var transcript: some View {
+        if showsOverlay {
+            Color.clear
+        } else if session.text.isEmpty {
+            Text("Listening…")
+                .foregroundStyle(.tertiary)
+        } else {
+            LiveTranscriptView(text: session.text)
+        }
+    }
+
+    // MARK: State overlays
+
+    @ViewBuilder
+    private var stateOverlay: some View {
+        switch session.state {
+        case .idle, .preparing:
+            VStack(spacing: 24) {
+                ProgressView("Preparing…")
+                Button("Cancel") { session.cancel() }
+            }
+        case .downloadingSpeechModel:
+            ContentUnavailableView {
+                Label("Preparing Speech Recognition", systemImage: "arrow.down.circle")
+            } description: {
+                Text("Downloads the on-device speech model once. Everything runs on this iPhone afterwards.")
+            } actions: {
+                if let progress = session.downloadProgress {
+                    ProgressView(progress)
+                        .frame(maxWidth: 240)
+                }
+                Button("Cancel") { session.cancel() }
+            }
+        case .failed(let error):
+            failureOverlay(error)
+        case .recording, .finishing, .finished, .discarded:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func failureOverlay(_ error: RecorderError) -> some View {
+        switch error {
+        case .microphoneDenied:
+            ContentUnavailableView {
+                Label("Microphone Access Off", systemImage: "mic.slash")
+            } description: {
+                Text(error.localizedDescription)
+            } actions: {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                }
+                .buttonStyle(.borderedProminent)
+                Button("Cancel") { onClose() }
+            }
+        case .transcriberUnavailable:
+            ContentUnavailableView {
+                Label("Not Available on This Device", systemImage: "iphone.slash")
+            } description: {
+                Text(error.localizedDescription)
+            } actions: {
+                Button("Close") { onClose() }
+            }
+        default:
+            ContentUnavailableView {
+                Label("Can't Record", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text(error.localizedDescription)
+            } actions: {
+                Button("Try Again") { onRetry() }
+                    .buttonStyle(.borderedProminent)
+                Button("Close") { onClose() }
+            }
+        }
+    }
+}
+
+/// The recording's timer: big (44 pt light, rounded) above the Stop, and, landed (`progress` 1), the date line's
+/// duration (subheadline, secondary). One text throughout whose font size changes with `progress` (crisp in every
+/// frame, unlike a scale effect), the two styles crossfading: a matched-geometry frame between two texts truncated the
+/// big one to "0:…" while it shrank.
+private struct FlyingTimer: View {
+    let text: String
+    let dimmed: Bool                               // not recording yet: "0:00", lighter
+    let progress: CGFloat
+    let smallSize: CGFloat
+
+    static let bigSize: CGFloat = 44
+
+    var body: some View {
+        let size = Self.bigSize + (smallSize - Self.bigSize) * progress
+        ZStack {
+            Text(verbatim: text)
+                .font(.system(size: size, weight: .light, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(dimmed ? .tertiary : .primary)
+                .opacity(1 - progress)
+            Text(verbatim: text)
+                .font(.system(size: size))
+                .foregroundStyle(.secondary)
+                .opacity(progress)
+                .accessibilityHidden(true)
+        }
+        .fixedSize()
+    }
+}
+
+/// Where the timer is while recording and where it lands, in RecordView's coordinates.
+private struct TimerFrames {
+    var hero: CGRect?
+    var slot: CGRect?
+}
+
+/// Microphone level as five small rounded bars, red while recording: the centre bar follows the level fastest and the
+/// outer ones more slowly, so speech ripples outwards; short pills in silence. Scales with Dynamic Type. Reduce Motion: no easing.
+struct LevelMeter: View {
+    let session: RecordingSession                  // read here, so only the meter redraws with the level
+    let isActive: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .subheadline) private var height: CGFloat = 16
+
+    private static let weights: [CGFloat] = [0.45, 0.75, 1, 0.75, 0.45]
+    private static let response: [Double] = [0.32, 0.22, 0.12, 0.22, 0.32]   // seconds to follow a change
+
+    var body: some View {
+        let level = isActive ? CGFloat(session.level) : 0
+        let barWidth = max(3, (height * 0.19).rounded())   // 3 pt at the default size
+        let rest = barWidth * 1.5                          // a short pill at rest, not a dot
+        HStack(spacing: barWidth * 0.67) {
+            ForEach(Self.weights.indices, id: \.self) { i in
+                Capsule()
+                    .frame(width: barWidth, height: rest + (height - rest) * level * Self.weights[i])
+                    .animation(reduceMotion ? nil : .easeOut(duration: Self.response[i]), value: level)
+            }
+        }
+        .frame(height: height)
+        .foregroundStyle(isActive ? Color.red : Color.secondary)
+        .accessibilityHidden(true)
+    }
+}
+
+#if DEBUG
+#Preview {
+    RecordView(session: AppServices(container: PreviewData.container).makeRecordingSession(),
+               onClose: {},
+               onRetry: {},
+               onMinimize: {})
+}
+#endif

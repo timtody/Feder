@@ -1,0 +1,8 @@
+# Build products and Xcode state (local-only repo, no remote)
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.DS_Store
+*.xcresult
+Recorder.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/

@@ -1,0 +1,29 @@
+# Open tasks
+
+Known gaps left over from the recent work, most important first. Remove an item once it is done.
+
+## Verify on the real device
+
+- [ ] **Try it on the iPhone 17.** Everything since the one-card redesign has been checked only in the simulator. That covers the Stop → toolbar melt, the timer flight, and the start time and place on the recording screen.
+- [ ] **Test on iOS 26.5.** Only iOS 27 has been tested, as agreed. Before releasing, run `build/qa/uitests.sh`, which runs both runtimes and takes about 25 minutes. iOS 26 gets the crossfade instead of the melt; check that this looks right.
+- [ ] **Check VoiceOver under the open card.** While the card is up, the list and the tab bar underneath are probably still reachable with VoiceOver. A likely fix is `.accessibilityHidden(true)` on the TabView while the card is presented.
+
+## Record → transcript transition
+
+- [ ] **The animation starts late.** It begins about 40–110 ms after Stop. Most of that is stopping the audio engine (about 70 ms) on the main thread before the turn can start. Moving that work off the main actor, or one run-loop turn later, would let the first animated frame appear immediately.
+- [ ] **The melt only runs at one screen width.** The bar positions were measured only on the 402 pt wide iPhone 17. Other Face ID widths assume the same 28 pt edge insets. Narrower iPhones, accessibility text sizes and iOS 26 get the crossfade. Measure the bar on other simulator widths, or derive its frames at runtime.
+- [ ] **Long place names are unchecked on screen.** When the duration appears, a long place name should move from line 1 of the date line to line 2 (`DateLineLayout`). So far this has only been checked by reading the code. Check it with a long simulated place.
+- [ ] **No turn if both states arrive at once.** If `.finishing` and `.finished` land in the same SwiftUI update, the turn doesn't happen and the transcript just appears. In practice `.finishing` has always been drawn first.
+- [ ] **Merge the melt layer's two branches.** The melt layer sits over the Stop at 1 % opacity while recording, so its first frame doesn't stall. It lives in a separate if-branch from the turning one, so a new `MeltLayer` is still inserted at Stop. Merging the two branches would be safer.
+- [ ] **Paragraphs overlap when speakers are refined.** When refined speakers arrive a few seconds after Stop, the old and new paragraphs overlap for about 0.3 s. A fix needs paragraph ids that stay stable across the re-split (`TranscriptAligner` / `TranscriptView`). Be careful with text selection and search hits.
+
+## Tests
+
+- [ ] **Tag chip tap in a list row.** No test covers it. It should open Search with the tag and must not open the card.
+- [ ] **Card presentation race.** Opening a transcript while the card is still closing goes through `pendingCard`. No UI test covers it.
+- [ ] **Midnight edge case.** `testRecordAccessoryFlow` checks for "Today at …". A recording that starts right at midnight would fail it.
+- [ ] **Decide on `-fakeSilence`.** It is a debug-only hook in `FakeTranscriber`, added for `testStopWithNothingTranscribedClosesCard`. Keep it, or remove both.
+
+## Polish
+
+- [ ] **Faint chip edge in the grabber fade.** A faint chip edge can show in the grabber's fade band at the top of the card when the content is scrolled.

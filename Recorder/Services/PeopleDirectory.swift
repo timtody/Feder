@@ -1,0 +1,170 @@
+import Foundation
+import SwiftData
+import Observation
+
+/// Voice fingerprints across transcripts.
+/// - Naming a speaker (transcript card) links it to the Person of that name (created on first use) and stores that
+///   speaker's voice as a sample of the person; clearing the name unlinks it.
+/// - After diarization, unnamed speakers whose voice matches a person's fingerprint get that person's name
+///   (VoiceMatch). Recognition never adds samples: only names the user gave do, so a wrong match cannot drift a
+///   fingerprint. Naming a person also recognizes them in older transcripts where their speaker is still unnamed.
+/// - Deleting a person removes its fingerprint and links; the names already in transcripts stay as plain text.
+@MainActor @Observable
+final class PeopleDirectory {
+    private let modelContext: ModelContext
+
+    init(modelContext: ModelContext) {
+        self.modelContext = modelContext
+    }
+
+    /// The user named (or cleared) speaker `index` in `recording`.
+    func name(_ rawName: String, speaker index: Int, in recording: Recording) {
+        let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let previous = recording.speakerPeople[index]
+        for person in allPeople() {                           // this speaker's earlier sample, wherever it went
+            person.removeSamples { $0.recordingID == recording.id && $0.speakerIndex == index }
+        }
+        recording.setSpeakerName(name, for: index)
+        recording.speakerPeople[index] = nil
+        if !name.isEmpty {
+            let person = person(named: name) ?? insertPerson(named: name)
+            if let voice = recording.speakerVoices[index] {
+                person.setSample(VoiceSample(recordingID: recording.id, speakerIndex: index, embedding: voice))
+            }
+            recording.speakerPeople[index] = person.id
+        }
+        if let previous { removeIfUnused(previous) }
+        try? modelContext.save()
+        if !name.isEmpty { recognizeEverywhere() }
+    }
+
+    /// Names unnamed speakers of `recording` whose voice matches a known person. Called after diarization. Stricter for
+    /// speakers from pyannote (VoiceMatch.threshold(for:)).
+    func recognize(_ recording: Recording) {
+        let people = allPeople().filter { !$0.fingerprint.isEmpty }
+        guard !people.isEmpty else { return }
+        let unnamed = recording.speakerVoices.filter { recording.speakerNames[$0.key] == nil }
+        guard !unnamed.isEmpty else { return }
+        let byID = Dictionary(uniqueKeysWithValues: people.map { ($0.id, $0) })
+        let alreadyThere = Set(recording.speakerPeople.values)
+        let fingerprints = Dictionary(uniqueKeysWithValues: people.filter { !alreadyThere.contains($0.id) }
+                                                                  .map { ($0.id, $0.fingerprint) })
+        for (index, id) in VoiceMatch.assign(voices: unnamed, fingerprints: fingerprints,
+                                             threshold: VoiceMatch.threshold(for: recording.diarizer)) {
+            guard let person = byID[id] else { continue }
+            recording.setSpeakerName(person.name, for: index)
+            recording.speakerPeople[index] = id
+        }
+        try? modelContext.save()
+    }
+
+    /// New voices for a transcript (SpeakerIdentifier.refreshVoices): each sample from it gets the new voice of the same
+    /// speaker; a named speaker without one (none of its runs of words lasts 1 s, VoiceWindows: someone who only said
+    /// "Ja." or spoke in fast exchanges) keeps its sample and its old voice, which is in the same space (old pyannote
+    /// centroid vs new voice of the same speaker: cosine p50 0.98), so a person named only there stays recognizable and
+    /// a later rename finds the voice again. Unnamed speakers without a new voice lose their old one: old pyannote
+    /// centroids are less pure, and recognition never starts from them. A person linked to a speaker that had no voice
+    /// gets a sample: such a link can only come from a name the user typed, because recognition needs a voice. Links
+    /// recognized from a voice never become samples.
+    func replaceVoices(of recording: Recording, with new: [Int: [Float]]) {
+        let old = recording.speakerVoices
+        var voices = new
+        let people = allPeople()
+        for person in people {
+            for sample in person.samples where sample.recordingID == recording.id {
+                if let voice = new[sample.speakerIndex] {
+                    person.setSample(VoiceSample(recordingID: recording.id, speakerIndex: sample.speakerIndex, embedding: voice))
+                } else if voices[sample.speakerIndex] == nil {
+                    voices[sample.speakerIndex] = old[sample.speakerIndex] ?? sample.embedding   // sample kept as it is
+                }
+            }
+        }
+        let byID = Dictionary(uniqueKeysWithValues: people.map { ($0.id, $0) })
+        for (index, id) in recording.speakerPeople where old[index] == nil {
+            guard let person = byID[id], let voice = new[index] else { continue }
+            person.setSample(VoiceSample(recordingID: recording.id, speakerIndex: index, embedding: voice))
+        }
+        recording.speakerVoices = voices
+        try? modelContext.save()
+    }
+
+    /// The transcripts people's fingerprints come from: those of their samples, and those with a name the user typed for
+    /// a speaker without a voice (replaceVoices gives it a sample).
+    func fingerprintSources() -> Set<UUID> {
+        var ids = Set(allPeople().flatMap { $0.samples.map(\.recordingID) })
+        for recording in allRecordings()
+        where recording.speakerPeople.keys.contains(where: { recording.speakerVoices[$0] == nil }) {
+            ids.insert(recording.id)
+        }
+        return ids
+    }
+
+    /// Recognition in every finished transcript with unnamed speakers that have a voice.
+    func recognizeAll() {
+        recognizeEverywhere()
+    }
+
+    /// Diarization ran again (new speaker numbers): drop this transcript's links and samples, keep the people.
+    func resetSpeakers(of recording: Recording) {
+        let linked = Set(recording.speakerPeople.values)
+        for person in allPeople() { person.removeSamples { $0.recordingID == recording.id } }
+        recording.speakerPeople = [:]
+        recording.speakerVoices = [:]
+        linked.forEach(removeIfUnused)
+        try? modelContext.save()
+    }
+
+    /// Before a transcript is deleted: its samples go, people left with neither samples nor transcripts go too.
+    func forget(_ recording: Recording) {
+        let linked = Set(recording.speakerPeople.values)
+        for person in allPeople() { person.removeSamples { $0.recordingID == recording.id } }
+        recording.speakerPeople = [:]
+        linked.forEach(removeIfUnused)
+    }
+
+    func delete(_ person: Person) {
+        for recording in allRecordings() where recording.speakerPeople.values.contains(person.id) {
+            recording.speakerPeople = recording.speakerPeople.filter { $0.value != person.id }
+        }
+        modelContext.delete(person)
+        try? modelContext.save()
+    }
+
+    func transcripts(of person: Person) -> [Recording] {
+        allRecordings().filter { $0.speakerPeople.values.contains(person.id) }
+    }
+
+    // MARK: Private
+
+    private func recognizeEverywhere() {
+        for recording in allRecordings() where recording.speakerStatus == .done
+            && recording.speakerVoices.keys.contains(where: { recording.speakerNames[$0] == nil }) {
+            recognize(recording)
+        }
+    }
+
+    private func person(named name: String) -> Person? {
+        allPeople().first { $0.name.caseInsensitiveCompare(name) == .orderedSame }
+    }
+
+    private func insertPerson(named name: String) -> Person {
+        let person = Person(name: name)
+        modelContext.insert(person)
+        return person
+    }
+
+    /// A person nobody refers to any more and without a voice sample is just a stale name: remove it.
+    private func removeIfUnused(_ id: UUID) {
+        guard let person = allPeople().first(where: { $0.id == id }), person.samples.isEmpty,
+              !allRecordings().contains(where: { $0.speakerPeople.values.contains(id) }) else { return }
+        modelContext.delete(person)
+    }
+
+    private func allPeople() -> [Person] {
+        (try? modelContext.fetch(FetchDescriptor<Person>(sortBy: [SortDescriptor(\.name)]))) ?? []
+    }
+
+    private func allRecordings() -> [Recording] {
+        (try? modelContext.fetch(FetchDescriptor<Recording>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? []
+    }
+}
