@@ -112,6 +112,7 @@ struct LiveParagraph: Identifiable, Equatable {
     var text: String               // finalized words, then the provisional ones, separated by single spaces
     var provisionalCount = 0       // how many of the last words are provisional (drawn lighter)
     var births: [Date] = []        // per word while any is fading in: when it appeared (.distantPast = settled); else []
+    var nameKey: LiveNames.Key?    // its first word and shown speaker (LiveNames)
 
     var isFading: Bool { !births.isEmpty }
     var words: [Substring] { text.split(separator: " ", omittingEmptySubsequences: false) }
@@ -170,6 +171,7 @@ final class LiveTranscriptModel {
     private(set) var paragraphs: [LiveParagraph] = []
     @ObservationIgnored private var segments: [TranscriptSegment] = []      // of the last update
     @ObservationIgnored private var settle: Task<Void, Never>?
+    @ObservationIgnored private var names = LiveNames()
 
     /// Called with every change of the session's live text (a few times per second). The paragraphs of segments that
     /// did not change are kept as they are (a long recording has hundreds; usually only the last one or two change), then
@@ -182,7 +184,8 @@ final class LiveTranscriptModel {
         segments = live.segments
         var drafts = Array(paragraphs[..<kept])
         for i in kept..<live.segments.count {
-            drafts.append(LiveParagraph(id: i, speakerIndex: live.segments[i].speakerIndex, text: live.segments[i].text))
+            drafts.append(LiveParagraph(id: i, speakerIndex: live.segments[i].speakerIndex, text: live.segments[i].text,
+                                        nameKey: i < live.segmentKeys.count ? live.segmentKeys[i] : nil))
         }
         // Each provisional word goes under its newest live label (none yet: with the word before) and continues the
         // last paragraph unless that speaker differs, a pause over the paragraph gap came first, or the paragraph is
@@ -202,11 +205,15 @@ final class LiveTranscriptModel {
                 if confirmed { drafts[drafts.count - 1].speakerIndex = speaker }
             } else {
                 let label = SteadyLabels.newLabel(speaker: speaker, previous: previous, confirmed: confirmed, full: full)
-                drafts.append(LiveParagraph(id: drafts.count, speakerIndex: label, text: word.text, provisionalCount: count))
+                drafts.append(LiveParagraph(id: drafts.count, speakerIndex: label, text: word.text, provisionalCount: count,
+                                            nameKey: speaker.map { LiveNames.Key(word: provisional.id, speaker: $0) }))
             }
             previous = speaker
             end = word.end
         }
+        // A name once shown stays while its paragraph keeps its first word and speaker (LiveNames).
+        let shown = names.labels(drafts.map(\.speakerIndex), keys: drafts.map(\.nameKey))
+        for i in drafts.indices { drafts[i].speakerIndex = shown[i] }
         var speaker = drafts[..<kept].last { $0.speakerIndex != nil }?.speakerIndex   // last labelled paragraph's speaker
         for i in kept..<drafts.count {
             guard let index = drafts[i].speakerIndex else { continue }
