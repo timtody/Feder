@@ -82,7 +82,21 @@
           "glass": true,
           "image-name": "vane.svg",
           "name": "vane"
-        },
+        }
+      ],
+      "name": "vane",
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": true,
+        "value": 0.3
+      }
+    },
+    {
+      "layers": [
         {
           "fill-specializations": [
             {
@@ -108,15 +122,15 @@
           "name": "shaft"
         }
       ],
-      "name": "quill",
+      "name": "shaft",
       "shadow": {
         "kind": "neutral",
         "opacity": 0.5
       },
       "specular": true,
       "translucency": {
-        "enabled": true,
-        "value": 0.25
+        "enabled": false,
+        "value": 0.0
       }
     }
   ],
