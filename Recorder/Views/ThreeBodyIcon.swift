@@ -39,8 +39,8 @@ struct ThreeBodyIcon: View {
 
     /// Each body's size, the largest first, and its colour: the first three speakers' (blue, orange, green). The
     /// bodies are stars: in dark mode a pale core of the colour (mixed with white) with a glow of the colour around it,
-    /// in light mode a black core with a faint glow of the colour, since a pale star has nothing to shine against on
-    /// white. (A grey tint at 45 % was too muted; the full colours at 55 % with wide comet tails too loud.)
+    /// in light mode a black core with a glow of the colour (and black trails), since a pale star has nothing to shine
+    /// against on white. (A grey tint at 45 % was too muted; the full colours at 55 % with wide comet tails too loud.)
     private static let sizes: [Double] = [1.2, 1.0, 0.8]
 
     private static func draw(_ frame: ThreeBodyFrame, dark: Bool) -> some View {
@@ -59,7 +59,8 @@ struct ThreeBodyIcon: View {
                     var segment = Path()
                     segment.move(to: point(trail[k - 1]))
                     segment.addLine(to: point(trail[k]))
-                    context.stroke(segment, with: .color(hues[i].opacity((dark ? 0.7 : 0.5) * age * trail[k].light)),
+                    // In light mode the trails are black like the cores: the colours vanished on white.
+                    context.stroke(segment, with: .color((dark ? hues[i] : Color.black).opacity((dark ? 0.7 : 0.4) * age * trail[k].light)),
                                    style: StrokeStyle(lineWidth: max(0.5, radius * 0.35 * age * trail[k].size * sizes[i]),
                                                       lineCap: .round))
                 }
@@ -70,8 +71,8 @@ struct ThreeBodyIcon: View {
                 let r = radius * body.size * sizes[i]
                 let c = point(body)
                 context.opacity = body.light
-                let glow = Gradient(stops: [.init(color: hues[i].opacity(dark ? 0.75 : 0.45), location: 0),
-                                            .init(color: hues[i].opacity(dark ? 0.3 : 0.15), location: 0.45),
+                let glow = Gradient(stops: [.init(color: hues[i].opacity(dark ? 0.75 : 0.6), location: 0),
+                                            .init(color: hues[i].opacity(dark ? 0.3 : 0.25), location: 0.45),
                                             .init(color: hues[i].opacity(0), location: 1)])
                 let reach = r * 2.4
                 context.fill(Path(ellipseIn: CGRect(x: c.x - reach, y: c.y - reach, width: 2 * reach, height: 2 * reach)),
