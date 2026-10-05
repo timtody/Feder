@@ -172,7 +172,7 @@ struct SettingsView: View {
     }
 
     private static let summariesFooter = "Better Summaries use Google's Gemma 4 E2B on this iPhone instead of Apple Intelligence: it reads a whole meeting at once, keeps who said what, and writes more precise titles and summaries. It needs a one-time 3.6 GB download (keep Scribe open meanwhile) and works while Scribe is open. Existing transcripts get new summaries too; titles you typed stay."
-    private static let correctionsFooter = "After a recording, Gemma on this iPhone corrects grammar, spelling, punctuation and obviously misheard words, about a dozen speaker turns at a time, without changing what was said; a fragment that belongs to the previous speaker is moved there. German transcripts only, while Scribe is open. Applies from the next recording."
+    private static let correctionsFooter = "After a recording, Gemma on this iPhone corrects grammar, spelling, punctuation and obviously misheard words, about a dozen speaker turns at a time, without changing what was said or who said it. German transcripts only, while Scribe is open. Applies from the next recording."
 
     /// A downloadable model's row: downloaded, progress, "Download Now" or the failure with "Try Again".
     @ViewBuilder

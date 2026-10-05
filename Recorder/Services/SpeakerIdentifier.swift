@@ -453,9 +453,8 @@ final class SpeakerIdentifier {
     /// (`proposedCorrections`) that the card shows as a list of changes to accept one by one or all at once
     /// (CorrectionReview, `acceptCorrection` / `applyCorrections` / `dismissCorrections`). Every answered chunk extends
     /// the proposal at once, so an interrupted pass keeps what it has (`correctedUntil`). Off, no Gemma, or not German:
-    /// the transcript is skipped for good (the setting applies from the next recording). A fragment the model moved to
-    /// the neighbouring speaker follows only with "Apply All" (an accepted single change keeps the paragraphs as they
-    /// are); words keep their times either way, so a re-run of the speakers folds it back by time.
+    /// the transcript is skipped for good (the setting applies from the next recording). Every word stays with its
+    /// speaker (CorrectionMerge): the corrections change words, never who said them.
     private func applyCorrections(to recording: Recording) async {
         guard !isGone(recording) else { return }
         let id = recording.id
@@ -534,13 +533,6 @@ final class SpeakerIdentifier {
         return CorrectionMerge.changes(from: recording.words, to: proposal.flatMap(\.words))
     }
 
-    /// The fragments the proposal moves to another speaker (realized by "Apply All" only).
-    func proposedMoves(for recording: Recording) -> [CorrectionMerge.Move] {
-        guard let proposal = recording.proposedCorrections else { return [] }
-        return CorrectionMerge.moves(from: CorrectionMerge.paragraphs(words: recording.words, segments: recording.segments),
-                                     to: proposal)
-    }
-
     /// One change taken over: its words replace the old ones (times kept), the paragraphs stay as they are. The last
     /// change accepted ends the review.
     func acceptCorrection(_ change: CorrectionMerge.Change, in recording: Recording) {
@@ -548,11 +540,11 @@ final class SpeakerIdentifier {
         let words = CorrectionMerge.accepting(change, in: recording.words)
         guard words != recording.words else { return }
         rewrite(recording, words: words, segments: CorrectionMerge.paragraphs(words: words, segments: recording.segments).map(\.segment))
-        if proposedChanges(for: recording).isEmpty, proposedMoves(for: recording).isEmpty { recording.proposedCorrections = nil }
+        if proposedChanges(for: recording).isEmpty { recording.proposedCorrections = nil }
         try? modelContext.save()
     }
 
-    /// "Apply All": the proposal as a whole, paragraphs included (a fragment moved to the previous speaker follows).
+    /// "Apply All": the proposal as a whole.
     func applyCorrections(to recording: Recording) {
         guard !isGone(recording), let proposal = recording.proposedCorrections else { return }
         rewrite(recording, words: proposal.flatMap(\.words), segments: proposal.map(\.segment))
@@ -575,8 +567,7 @@ final class SpeakerIdentifier {
 
     #if DEBUG
     /// QA: `-fakeCorrections` stands in for Gemma on the simulator: a proposal with "quick" → "brief" and "lighter" →
-    /// "fainter" (the canned words of FakeTranscriber), a period after the first paragraph if it has none, and the
-    /// third paragraph's first word moved to the end of the second.
+    /// "fainter" (the canned words of FakeTranscriber) and a period after the first paragraph if it has none.
     nonisolated static var fakesCorrections: Bool { ProcessInfo.processInfo.arguments.contains("-fakeCorrections") }
 
     nonisolated static func fakeProposal(_ paragraphs: [CorrectionMerge.Paragraph]) -> [CorrectionMerge.Paragraph] {
@@ -588,9 +579,6 @@ final class SpeakerIdentifier {
             }
         }
         if let last = result[0].words.indices.last, !result[0].words[last].text.hasSuffix(".") { result[0].words[last].text += "." }
-        if result.count > 2, result[2].words.count > 1 {
-            result[1].words.append(result[2].words.removeFirst())
-        }
         return result
     }
     #endif

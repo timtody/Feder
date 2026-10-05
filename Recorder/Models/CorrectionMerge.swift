@@ -3,10 +3,10 @@ import Foundation
 /// Merges the corrected "Name: text" lines a language model returns (TranscriptCorrector) into the transcript's words,
 /// which keep their times: the answer's words are aligned with the paragraphs' words (longest common subsequence of
 /// the words without case and punctuation), a word the model kept or respelled takes the time of the word it stands
-/// for, words it added share the time between their neighbours, and a fragment it moved to the neighbouring speaker
-/// keeps its times under its new paragraph. Answers that drop, merge or rename lines, or change more than a share of
-/// the words (a paraphrase, a summary, a lost turn), are rejected as a whole, so the model can never rewrite the
-/// transcript. Pure functions, no dependencies.
+/// for, and words it added share the time between their neighbours. Every word stays in the paragraph it came from,
+/// whatever line the answer wrote it into: who said what is the diarization's (it hears the voices), not a text
+/// model's. Answers that rename single lines or change more than a share of the words (a paraphrase, a summary, a lost
+/// turn) are rejected as a whole, so the model can never rewrite the transcript. Pure functions, no dependencies.
 nonisolated enum CorrectionMerge {
     /// A paragraph as the corrector works on it: a segment's speaker and its words. Stored on the Recording as the
     /// proposal while the user reviews it (`proposedCorrections`).
@@ -85,35 +85,6 @@ nonisolated enum CorrectionMerge {
         return changes
     }
 
-    /// Words the proposal puts under another speaker than the transcript has them (rule 3: a fragment appended to
-    /// the previous speaker), as runs: the words and the speaker they move to. Only "Apply All" realizes a move (an
-    /// accepted single change keeps the paragraphs), so the review lists them without a checkmark.
-    struct Move: Equatable, Identifiable, Sendable {
-        var words: [TranscriptWord]
-        var toSpeaker: Int?
-        var id: String { "\(words.first?.start ?? 0)-\(toSpeaker ?? -1)" }
-        var time: TimeInterval { words.first?.start ?? 0 }
-    }
-
-    static func moves(from current: [Paragraph], to proposal: [Paragraph]) -> [Move] {
-        var speakerAt: [(start: TimeInterval, speaker: Int?)] = []
-        for paragraph in current { for word in paragraph.words { speakerAt.append((word.start, paragraph.speakerIndex)) } }
-        var moves: [Move] = []
-        for paragraph in proposal {
-            for word in paragraph.words {
-                // The transcript's speaker of this word: the last word starting at or before it (times are kept).
-                guard let before = speakerAt.last(where: { $0.start <= word.start + 0.001 }), before.speaker != paragraph.speakerIndex else { continue }
-                if let last = moves.indices.last, moves[last].toSpeaker == paragraph.speakerIndex,
-                   moves[last].words.last.map({ word.start - $0.end < 1.0 }) == true {
-                    moves[last].words.append(word)
-                } else {
-                    moves.append(Move(words: [word], toSpeaker: paragraph.speakerIndex))
-                }
-            }
-        }
-        return moves
-    }
-
     /// Whether `proposal` differs from the transcript at all: in its words, or in which paragraph a word belongs to.
     static func differs(_ proposal: [Paragraph], from words: [TranscriptWord], segments: [TranscriptSegment]) -> Bool {
         proposal.flatMap(\.words) != words
@@ -131,7 +102,7 @@ nonisolated enum CorrectionMerge {
 
     /// `words` partitioned by `segments`, in their order: a word belongs to the segment whose time range holds its
     /// middle, one in the gap between two paragraphs to the nearer one. Exact for segments folded from these words
-    /// (TranscriptAligner), and still sensible when an earlier, interrupted pass moved a fragment to another speaker.
+    /// (TranscriptAligner), and still sensible when the paragraphs were changed since (an accepted proposal).
     /// Segments without words are left out.
     static func paragraphs(words: [TranscriptWord], segments: [TranscriptSegment]) -> [Paragraph] {
         guard !segments.isEmpty else { return words.isEmpty ? [] : [Paragraph(speakerIndex: nil, words: words)] }
@@ -148,11 +119,13 @@ nonisolated enum CorrectionMerge {
         return result.filter { !$0.words.isEmpty }
     }
 
-    /// The texts of the answer's lines, one per name in `names` and in that order, or nil when they don't match: a
-    /// line dropped, two merged, one split. Code fences, bullets and bold marks are ignored, so is a preamble
-    /// ("Ausgabe:", "Hier ist das korrigierte Transkript:"); a line without a name continues the line before it (a
-    /// wrapped paragraph). The names may all be changed consistently ("Speaker 1" written as "Sprecher 1" throughout):
-    /// the mapping has to be one to one, which also catches a wrapped line mistaken for a turn.
+    /// The texts of the answer's lines, one per name in `names` and in that order, or nil when they don't match. Code
+    /// fences, bullets and bold marks are ignored, so is a preamble ("Ausgabe:", "Hier ist das korrigierte
+    /// Transkript:"); a line without a name continues the line before it (a wrapped paragraph). The names may all be
+    /// changed consistently ("Speaker 1" written as "Sprecher 1" throughout): the mapping has to be one to one, which
+    /// also catches a wrapped line mistaken for a turn. A line left out (its words joined to a neighbour's line,
+    /// against the instructions) counts as an emptied line when the other names still follow in order: `apply` keeps
+    /// every word in its own paragraph anyway, and rejects a turn whose words are gone.
     static func lines(in answer: String, names: [String]) -> [String]? {
         let expected = Set(names.map { $0.lowercased() })
         var lines: [(name: String, text: String)] = []
@@ -179,6 +152,19 @@ nonisolated enum CorrectionMerge {
             }
             guard !lines.isEmpty else { continue }                  // a preamble without a colon
             lines[lines.count - 1].text += " " + line
+        }
+        if lines.count < names.count, !lines.isEmpty, lines.allSatisfy({ expected.contains($0.name.lowercased()) }) {
+            var filled: [(name: String, text: String)] = []
+            var k = 0
+            for name in names {
+                if k < lines.count, lines[k].name.lowercased() == name.lowercased() {
+                    filled.append(lines[k]); k += 1
+                } else {
+                    filled.append((name, ""))
+                }
+            }
+            guard k == lines.count else { return nil }
+            lines = filled
         }
         guard lines.count == names.count else { return nil }
         var forward: [String: String] = [:], backward: [String: String] = [:]
@@ -252,13 +238,15 @@ nonisolated enum CorrectionMerge {
             }
         }
 
-        // The words with their times, in the answer's order (the LCS keeps the time order).
+        // The words with their times, in the answer's order (the LCS keeps the time order), each in the paragraph of the
+        // old word it stands for; an added word between two paragraphs in the one the answer wrote it into, if that is
+        // one of the two.
         var words: [(word: TranscriptWord, line: Int)] = []
         var lastOld = -1                                            // the last matched old word
         j = 0
         while j < m {
             if let i = matchOfNew[j] {
-                words.append((TranscriptWord(text: new[j].text, start: old[i].word.start, end: old[i].word.end), new[j].line))
+                words.append((TranscriptWord(text: new[j].text, start: old[i].word.start, end: old[i].word.end), old[i].line))
                 lastOld = i
                 j += 1
                 continue
@@ -281,7 +269,15 @@ nonisolated enum CorrectionMerge {
             for k in 0..<count {
                 let start = spanStart + (spanEnd - spanStart) * Double(k) / Double(count)
                 let end = spanStart + (spanEnd - spanStart) * Double(k + 1) / Double(count)
-                words.append((TranscriptWord(text: new[j + k].text, start: start, end: end), new[j + k].line))
+                let line: Int
+                if lastOld + 1 < nextOld {                          // standing for old words: theirs, in proportion
+                    line = old[lastOld + 1 + (nextOld - lastOld - 1) * k / count].line
+                } else {                                            // inserted: between the paragraphs around it
+                    let before = lastOld >= 0 ? old[lastOld].line : nil
+                    let after = nextOld < n ? old[nextOld].line : nil
+                    line = [before, after].contains(new[j + k].line) ? new[j + k].line : (before ?? after ?? new[j + k].line)
+                }
+                words.append((TranscriptWord(text: new[j + k].text, start: start, end: end), line))
             }
             j = next
         }

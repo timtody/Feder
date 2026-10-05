@@ -3,8 +3,10 @@ import NaturalLanguage
 
 /// Smart Corrections (Settings, experimental, off by default). After the vocabulary pass, Gemma 4 E2B
 /// (`LocalLanguageModel`, the Better Summaries model) reads the transcript as "Name: text" lines, about a dozen speaker
-/// turns at a time, and writes them back corrected: grammar, spelling, punctuation and obviously misheard words, a
-/// fragment that belongs to the previous speaker moved there, nothing else (`instructions`). Chunks of 10–15 turns,
+/// turns at a time, and writes them back corrected: grammar, spelling, punctuation and obviously misheard words, nothing
+/// else (`instructions`). Who said what stays with the diarization, which hears the voices; the model reads text only,
+/// and in conversations a sentence that runs on across a change of speaker is common (finishing the other's sentence,
+/// an interjection), so it isn't evidence of a wrong speaker. Chunks of 10–15 turns,
 /// because longer inputs make a small model skip lines or start summarizing; a low temperature, so it copies instead of
 /// paraphrasing. The vocabulary goes along as a glossary (`instructions(glossary:)`), so a term the vocabulary pass
 /// could not place can still be spelled right. `CorrectionMerge` aligns every answer with the words, which keep their times, and rejects an answer
@@ -35,17 +37,19 @@ final class TranscriptCorrector {
     Regeln:
     1. Korrigiere nur Grammatik, Rechtschreibung, Zeichensetzung und offensichtlich falsch verstandene Wörter.
     2. Ändere NICHT den Inhalt, den Stil oder die Wortwahl der Sprecher.
-    3. Wenn ein Satzteil eindeutig zum vorherigen Sprecher gehört, füge ihn dort an.
+    3. Jede Zeile bleibt bei ihrem Sprecher. Verschiebe keine Wörter in eine andere Zeile, auch wenn ein Satz über \
+    einen Sprecherwechsel weiterläuft.
     4. Unverständliche Stellen markierst du mit [unklar]. Erfinde nichts.
-    5. Behalte das Format „Name: Text“ bei.
+    5. Behalte das Format „Name: Text“ bei, eine Zeile für jede Zeile der Eingabe.
     6. Gib NUR das korrigierte Transkript aus, ohne Kommentar.
 
     Beispiel:
     Eingabe:
-    Anna: Das geht dir an Kragen, ich will
+    Anna: das geht dir an Kragen ich will
     Ben: nur sagen das stimmt
     Ausgabe:
-    Anna: Das geht dir an den Kragen. Ich will nur sagen: Das stimmt.
+    Anna: Das geht dir an den Kragen. Ich will
+    Ben: nur sagen: Das stimmt.
     """
 
     /// The instructions with the vocabulary (Settings: your words, plus the built-in consulting and banking terms) as

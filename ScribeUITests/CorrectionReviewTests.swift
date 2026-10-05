@@ -2,8 +2,8 @@ import XCTest
 
 /// Gemma's smart corrections await the user's review in a box under the tags (CorrectionReview): one row per change
 /// with a checkmark, "Apply All" and "Dismiss". On the simulator `-fakeCorrections` stands in for Gemma with a made-up
-/// proposal: "quick" → "brief", "lighter" → "fainter", and the third paragraph's first word moved to the end of the
-/// second (three turns from FakeDiarizer's 4 s speakers in a 10 s recording; the move is a row without a checkmark).
+/// proposal: "quick" → "brief", "lighter" → "fainter" and a period (three turns from FakeDiarizer's 4 s speakers in a
+/// 10 s recording). Corrections never move words to another speaker.
 final class CorrectionReviewTests: ScribeUITestCase {
     @MainActor
     func testAcceptOneThenApplyAll() throws {
@@ -21,7 +21,8 @@ final class CorrectionReviewTests: ScribeUITestCase {
         let firstParagraph = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Okay'")).firstMatch
         XCTAssertTrue(firstParagraph.exists)
         XCTAssertTrue(firstParagraph.label.contains("brief"), "the first change is in the transcript: \(firstParagraph.label)")
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'moved'")).firstMatch.exists, "the move is listed")
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'moved'")).firstMatch.exists,
+                       "no word moves to another speaker")
 
         applyAll.tap()
         XCTAssertTrue(applyAll.waitForNonExistence(timeout: 5), "the review ends with Apply All")

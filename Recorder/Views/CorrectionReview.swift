@@ -14,23 +14,11 @@ struct CorrectionReview: View {
 
     var body: some View {
         let changes = services.identifier.proposedChanges(for: recording)
-        let moves = services.identifier.proposedMoves(for: recording)
-        let count = changes.count + moves.count
+        let count = changes.count
         VStack(alignment: .leading, spacing: 10) {
             Label(count == 1 ? "1 suggested correction" : "\(count) suggested corrections",
                   systemImage: "text.badge.checkmark")
                 .font(.subheadline.weight(.semibold))
-            // A fragment moved to another speaker: "Apply All" only, since one accepted change keeps the paragraphs.
-            ForEach(moves) { move in
-                VStack(alignment: .leading, spacing: 2) {
-                    if let name = speaker(at: move.time) {
-                        Text("\(name) → \(move.toSpeaker.map(recording.speakerName) ?? "Speaker")")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                    Text("“\(move.words.map(\.text).joined(separator: " "))” moved")
-                        .font(.callout)
-                }
-            }
             ForEach(changes) { change in
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     VStack(alignment: .leading, spacing: 2) {
