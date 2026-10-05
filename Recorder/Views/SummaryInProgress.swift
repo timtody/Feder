@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// The summary's place while the model writes it (PipelineProgress.summary running): the Apple Intelligence glyph with
-/// the colour wave, and three shimmering lines until the first words arrive, then the text as far as it is written,
-/// new words fading in (WordFadeRenderer, as on the live screen). With Reduce Motion the lines are still and the words
-/// just appear.
+/// The summary's place while the model writes it (PipelineProgress.summary running): three shimmering lines until the
+/// first words arrive, then the text as far as it is written, new words fading in (WordFadeRenderer, as on the live
+/// screen). With Reduce Motion the lines are still and the words just appear. (An Apple Intelligence glyph with the
+/// colour wave stood in front of it at first; the status line above already says the summary is being written.)
 struct SummaryInProgress: View {
     let recordingID: UUID
 
@@ -15,13 +15,7 @@ struct SummaryInProgress: View {
     private var partial: String { services.identifier.partialSummaries[recordingID] ?? "" }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "apple.intelligence")
-                .font(.subheadline)
-                .foregroundStyle(.tint)
-                .symbolEffect(.variableColor.iterative.dimInactiveLayers.reversing, options: .repeating,
-                              isActive: !reduceMotion)
-                .padding(.top, 1)
+        Group {
             if partial.isEmpty {
                 ShimmerLines()
             } else {

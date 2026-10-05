@@ -2,9 +2,10 @@ import SwiftUI
 
 /// One line under the date while work is still being done on the transcript, the way Mail reports "Checking for
 /// Mail…": the step that is running now ("Transcribing…", "Identifying speakers…", "Checking vocabulary…", "Writing
-/// summary…"), in the date line's secondary type, no symbol, no spinner, no times (those are in the DEBUG log). It is
-/// gone the moment the last step ends. Replaces a row of four marks with checkmarks and seconds, which read as a
-/// progress panel in a place that should look like a document.
+/// summary…"), in the date line's secondary type, no symbol, no spinner, no times (those are in the DEBUG log). A
+/// band in the label colour sweeps across the words while the step runs, like the status line of the Claude app (`ShimmerText`;
+/// still with Reduce Motion). It is gone the moment the last step ends. Replaces a row of four marks with checkmarks
+/// and seconds, which read as a progress panel in a place that should look like a document.
 struct PipelineStatusLine: View {
     let recording: Recording
 
@@ -30,14 +31,49 @@ struct PipelineStatusLine: View {
 
     var body: some View {
         if let text = Self.text(for: recording, identifier: services.identifier) {
-            Text(text)
+            ShimmerText(text: text)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
                 .lineLimit(1)
                 // The words change in place with a short crossfade; the line itself never changes height.
                 .contentTransition(.opacity)
                 .animation(.easeInOut(duration: 0.25), value: text)
                 .accessibilityIdentifier("PipelineStatus")
         }
+    }
+}
+
+/// A line of secondary text with a band in the label colour sweeping across it, left to right, every `period` seconds: the
+/// Claude app's "working" status. The band is the label colour over the secondary one (darker in light mode, brighter
+/// in dark mode), drawn as the text's own gradient fill, so nothing is layered over it and the text stays one `Text`
+/// (VoiceOver reads it once). With Reduce Motion the text is plain secondary.
+struct ShimmerText: View {
+    let text: String
+    /// One sweep and the pause after it.
+    var period: TimeInterval = 1.8
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        if reduceMotion {
+            Text(text).foregroundStyle(.secondary)
+        } else {
+            TimelineView(.animation(minimumInterval: 1.0 / 60)) { context in
+                Text(text).foregroundStyle(Self.fill(at: context.date, period: period))
+            }
+        }
+    }
+
+    /// The band's centre runs from before the text's start to past its end in 75 % of the period (eased), then the
+    /// text rests plain for the rest. In unit points of the text's frame, so a short line and a long one take as long.
+    nonisolated static func fill(at date: Date, period: TimeInterval) -> LinearGradient {
+        let t = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period) / period
+        let sweep = min(t / 0.75, 1)
+        let eased = sweep * sweep * (3 - 2 * sweep)
+        let halfWidth = 0.25
+        let centre = -halfWidth + (1 + 2 * halfWidth) * eased
+        let base = Color(uiColor: .secondaryLabel), band = Color(uiColor: .label)
+        return LinearGradient(colors: [base, band, base],
+                              startPoint: UnitPoint(x: centre - halfWidth, y: 0.5),
+                              endPoint: UnitPoint(x: centre + halfWidth, y: 0.5))
     }
 }

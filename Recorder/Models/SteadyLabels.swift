@@ -30,15 +30,28 @@ nonisolated struct SteadyLabels {
     private var firstWord: [Int] = []                     // per paragraph: its first word
     private var tokens: [Int] = []                        // per paragraph: its words (space-separated tokens)
     private var shown: [Int?] = []                        // per paragraph: the speaker its words are shown under
+    private var carried: [Int: LabelHold] = [:]           // per word index not added yet: its provisional word's hold
+
+    /// The holds the next words (from index `start` on) take over from the provisional words they finalize
+    /// (LiveTranscript.finalize). Without them a finalized word started its hold again: the name of a paragraph whose
+    /// label had held while its words were provisional went away for `hold` when they were finalized (after a pause,
+    /// or a new speaker's first words: 370 of 412 speaker changes in a replay of 40 synthetic conversations).
+    mutating func carry(_ holds: [LabelHold?], from start: Int) {
+        for (offset, hold) in holds.enumerated() { if let hold { carried[start + offset] = hold } }
+    }
 
     /// Takes the aligner's labels for `words` (nil = not labelled yet) and `changedFrom`, the first word whose label may
     /// differ from the last update (LiveSpeakers.update), and updates `segments` and `nextChange`.
     mutating func update(words: [TranscriptWord], labels: [Int?], changedFrom: Int, now: ContinuousClock.Instant = .now) {
         let known = latest.count
-        let added = max(0, words.count - known)
-        latest += repeatElement(nil, count: added)
-        since += repeatElement(now, count: added)
-        steady += repeatElement(nil, count: added)
+        for i in known..<max(known, words.count) {
+            // A carried hold goes on from when it began, and a label that held already is steady at once (it stays the
+            // word's speaker while the aligner hasn't labelled the finalized word yet).
+            let hold = carried.removeValue(forKey: i)
+            latest.append(hold?.label)
+            since.append(hold?.since ?? now)
+            steady.append(hold.flatMap { $0.since + Self.hold <= now ? $0.label : nil })
+        }
         // Words before `first` keep their state and their paragraphs; fold again from the paragraph holding it.
         let first = min(changedFrom, known, firstPending ?? .max)
         guard first < words.count else { return }        // nothing new, changed or pending: nextChange stays nil
@@ -104,6 +117,12 @@ nonisolated struct SteadyLabels {
     }
 }
 
+/// A live label and when it was first seen for a word (SteadyLabels.hold runs from `since`).
+nonisolated struct LabelHold: Equatable {
+    var label: Int
+    var since: ContinuousClock.Instant
+}
+
 /// The hold for provisional words: their estimated times move a little between volatile results, so their labels are
 /// kept per 0.1 s frame of audio (the frame of the word's midpoint) instead of per word.
 nonisolated struct FrameSteady {
@@ -123,6 +142,18 @@ nonisolated struct FrameSteady {
             nextChange = min(nextChange ?? due, due)
             return nil
         }
+    }
+
+    /// The hold at `word`'s frame (nil: no label seen there).
+    func hold(of word: TranscriptWord) -> LabelHold? {
+        state[Self.frame(of: word)].map { LabelHold(label: $0.label, since: $0.since) }
+    }
+
+    /// The words `old` were moved to the times of `new` (LiveTranscript.finalize): each new frame takes over the hold
+    /// at its word's old frame.
+    mutating func move(from old: [TranscriptWord], to new: [TranscriptWord]) {
+        let holds = zip(old, new).compactMap { a, b in state[Self.frame(of: a)].map { (Self.frame(of: b), $0) } }
+        for (frame, hold) in holds { state[frame] = hold }
     }
 
     /// Drops the frames before `time`: provisional words only follow the finalized ones, so they never come back.
