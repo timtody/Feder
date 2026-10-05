@@ -4,8 +4,9 @@ import SwiftUI
 /// three-body problem, seen through a slowly turning camera with perspective: a body nearer the viewer is larger,
 /// more opaque and drawn in front, each is shaded like a small sphere (a highlight towards the top left), and each
 /// leaves a short fading trail in 3D. The bodies differ: a large one in blue, a middle one in orange, a small one in
-/// green (the first three speakers' colours, SpeakerPalette, as a tint: half mixed with the text's grey, at 45 %), with
-/// hairline trails and a soft glint, 20 × 16 pt, scaled with Dynamic Type. It begins with the three bodies together in the centre, flung
+/// green (the first three speakers' colours, SpeakerPalette), drawn as glowing stars: in dark mode pale cores of the
+/// colour in a glow of it, in light mode black cores in a faint glow of it; hairline trails in the colour; 20 × 16 pt,
+/// scaled with Dynamic Type. It begins with the three bodies together in the centre, flung
 /// out, and every new step of the pipeline (`step`) pulls them back together and flings them out again (`burst`), at
 /// most once every 1.5 s, so steps that follow each other closely don't make it flicker. With Reduce Motion one
 /// irregular moment stands still. Decorative: hidden from VoiceOver (the text says what is happening).
@@ -16,17 +17,18 @@ struct ThreeBodyIcon: View {
     var step: PipelineProgress.Step?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     @ScaledMetric(relativeTo: .subheadline) private var width: CGFloat = 20
     @State private var simulation = ThreeBodySimulation()
 
     var body: some View {
         Group {
             if reduceMotion {
-                Self.draw(simulation.frame)
+                Self.draw(simulation.frame, dark: colorScheme == .dark)
             } else {
                 TimelineView(.animation(minimumInterval: 1.0 / 60)) { context in
                     // Advancing here (main actor) and handing the Canvas a value: its renderer captures nothing else.
-                    Self.draw(simulation.advance(to: context.date))
+                    Self.draw(simulation.advance(to: context.date), dark: colorScheme == .dark)
                 }
             }
         }
@@ -35,47 +37,49 @@ struct ThreeBodyIcon: View {
         .onChange(of: step) { _, new in if new != nil { simulation.burst() } }
     }
 
-    /// Each body's colour and size: the first three speakers' colours (blue, orange, green), the largest first, as a
-    /// tint: mixed half and half with the text's grey, at 45 % over the background, so the icon is a colour hint beside
-    /// the grey text, not a splash (at 55 % of the full colours it competed with the words).
-    private static let colours: [Color] = (0..<3).map {
-        SpeakerPalette.color($0).mix(with: Color(uiColor: .secondaryLabel), by: 0.5).opacity(0.45)
-    }
+    /// Each body's size, the largest first, and its colour: the first three speakers' (blue, orange, green). The
+    /// bodies are stars: in dark mode a pale core of the colour (mixed with white) with a glow of the colour around it,
+    /// in light mode a black core with a faint glow of the colour, since a pale star has nothing to shine against on
+    /// white. (A grey tint at 45 % was too muted; the full colours at 55 % with wide comet tails too loud.)
     private static let sizes: [Double] = [1.2, 1.0, 0.8]
 
-    private static func draw(_ frame: ThreeBodyFrame) -> some View {
+    private static func draw(_ frame: ThreeBodyFrame, dark: Bool) -> some View {
         Canvas { context, size in
             let half = min(size.width, size.height) / 2
             func point(_ p: ThreeBodyFrame.Point) -> CGPoint {
                 CGPoint(x: size.width / 2 + p.x * half, y: size.height / 2 - p.y * half)
             }
-            let radius = half * 0.22
-            // Trails first (behind every body), each segment thinner and fainter towards its old end.
+            let radius = half * 0.2
+            let hues = (0..<3).map { SpeakerPalette.color($0) }
+            let cores = hues.map { dark ? $0.mix(with: .white, by: 0.55) : Color.black }
+            // Trails first (behind every body): hairlines in the colour, fading towards their old end.
             for (i, trail) in frame.trails.enumerated() where trail.count > 1 {
                 for k in 1..<trail.count {
                     let age = Double(k) / Double(trail.count)          // 0 old ... 1 new
                     var segment = Path()
                     segment.move(to: point(trail[k - 1]))
                     segment.addLine(to: point(trail[k]))
-                    // Hairlines (a third of the body's width at most), not comet tails: the motion still reads from
-                    // them, and the bodies no longer swim in colour.
-                    context.stroke(segment, with: .color(colours[i].opacity(0.6 * age * trail[k].light)),
+                    context.stroke(segment, with: .color(hues[i].opacity((dark ? 0.7 : 0.5) * age * trail[k].light)),
                                    style: StrokeStyle(lineWidth: max(0.5, radius * 0.35 * age * trail[k].size * sizes[i]),
                                                       lineCap: .round))
                 }
             }
-            // Far bodies first: the near one covers them.
+            // Far bodies first: the near one covers them. Each: the glow (a soft disc of the colour out to 2.4 radii),
+            // then the core with a small glint towards the top left.
             for (i, body) in frame.bodies.enumerated().sorted(by: { $0.element.depth < $1.element.depth }) {
                 let r = radius * body.size * sizes[i]
                 let c = point(body)
-                let rect = CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)
-                let colour = colours[i]
-                // A small soft glint towards the top left (a bright white dot read as a bead).
-                let shading = Gradient(stops: [.init(color: .white.opacity(0.45), location: 0),
-                                               .init(color: colour, location: 0.4),
-                                               .init(color: colour.opacity(0.75), location: 1)])
                 context.opacity = body.light
-                context.fill(Path(ellipseIn: rect),
+                let glow = Gradient(stops: [.init(color: hues[i].opacity(dark ? 0.75 : 0.45), location: 0),
+                                            .init(color: hues[i].opacity(dark ? 0.3 : 0.15), location: 0.45),
+                                            .init(color: hues[i].opacity(0), location: 1)])
+                let reach = r * 2.4
+                context.fill(Path(ellipseIn: CGRect(x: c.x - reach, y: c.y - reach, width: 2 * reach, height: 2 * reach)),
+                             with: .radialGradient(glow, center: c, startRadius: 0, endRadius: reach))
+                let shading = Gradient(stops: [.init(color: dark ? .white : Color.white.opacity(0.35), location: 0),
+                                               .init(color: cores[i], location: 0.45),
+                                               .init(color: cores[i].opacity(0.85), location: 1)])
+                context.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)),
                              with: .radialGradient(shading, center: CGPoint(x: c.x - r * 0.3, y: c.y - r * 0.3),
                                                    startRadius: 0, endRadius: r * 1.2))
                 context.opacity = 1

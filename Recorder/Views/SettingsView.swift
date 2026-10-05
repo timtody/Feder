@@ -1,21 +1,21 @@
 import SwiftUI
 import SwiftData
 
-/// Settings (a tab; its heading scrolls away with the form, no navigation-bar title): Live Speaker Labels and People, the engine of the full-accuracy pass after Stop (Parakeet or Apple),
-/// the speaker model (Nemotron's download), the model for titles and summaries (Gemma's download), the vocabulary (your words plus built-in German consulting, banking and
-/// finance terms) and the experimental smart corrections (Gemma). Everything applies from the next recording.
+/// Settings (a tab; its heading scrolls away with the form, no navigation-bar title). Grouped by what the user is
+/// doing, not by the pipeline's modules: People first and alone (a list you maintain, used in both stages), then
+/// "While Recording" (live speaker labels), "After Recording" (the post-stop pass in its order: transcription,
+/// speaker identification, summaries, smart corrections) and "Vocabulary". Each model has a detail page with its
+/// explanation, download and options; the main page shows only the outcome as the row's value ("Parakeet",
+/// "Downloading 40 %", "Apple Intelligence"), and every footer is one line. The model comparison (E4B, Qwen) is a
+/// Developer section in DEBUG builds only. Everything applies from the next recording.
 struct SettingsView: View {
     @Environment(AppServices.self) private var services
     @AppStorage(ParakeetModel.engineKey) private var engine = "parakeet"
     @Query private var people: [Person]
     private var peopleCount: Int { people.count }
-    @State private var words = Vocabulary.custom
-    @State private var usesBuiltIn = Vocabulary.usesBuiltIn
     @AppStorage(TranscriptCorrector.settingKey) private var smartCorrections = false
-    /// Smart Corrections run on Gemma: downloaded under Titles and Summaries (not on the simulator).
+    /// Smart Corrections run on the local model: downloaded under Summaries (not on the simulator).
     private var correctionsAvailable: Bool { BetterSummaries.isSupported && services.betterSummaries.state == .ready }
-    @State private var draft = ""
-    @FocusState private var isAdding: Bool
     @AppStorage(AppServices.liveSpeakerLabelsKey) private var liveSpeakerLabels = true
     @State private var path = NavigationPath()          // untyped: People pushes Person values too
 
@@ -23,7 +23,6 @@ struct SettingsView: View {
         NavigationStack(path: $path) {
             Form {
                 Section {
-                    Toggle("Live Speaker Labels", isOn: $liveSpeakerLabels)
                     NavigationLink(value: SettingsRoute.people) {
                         LabeledContent("People", value: peopleCount == 0 ? "" : "\(peopleCount)")
                     }
@@ -40,77 +39,58 @@ struct SettingsView: View {
                         .padding(.bottom, 8)
                         .accessibilityAddTraits(.isHeader)
                 } footer: {
-                    Text("Live Speaker Labels show who is speaking while you record; speakers are identified again, more accurately, after you stop. People are everyone you have named; their voices are recognized in new recordings.")
+                    Text("The voices Scribe knows. Named speakers are recognized in new recordings.")
                 }
 
                 Section {
-                    Picker("Engine", selection: $engine) {
-                        Text("Parakeet").tag("parakeet")
-                        Text("Apple Speech").tag("apple")
-                    }
-                    if engine == "parakeet" {
-                        downloadStatus(services.parakeet.state, size: "610 MB") { await services.parakeet.download(force: true) }
-                    }
+                    Toggle("Live Speaker Labels", isOn: $liveSpeakerLabels)
                 } header: {
-                    Text("Transcription After Recording")
+                    Text("While Recording")
                 } footer: {
-                    Text(engine == "parakeet" ? Self.parakeetFooter : Self.appleFooter)
+                    Text("Shows who is speaking as you record. Speakers are identified again, more accurately, after you stop.")
                 }
 
                 Section {
-                    LabeledContent("Model", value: services.nemotron.state == .ready ? "NVIDIA Nemotron" : "Standard")
-                    if services.nemotron.state != .ready {
-                        downloadStatus(services.nemotron.state, size: "100 MB") { await services.nemotron.download(force: true) }
+                    NavigationLink(value: SettingsRoute.transcription) {
+                        LabeledContent("Transcription", value: transcriptionValue)
                     }
-                } header: {
-                    Text("Speaker Identification")
-                } footer: {
-                    Text(Self.nemotronFooter)
-                }
-
-                summariesSection
-
-                Section {
-                    ForEach(words, id: \.self) { word in
-                        Text(word)
+                    .accessibilityIdentifier("Transcription")
+                    NavigationLink(value: SettingsRoute.speakers) {
+                        LabeledContent("Speaker Identification", value: Self.value(services.nemotron.state, ready: "Nemotron", missing: "Standard"))
                     }
-                    .onDelete { words.remove(atOffsets: $0) }
-                    TextField("Add a word or name", text: $draft)
-                        .focused($isAdding)
-                        .autocorrectionDisabled()
-                        .submitLabel(.done)
-                        .onSubmit(add)
-                } header: {
-                    Text("Your Words")
-                } footer: {
-                    Text("Names, products and terms the transcription often gets wrong. Applies from the next recording.")
-                }
-
-                Section {
-                    Toggle("Consulting & Banking Terms", isOn: $usesBuiltIn)
-                    if usesBuiltIn {
-                        DisclosureGroup("\(Vocabulary.builtIn.count) terms") {
-                            Text(Vocabulary.builtIn.joined(separator: ", "))
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
+                    .accessibilityIdentifier("Speaker Identification")
+                    NavigationLink(value: SettingsRoute.summaries) {
+                        LabeledContent("Summaries", value: summariesValue)
                     }
-                } footer: {
-                    Text("German office, consulting, banking and finance vocabulary, e.g. Cofinpro, Jour fixe, MaRisk, BaFin, Baufinanzierung.")
-                }
-
-                Section {
-                    Toggle("Smart Corrections (Experimental)", isOn: $smartCorrections)
+                    .accessibilityIdentifier("Summaries")
+                    Toggle("Smart Corrections", isOn: $smartCorrections)
                         .disabled(!correctionsAvailable)
+                } header: {
+                    Text("After Recording")
                 } footer: {
-                    if correctionsAvailable {
-                        Text(Self.correctionsFooter)
-                    } else if BetterSummaries.isSupported {
-                        Text("Needs Gemma on this iPhone: download it under Titles and Summaries.")
+                    if correctionsAvailable || !BetterSummaries.isSupported {
+                        Text("Each recording is transcribed again more accurately after you stop. Smart Corrections (experimental) let the summary model fix grammar, spelling and misheard words for you to review.")
                     } else {
-                        Text("Smart Corrections need an iPhone (not the simulator).")
+                        Text("Each recording is transcribed again more accurately after you stop. Smart Corrections need the local model: download it under Summaries.")
                     }
                 }
+
+                Section {
+                    NavigationLink(value: SettingsRoute.vocabulary) {
+                        LabeledContent("Your Words", value: Vocabulary.custom.isEmpty ? "" : "\(Vocabulary.custom.count)")
+                    }
+                    Toggle("Consulting & Banking Terms", isOn: usesBuiltIn)
+                } header: {
+                    Text("Vocabulary")
+                } footer: {
+                    Text("Names and terms the transcription often gets wrong.")
+                }
+
+                #if DEBUG
+                if BetterSummaries.isSupported {
+                    developerSection
+                }
+                #endif
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -118,6 +98,10 @@ struct SettingsView: View {
             .navigationDestination(for: SettingsRoute.self) { route in
                 switch route {
                 case .people: PeopleView()
+                case .transcription: TranscriptionModelView()
+                case .speakers: SpeakerModelView()
+                case .summaries: SummariesModelView()
+                case .vocabulary: VocabularyView()
                 }
             }
             #if DEBUG
@@ -128,56 +112,67 @@ struct SettingsView: View {
             .onChange(of: liveSpeakerLabels) { _, on in
                 if on { Task { await services.prepareLiveDiarizer() } }   // applies from the next recording
             }
-            .onDisappear {                               // leaving the tab: a word typed but not submitted is kept
-                guard !draft.isEmpty else { return }
-                add()
-                isAdding = false
-            }
-            .onChange(of: words) { _, new in Vocabulary.custom = new }
-            .onChange(of: usesBuiltIn) { _, new in Vocabulary.usesBuiltIn = new }
         }
     }
 
-    private static let parakeetFooter = "Parakeet re-transcribes each recording on this iPhone after you stop, more accurately than Apple Speech. It needs a one-time 610 MB download, which starts automatically on Wi-Fi. Until then Apple Speech is used."
-    private static let appleFooter = "Apple Speech re-transcribes each recording on this iPhone after you stop. No download needed."
-    private static let nemotronFooter = "NVIDIA Nemotron tells speakers apart on this iPhone after you stop, much more reliably than the standard model, also when people talk in quick succession. It needs a one-time 100 MB download, which starts automatically on Wi-Fi. Until then the standard model is used."
-    /// Titles and summaries: Apple Intelligence or, downloaded, Gemma 4 E2B ("Better Summaries").
+    private var usesBuiltIn: Binding<Bool> {
+        Binding(get: { Vocabulary.usesBuiltIn }, set: { Vocabulary.usesBuiltIn = $0 })
+    }
+
+    private var transcriptionValue: String {
+        engine == "parakeet" ? Self.value(services.parakeet.state, ready: "Parakeet", missing: "Apple Speech") : "Apple Speech"
+    }
+
+    private var summariesValue: String {
+        let better = services.betterSummaries
+        guard BetterSummaries.isSupported else { return "Apple Intelligence" }
+        if better.activeModel != nil { return better.variant.displayName }
+        return Self.value(better.state, ready: "Apple Intelligence", missing: "Apple Intelligence")
+    }
+
+    /// A model row's value from its download: the model's name once there, "Downloading 40 %" meanwhile, the
+    /// stand-in before (what is used until then).
+    static func value(_ state: ModelDownloadState, ready: String, missing: String) -> String {
+        switch state {
+        case .ready: ready
+        case .downloading(let fraction): "Downloading \(fraction.formatted(.percent.precision(.fractionLength(0))))"
+        case .failed: "Download failed"
+        case .notDownloaded, .waitingForWiFi: missing
+        }
+    }
+
+    #if DEBUG
+    /// The model comparison (Gemma 4 E4B, Qwen3.5 4B against E2B), for testing: DEBUG builds only.
     @ViewBuilder
-    private var summariesSection: some View {
+    private var developerSection: some View {
         @Bindable var better = services.betterSummaries
         Section {
-            LabeledContent("Model", value: better.activeModel != nil ? better.variant.displayName : "Apple Intelligence")
-            if BetterSummaries.isSupported {
-                // Which local model: Gemma 4 E2B (the app's), E4B and Qwen3.5 4B to compare; each with its own download.
-                Picker("Local Model", selection: $better.variant) {
-                    ForEach(LocalLanguageModel.Variant.allCases, id: \.self) { Text($0.shortName).tag($0) }
-                }
-                if better.state == .ready {
-                    Toggle("Better Summaries", isOn: $better.isEnabled)
-                    if better.isWorking {
-                        LabeledContent("Writing summaries…") { ProgressView() }
-                    }
-                    Button("Delete \(better.variant.displayName) (\(better.variant.sizeText))", role: .destructive) {
-                        Task { await better.delete() }
-                    }
-                } else {
-                    downloadStatus(better.state, size: better.variant.sizeText) { better.download() }
+            Picker("Local Model", selection: $better.variant) {
+                ForEach(LocalLanguageModel.Variant.allCases, id: \.self) { Text($0.shortName).tag($0) }
+            }
+            if better.state != .ready {
+                ModelDownloadRow(state: better.state, size: better.variant.sizeText) { better.download() }
+            } else {
+                Button("Delete \(better.variant.displayName) (\(better.variant.sizeText))", role: .destructive) {
+                    Task { await better.delete() }
                 }
             }
         } header: {
-            Text("Titles and Summaries")
+            Text("Developer")
         } footer: {
-            Text(BetterSummaries.isSupported ? Self.summariesFooter : "Better Summaries need an iPhone (not the simulator).")
+            Text("Which local model writes summaries and corrections. E4B and Qwen3.5 are here to compare with E2B; each is its own download.")
         }
     }
+    #endif
+}
 
-    private static let summariesFooter = "Better Summaries use Google's Gemma 4 E2B on this iPhone instead of Apple Intelligence: it reads a whole meeting at once, keeps who said what, and writes more precise titles and summaries. It needs a one-time 3.6 GB download (keep Scribe open meanwhile) and works while Scribe is open. Existing transcripts get new summaries too; titles you typed stay."
-    private static let correctionsFooter = "After a recording, Gemma on this iPhone corrects grammar, spelling, punctuation and obviously misheard words, about a dozen speaker turns at a time, without changing what was said or who said it. German transcripts only, while Scribe is open. Applies from the next recording."
+/// A downloadable model's row: downloaded, progress, "Download Now" or the failure with "Try Again".
+struct ModelDownloadRow: View {
+    let state: ModelDownloadState
+    let size: String
+    let download: () async -> Void
 
-    /// A downloadable model's row: downloaded, progress, "Download Now" or the failure with "Try Again".
-    @ViewBuilder
-    private func downloadStatus(_ state: ModelDownloadState, size: String,
-                                download: @escaping () async -> Void) -> some View {
+    var body: some View {
         switch state {
         case .ready:
             Label("Downloaded", systemImage: "checkmark.circle.fill")
@@ -197,6 +192,145 @@ struct SettingsView: View {
                 Button("Try Again") { Task { await download() } }
             }
         }
+    }
+}
+
+// MARK: - Detail pages
+
+/// Settings › Transcription: the model of the full-accuracy pass after Stop (Parakeet or Apple Speech) and
+/// Parakeet's download.
+struct TranscriptionModelView: View {
+    @Environment(AppServices.self) private var services
+    @AppStorage(ParakeetModel.engineKey) private var engine = "parakeet"
+
+    var body: some View {
+        Form {
+            Section {
+                Picker("Model", selection: $engine) {
+                    Text("Parakeet").tag("parakeet")
+                    Text("Apple Speech").tag("apple")
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            } footer: {
+                Text(engine == "parakeet"
+                     ? "Parakeet re-transcribes each recording on this iPhone after you stop, more accurately than Apple Speech. It needs a one-time 610 MB download, which starts automatically on Wi-Fi. Until then Apple Speech is used."
+                     : "Apple Speech re-transcribes each recording on this iPhone after you stop. No download needed.")
+            }
+            if engine == "parakeet" {
+                Section {
+                    ModelDownloadRow(state: services.parakeet.state, size: "610 MB") { await services.parakeet.download(force: true) }
+                }
+            }
+        }
+        .navigationTitle("Transcription")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Settings › Speaker Identification: Nemotron's download; the standard model until then.
+struct SpeakerModelView: View {
+    @Environment(AppServices.self) private var services
+
+    var body: some View {
+        Form {
+            Section {
+                LabeledContent("Model", value: services.nemotron.state == .ready ? "NVIDIA Nemotron" : "Standard")
+                if services.nemotron.state != .ready {
+                    ModelDownloadRow(state: services.nemotron.state, size: "100 MB") { await services.nemotron.download(force: true) }
+                }
+            } footer: {
+                Text("NVIDIA Nemotron tells speakers apart on this iPhone after you stop, much more reliably than the standard model, also when people talk in quick succession. It needs a one-time 100 MB download, which starts automatically on Wi-Fi. Until then the standard model is used.")
+            }
+        }
+        .navigationTitle("Speaker Identification")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Settings › Summaries: Apple Intelligence or, downloaded, the local model ("Better Summaries", Gemma 4 E2B).
+struct SummariesModelView: View {
+    @Environment(AppServices.self) private var services
+
+    var body: some View {
+        @Bindable var better = services.betterSummaries
+        Form {
+            Section {
+                LabeledContent("Model", value: better.activeModel != nil ? better.variant.displayName : "Apple Intelligence")
+                if BetterSummaries.isSupported {
+                    if better.state == .ready {
+                        Toggle("Better Summaries", isOn: $better.isEnabled)
+                        if better.isWorking {
+                            LabeledContent("Writing summaries…") { ProgressView() }
+                        }
+                        Button("Delete \(better.variant.displayName) (\(better.variant.sizeText))", role: .destructive) {
+                            Task { await better.delete() }
+                        }
+                    } else {
+                        ModelDownloadRow(state: better.state, size: better.variant.sizeText) { better.download() }
+                    }
+                }
+            } header: {
+                Text("Titles and Summaries")
+            } footer: {
+                Text(BetterSummaries.isSupported
+                     ? "Better Summaries use Google's Gemma 4 E2B on this iPhone instead of Apple Intelligence: it reads a whole meeting at once, keeps who said what, and writes more precise titles and summaries. It needs a one-time 3.6 GB download (keep Scribe open meanwhile) and works while Scribe is open. Existing transcripts get new summaries too; titles you typed stay. Smart Corrections use the same model."
+                     : "Better Summaries need an iPhone (not the simulator).")
+            }
+        }
+        .navigationTitle("Summaries")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Settings › Your Words: the user's vocabulary, one word per row, swipe to delete, a field to add; and the built-in
+/// German consulting and banking list to read.
+struct VocabularyView: View {
+    @State private var words = Vocabulary.custom
+    @State private var usesBuiltIn = Vocabulary.usesBuiltIn
+    @State private var draft = ""
+    @FocusState private var isAdding: Bool
+
+    var body: some View {
+        Form {
+            Section {
+                ForEach(words, id: \.self) { word in
+                    Text(word)
+                }
+                .onDelete { words.remove(atOffsets: $0) }
+                TextField("Add a word or name", text: $draft)
+                    .focused($isAdding)
+                    .autocorrectionDisabled()
+                    .submitLabel(.done)
+                    .onSubmit(add)
+            } header: {
+                Text("Your Words")
+            } footer: {
+                Text("Names, products and terms the transcription often gets wrong. Applies from the next recording.")
+            }
+
+            Section {
+                Toggle("Consulting & Banking Terms", isOn: $usesBuiltIn)
+                if usesBuiltIn {
+                    DisclosureGroup("\(Vocabulary.builtIn.count) terms") {
+                        Text(Vocabulary.builtIn.joined(separator: ", "))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } footer: {
+                Text("German office, consulting, banking and finance vocabulary, e.g. Cofinpro, Jour fixe, MaRisk, BaFin, Baufinanzierung.")
+            }
+        }
+        .navigationTitle("Your Words")
+        .navigationBarTitleDisplayMode(.inline)
+        .onDisappear {                               // leaving the page: a word typed but not submitted is kept
+            guard !draft.isEmpty else { return }
+            add()
+            isAdding = false
+        }
+        .onChange(of: words) { _, new in Vocabulary.custom = new }
+        .onChange(of: usesBuiltIn) { _, new in Vocabulary.usesBuiltIn = new }
     }
 
     /// Adds the draft (comma-separated input becomes several words); skips blanks and case-insensitive duplicates.
@@ -219,5 +353,5 @@ struct SettingsView: View {
 #endif
 
 enum SettingsRoute: Hashable {
-    case people
+    case people, transcription, speakers, summaries, vocabulary
 }

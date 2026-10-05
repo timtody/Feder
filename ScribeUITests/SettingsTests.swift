@@ -70,16 +70,19 @@ final class SettingsTests: ScribeUITestCase {
         shot("Expanded again", app)
     }
 
-    /// Settings has "Titles and Summaries": the model in use (the simulator has no MLX GPU, so Apple Intelligence and a
-    /// note that Better Summaries need an iPhone; on an iPhone the Gemma download row).
+    /// Settings › After Recording › Summaries: the model in use (the simulator has no MLX GPU, so Apple Intelligence
+    /// and a note that Better Summaries need an iPhone; on an iPhone the Gemma download row), on its own page.
     @MainActor
     func testSummariesSectionInSettings() throws {
         let app = launch()
         app.buttons["Settings"].firstMatch.tap()
-        let footer = app.staticTexts["Better Summaries need an iPhone (not the simulator)."]   // below the section's rows
-        for _ in 0..<8 where !footer.exists { app.swipeUp() }
+        let row = app.buttons["Summaries"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "the Summaries row under After Recording")
+        XCTAssertTrue(row.label.contains("Apple Intelligence"), "the row shows the model in use: \(row.label)")
+        row.tap()
+        let footer = app.staticTexts["Better Summaries need an iPhone (not the simulator)."]
+        XCTAssertTrue(footer.waitForExistence(timeout: 5), "the page's footer on the simulator")
         shot("Titles and Summaries", app)
-        XCTAssertTrue(footer.exists, "the section's footer on the simulator")
         XCTAssertTrue(app.staticTexts["Titles and Summaries"].exists, "the section header")
         let model = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label CONTAINS 'Apple Intelligence' OR value CONTAINS 'Apple Intelligence'"))
