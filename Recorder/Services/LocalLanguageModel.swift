@@ -10,13 +10,14 @@ import Tokenizers
 /// always gets the same one; the smart corrections sample at a low temperature. Platform-neutral (also builds for the
 /// Mac, where the summary bench runs it).
 actor LocalLanguageModel {
-    /// The Gemma 4 builds the app can download (Settings › Titles and Summaries › Gemma Model), both 4-bit from
-    /// mlx-community at pinned revisions, with Gemma 4's vision and audio towers (not used; the text-only conversion
-    /// `mlx-community/Gemma4-E2B-IT-Text-int4`, 2.67 GB, wrote much worse summaries in the summary bench:
-    /// "Zusammenfassung der nächsten Schritte"). E4B is there to compare: 5.1 GB of weights is a lot for an 8 GB
-    /// iPhone next to Parakeet and Nemotron, and about half E2B's speed; not measured on a device.
+    /// The local models the app can download (Settings › Titles and Summaries › Local Model), all 4-bit from
+    /// mlx-community at pinned revisions. Gemma 4 E2B is the app's (with Gemma 4's vision and audio towers, not used;
+    /// the text-only conversion `mlx-community/Gemma4-E2B-IT-Text-int4`, 2.67 GB, wrote much worse summaries in the
+    /// summary bench: "Zusammenfassung der nächsten Schritte"). The others are there to compare, not measured on a
+    /// device: E4B (5.1 GB of weights is a lot for an 8 GB iPhone next to Parakeet and Nemotron, about half E2B's
+    /// speed) and Qwen3.5 4B (the most complete summaries in the bench, about 4× slower than E2B, peak 3.8 GB).
     nonisolated enum Variant: String, CaseIterable, Sendable {
-        case e2b, e4b
+        case e2b, e4b, qwen4b
 
         nonisolated static let settingKey = "gemmaVariant"          // rawValue; absent means E2B
         nonisolated static var selected: Variant {
@@ -28,6 +29,7 @@ actor LocalLanguageModel {
             switch self {
             case .e2b: "mlx-community/gemma-4-e2b-it-4bit"
             case .e4b: "mlx-community/gemma-4-e4b-it-4bit"
+            case .qwen4b: "mlx-community/Qwen3.5-4B-4bit"
             }
         }
 
@@ -35,18 +37,27 @@ actor LocalLanguageModel {
             switch self {
             case .e2b: "238767527555cb75a05732a84dff5d6ba0dd6809"     // 2026-07-06
             case .e4b: "475b9088d29754a3379866cf5aeb6b41acd313c2"     // 2026-07-06
+            case .qwen4b: "0e7ffd5c629ef7719d4cbc04069232580bfa9d9c"  // 2026-03-02
             }
         }
 
         var files: [String] {
-            ["config.json", "generation_config.json", "chat_template.jinja", "processor_config.json",
-             "tokenizer.json", "tokenizer_config.json", "model.safetensors.index.json", "model.safetensors"]
+            switch self {
+            case .e2b, .e4b:
+                ["config.json", "generation_config.json", "chat_template.jinja", "processor_config.json",
+                 "tokenizer.json", "tokenizer_config.json", "model.safetensors.index.json", "model.safetensors"]
+            case .qwen4b:
+                ["config.json", "chat_template.jinja", "processor_config.json", "preprocessor_config.json",
+                 "video_preprocessor_config.json", "tokenizer.json", "tokenizer_config.json", "vocab.json",
+                 "model.safetensors.index.json", "model.safetensors"]
+            }
         }
 
         var downloadBytes: Int64 {
             switch self {
             case .e2b: 3_583_000_000
             case .e4b: 5_179_000_000
+            case .qwen4b: 3_061_000_000
             }
         }
 
@@ -54,6 +65,16 @@ actor LocalLanguageModel {
             switch self {
             case .e2b: "Gemma 4 E2B"
             case .e4b: "Gemma 4 E4B"
+            case .qwen4b: "Qwen3.5 4B"
+            }
+        }
+
+        /// The picker's label.
+        var shortName: String {
+            switch self {
+            case .e2b: "E2B"
+            case .e4b: "E4B"
+            case .qwen4b: "Qwen3.5 4B"
             }
         }
 
@@ -61,6 +82,7 @@ actor LocalLanguageModel {
             switch self {
             case .e2b: "3.6 GB"
             case .e4b: "5.1 GB"
+            case .qwen4b: "3.1 GB"
             }
         }
     }

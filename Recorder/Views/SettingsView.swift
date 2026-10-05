@@ -148,9 +148,9 @@ struct SettingsView: View {
         Section {
             LabeledContent("Model", value: better.activeModel != nil ? better.variant.displayName : "Apple Intelligence")
             if BetterSummaries.isSupported {
-                // Which Gemma build: E2B (the app's), E4B to compare; each with its own download.
-                Picker("Gemma Model", selection: $better.variant) {
-                    ForEach(LocalLanguageModel.Variant.allCases, id: \.self) { Text($0.displayName.dropFirst(8)).tag($0) }
+                // Which local model: Gemma 4 E2B (the app's), E4B and Qwen3.5 4B to compare; each with its own download.
+                Picker("Local Model", selection: $better.variant) {
+                    ForEach(LocalLanguageModel.Variant.allCases, id: \.self) { Text($0.shortName).tag($0) }
                 }
                 if better.state == .ready {
                     Toggle("Better Summaries", isOn: $better.isEnabled)
