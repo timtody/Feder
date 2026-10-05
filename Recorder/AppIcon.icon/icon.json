@@ -42,44 +42,6 @@
             }
           ],
           "glass": true,
-          "image-name": "wave.svg",
-          "name": "wave"
-        }
-      ],
-      "name": "wave",
-      "shadow": {
-        "kind": "neutral",
-        "opacity": 0.5
-      },
-      "specular": true,
-      "translucency": {
-        "enabled": false,
-        "value": 0.0
-      }
-    },
-    {
-      "layers": [
-        {
-          "fill-specializations": [
-            {
-              "value": {
-                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            },
-            {
-              "appearance": "dark",
-              "value": {
-                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            },
-            {
-              "appearance": "tinted",
-              "value": {
-                "solid": "srgb:0.72157,0.72157,0.72157,1.00000"
-              }
-            }
-          ],
-          "glass": true,
           "image-name": "vane.svg",
           "name": "vane"
         }
@@ -118,11 +80,11 @@
             }
           ],
           "glass": true,
-          "image-name": "shaft.svg",
-          "name": "shaft"
+          "image-name": "ink.svg",
+          "name": "ink"
         }
       ],
-      "name": "shaft",
+      "name": "ink",
       "shadow": {
         "kind": "neutral",
         "opacity": 0.5
