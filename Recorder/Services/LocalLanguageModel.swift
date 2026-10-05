@@ -10,26 +10,73 @@ import Tokenizers
 /// always gets the same one; the smart corrections sample at a low temperature. Platform-neutral (also builds for the
 /// Mac, where the summary bench runs it).
 actor LocalLanguageModel {
-    /// The Hugging Face repository and the pinned revision of its files (3.58 GB, with Gemma 4's vision and audio
-    /// towers, which are not used). The smaller text-only conversion `mlx-community/Gemma4-E2B-IT-Text-int4` (2.67 GB)
-    /// wrote much worse summaries in the summary bench ("Zusammenfassung der nächsten Schritte").
-    nonisolated static let repository = "mlx-community/gemma-4-e2b-it-4bit"
-    nonisolated static let revision = "238767527555cb75a05732a84dff5d6ba0dd6809"     // 2026-07-06
-    nonisolated static let files = ["config.json", "generation_config.json", "chat_template.jinja", "processor_config.json",
-                                    "tokenizer.json", "tokenizer_config.json", "model.safetensors.index.json",
-                                    "model.safetensors"]
-    nonisolated static let downloadBytes: Int64 = 3_583_000_000
-    nonisolated static let displayName = "Gemma 4 E2B"
-    /// Tokens a request may use (instructions + transcript + answer). Gemma 4 E2B reads 128K; 20K keeps the KV cache
+    /// The Gemma 4 builds the app can download (Settings › Titles and Summaries › Gemma Model), both 4-bit from
+    /// mlx-community at pinned revisions, with Gemma 4's vision and audio towers (not used; the text-only conversion
+    /// `mlx-community/Gemma4-E2B-IT-Text-int4`, 2.67 GB, wrote much worse summaries in the summary bench:
+    /// "Zusammenfassung der nächsten Schritte"). E4B is there to compare: 5.1 GB of weights is a lot for an 8 GB
+    /// iPhone next to Parakeet and Nemotron, and about half E2B's speed; not measured on a device.
+    nonisolated enum Variant: String, CaseIterable, Sendable {
+        case e2b, e4b
+
+        nonisolated static let settingKey = "gemmaVariant"          // rawValue; absent means E2B
+        nonisolated static var selected: Variant {
+            get { UserDefaults.standard.string(forKey: settingKey).flatMap(Variant.init) ?? .e2b }
+            set { UserDefaults.standard.set(newValue.rawValue, forKey: settingKey) }
+        }
+
+        var repository: String {
+            switch self {
+            case .e2b: "mlx-community/gemma-4-e2b-it-4bit"
+            case .e4b: "mlx-community/gemma-4-e4b-it-4bit"
+            }
+        }
+
+        var revision: String {
+            switch self {
+            case .e2b: "238767527555cb75a05732a84dff5d6ba0dd6809"     // 2026-07-06
+            case .e4b: "475b9088d29754a3379866cf5aeb6b41acd313c2"     // 2026-07-06
+            }
+        }
+
+        var files: [String] {
+            ["config.json", "generation_config.json", "chat_template.jinja", "processor_config.json",
+             "tokenizer.json", "tokenizer_config.json", "model.safetensors.index.json", "model.safetensors"]
+        }
+
+        var downloadBytes: Int64 {
+            switch self {
+            case .e2b: 3_583_000_000
+            case .e4b: 5_179_000_000
+            }
+        }
+
+        var displayName: String {
+            switch self {
+            case .e2b: "Gemma 4 E2B"
+            case .e4b: "Gemma 4 E4B"
+            }
+        }
+
+        var sizeText: String {
+            switch self {
+            case .e2b: "3.6 GB"
+            case .e4b: "5.1 GB"
+            }
+        }
+    }
+
+    /// Tokens a request may use (instructions + transcript + answer). Gemma 4 reads 128K; 20K keeps the KV cache
     /// and the prefill time of one request small (about an hour of conversation; longer ones are summarized in parts).
     nonisolated static let contextTokens = 20_000
 
+    nonisolated let variant: Variant
     nonisolated let directory: URL
     private var container: ModelContainer?
     /// Bumped by `unload()`: a load that was suspended meanwhile drops its result instead of keeping the weights.
     private var generation = 0
 
-    init(directory: URL) {
+    init(variant: Variant, directory: URL) {
+        self.variant = variant
         self.directory = directory
     }
 

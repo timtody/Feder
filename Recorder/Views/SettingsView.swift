@@ -146,16 +146,22 @@ struct SettingsView: View {
     private var summariesSection: some View {
         @Bindable var better = services.betterSummaries
         Section {
-            LabeledContent("Model", value: better.activeModel != nil ? LocalLanguageModel.displayName : "Apple Intelligence")
+            LabeledContent("Model", value: better.activeModel != nil ? better.variant.displayName : "Apple Intelligence")
             if BetterSummaries.isSupported {
+                // Which Gemma build: E2B (the app's), E4B to compare; each with its own download.
+                Picker("Gemma Model", selection: $better.variant) {
+                    ForEach(LocalLanguageModel.Variant.allCases, id: \.self) { Text($0.displayName.dropFirst(8)).tag($0) }
+                }
                 if better.state == .ready {
                     Toggle("Better Summaries", isOn: $better.isEnabled)
                     if better.isWorking {
                         LabeledContent("Writing summaries…") { ProgressView() }
                     }
-                    Button("Delete Gemma (3.6 GB)", role: .destructive) { Task { await better.delete() } }
+                    Button("Delete \(better.variant.displayName) (\(better.variant.sizeText))", role: .destructive) {
+                        Task { await better.delete() }
+                    }
                 } else {
-                    downloadStatus(better.state, size: "3.6 GB") { better.download() }
+                    downloadStatus(better.state, size: better.variant.sizeText) { better.download() }
                 }
             }
         } header: {

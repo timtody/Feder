@@ -21,8 +21,26 @@ final class BetterSummaries {
         #endif
     }()
 
-    private(set) var state: ModelDownloadState
+    /// The download state per build; `state` is the chosen build's.
+    private(set) var states: [LocalLanguageModel.Variant: ModelDownloadState] = [:]
+    var state: ModelDownloadState { states[variant] ?? .notDownloaded }
+    /// The model of the chosen build, once downloaded.
     private(set) var model: LocalLanguageModel?
+    /// Settings › Gemma Model: which build writes (and corrects). Switching frees the other's weights; a build not
+    /// downloaded yet shows its download row. For comparing E2B and E4B.
+    var variant: LocalLanguageModel.Variant {
+        get {
+            access(keyPath: \.variant)
+            return LocalLanguageModel.Variant.selected
+        }
+        set {
+            guard newValue != variant else { return }
+            withMutation(keyPath: \.variant) { LocalLanguageModel.Variant.selected = newValue }
+            Task { await unload() }
+            model = state == .ready ? LocalLanguageModel(variant: newValue, directory: Self.modelDirectory(newValue)) : nil
+            if model != nil, isEnabled { onBecameActive?() }
+        }
+    }
     /// The transcript being described with Gemma right now (Settings shows it while it works).
     private(set) var isWorking = false
     /// SpeakerIdentifier.setRecording: Gemma does not run while recording (the GPU and memory belong to it); a request
@@ -38,14 +56,14 @@ final class BetterSummaries {
     @ObservationIgnored private var unloadTask: Task<Void, Never>?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
 
-    nonisolated static var modelDirectory: URL {
-        URL.applicationSupportDirectory.appending(path: "Models/\(LocalLanguageModel.repository.split(separator: "/").last!)")
-            .appending(path: LocalLanguageModel.revision)
+    nonisolated static func modelDirectory(_ variant: LocalLanguageModel.Variant) -> URL {
+        URL.applicationSupportDirectory.appending(path: "Models/\(variant.repository.split(separator: "/").last!)")
+            .appending(path: variant.revision)
     }
 
-    nonisolated static var isDownloaded: Bool {
-        LocalLanguageModel.files.allSatisfy {
-            FileManager.default.fileExists(atPath: modelDirectory.appending(path: $0).path(percentEncoded: false))
+    nonisolated static func isDownloaded(_ variant: LocalLanguageModel.Variant) -> Bool {
+        variant.files.allSatisfy {
+            FileManager.default.fileExists(atPath: modelDirectory(variant).appending(path: $0).path(percentEncoded: false))
         }
     }
 
@@ -67,12 +85,10 @@ final class BetterSummaries {
     }
 
     init() {
-        if Self.isSupported, Self.isDownloaded {
-            state = .ready
-            model = LocalLanguageModel(directory: Self.modelDirectory)
-        } else {
-            state = .notDownloaded
+        for build in LocalLanguageModel.Variant.allCases where Self.isSupported && Self.isDownloaded(build) {
+            states[build] = .ready
         }
+        if state == .ready { model = LocalLanguageModel(variant: variant, directory: Self.modelDirectory(variant)) }
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: UIApplication.willResignActiveNotification, object: nil,
                                             queue: .main) { [weak self] _ in
@@ -109,8 +125,9 @@ final class BetterSummaries {
             #if DEBUG
             print("[Scribe] Gemma failed: \(error.underlying)")
             #endif
+            let failed = variant
             await delete()
-            state = .failed("Gemma could not be loaded. Download it again.")
+            states[failed] = .failed("Gemma could not be loaded. Download it again.")
             throw error
         }
     }
@@ -133,49 +150,53 @@ final class BetterSummaries {
 
     // MARK: Download
 
-    /// "Download Now": the pinned files, one after another, each into a temporary file first; a file already complete
-    /// from an earlier, interrupted download is kept.
+    /// "Download Now" for the chosen build: the pinned files, one after another, each into a temporary file first; a
+    /// file already complete from an earlier, interrupted download is kept.
     func download() {
         guard Self.isSupported, downloadTask == nil else { return }
+        let build = variant
         switch state {
         case .ready, .downloading: return
         case .notDownloaded, .waitingForWiFi, .failed: break
         }
-        state = .downloading(0)
-        UIApplication.shared.isIdleTimerDisabled = true      // auto-lock would suspend the app and fail the 3.6 GB
+        states[build] = .downloading(0)
+        UIApplication.shared.isIdleTimerDisabled = true      // auto-lock would suspend the app and fail the gigabytes
         downloadTask = Task {
             do {
-                try await Self.fetchFiles { fraction in
+                try await Self.fetchFiles(build) { fraction in
                     Task { @MainActor in
-                        if let next = self.state.advanced(to: fraction) { self.state = next }
+                        if let next = self.states[build]?.advanced(to: fraction) { self.states[build] = next }
                     }
                 }
-                model = LocalLanguageModel(directory: Self.modelDirectory)
-                state = .ready
-                if isEnabled { onBecameActive?() }
+                states[build] = .ready
+                if build == variant {
+                    model = LocalLanguageModel(variant: build, directory: Self.modelDirectory(build))
+                    if isEnabled { onBecameActive?() }
+                }
             } catch let error as URLError where error.code == .cancelled {
-                state = .notDownloaded
+                states[build] = .notDownloaded
             } catch is CancellationError {
-                state = .notDownloaded
+                states[build] = .notDownloaded
             } catch {
-                state = .failed(error.localizedDescription)
+                states[build] = .failed(error.localizedDescription)
             }
             downloadTask = nil
             UIApplication.shared.isIdleTimerDisabled = false
         }
     }
 
-    /// Removes the model files (all revisions) and frees the memory. Summaries it wrote stay.
+    /// Removes the chosen build's files (all revisions) and frees the memory. Summaries it wrote stay.
     func delete() async {
         downloadTask?.cancel()
         await unload()
         model = nil
-        try? FileManager.default.removeItem(at: Self.modelDirectory.deletingLastPathComponent())
-        state = .notDownloaded
+        try? FileManager.default.removeItem(at: Self.modelDirectory(variant).deletingLastPathComponent())
+        states[variant] = .notDownloaded
     }
 
-    private nonisolated static func fetchFiles(progress: @escaping @Sendable (Double) -> Void) async throws {
-        let directory = modelDirectory
+    private nonisolated static func fetchFiles(_ variant: LocalLanguageModel.Variant,
+                                               progress: @escaping @Sendable (Double) -> Void) async throws {
+        let directory = modelDirectory(variant)
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         var models = directory.deletingLastPathComponent().deletingLastPathComponent()   // …/Models: no iCloud backup
@@ -183,15 +204,15 @@ final class BetterSummaries {
         values.isExcludedFromBackup = true
         try? models.setResourceValues(values)
 
-        let total = Double(LocalLanguageModel.downloadBytes)
+        let total = Double(variant.downloadBytes)
         var done: Int64 = 0
-        for name in LocalLanguageModel.files {
+        for name in variant.files {
             let target = directory.appending(path: name)
             if fileManager.fileExists(atPath: target.path(percentEncoded: false)) {
                 done += (try? fileManager.attributesOfItem(atPath: target.path(percentEncoded: false))[.size] as? Int64) ?? 0
                 continue
             }
-            let url = URL(string: "https://huggingface.co/\(LocalLanguageModel.repository)/resolve/\(LocalLanguageModel.revision)/\(name)")!
+            let url = URL(string: "https://huggingface.co/\(variant.repository)/resolve/\(variant.revision)/\(name)")!
             let before = done
             let temporary = try await FileDownload.run(url) { written in progress(min(1, Double(before + written) / total)) }
             try fileManager.moveItem(at: temporary, to: target)
