@@ -3,9 +3,8 @@ import SwiftUI
 /// The pipeline status line's activity mark: three bodies under their mutual gravity in 3D, chaotic, as in the
 /// three-body problem, seen through a slowly turning camera with perspective: a body nearer the viewer is larger,
 /// more opaque and drawn in front, each is shaded like a small sphere (a highlight towards the top left), and each
-/// leaves a tapering tail in 3D. The bodies differ in size and are drawn as glowing stars in one muted, dusty blue:
-/// in dark mode pale blue-white cores in a blue glow, in light mode black cores in a faint blue glow; 20 × 16 pt,
-/// scaled with Dynamic Type. It begins with the three bodies together in the centre, flung
+/// leaves a short fading trail in 3D. The bodies differ in size and are shaded like small planets, in one muted,
+/// dusty blue in dark mode and black in light mode; 20 × 16 pt, scaled with Dynamic Type. It begins with the three bodies together in the centre, flung
 /// out, and every new step of the pipeline (`step`) pulls them back together and flings them out again (`burst`), at
 /// most once every 1.5 s, so steps that follow each other closely don't make it flicker. With Reduce Motion one
 /// irregular moment stands still. Decorative: hidden from VoiceOver (the text says what is happening).
@@ -36,17 +35,14 @@ struct ThreeBodyIcon: View {
         .onChange(of: step) { _, new in if new != nil { simulation.burst() } }
     }
 
-    /// Each body's size, the largest first. All three are one dusty, muted blue (deep space, not a palette): in dark
-    /// mode a pale blue-white core in a wide blue bloom (two layers, out to 4.5 radii), the larger bodies a shade
-    /// brighter, in light mode a black core in a fainter bloom, since a pale star has nothing to shine against on
-    /// white. The tails are as wide as the bloom at the body and taper to a point, a glow and a brighter core each:
-    /// hairlines looked cheap against the bodies, and tails as wide as the core looked thin beside its bloom. (The speakers' blue, orange and green were tried first and read as a toy.)
+    /// Each body's size, the largest first. The bodies are small shaded planets (the look of the second version: a
+    /// radial shading with a bright highlight towards the top left, comet tails that thin and fade towards their old
+    /// end), in one muted, dusty blue in dark mode and black in light mode. (Tried and dropped after it: glowing
+    /// stars with a bloom, which at this size merged into a blob or looked loud, and hairline tails, which looked cheap.)
     private static let sizes: [Double] = [1.2, 1.0, 0.8]
-    /// The blue: hue 0.6 (a touch towards indigo), muted.
-    private static let glowColour = Color(hue: 0.6, saturation: 0.55, brightness: 0.75)
-    private static let coreColours: [Color] = [0.97, 0.9, 0.82].map { Color(hue: 0.6, saturation: 0.22, brightness: $0) }
-    private static let darkTrail = Color(hue: 0.6, saturation: 0.5, brightness: 0.8)
-    private static let lightTrail = Color(hue: 0.62, saturation: 0.45, brightness: 0.35)
+    /// The blue: hue 0.6 (a touch towards indigo), muted; the larger bodies a shade lighter.
+    private static let blues: [Color] = [0.78, 0.72, 0.66].map { Color(hue: 0.6, saturation: 0.4, brightness: $0) }
+    private static let lightTail = Color(hue: 0.62, saturation: 0.35, brightness: 0.3)
 
     private static func draw(_ frame: ThreeBodyFrame, dark: Bool) -> some View {
         Canvas { context, size in
@@ -55,49 +51,31 @@ struct ThreeBodyIcon: View {
                 CGPoint(x: size.width / 2 + p.x * half, y: size.height / 2 - p.y * half)
             }
             let radius = half * 0.2
-            let trailColour = dark ? darkTrail : lightTrail
-            // Tails first (behind every body), two strokes a segment: a wide faint glow and a narrower bright core,
-            // both the body's bloom's width at the newest end (wider than the core, which the bloom makes look bigger
-            // than it is) and tapering to a point at the oldest, fading the same way.
+            // Trails first (behind every body), each segment thinner and fainter towards its old end.
             for (i, trail) in frame.trails.enumerated() where trail.count > 1 {
+                let colour = dark ? blues[i] : lightTail
                 for k in 1..<trail.count {
                     let age = Double(k) / Double(trail.count)          // 0 old ... 1 new
                     var segment = Path()
                     segment.move(to: point(trail[k - 1]))
                     segment.addLine(to: point(trail[k]))
-                    let diameter = 2 * radius * trail[k].size * sizes[i]
-                    context.stroke(segment, with: .color(glowColour.opacity((dark ? 0.16 : 0.1) * age * trail[k].light)),
-                                   style: StrokeStyle(lineWidth: max(0.5, diameter * 2.2 * age), lineCap: .round))
-                    context.stroke(segment, with: .color(trailColour.opacity((dark ? 0.6 : 0.4) * age * trail[k].light)),
-                                   style: StrokeStyle(lineWidth: max(0.5, diameter * 1.15 * age * age), lineCap: .round))
+                    context.stroke(segment, with: .color(colour.opacity((dark ? 0.7 : 0.5) * age * trail[k].light)),
+                                   style: StrokeStyle(lineWidth: radius * 1.1 * age * trail[k].size * sizes[i], lineCap: .round))
                 }
             }
-            // Far bodies first: the near one covers them. Each: the bloom in two layers (a wide soft halo out to 4.5
-            // radii and a brighter one out to 2.4), then the core with a small glint towards the top left.
+            // Far bodies first: the near one covers them.
             for (i, body) in frame.bodies.enumerated().sorted(by: { $0.element.depth < $1.element.depth }) {
                 let r = radius * body.size * sizes[i]
                 let c = point(body)
+                let rect = CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)
+                let base = dark ? blues[i] : Color.black
+                let shading = Gradient(stops: [.init(color: .white.opacity(dark ? 0.9 : 0.45), location: 0),
+                                               .init(color: base, location: 0.55),
+                                               .init(color: base.opacity(0.7), location: 1)])
                 context.opacity = body.light
-                // The wide halo falls off fast (three blooms overlapping must not merge into one blob).
-                let halo = Gradient(stops: [.init(color: glowColour.opacity(dark ? 0.4 : 0.22), location: 0),
-                                            .init(color: glowColour.opacity(dark ? 0.08 : 0.05), location: 0.35),
-                                            .init(color: glowColour.opacity(0), location: 1)])
-                let far = r * 4.0
-                context.fill(Path(ellipseIn: CGRect(x: c.x - far, y: c.y - far, width: 2 * far, height: 2 * far)),
-                             with: .radialGradient(halo, center: c, startRadius: 0, endRadius: far))
-                let glow = Gradient(stops: [.init(color: glowColour.opacity(dark ? 0.9 : 0.55), location: 0),
-                                            .init(color: glowColour.opacity(dark ? 0.35 : 0.2), location: 0.45),
-                                            .init(color: glowColour.opacity(0), location: 1)])
-                let reach = r * 2.2
-                context.fill(Path(ellipseIn: CGRect(x: c.x - reach, y: c.y - reach, width: 2 * reach, height: 2 * reach)),
-                             with: .radialGradient(glow, center: c, startRadius: 0, endRadius: reach))
-                let core = dark ? coreColours[i] : Color.black
-                let shading = Gradient(stops: [.init(color: dark ? .white : Color.white.opacity(0.3), location: 0),
-                                               .init(color: core, location: 0.45),
-                                               .init(color: core.opacity(0.85), location: 1)])
-                context.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)),
-                             with: .radialGradient(shading, center: CGPoint(x: c.x - r * 0.3, y: c.y - r * 0.3),
-                                                   startRadius: 0, endRadius: r * 1.2))
+                context.fill(Path(ellipseIn: rect),
+                             with: .radialGradient(shading, center: CGPoint(x: c.x - r * 0.35, y: c.y - r * 0.35),
+                                                   startRadius: 0, endRadius: r * 1.35))
                 context.opacity = 1
             }
         }
@@ -138,7 +116,7 @@ final class ThreeBodySimulation {
     private static let speed = 1.9                   // time units per second on screen (2.2 was a touch hectic)
     private static let turn = 0.35                    // camera radians per second
     private static let tilt = 0.45                    // radians the camera looks down
-    private static let trailLength = 34               // positions per trail, one per frame: about half a second
+    private static let trailLength = 26               // positions per trail, one per frame: under half a second
     private static let gatherTime = 0.35              // seconds the bodies are drawn to the centre
     private static let flingSpeed = 2.4               // their speed when let go (mean speed in free motion is ~1.2)
     private static let burstCooldown = 1.5            // seconds before the next burst can start
