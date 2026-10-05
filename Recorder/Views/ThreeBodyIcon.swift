@@ -37,10 +37,10 @@ struct ThreeBodyIcon: View {
     }
 
     /// Each body's size, the largest first. All three are one dusty, muted blue (deep space, not a palette): in dark
-    /// mode a pale blue-white core in a soft blue glow, the larger bodies a shade brighter, in light mode a black core
-    /// in a faint blue glow, since a pale star has nothing to shine against on white. The tails taper from the body's
-    /// own width down to a point: hairlines looked cheap against the bodies, comet tails as wide as the bodies at every
-    /// point looked loud. (The speakers' blue, orange and green were tried first and read as a toy.)
+    /// mode a pale blue-white core in a wide blue bloom (two layers, out to 4.5 radii), the larger bodies a shade
+    /// brighter, in light mode a black core in a fainter bloom, since a pale star has nothing to shine against on
+    /// white. The tails are as wide as the bloom at the body and taper to a point, a glow and a brighter core each:
+    /// hairlines looked cheap against the bodies, and tails as wide as the core looked thin beside its bloom. (The speakers' blue, orange and green were tried first and read as a toy.)
     private static let sizes: [Double] = [1.2, 1.0, 0.8]
     /// The blue: hue 0.6 (a touch towards indigo), muted.
     private static let glowColour = Color(hue: 0.6, saturation: 0.55, brightness: 0.75)
@@ -56,29 +56,39 @@ struct ThreeBodyIcon: View {
             }
             let radius = half * 0.2
             let trailColour = dark ? darkTrail : lightTrail
-            // Tails first (behind every body), each segment's width the body's at the newest end, tapering to a point
-            // at the oldest, fading the same way.
+            // Tails first (behind every body), two strokes a segment: a wide faint glow and a narrower bright core,
+            // both the body's bloom's width at the newest end (wider than the core, which the bloom makes look bigger
+            // than it is) and tapering to a point at the oldest, fading the same way.
             for (i, trail) in frame.trails.enumerated() where trail.count > 1 {
                 for k in 1..<trail.count {
                     let age = Double(k) / Double(trail.count)          // 0 old ... 1 new
                     var segment = Path()
                     segment.move(to: point(trail[k - 1]))
                     segment.addLine(to: point(trail[k]))
-                    let width = 2 * radius * trail[k].size * sizes[i] * age * age   // eased: slim quickly, full near the body
-                    context.stroke(segment, with: .color(trailColour.opacity((dark ? 0.55 : 0.35) * age * trail[k].light)),
-                                   style: StrokeStyle(lineWidth: max(0.5, width), lineCap: .round))
+                    let diameter = 2 * radius * trail[k].size * sizes[i]
+                    context.stroke(segment, with: .color(glowColour.opacity((dark ? 0.16 : 0.1) * age * trail[k].light)),
+                                   style: StrokeStyle(lineWidth: max(0.5, diameter * 2.2 * age), lineCap: .round))
+                    context.stroke(segment, with: .color(trailColour.opacity((dark ? 0.6 : 0.4) * age * trail[k].light)),
+                                   style: StrokeStyle(lineWidth: max(0.5, diameter * 1.15 * age * age), lineCap: .round))
                 }
             }
-            // Far bodies first: the near one covers them. Each: the glow (a soft disc out to 2.4 radii), then the core
-            // with a small glint towards the top left.
+            // Far bodies first: the near one covers them. Each: the bloom in two layers (a wide soft halo out to 4.5
+            // radii and a brighter one out to 2.4), then the core with a small glint towards the top left.
             for (i, body) in frame.bodies.enumerated().sorted(by: { $0.element.depth < $1.element.depth }) {
                 let r = radius * body.size * sizes[i]
                 let c = point(body)
                 context.opacity = body.light
-                let glow = Gradient(stops: [.init(color: glowColour.opacity(dark ? 0.8 : 0.5), location: 0),
-                                            .init(color: glowColour.opacity(dark ? 0.3 : 0.2), location: 0.45),
+                // The wide halo falls off fast (three blooms overlapping must not merge into one blob).
+                let halo = Gradient(stops: [.init(color: glowColour.opacity(dark ? 0.4 : 0.22), location: 0),
+                                            .init(color: glowColour.opacity(dark ? 0.08 : 0.05), location: 0.35),
                                             .init(color: glowColour.opacity(0), location: 1)])
-                let reach = r * 2.4
+                let far = r * 4.0
+                context.fill(Path(ellipseIn: CGRect(x: c.x - far, y: c.y - far, width: 2 * far, height: 2 * far)),
+                             with: .radialGradient(halo, center: c, startRadius: 0, endRadius: far))
+                let glow = Gradient(stops: [.init(color: glowColour.opacity(dark ? 0.9 : 0.55), location: 0),
+                                            .init(color: glowColour.opacity(dark ? 0.35 : 0.2), location: 0.45),
+                                            .init(color: glowColour.opacity(0), location: 1)])
+                let reach = r * 2.2
                 context.fill(Path(ellipseIn: CGRect(x: c.x - reach, y: c.y - reach, width: 2 * reach, height: 2 * reach)),
                              with: .radialGradient(glow, center: c, startRadius: 0, endRadius: reach))
                 let core = dark ? coreColours[i] : Color.black
@@ -128,7 +138,7 @@ final class ThreeBodySimulation {
     private static let speed = 1.9                   // time units per second on screen (2.2 was a touch hectic)
     private static let turn = 0.35                    // camera radians per second
     private static let tilt = 0.45                    // radians the camera looks down
-    private static let trailLength = 26               // positions per trail, one per frame: under half a second
+    private static let trailLength = 34               // positions per trail, one per frame: about half a second
     private static let gatherTime = 0.35              // seconds the bodies are drawn to the centre
     private static let flingSpeed = 2.4               // their speed when let go (mean speed in free motion is ~1.2)
     private static let burstCooldown = 1.5            // seconds before the next burst can start
