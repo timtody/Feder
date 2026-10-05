@@ -1,115 +1,202 @@
 import SwiftUI
 
-/// The pipeline status line's activity mark: three bodies chasing each other along the figure-eight orbit of the
-/// three-body problem (Chenciner & Montgomery, 2000), three equal masses on one curve, each a third of a period behind
-/// the next. The orbit is the real one, integrated once from its published initial conditions (`FigureEight`), so the
-/// bodies speed up through the crossing and slow down in the loops as they do there; a short fading trail follows each.
-/// Drawn in the status text's secondary colour, 22 × 11 pt (scaled with Dynamic Type). With Reduce
-/// Motion the bodies stand still. Decorative: hidden from VoiceOver (the text says what is happening).
+/// The pipeline status line's activity mark: three bodies under their mutual gravity in 3D, chaotic, as in the
+/// three-body problem, seen through a slowly turning camera with perspective: a body nearer the viewer is larger,
+/// more opaque and drawn in front, each is shaded like a small sphere (a highlight towards the top left), and each
+/// leaves a short fading trail in 3D. Drawn in the status text's grey, 20 × 16 pt, scaled with Dynamic Type. With Reduce
+/// Motion one irregular moment stands still. Decorative: hidden from VoiceOver (the text says what is happening).
+/// A first version showed the figure-eight orbit (Chenciner & Montgomery), one of the rare periodic solutions: too
+/// regular for the three-body problem's character.
 struct ThreeBodyIcon: View {
-    /// Seconds per orbit on screen.
-    var period: TimeInterval = 2.4
-
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @ScaledMetric(relativeTo: .subheadline) private var width: CGFloat = 22
+    @ScaledMetric(relativeTo: .subheadline) private var width: CGFloat = 20
+    @State private var simulation = ThreeBodySimulation()
 
     var body: some View {
         Group {
             if reduceMotion {
-                orbit(phase: 0.1)                         // a pose with the three bodies apart
+                Self.draw(simulation.frame)
             } else {
                 TimelineView(.animation(minimumInterval: 1.0 / 60)) { context in
-                    orbit(phase: context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period) / period)
+                    // Advancing here (main actor) and handing the Canvas a value: its renderer captures nothing else.
+                    Self.draw(simulation.advance(to: context.date))
                 }
             }
         }
-        .frame(width: width, height: width * 0.5)
+        .frame(width: width, height: width * 0.8)
         .accessibilityHidden(true)
     }
 
-    private func orbit(phase: Double) -> some View {
+    private static func draw(_ frame: ThreeBodyFrame) -> some View {
         Canvas { context, size in
-            let radius = size.width * 0.095
-            // The orbit spans about ±1.08 × ±0.34: one scale for both axes keeps its shape, centred in the frame.
-            let scale = (size.width - 2 * radius) / (2 * FigureEight.halfWidth)
-            func point(_ p: CGPoint) -> CGPoint {
-                CGPoint(x: size.width / 2 + p.x * scale, y: size.height / 2 - p.y * scale)
+            let half = min(size.width, size.height) / 2
+            let base = Color(uiColor: .secondaryLabel)
+            func point(_ p: ThreeBodyFrame.Point) -> CGPoint {
+                CGPoint(x: size.width / 2 + p.x * half, y: size.height / 2 - p.y * half)
             }
-            let colour = Color(uiColor: .secondaryLabel)
-            for body in 0..<3 {
-                let own = phase + Double(body) / 3
-                for step in stride(from: Self.trail, through: 1, by: -1) {          // oldest first, under the body
-                    let back = Double(step) * Self.trailSpacing
-                    let fade = 1 - Double(step) / Double(Self.trail + 1)
-                    let r = radius * (0.45 + 0.4 * fade)
-                    let c = point(FigureEight.position(at: own - back))
-                    context.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)),
-                                 with: .color(colour.opacity(0.45 * fade)))
+            let radius = half * 0.2
+            // Trails first (behind every body), each segment thinner and fainter towards its old end.
+            for trail in frame.trails where trail.count > 1 {
+                for k in 1..<trail.count {
+                    let age = Double(k) / Double(trail.count)          // 0 old ... 1 new
+                    var segment = Path()
+                    segment.move(to: point(trail[k - 1]))
+                    segment.addLine(to: point(trail[k]))
+                    context.stroke(segment, with: .color(base.opacity(0.7 * age * trail[k].light)),
+                                   style: StrokeStyle(lineWidth: radius * 1.1 * age * trail[k].size, lineCap: .round))
                 }
-                let c = point(FigureEight.position(at: own))
-                context.fill(Path(ellipseIn: CGRect(x: c.x - radius, y: c.y - radius, width: 2 * radius, height: 2 * radius)),
-                             with: .color(colour))
+            }
+            // Far bodies first: the near one covers them.
+            for body in frame.bodies.sorted(by: { $0.depth < $1.depth }) {
+                let r = radius * body.size
+                let c = point(body)
+                let rect = CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)
+                let shading = Gradient(stops: [.init(color: .white.opacity(0.9), location: 0),
+                                               .init(color: base, location: 0.55),
+                                               .init(color: base.opacity(0.7), location: 1)])
+                context.opacity = body.light
+                context.fill(Path(ellipseIn: rect),
+                             with: .radialGradient(shading, center: CGPoint(x: c.x - r * 0.35, y: c.y - r * 0.35),
+                                                   startRadius: 0, endRadius: r * 1.35))
+                context.opacity = 1
             }
         }
     }
-
-    /// Trail dots per body, and how far apart (fractions of the orbit).
-    private static let trail = 8
-    private static let trailSpacing = 0.012
 }
 
-/// The figure-eight solution of the planar three-body problem (G = 1, unit masses), from Chenciner & Montgomery's
-/// initial conditions: bodies at ±(0.97000436, −0.24308753) and the origin, the middle one moving with
-/// (−0.93240737, −0.86473146), the other two with half that, reversed; period 6.32591398. Integrated once (RK4) into
-/// `samples`: body 1's position over one period. Since it is a choreography, the other two are the same curve a third
-/// and two thirds of a period on. Pure, computed on first use (well under a millisecond).
-nonisolated enum FigureEight {
-    static let period = 6.32591398
-    static let count = 720
-    static let halfWidth = 1.1
+/// What the icon draws at one moment: the bodies and their trails projected into [-1, 1] (y up), with their depth
+/// (-1 far ... 1 near), size factor and brightness.
+nonisolated struct ThreeBodyFrame: Sendable {
+    struct Point: Sendable {
+        var x: Double
+        var y: Double
+        var depth: Double
+        var size: Double
+        var light: Double
+    }
 
-    static let samples: [CGPoint] = {
-        var r: [SIMD2<Double>] = [SIMD2(0.97000436, -0.24308753), SIMD2(-0.97000436, 0.24308753), SIMD2(0, 0)]
-        let v3 = SIMD2(-0.93240737, -0.86473146)
-        var v: [SIMD2<Double>] = [-v3 / 2, -v3 / 2, v3]
-        func accelerations(_ r: [SIMD2<Double>]) -> [SIMD2<Double>] {
-            (0..<3).map { i in
-                (0..<3).filter { $0 != i }.reduce(SIMD2<Double>(0, 0)) { a, j in
-                    let d = r[j] - r[i]
-                    let dist = (d * d).sum().squareRoot()
-                    return a + d / (dist * dist * dist)
-                }
-            }
-        }
-        let substeps = 8
-        let h = period / Double(count * substeps)
-        var out: [CGPoint] = []
-        out.reserveCapacity(count)
-        for _ in 0..<count {
-            out.append(CGPoint(x: r[0].x, y: r[0].y))
-            for _ in 0..<substeps {                                // classic RK4 on positions and velocities
-                let a1 = accelerations(r)
-                let r2 = zip(r, v).map { $0 + $1 * (h / 2) }, v2 = zip(v, a1).map { $0 + $1 * (h / 2) }
-                let a2 = accelerations(r2)
-                let r3 = zip(r, v2).map { $0 + $1 * (h / 2) }, v3 = zip(v, a2).map { $0 + $1 * (h / 2) }
-                let a3 = accelerations(r3)
-                let r4 = zip(r, v3).map { $0 + $1 * h }, v4 = zip(v, a3).map { $0 + $1 * h }
-                let a4 = accelerations(r4)
-                for i in 0..<3 {
-                    r[i] += (v[i] + 2 * v2[i] + 2 * v3[i] + v4[i]) * (h / 6)
-                    v[i] += (a1[i] + 2 * a2[i] + 2 * a3[i] + a4[i]) * (h / 6)
-                }
-            }
-        }
-        return out
-    }()
+    var bodies: [Point] = []
+    var trails: [[Point]] = []
+}
 
-    /// Body 1's position at `phase` (fractions of the period, any real number), between the two nearest samples.
-    static func position(at phase: Double) -> CGPoint {
-        let x = (phase - phase.rounded(.down)) * Double(count)
-        let i = Int(x) % count, j = (i + 1) % count
-        let t = x - x.rounded(.down)
-        let a = samples[i], b = samples[j]
-        return CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t)
+/// Three equal masses under softened gravity (G = 1, softening 0.5: close passes swing past instead of whipping), in a
+/// gentle pull towards the centre (k = 1.6, so no body leaves the picture) and a weak thermostat (friction 0.1 and
+/// random nudges at temperature 0.8, Langevin), integrated with velocity Verlet in 0.004 steps, 1.3 time units per
+/// second on screen. Without the thermostat two bodies often locked into a pair for good (in 6 of 20 starts over 900
+/// time units); with it, no pair lasted longer than 6 time units in 16 starts, the bodies stay within about 2 units
+/// (p99), and two copies 1e-8 apart part visibly within about a minute: chaotic, never repeating. Tuned in a scratch
+/// replay (numpy), 2026-10-05. The camera follows the system's size smoothly and turns around the vertical axis.
+final class ThreeBodySimulation {
+    private static let softening = 0.5
+    private static let pull = 1.6
+    private static let friction = 0.1
+    private static let temperature = 0.8
+    private static let step = 0.004
+    private static let speed = 1.3                   // time units per second on screen
+    private static let turn = 0.35                    // camera radians per second
+    private static let tilt = 0.45                    // radians the camera looks down
+    private static let trailLength = 24               // positions per trail, one per frame: about 0.4 s
+
+    private var p: [SIMD3<Double>]
+    private var v: [SIMD3<Double>]
+    private var trails: [[SIMD3<Double>]] = [[], [], []]
+    private var rng = SplitMix(seed: UInt64.random(in: 1...UInt64.max))
+    private var last: Date?
+    private var angle = 0.0
+    private var extent = 1.0
+    private(set) var frame = ThreeBodyFrame()
+
+    init() {
+        var r = rng
+        p = (0..<3).map { _ in SIMD3(r.uniform() * 2 - 1, r.uniform() * 2 - 1, r.uniform() * 2 - 1) }
+        v = (0..<3).map { _ in SIMD3(r.gaussian(), r.gaussian(), r.gaussian()) * 0.6 }
+        rng = r
+        // Centre of mass at rest in the middle (the pull and the camera aim there).
+        let centre = p.reduce(.zero, +) / 3, mean = v.reduce(.zero, +) / 3
+        p = p.map { $0 - centre }
+        v = v.map { $0 - mean }
+        for _ in 0..<Int(4 / Self.step) { integrate() }        // past the made-up start: an irregular moment
+        extent = max(0.8, p.map { ($0 * $0).sum().squareRoot() }.max() ?? 1)
+        frame = project()
+    }
+
+    /// Advances to `date` (at most 0.1 s at once: after a pause the bodies don't jump) and returns the frame.
+    func advance(to date: Date) -> ThreeBodyFrame {
+        let dt = min(max(0, last.map { date.timeIntervalSince($0) } ?? 0), 0.1)
+        last = date
+        guard dt > 0 else { return frame }
+        for _ in 0..<max(1, Int((dt * Self.speed / Self.step).rounded())) { integrate() }
+        angle += dt * Self.turn
+        let reach = p.map { ($0 * $0).sum().squareRoot() }.max() ?? 1
+        extent += (max(0.8, reach) - extent) * min(1, dt * 1.5)
+        for i in 0..<3 {
+            trails[i].append(p[i])
+            if trails[i].count > Self.trailLength { trails[i].removeFirst() }
+        }
+        frame = project()
+        return frame
+    }
+
+    private func integrate() {
+        let h = Self.step
+        var a = accelerations()
+        for i in 0..<3 { v[i] += a[i] * (h / 2); p[i] += v[i] * h }
+        a = accelerations()
+        let sigma = (2 * Self.friction * Self.temperature * h).squareRoot()
+        for i in 0..<3 {
+            v[i] += a[i] * (h / 2)
+            v[i] += -Self.friction * v[i] * h + SIMD3(rng.gaussian(), rng.gaussian(), rng.gaussian()) * sigma
+        }
+        let mean = v.reduce(.zero, +) / 3
+        for i in 0..<3 { v[i] -= mean }
+    }
+
+    private func accelerations() -> [SIMD3<Double>] {
+        let e2 = Self.softening * Self.softening
+        return (0..<3).map { i in
+            var a = -Self.pull * p[i]
+            for j in 0..<3 where j != i {
+                let d = p[j] - p[i]
+                let r2 = (d * d).sum() + e2
+                a += d / (r2 * r2.squareRoot())
+            }
+            return a
+        }
+    }
+
+    private func project() -> ThreeBodyFrame {
+        let (ca, sa, ct, st) = (cos(angle), sin(angle), cos(Self.tilt), sin(Self.tilt))
+        let distance = 3.5                                     // camera distance, in units of `extent`
+        func view(_ q: SIMD3<Double>) -> ThreeBodyFrame.Point {
+            let q = q / (extent * 1.25)
+            let x1 = q.x * ca + q.z * sa, z1 = -q.x * sa + q.z * ca      // turn around the vertical axis
+            let y2 = q.y * ct - z1 * st, z2 = q.y * st + z1 * ct           // look down a little
+            let s = distance / (distance - z2)
+            let depth = max(-1, min(1, z2))
+            return .init(x: x1 * s * 0.92, y: y2 * s * 0.92, depth: depth, size: s,
+                         light: 0.55 + 0.45 * (depth + 1) / 2)
+        }
+        return ThreeBodyFrame(bodies: p.map(view), trails: trails.map { $0.map(view) })
+    }
+}
+
+/// A small seeded generator (SplitMix64) with uniform and Gaussian draws, for the thermostat's nudges.
+nonisolated struct SplitMix {
+    private var state: UInt64
+    init(seed: UInt64) { state = seed }
+
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
+    }
+
+    mutating func uniform() -> Double { Double(next() >> 11) / Double(1 << 53) }
+
+    mutating func gaussian() -> Double {                       // Box-Muller
+        let u = max(uniform(), 1e-12), w = uniform()
+        return (-2 * log(u)).squareRoot() * cos(2 * .pi * w)
     }
 }
