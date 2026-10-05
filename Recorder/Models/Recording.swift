@@ -131,7 +131,8 @@ final class Recording {
     @discardableResult
     func addTag(_ raw: String) -> Bool {
         var tag = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if tag.hasPrefix("#") { tag = String(tag.dropFirst()) }
+        // "#" in front (the search's tag syntax) is dropped, and the space after it: "# work" is "work", not " work".
+        if tag.hasPrefix("#") { tag = String(tag.dropFirst()).trimmingCharacters(in: .whitespacesAndNewlines) }
         guard !tag.isEmpty, !tags.contains(where: { $0.caseInsensitiveCompare(tag) == .orderedSame }) else { return false }
         tags.append(tag)
         return true

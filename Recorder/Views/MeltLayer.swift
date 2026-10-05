@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The Stop melting into the transcript's bottom toolbar: the Stop's Liquid Glass disc stretches, necks and splits into
-/// the bar's two glass shapes (Share and Speakers in one capsule, Delete a circle) while its red square shrinks away
+/// the bar's two glass shapes (Share, Add Tag and Speakers in one capsule, Delete a circle) while its red square shrinks away
 /// and the bar's symbols fade in. The system bar can't do this itself: a toolbar item is at most a 48 pt glass, and
 /// only a regular-glass capsule at least ~92 pt wide morphed into the bar's group (a round 48 pt Stop or a red
 /// `.glassProminent` one just faded, and Delete never split off the same blob). So these are replicas: two glass shapes
@@ -62,6 +62,7 @@ struct MeltLayer: View {
             ZStack(alignment: .topLeading) {
                 Color.clear
                 symbol("square.and.arrow.up", at: Self.shareCentre, in: group, of: bar.group)
+                symbol("tag", at: Self.tagCentre, in: group, of: bar.group)
                 symbol("person.2", at: Self.speakersCentre, in: group, of: bar.group)
                 symbol("trash", at: Self.deleteCentre, in: delete, of: bar.delete)
             }
@@ -99,17 +100,19 @@ struct MeltLayer: View {
                       y: frame.minY + centre.y * frame.height / final.height)
     }
 
-    // The transcript's bar (Share, Speakers, flexible space, Delete), measured on iOS 27, iPhone 17 (402 × 874 pt),
-    // from the system's glass views: Share and Speakers in one capsule (28, 798, 116 × 48), Delete a circle
-    // (326, 798, 48 × 48), 28 pt from the screen's edges and 42 pt above the safe area's bottom. The symbols' centres
-    // in their glass, from their image views (replicas there match the real bar to 0.02 pt).
+    // The transcript's bar (Share, Add Tag, Speakers, flexible space, Delete), measured on iOS 27, iPhone 17
+    // (402 × 874 pt), from the system's glass views: Share, Add Tag and Speakers in one capsule (28, 798, 175 × 48;
+    // 116 wide before Add Tag), Delete a circle (326, 798, 48 × 48), 28 pt from the screen's edges and 42 pt above the
+    // safe area's bottom. The symbols' centres in their glass, from their image views (replicas there match the real
+    // bar to 0.02 pt). Another item in the bar's group changes these: measure again.
     private static let shareCentre = CGPoint(x: 25.33, y: 22.67)
-    private static let speakersCentre = CGPoint(x: 85.33, y: 25.0)
+    private static let tagCentre = CGPoint(x: 82.17, y: 25.0)
+    private static let speakersCentre = CGPoint(x: 144.33, y: 25.0)
     private static let deleteCentre = CGPoint(x: 23.83, y: 23.33)
 
     static func barItems(in safeArea: CGRect) -> (group: CGRect, delete: CGRect) {
         let y = safeArea.maxY - 42
-        return (CGRect(x: 28, y: y, width: 116, height: 48),
+        return (CGRect(x: 28, y: y, width: 175, height: 48),
                 CGRect(x: safeArea.maxX - 28 - 48, y: y, width: 48, height: 48))   // portrait only: safe x = screen x
     }
 

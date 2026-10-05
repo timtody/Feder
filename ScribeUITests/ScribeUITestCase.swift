@@ -45,7 +45,8 @@ class ScribeUITestCase: XCTestCase {
         XCTAssertLessThan(back.frame.minY, 100, "the back button at the top: \(back.frame)", file: file, line: line)
         XCTAssertLessThan(back.frame.minX, 40, "at the leading edge: \(back.frame)", file: file, line: line)
         XCTAssertGreaterThanOrEqual(back.frame.width, 40, "a 44 pt glass circle: \(back.frame)", file: file, line: line)
-        XCTAssertTrue(app.buttons["Share Transcript"].waitForExistence(timeout: 10), "the bottom toolbar",
+        // Delete: in the bar in every mode (opened from a search result, Share is in the More menu).
+        XCTAssertTrue(app.buttons["Delete Transcript"].waitForExistence(timeout: 10), "the bottom toolbar",
                       file: file, line: line)
         // The navigation bar of the screen the card covers (Settings › People › person) stays in the tree: only a
         // reachable one counts.
@@ -69,6 +70,21 @@ class ScribeUITestCase: XCTestCase {
         let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.45))
         start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 320, dy: 0)),
                     withVelocity: .fast, thenHoldForDuration: 0)
+    }
+
+    /// Taps Transcribe and answers the microphone permission alert, should the simulator ask.
+    @MainActor
+    func startRecording(_ app: XCUIApplication) {
+        addUIInterruptionMonitor(withDescription: "Microphone") { alert in
+            for label in ["Allow", "Erlauben", "OK"] where alert.buttons[label].exists {
+                alert.buttons[label].tap()
+                return true
+            }
+            return false
+        }
+        transcribe(app).tap()
+        app.tap()                                                           // lets the monitor answer a permission alert
+        XCTAssertTrue(app.staticTexts["Recording"].waitForExistence(timeout: 10), "the card's live view")
     }
 
     /// The record accessory without a recording ("● Transcribe").

@@ -4,10 +4,11 @@ import SwiftData
 /// One saved recording, the transcript card's content (`TranscriptCard`; Music's "Now Playing" for a transcript): the
 /// back button at the top left, inline-editable title, date and duration, the automatic summary, tags, speaker-identification
 /// status and the transcript grouped by speaker; its actions in the system's bottom toolbar (Liquid Glass): Share,
-/// Speakers and Delete. No top bar. Tapping a speaker's name row (or "Rename Speaker…" in its long-press menu) opens
+/// Add Tag, Speakers and Delete. No top bar. Tapping a speaker's name row (or "Rename Speaker…" in its long-press menu) opens
 /// the rename sheet for that speaker, once speakers are final.
 /// Opened from a search result (`search`), the transcript highlights the hits, starts at the result's paragraph and
-/// steps through the paragraphs with hits from the bottom toolbar ("2 of 5"), next to Share, Speakers and Delete.
+/// steps through the paragraphs with hits from the bottom toolbar ("2 of 5"), between a More menu (Share, Add Tag and
+/// Speakers) and Delete.
 /// Turned from the recording (TranscriptCard), its title and date line lie exactly where the recording had them, what
 /// the recording didn't have fades in below them, and its toolbar takes over from the melted Stop.
 struct RecordingDetailView: View {
@@ -35,10 +36,10 @@ struct RecordingDetailView: View {
     @State private var hitIndex = 0
     @State private var scroller: ScrollViewProxy?    // scrolls to a search hit (reveal)
     @State private var renaming: SpeakerRenameTarget?
+    @State private var editingTags = false           // the toolbar's Add Tag: the tag line is there with its field
+    @State private var tagFocusRequest = 0           // each Add Tag press: focus the tag field (TagEditor)
     @State private var bodyShown: Bool
     @State private var hitGeometry = HitGeometry()
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @State private var width: CGFloat = 402
 
     init(recording: Recording, search: TranscriptSearchContext? = nil, fadesInBody: Bool = false, holdsBody: Bool = false,
          turning: Bool = false, onClose: @escaping () -> Void) {
@@ -94,8 +95,14 @@ struct RecordingDetailView: View {
                         }
                     }
 
-                    TagEditor(recording: recording)
-                        .opacity(bodyShown ? 1 : 0)
+                    // Only with tags, or while adding them (the toolbar's Add Tag): no empty "Add Tag" line under
+                    // every transcript.
+                    if !recording.tags.isEmpty || editingTags {
+                        TagEditor(recording: recording, isEditing: $editingTags, focusRequest: tagFocusRequest)
+                            .id(TagEditor.scrollID)
+                            .opacity(bodyShown ? 1 : 0)
+                            .transition(.opacity)
+                    }
 
                     if showsNote {
                         SpeakerStatusNote(recording: recording)
@@ -105,6 +112,7 @@ struct RecordingDetailView: View {
                 }
                 .animation(.snappy, value: statusText == nil)    // the line goes away softly after the last step
                 .animation(.snappy, value: showsNote)
+                .animation(.snappy, value: !recording.tags.isEmpty || editingTags)   // the tag line comes and goes
                 // No spacing above: the first name row brings its own (the space above a name is part of its target).
                 TranscriptView(segments: segments, speakerName: recording.speakerName(_:),
                                preliminary: recording.speakerStatus != .done, preliminaryNotice: preliminaryNotice,
@@ -145,7 +153,6 @@ struct RecordingDetailView: View {
             CGRect(x: 0, y: geometry.visibleRect.minY + geometry.contentInsets.top, width: geometry.visibleRect.width,
                    height: geometry.visibleRect.height - geometry.contentInsets.top - geometry.contentInsets.bottom)
         }, action: { _, visible in hitGeometry.visible = visible })
-        .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { width = $0 })
         // The back button floats over the top left: the content starts below it and scrolls under its glass.
         .contentMargins(.top, CardCloseButton.contentTop, for: .scrollContent)
         .cardCloseButton(hint: "Back to the transcripts", action: onClose)
@@ -196,16 +203,19 @@ struct RecordingDetailView: View {
 
     // MARK: Bottom toolbar
 
-    /// Share and Speakers on the left, Delete on the right; opened from a search, the hits' "n of m" with
-    /// previous/next between them (like Safari's Find on Page).
+    /// Share, Add Tag and Speakers on the left (one glass group), Delete on the right; opened from a search, the hits'
+    /// "n of m" with previous/next between them (like Safari's Find on Page).
     @ToolbarContentBuilder
     private var bottomBar: some ToolbarContent {
         if combinesActions {
-            // Seven items don't fit a narrower iPhone (or large text): iOS would hide Next and Delete in an overflow
-            // menu. Share and Speakers share one menu instead, so the navigator and Delete stay visible.
+            // With the hit navigator the bar would have seven items, which fit no iPhone: iOS moved Next Match (and
+            // Previous Match) into an overflow menu on the iPhone 17, the iPhone Air and the iPhone 18 Pro Max alike
+            // (iOS 27 simulators). Share, Add Tag and Speakers share one menu instead, so the navigator and Delete stay
+            // visible. (Before Add Tag, six items fit from 402 pt on.)
             ToolbarItem(placement: .bottomBar) {
                 Menu {
                     shareButton
+                    addTagButton
                     speakersPicker.pickerStyle(.menu)       // a submenu here
                 } label: {
                     Label("More", systemImage: "ellipsis")
@@ -213,6 +223,7 @@ struct RecordingDetailView: View {
             }
         } else {
             ToolbarItem(placement: .bottomBar) { shareButton }
+            ToolbarItem(placement: .bottomBar) { addTagButton }
             ToolbarItem(placement: .bottomBar) {
                 Menu {
                     speakersPicker
@@ -263,6 +274,21 @@ struct RecordingDetailView: View {
         }
     }
 
+    /// Inserts the tag line with its field focused (TagEditor); the line is scrolled into view once it is laid out,
+    /// for a card scrolled down into the transcript.
+    private var addTagButton: some View {
+        Button("Add Tag", systemImage: "tag") {
+            InteractionTrace.begin("tag")
+            titleFocused = false
+            editingTags = true
+            tagFocusRequest += 1
+            Task {
+                await Task.yield()                          // the line exists from the next layout on
+                withAnimation(.snappy) { scroller?.scrollTo(TagEditor.scrollID, anchor: .center) }
+            }
+        }
+    }
+
     private var speakersPicker: some View {
         Picker(selection: speakerCountChoice) {
             Text("Automatic").tag(Int?.none)
@@ -273,10 +299,8 @@ struct RecordingDetailView: View {
         .disabled(services.identifier.inFlight.contains(recording.id))
     }
 
-    /// With the hit navigator, on an iPhone narrower than the 17's 402 pt or with accessibility text sizes.
-    private var combinesActions: Bool {
-        !hits.isEmpty && (width < 400 || dynamicTypeSize.isAccessibilitySize)
-    }
+    /// With the hit navigator (opened from a search result), on every iPhone.
+    private var combinesActions: Bool { !hits.isEmpty }
 
     // MARK: Search hits
 

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Lays its subviews out left to right and starts a new line when the next one doesn't fit the width (a flow layout:
-/// the search tokens and the suggestion chips). A subview wider than the whole width gets the whole width (its text
+/// the search tokens and the suggestion chips, the card's tag pills and the tag field). A subview wider than the whole width gets the whole width (its text
 /// truncates). `nonisolated`, no captured state, like MetaLineLayout: iOS 26 measures layouts on SwiftUI's render thread.
 nonisolated struct WrappingLayout: Layout {
     var spacing: CGFloat = 8

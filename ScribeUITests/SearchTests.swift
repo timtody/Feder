@@ -55,20 +55,23 @@ final class SearchTests: ScribeUITestCase {
         XCTAssertTrue(app.staticTexts["Project Kickoff"].exists)
     }
 
-    /// The hit navigator ("n of m", Previous Match, Next Match) is in the card's bottom toolbar, beside Share, Speakers
-    /// and Delete, all reachable (not in an overflow menu).
+    /// The hit navigator ("n of m", Previous Match, Next Match) is in the card's bottom toolbar between the More menu
+    /// (Share, Add Tag and Speakers: seven items fit no iPhone's bar) and Delete, all reachable (not in an overflow
+    /// menu).
     @MainActor
     private func assertHitNavigatorInBottomBar(_ app: XCUIApplication) {
         let height = app.windows.firstMatch.frame.height
         let count = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Match '")).firstMatch
+        let more = app.buttons["More"]
         let items = [("n of m", count), ("Previous Match", app.buttons["Previous Match"]),
-                     ("Next Match", app.buttons["Next Match"]), ("Share", app.buttons["Share Transcript"]),
-                     ("Speakers", app.buttons["Speakers"]), ("Delete", app.buttons["Delete Transcript"])]
+                     ("Next Match", app.buttons["Next Match"]), ("More", more),
+                     ("Delete", app.buttons["Delete Transcript"])]
         for (name, element) in items {
             XCTAssertTrue(element.waitForExistence(timeout: 5), name)
             XCTAssertGreaterThan(element.frame.minY, height * 0.85, "\(name) in the bottom bar: \(element.frame)")
             if name != "n of m" { XCTAssertTrue(element.isHittable, "\(name) is reachable") }
         }
+        XCTAssertLessThan(more.frame.minX, app.buttons["Previous Match"].frame.minX, "More on the left")
         XCTAssertLessThan(app.buttons["Previous Match"].frame.minX, app.buttons["Next Match"].frame.minX)
         XCTAssertLessThan(app.buttons["Next Match"].frame.minX, app.buttons["Delete Transcript"].frame.minX,
                           "Delete stays outermost")
@@ -147,6 +150,21 @@ final class SearchTests: ScribeUITestCase {
         assertHitNavigatorInBottomBar(app)
         XCTAssertEqual(app.staticTexts["Paragraph.0"].value as? String, "Current match")
         shot("Word result opened", app)
+
+        // Share, Add Tag and Speakers are in the More menu meanwhile, and Add Tag works from there.
+        app.buttons["More"].tap()
+        for label in ["Share Transcript", "Add Tag", "Speakers"] {
+            XCTAssertTrue(app.buttons[label].waitForExistence(timeout: 5), "\(label) in the More menu")
+        }
+        shot("More menu with the hit navigator", app)
+        app.buttons["Add Tag"].tap()
+        let tagField = app.textFields["Add Tag"]
+        XCTAssertTrue(tagField.waitForExistence(timeout: 5), "Add Tag from the menu inserts the tag line")
+        XCTAssertTrue(app.buttons["Remove finance"].exists, "after the transcript's tag")
+        // Focused although the menu was still closing, and it stays (a lost focus would end the edit at once).
+        XCTAssertTrue(waitFor { self.hasFocus(tagField) }, "the tag field is focused")
+        RunLoop.current.run(until: .now + 1)
+        XCTAssertTrue(tagField.exists && hasFocus(tagField), "and stays focused")
     }
 
     /// While searching, the last result is not covered by the tab bar, the record accessory or the keyboard once the

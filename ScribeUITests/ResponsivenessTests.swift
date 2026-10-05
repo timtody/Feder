@@ -5,7 +5,7 @@ import XCTest
 /// `log stream`, and check that the record button opens the card without waiting for the speech model.
 final class ResponsivenessTests: ScribeUITestCase {
 
-    /// Transcribe, minimize, reopen, Stop, a row, the tabs and typing in Search, one after the other, with
+    /// Transcribe, minimize, reopen, Stop, a row, Add Tag, the tabs and typing in Search, one after the other, with
     /// `-interactionTrace` logging each press's main-thread turn and first frame.
     @MainActor
     func testInteractionPathsTrace() throws {
@@ -28,6 +28,11 @@ final class ResponsivenessTests: ScribeUITestCase {
         closeCard(app)
         settle()
         open("Project Kickoff", in: app)
+        settle()
+        app.buttons["Add Tag"].tap()                                         // the tag field after the pills
+        XCTAssertTrue(app.textFields["Add Tag"].waitForExistence(timeout: 5))
+        settle()
+        app.typeText("\n")                                                  // Return in the empty field: done
         settle()
         closeCard(app)
         settle()

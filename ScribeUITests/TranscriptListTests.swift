@@ -103,8 +103,8 @@ final class TranscriptListTests: ScribeUITestCase {
     /// into the accessory, which shows "Recording" and Stop while the list can be browsed; a tap on the accessory opens
     /// it again; Stop saves it and the SAME card turns into the transcript in place (no push, no Back): the same title
     /// and date line at the same place, the timer landed as the duration beside the date, and the bottom toolbar where
-    /// the Stop was, one Share, Speakers and Delete each (the melt's stand-ins are gone). Minimize then closes it to the
-    /// list, where the new transcript is at the top with the start time.
+    /// the Stop was, one Share, Add Tag, Speakers and Delete each (the melt's stand-ins are gone). Minimize then closes
+    /// it to the list, where the new transcript is at the top with the start time.
     @MainActor
     func testRecordAccessoryFlow() throws {
         let app = launch()
@@ -165,7 +165,7 @@ final class TranscriptListTests: ScribeUITestCase {
         XCTAssertNil(reachable(app.staticTexts.matching(NSPredicate(format: "label == %@", name)), timeout: 0),
                      "only the transcript's title field shows the name (the recording's header is gone)")
         // One of each, hittable: the melt's glass stand-ins are gone and were never in the accessibility tree.
-        for label in ["Share Transcript", "Speakers", "Delete Transcript"] {
+        for label in ["Share Transcript", "Add Tag", "Speakers", "Delete Transcript"] {
             let matches = app.buttons.matching(NSPredicate(format: "label == %@", label))
             XCTAssertEqual(matches.count, 1, "exactly one \(label)")
             XCTAssertTrue(matches.firstMatch.isHittable && matches.firstMatch.isEnabled, "\(label) can be tapped")
@@ -248,21 +248,6 @@ final class TranscriptListTests: ScribeUITestCase {
         XCTAssertTrue(rows.element(boundBy: 0).label.hasPrefix("Project Kickoff"),
                       "nothing saved: Project Kickoff still tops the list: \(rows.element(boundBy: 0).label)")
         shot("After Stop, nothing saved", app)
-    }
-
-    /// Taps Transcribe and answers the microphone permission alert, should the simulator ask.
-    @MainActor
-    private func startRecording(_ app: XCUIApplication) {
-        addUIInterruptionMonitor(withDescription: "Microphone") { alert in
-            for label in ["Allow", "Erlauben", "OK"] where alert.buttons[label].exists {
-                alert.buttons[label].tap()
-                return true
-            }
-            return false
-        }
-        transcribe(app).tap()
-        app.tap()                                                           // lets the monitor answer a permission alert
-        XCTAssertTrue(app.staticTexts["Recording"].waitForExistence(timeout: 10), "the card's live view")
     }
 
     /// The first of `query`'s elements that is on screen and not covered (the list under the card stays in the tree,
@@ -382,13 +367,15 @@ final class TranscriptListTests: ScribeUITestCase {
         let app = launch()
         open("Budget Review", in: app)
         let share = app.buttons["Share Transcript"], speakers = app.buttons["Speakers"]
-        let delete = app.buttons["Delete Transcript"]
+        let addTag = app.buttons["Add Tag"], delete = app.buttons["Delete Transcript"]
         let height = app.windows.firstMatch.frame.height
-        for (element, name) in [(share, "Share"), (speakers, "Speakers"), (delete, "Delete")] {
+        for (element, name) in [(share, "Share"), (addTag, "Add Tag"), (speakers, "Speakers"), (delete, "Delete")] {
             XCTAssertTrue(element.waitForExistence(timeout: 5), name)
             XCTAssertTrue(element.isHittable, "\(name) is not hidden in an overflow menu")
             XCTAssertGreaterThan(element.frame.minY, height * 0.85, "\(name) at the bottom")
         }
+        XCTAssertLessThan(share.frame.minX, addTag.frame.minX, "Add Tag beside Share, in the left group")
+        XCTAssertLessThan(addTag.frame.minX, speakers.frame.minX, "then Speakers")
         XCTAssertLessThan(share.frame.minX, delete.frame.minX, "Delete on the right")
         XCTAssertFalse(app.buttons["More"].exists, "no top-right menu")
         shot("Card toolbar", app)
