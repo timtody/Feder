@@ -3,13 +3,18 @@ import SwiftUI
 /// The pipeline status line's activity mark: three bodies under their mutual gravity in 3D, chaotic, as in the
 /// three-body problem, seen through a slowly turning camera with perspective: a body nearer the viewer is larger,
 /// more opaque and drawn in front, each is shaded like a small sphere (a highlight towards the top left), and each
-/// leaves a short fading trail in 3D. The bodies differ: a large one in pale system red, a middle one in pale orange, a
-/// small one in pale yellow (the first three colours of the system palette, mixed with the background so they sit as
-/// quietly as the grey text), 20 × 16 pt, scaled with Dynamic Type. With Reduce Motion one irregular moment stands
-/// still. Decorative: hidden from VoiceOver (the text says what is happening).
+/// leaves a short fading trail in 3D. The bodies differ: a large one in blue, a middle one in orange, a small one in
+/// green (the first three speakers' colours, SpeakerPalette, at 55 % over the background so they sit as quietly as the
+/// grey text), 20 × 16 pt, scaled with Dynamic Type. It begins with the three bodies together in the centre, flung
+/// out, and every new step of the pipeline (`step`) pulls them back together and flings them out again (`burst`), at
+/// most once every 1.5 s, so steps that follow each other closely don't make it flicker. With Reduce Motion one
+/// irregular moment stands still. Decorative: hidden from VoiceOver (the text says what is happening).
 /// A first version showed the figure-eight orbit (Chenciner & Montgomery), one of the rare periodic solutions: too
 /// regular for the three-body problem's character.
 struct ThreeBodyIcon: View {
+    /// The pipeline's step running now: each change pulls the bodies together and flings them out.
+    var step: PipelineProgress.Step?
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ScaledMetric(relativeTo: .subheadline) private var width: CGFloat = 20
     @State private var simulation = ThreeBodySimulation()
@@ -27,12 +32,13 @@ struct ThreeBodyIcon: View {
         }
         .frame(width: width, height: width * 0.8)
         .accessibilityHidden(true)
+        .onChange(of: step) { _, new in if new != nil { simulation.burst() } }
     }
 
-    /// Each body's colour and size: pale system red, orange and yellow, the largest first. Pale: the system colour
-    /// at 55 % over the background, so the icon weighs no more than the grey text beside it.
-    private static let colours: [Color] = [Color.red.opacity(0.55), Color.orange.opacity(0.55), Color.yellow.opacity(0.55)]
-    private static let sizes: [Double] = [1.15, 0.95, 0.75]
+    /// Each body's colour and size: the first three speakers' colours (blue, orange, green), the largest first, at
+    /// 55 % over the background, so the icon weighs no more than the grey text beside it.
+    private static let colours: [Color] = (0..<3).map { SpeakerPalette.color($0).opacity(0.55) }
+    private static let sizes: [Double] = [1.3, 1.1, 0.9]
 
     private static func draw(_ frame: ThreeBodyFrame) -> some View {
         Canvas { context, size in
@@ -40,7 +46,7 @@ struct ThreeBodyIcon: View {
             func point(_ p: ThreeBodyFrame.Point) -> CGPoint {
                 CGPoint(x: size.width / 2 + p.x * half, y: size.height / 2 - p.y * half)
             }
-            let radius = half * 0.2
+            let radius = half * 0.22
             // Trails first (behind every body), each segment thinner and fainter towards its old end.
             for (i, trail) in frame.trails.enumerated() where trail.count > 1 {
                 for k in 1..<trail.count {
@@ -94,6 +100,9 @@ nonisolated struct ThreeBodyFrame: Sendable {
 /// time units); with it, no pair lasted longer than 6 time units in 16 starts, the bodies stay within about 2 units
 /// (p99), and two copies 1e-8 apart part visibly within about a minute: chaotic, never repeating. Tuned in a scratch
 /// replay (numpy), 2026-10-05. The camera follows the system's size smoothly and turns around the vertical axis.
+/// A burst (the start, and each new pipeline step): for `gatherTime` the bodies are drawn in towards the centre
+/// (velocities steered at the centre and damped, so they arrive together instead of shooting through), then let go
+/// with fresh speeds pointing outward (`flingSpeed`), from where gravity takes over again.
 final class ThreeBodySimulation {
     private static let softening = 0.5
     private static let pull = 1.6
@@ -103,7 +112,10 @@ final class ThreeBodySimulation {
     private static let speed = 2.2                   // time units per second on screen
     private static let turn = 0.35                    // camera radians per second
     private static let tilt = 0.45                    // radians the camera looks down
-    private static let trailLength = 20               // positions per trail, one per frame: about a third of a second
+    private static let trailLength = 26               // positions per trail, one per frame: under half a second
+    private static let gatherTime = 0.35              // seconds the bodies are drawn to the centre
+    private static let flingSpeed = 2.4               // their speed when let go (mean speed in free motion is ~1.2)
+    private static let burstCooldown = 1.5            // seconds before the next burst can start
 
     private var p: [SIMD3<Double>]
     private var v: [SIMD3<Double>]
@@ -112,6 +124,8 @@ final class ThreeBodySimulation {
     private var last: Date?
     private var angle = 0.0
     private var extent = 1.0
+    private var gathering: TimeInterval?              // seconds left of the gather; nil: free
+    private var lastBurst: Date?
     private(set) var frame = ThreeBodyFrame()
 
     init() {
@@ -125,7 +139,30 @@ final class ThreeBodySimulation {
         v = v.map { $0 - mean }
         for _ in 0..<Int(4 / Self.step) { integrate() }        // past the made-up start: an irregular moment
         extent = max(0.8, p.map { ($0 * $0).sum().squareRoot() }.max() ?? 1)
+        // Then the opening: the three together in the centre, flung out.
+        fling()
         frame = project()
+    }
+
+    /// Pulls the bodies together and flings them out (at most once per `burstCooldown`); the start is one.
+    func burst(at date: Date = .now) {
+        if let last = lastBurst, date.timeIntervalSince(last) < Self.burstCooldown { return }
+        lastBurst = date
+        gathering = Self.gatherTime
+    }
+
+    /// The bodies close together at the centre, each sent outward along its own direction, a little above the
+    /// speed free motion has, so they fly apart and gravity and the pull bring them back into their dance.
+    private func fling() {
+        for i in 0..<3 {
+            var d = SIMD3(rng.gaussian(), rng.gaussian(), rng.gaussian())
+            d /= max((d * d).sum().squareRoot(), 1e-6)
+            p[i] = d * 0.08
+            v[i] = d * Self.flingSpeed
+        }
+        let centre = p.reduce(.zero, +) / 3, mean = v.reduce(.zero, +) / 3
+        for i in 0..<3 { p[i] -= centre; v[i] -= mean }
+        trails = [[], [], []]
     }
 
     /// Advances to `date` (at most 0.1 s at once: after a pause the bodies don't jump) and returns the frame.
@@ -133,7 +170,12 @@ final class ThreeBodySimulation {
         let dt = min(max(0, last.map { date.timeIntervalSince($0) } ?? 0), 0.1)
         last = date
         guard dt > 0 else { return frame }
-        for _ in 0..<max(1, Int((dt * Self.speed / Self.step).rounded())) { integrate() }
+        if let left = gathering {
+            gather(dt: dt, left: left)
+            if left - dt <= 0 { gathering = nil; fling() } else { gathering = left - dt }
+        } else {
+            for _ in 0..<max(1, Int((dt * Self.speed / Self.step).rounded())) { integrate() }
+        }
         angle += dt * Self.turn
         let reach = p.map { ($0 * $0).sum().squareRoot() }.max() ?? 1
         extent += (max(0.8, reach) - extent) * min(1, dt * 1.5)
@@ -143,6 +185,13 @@ final class ThreeBodySimulation {
         }
         frame = project()
         return frame
+    }
+
+    /// The gather: every body's position eases towards the centre over the time left (it arrives as the time runs
+    /// out), the trails following, so the three meet in the middle together.
+    private func gather(dt: TimeInterval, left: TimeInterval) {
+        let share = min(1, dt / max(left, 1e-6))
+        for i in 0..<3 { p[i] -= p[i] * share }
     }
 
     private func integrate() {

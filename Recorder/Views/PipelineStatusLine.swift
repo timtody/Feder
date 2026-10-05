@@ -31,10 +31,17 @@ struct PipelineStatusLine: View {
         }
     }
 
+    /// The step running now (nil: none), for the icon's bursts.
+    static func runningStep(for recording: Recording, identifier: SpeakerIdentifier) -> PipelineProgress.Step? {
+        guard let progress = identifier.progress[recording.id] else { return nil }
+        return progress.steps.first { if case .running = progress.state(of: $0) { true } else { false } }
+    }
+
     var body: some View {
         if let text = Self.text(for: recording, identifier: services.identifier) {
             HStack(spacing: 6) {
-                ThreeBodyIcon()                           // lower than the text: the line keeps its height
+                ThreeBodyIcon(step: Self.runningStep(for: recording, identifier: services.identifier))
+                                                          // lower than the text: the line keeps its height
                 ShimmerText(text: text)
                     .lineLimit(1)
                     // The words change in place with a short crossfade; the line itself never changes height.
