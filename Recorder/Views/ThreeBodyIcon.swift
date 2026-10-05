@@ -3,8 +3,10 @@ import SwiftUI
 /// The pipeline status line's activity mark: three bodies under their mutual gravity in 3D, chaotic, as in the
 /// three-body problem, seen through a slowly turning camera with perspective: a body nearer the viewer is larger,
 /// more opaque and drawn in front, each is shaded like a small sphere (a highlight towards the top left), and each
-/// leaves a short fading trail in 3D. Drawn in the status text's grey, 20 × 16 pt, scaled with Dynamic Type. With Reduce
-/// Motion one irregular moment stands still. Decorative: hidden from VoiceOver (the text says what is happening).
+/// leaves a short fading trail in 3D. The bodies differ: a large one in pale system red, a middle one in pale orange, a
+/// small one in pale yellow (the first three colours of the system palette, mixed with the background so they sit as
+/// quietly as the grey text), 20 × 16 pt, scaled with Dynamic Type. With Reduce Motion one irregular moment stands
+/// still. Decorative: hidden from VoiceOver (the text says what is happening).
 /// A first version showed the figure-eight orbit (Chenciner & Montgomery), one of the rare periodic solutions: too
 /// regular for the three-body problem's character.
 struct ThreeBodyIcon: View {
@@ -27,33 +29,39 @@ struct ThreeBodyIcon: View {
         .accessibilityHidden(true)
     }
 
+    /// Each body's colour and size: pale system red, orange and yellow, the largest first. Pale: the system colour
+    /// at 55 % over the background, so the icon weighs no more than the grey text beside it.
+    private static let colours: [Color] = [Color.red.opacity(0.55), Color.orange.opacity(0.55), Color.yellow.opacity(0.55)]
+    private static let sizes: [Double] = [1.15, 0.95, 0.75]
+
     private static func draw(_ frame: ThreeBodyFrame) -> some View {
         Canvas { context, size in
             let half = min(size.width, size.height) / 2
-            let base = Color(uiColor: .secondaryLabel)
             func point(_ p: ThreeBodyFrame.Point) -> CGPoint {
                 CGPoint(x: size.width / 2 + p.x * half, y: size.height / 2 - p.y * half)
             }
             let radius = half * 0.2
             // Trails first (behind every body), each segment thinner and fainter towards its old end.
-            for trail in frame.trails where trail.count > 1 {
+            for (i, trail) in frame.trails.enumerated() where trail.count > 1 {
                 for k in 1..<trail.count {
                     let age = Double(k) / Double(trail.count)          // 0 old ... 1 new
                     var segment = Path()
                     segment.move(to: point(trail[k - 1]))
                     segment.addLine(to: point(trail[k]))
-                    context.stroke(segment, with: .color(base.opacity(0.7 * age * trail[k].light)),
-                                   style: StrokeStyle(lineWidth: radius * 1.1 * age * trail[k].size, lineCap: .round))
+                    context.stroke(segment, with: .color(colours[i].opacity(0.7 * age * trail[k].light)),
+                                   style: StrokeStyle(lineWidth: radius * 1.1 * age * trail[k].size * sizes[i],
+                                                      lineCap: .round))
                 }
             }
             // Far bodies first: the near one covers them.
-            for body in frame.bodies.sorted(by: { $0.depth < $1.depth }) {
-                let r = radius * body.size
+            for (i, body) in frame.bodies.enumerated().sorted(by: { $0.element.depth < $1.element.depth }) {
+                let r = radius * body.size * sizes[i]
                 let c = point(body)
                 let rect = CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)
+                let colour = colours[i]
                 let shading = Gradient(stops: [.init(color: .white.opacity(0.9), location: 0),
-                                               .init(color: base, location: 0.55),
-                                               .init(color: base.opacity(0.7), location: 1)])
+                                               .init(color: colour, location: 0.55),
+                                               .init(color: colour.opacity(0.7), location: 1)])
                 context.opacity = body.light
                 context.fill(Path(ellipseIn: rect),
                              with: .radialGradient(shading, center: CGPoint(x: c.x - r * 0.35, y: c.y - r * 0.35),
@@ -81,8 +89,8 @@ nonisolated struct ThreeBodyFrame: Sendable {
 
 /// Three equal masses under softened gravity (G = 1, softening 0.5: close passes swing past instead of whipping), in a
 /// gentle pull towards the centre (k = 1.6, so no body leaves the picture) and a weak thermostat (friction 0.1 and
-/// random nudges at temperature 0.8, Langevin), integrated with velocity Verlet in 0.004 steps, 1.3 time units per
-/// second on screen. Without the thermostat two bodies often locked into a pair for good (in 6 of 20 starts over 900
+/// random nudges at temperature 0.8, Langevin), integrated with velocity Verlet in 0.004 steps, 2.2 time units per
+/// second on screen (1.3 read as slow). Without the thermostat two bodies often locked into a pair for good (in 6 of 20 starts over 900
 /// time units); with it, no pair lasted longer than 6 time units in 16 starts, the bodies stay within about 2 units
 /// (p99), and two copies 1e-8 apart part visibly within about a minute: chaotic, never repeating. Tuned in a scratch
 /// replay (numpy), 2026-10-05. The camera follows the system's size smoothly and turns around the vertical axis.
@@ -92,10 +100,10 @@ final class ThreeBodySimulation {
     private static let friction = 0.1
     private static let temperature = 0.8
     private static let step = 0.004
-    private static let speed = 1.3                   // time units per second on screen
+    private static let speed = 2.2                   // time units per second on screen
     private static let turn = 0.35                    // camera radians per second
     private static let tilt = 0.45                    // radians the camera looks down
-    private static let trailLength = 24               // positions per trail, one per frame: about 0.4 s
+    private static let trailLength = 20               // positions per trail, one per frame: about a third of a second
 
     private var p: [SIMD3<Double>]
     private var v: [SIMD3<Double>]
