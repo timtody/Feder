@@ -497,7 +497,7 @@ final class SpeakerIdentifier {
             let corrector = corrector
             try await betterSummaries.run { model in
                 try await corrector.correct(paragraphs, from: start, name: { $0.map(recording.speakerName) ?? "Speaker" },
-                                            model: model) { paragraphs, coveredUntil, changed in
+                                            glossary: Vocabulary.current, model: model) { paragraphs, coveredUntil, changed in
                     guard !self.isGone(recording), recording.words == expected else { return false }
                     if changed { recording.proposedCorrections = paragraphs }
                     recording.correctedUntil = coveredUntil

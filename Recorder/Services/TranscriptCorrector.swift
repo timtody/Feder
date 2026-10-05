@@ -6,7 +6,8 @@ import NaturalLanguage
 /// turns at a time, and writes them back corrected: grammar, spelling, punctuation and obviously misheard words, a
 /// fragment that belongs to the previous speaker moved there, nothing else (`instructions`). Chunks of 10–15 turns,
 /// because longer inputs make a small model skip lines or start summarizing; a low temperature, so it copies instead of
-/// paraphrasing. `CorrectionMerge` aligns every answer with the words, which keep their times, and rejects an answer
+/// paraphrasing. The vocabulary goes along as a glossary (`instructions(glossary:)`), so a term the vocabulary pass
+/// could not place can still be spelled right. `CorrectionMerge` aligns every answer with the words, which keep their times, and rejects an answer
 /// that changes more than a correction would, so a chunk is either corrected or left as it was. German transcripts
 /// only (the instructions are German). Runs in SpeakerIdentifier's background pass through `BetterSummaries.run`
 /// (foreground only, never while recording), chunk after chunk; each chunk is handed back as it is answered, so an
@@ -47,6 +48,19 @@ final class TranscriptCorrector {
     Anna: Das geht dir an den Kragen. Ich will nur sagen: Das stimmt.
     """
 
+    /// The instructions with the vocabulary (Settings: your words, plus the built-in consulting and banking terms) as
+    /// a glossary after them, so a misheard term can be written as it is spelled there; nothing without a vocabulary.
+    nonisolated static func instructions(glossary: [String]) -> String {
+        guard !glossary.isEmpty else { return instructions }
+        return instructions + """
+
+
+        Glossar (Namen und Fachbegriffe, die in diesen Gesprächen häufig vorkommen; so schreiben, wenn sie offensichtlich \
+        gemeint sind, aber nicht einsetzen, wo ein anderes Wort passt):
+        \(glossary.joined(separator: ", "))
+        """
+    }
+
     /// Whether the corrections apply to a transcript: German, by its text when NaturalLanguage is sure, else by the
     /// recording's locale.
     nonisolated static func isGerman(_ texts: [String], recordingLocale: Locale) -> Bool {
@@ -81,10 +95,11 @@ final class TranscriptCorrector {
     /// transcript changed under the pass). `name` names a speaker for the lines. Throws CancellationError when stopped
     /// (the app resigned active, a recording started).
     func correct(_ paragraphs: [CorrectionMerge.Paragraph], from start: Int, name: (Int?) -> String,
-                 model: LocalLanguageModel,
+                 glossary: [String], model: LocalLanguageModel,
                  apply: ([CorrectionMerge.Paragraph], TimeInterval, Bool) -> Bool) async throws {
         var paragraphs = paragraphs
         var cursor = start
+        let instructions = Self.instructions(glossary: glossary)
         while cursor < paragraphs.count {
             let range = Self.chunk(of: paragraphs, from: cursor)
             let names = range.map { name(paragraphs[$0].speakerIndex) }
@@ -93,7 +108,7 @@ final class TranscriptCorrector {
             #if DEBUG
             let started = ContinuousClock.now
             #endif
-            let answer = try await model.respond(instructions: Self.instructions, prompt: prompt, maxTokens: maxTokens,
+            let answer = try await model.respond(instructions: instructions, prompt: prompt, maxTokens: maxTokens,
                                                  temperature: Self.temperature)
             try Task.checkCancellation()
             var corrected: [CorrectionMerge.Paragraph]?
