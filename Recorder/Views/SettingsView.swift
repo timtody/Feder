@@ -3,7 +3,7 @@ import SwiftData
 
 /// Settings (a tab; its heading scrolls away with the form, no navigation-bar title): Live Speaker Labels and People, the engine of the full-accuracy pass after Stop (Parakeet or Apple),
 /// the speaker model (Nemotron's download), the model for titles and summaries (Gemma's download), the vocabulary (your words plus built-in German consulting, banking and
-/// finance terms) and the experimental smart corrections. Everything applies from the next recording.
+/// finance terms) and the experimental smart corrections (Gemma). Everything applies from the next recording.
 struct SettingsView: View {
     @Environment(AppServices.self) private var services
     @AppStorage(ParakeetModel.engineKey) private var engine = "parakeet"
@@ -12,7 +12,8 @@ struct SettingsView: View {
     @State private var words = Vocabulary.custom
     @State private var usesBuiltIn = Vocabulary.usesBuiltIn
     @AppStorage(TranscriptCorrector.settingKey) private var smartCorrections = false
-    private static let correctionsAvailable = TranscriptCorrector().isAvailable   // once: a system query
+    /// Smart Corrections run on Gemma: downloaded under Titles and Summaries (not on the simulator).
+    private var correctionsAvailable: Bool { BetterSummaries.isSupported && services.betterSummaries.state == .ready }
     @State private var draft = ""
     @FocusState private var isAdding: Bool
     @AppStorage(AppServices.liveSpeakerLabelsKey) private var liveSpeakerLabels = true
@@ -100,11 +101,15 @@ struct SettingsView: View {
 
                 Section {
                     Toggle("Smart Corrections (Experimental)", isOn: $smartCorrections)
-                        .disabled(!Self.correctionsAvailable)
+                        .disabled(!correctionsAvailable)
                 } footer: {
-                    Text(Self.correctionsAvailable
-                         ? Self.correctionsFooter
-                         : "Needs Apple Intelligence on this iPhone (iPhone 15 Pro or newer, turned on in Settings).")
+                    if correctionsAvailable {
+                        Text(Self.correctionsFooter)
+                    } else if BetterSummaries.isSupported {
+                        Text("Needs Gemma on this iPhone: download it under Titles and Summaries.")
+                    } else {
+                        Text("Smart Corrections need an iPhone (not the simulator).")
+                    }
                 }
             }
             .navigationTitle("Settings")
@@ -161,7 +166,7 @@ struct SettingsView: View {
     }
 
     private static let summariesFooter = "Better Summaries use Google's Gemma 4 E2B on this iPhone instead of Apple Intelligence: it reads a whole meeting at once, keeps who said what, and writes more precise titles and summaries. It needs a one-time 3.6 GB download (keep Scribe open meanwhile) and works while Scribe is open. Existing transcripts get new summaries too; titles you typed stay."
-    private static let correctionsFooter = "After a recording, Apple Intelligence on this iPhone tries to fix misheard words from context and your vocabulary. In tests on real speech it did not improve transcripts and sometimes changed correct words, so it is off by default."
+    private static let correctionsFooter = "After a recording, Gemma on this iPhone corrects grammar, spelling, punctuation and obviously misheard words, about a dozen speaker turns at a time, without changing what was said; a fragment that belongs to the previous speaker is moved there. German transcripts only, while Scribe is open. Applies from the next recording."
 
     /// A downloadable model's row: downloaded, progress, "Download Now" or the failure with "Try Again".
     @ViewBuilder

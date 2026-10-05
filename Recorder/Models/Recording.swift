@@ -67,7 +67,9 @@ final class Recording {
     var placeName: String? = nil         // e.g. "Mitte, Berlin" (reverse geocoded)
     var speakerCountOverride: Int? = nil // the user's "Speakers" choice; nil = automatic
     var wordsRefined: Bool = false       // the full-accuracy pass after Stop ran (words are from it, or it found nothing better)
-    var vocabularyPending: Bool = false  // the vocabulary pass (vocabulary terms, smart corrections) still has to run on `words`
+    var vocabularyPending: Bool = false  // the vocabulary pass (vocabulary terms) still has to run on `words`
+    var correctionsPending: Bool = false // the smart corrections (TranscriptCorrector, Gemma) still have to run on `words`
+    var correctedUntil: TimeInterval = 0 // transcript seconds the corrections have covered (an interrupted pass goes on from there)
     var speakerTurns: [SpeakerTurn] = [] // the final diarization (empty before it, and for transcripts diarized before it was kept)
     var alignmentOffset: TimeInterval = 0 // added to speakerTurns' times when aligning them with `words` (FileTranscript)
     var voicesVersion: Int = 0           // SpeakerIdentifier.voicesVersion of speakerVoices (0: diarizer centroids, or none)

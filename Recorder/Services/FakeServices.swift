@@ -129,8 +129,7 @@ final class FakeFileTranscriber: FileTranscriber {
         return FileTranscript(words: words, confidences: words.map { _ in 0.9 }, alignmentOffset: 0)
     }
 
-    func applyVocabulary(to words: [TranscriptWord], confidences: [Double]?, fileURL: URL,
-                         locale: Locale) async -> [TranscriptWord] {
+    func applyVocabulary(to words: [TranscriptWord], fileURL: URL, locale: Locale) async -> [TranscriptWord] {
         try? await Task.sleep(for: .seconds(2))
         guard Self.changesWords else { return words }
         return words.map { word in

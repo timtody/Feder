@@ -9,9 +9,9 @@ import Speech
 /// - `applyVocabulary` (after speakers are shown, in the background): only with a vocabulary, DictationTranscriber
 ///   with the vocabulary as contextual strings. SpeechTranscriber ignores contextual strings (measured: identical output
 ///   with and without), DictationTranscriber honours them but is less accurate on ordinary words, so VocabularyMerge
-///   takes over just the vocabulary terms it recognized. Then TranscriptCorrector: the on-device language model fixes
-///   suspicious words from context (Apple Intelligence, off by default). This step is most of the post-stop time
-///   (a whole-file Dictation pass: 5.4 s of 7.4 s for 5 minutes on an M5 Mac), so speakers never wait for it.
+///   takes over just the vocabulary terms it recognized. This step is most of the post-stop time (a whole-file
+///   Dictation pass: 5.4 s of 7.4 s for 5 minutes on an M5 Mac), so speakers never wait for it. The smart corrections
+///   (TranscriptCorrector, Gemma) follow as SpeakerIdentifier's own step: they need the speakers' names.
 /// Runs at utility priority. A later step failing never loses an earlier one.
 @MainActor
 final class SpeechFileTranscriber: FileTranscriber {
@@ -47,20 +47,9 @@ final class SpeechFileTranscriber: FileTranscriber {
         return FileTranscript(words: words, confidences: confidences, alignmentOffset: 0)
     }
 
-    func applyVocabulary(to words: [TranscriptWord], confidences: [Double]?, fileURL: URL,
-                         locale: Locale) async -> [TranscriptWord] {
-        var confidenceByStart: [TimeInterval: Double] = [:]
-        if let confidences { for (word, confidence) in zip(words, confidences) { confidenceByStart[word.start] = confidence } }
-        let vocabulary = Vocabulary.current
-        let merged = await mergeVocabulary(vocabulary, into: words, fileURL: fileURL, locale: locale)
-        // Smart corrections. Merged vocabulary terms count as certain; other words keep their confidence (1 if unknown).
-        let terms = Set(vocabulary)
-        let mergedConfidences = merged.map { terms.contains($0.text.trimmingCharacters(in: .punctuationCharacters)) ? 1
-                                       : confidenceByStart[$0.start] ?? 1 }
-        return await corrector.correct(merged, confidences: mergedConfidences, vocabulary: vocabulary, locale: locale)
+    func applyVocabulary(to words: [TranscriptWord], fileURL: URL, locale: Locale) async -> [TranscriptWord] {
+        await mergeVocabulary(Vocabulary.current, into: words, fileURL: fileURL, locale: locale)
     }
-
-    private let corrector = TranscriptCorrector()
 
     /// Vocabulary terms recognized by DictationTranscriber (which honours contextual strings).
     private func mergeVocabulary(_ vocabulary: [String], into words: [TranscriptWord], fileURL: URL,

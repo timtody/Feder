@@ -90,11 +90,9 @@ protocol Transcriber: AnyObject {
 protocol FileTranscriber: AnyObject {
     /// The words, without the vocabulary: Parakeet when it is chosen and downloaded, otherwise Apple's recognizer.
     func transcribe(fileURL: URL, locale: Locale) async throws -> FileTranscript
-    /// Vocabulary terms (DictationTranscriber, VocabularyMerge) and the optional smart corrections on `words`
-    /// (confidences per word, nil when unknown). Every word keeps its times; returns `words` when nothing changed or a
-    /// step failed.
-    func applyVocabulary(to words: [TranscriptWord], confidences: [Double]?, fileURL: URL,
-                         locale: Locale) async -> [TranscriptWord]
+    /// Vocabulary terms (DictationTranscriber, VocabularyMerge) on `words`. Every word keeps its times; returns `words`
+    /// when nothing changed or the pass failed.
+    func applyVocabulary(to words: [TranscriptWord], fileURL: URL, locale: Locale) async -> [TranscriptWord]
 }
 
 nonisolated struct FileTranscript: Sendable {

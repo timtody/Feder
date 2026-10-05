@@ -6,8 +6,9 @@ import Tokenizers
 
 /// Google's Gemma 4 E2B (instruction-tuned, 4-bit) run on this iPhone's GPU with MLX: the "Better Summaries"
 /// model of TranscriptTitler. A file-based model: `BetterSummaries` downloads the files into `directory`; this loads
-/// them on first use and answers one request at a time (an actor). Greedy decoding, so a transcript always gets the
-/// same title. Platform-neutral (also builds for the Mac, where the summary bench runs it).
+/// them on first use and answers one request at a time (an actor). Greedy decoding for the titles, so a transcript
+/// always gets the same one; the smart corrections sample at a low temperature. Platform-neutral (also builds for the
+/// Mac, where the summary bench runs it).
 actor LocalLanguageModel {
     /// The Hugging Face repository and the pinned revision of its files (3.58 GB, with Gemma 4's vision and audio
     /// towers, which are not used). The smaller text-only conversion `mlx-community/Gemma4-E2B-IT-Text-int4` (2.67 GB)
@@ -49,16 +50,17 @@ actor LocalLanguageModel {
         Memory.clearCache()
     }
 
-    /// The answer to `prompt` under `instructions` (a system turn), at most `maxTokens` long. Checks for cancellation
-    /// between tokens and throws CancellationError then.
-    func respond(instructions: String, prompt: String, maxTokens: Int = 400,
+    /// The answer to `prompt` under `instructions` (a system turn), at most `maxTokens` long; greedy at `temperature` 0
+    /// (the titles), sampled above it (the corrections, 0.25). Checks for cancellation between tokens and throws
+    /// CancellationError then.
+    func respond(instructions: String, prompt: String, maxTokens: Int = 400, temperature: Float = 0,
                  partial: (@Sendable (String) -> Void)? = nil) async throws -> String {
         try await load()
         guard let container else { throw CancellationError() }
         let input = UserInput(chat: [.system(instructions), .user(prompt)],
                               additionalContext: ["enable_thinking": false])
         let prepared = try await container.prepare(input: input)
-        let parameters = GenerateParameters(maxTokens: maxTokens, temperature: 0)
+        let parameters = GenerateParameters(maxTokens: maxTokens, temperature: temperature)
         var text = ""
         for await generation in try await container.generate(input: prepared, parameters: parameters) {
             try Task.checkCancellation()                         // leaving the loop ends the generation

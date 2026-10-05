@@ -1,183 +1,121 @@
 import Foundation
-import FoundationModels
-#if canImport(UIKit)
-import UIKit
-#else
-import AppKit
-#endif
+import NaturalLanguage
 
-/// Third step of the full-accuracy pass: Apple's on-device language model (Foundation Models, Apple Intelligence)
-/// decides from context whether suspicious words were misheard. The work is split by strength:
-/// - code finds the suspects: low recognition confidence or not a correctly spelled word (system spell checker),
-///   and offers sound-alike vocabulary terms for them ("Sporing" -> Scoring?, "Plattenmigration" -> Datenmigration?);
-/// - the model reads the paragraph with these hints and the vocabulary and proposes fixes;
-/// - code applies a fix only when the misheard words appear exactly like that, include a suspect, the fix sounds like
-///   them (edit distance, as in VocabularyMerge) and the paragraph's changes stay small.
-/// So it cannot rephrase, add or drop content, or touch words recognized with confidence, and every word keeps its
-/// timestamps. Unavailable model (older iPhone, Apple Intelligence off) or the setting off = no change.
+/// Smart Corrections (Settings, experimental, off by default). After the vocabulary pass, Gemma 4 E2B
+/// (`LocalLanguageModel`, the Better Summaries model) reads the transcript as "Name: text" lines, about a dozen speaker
+/// turns at a time, and writes them back corrected: grammar, spelling, punctuation and obviously misheard words, a
+/// fragment that belongs to the previous speaker moved there, nothing else (`instructions`). Chunks of 10–15 turns,
+/// because longer inputs make a small model skip lines or start summarizing; a low temperature, so it copies instead of
+/// paraphrasing. `CorrectionMerge` aligns every answer with the words, which keep their times, and rejects an answer
+/// that changes more than a correction would, so a chunk is either corrected or left as it was. German transcripts
+/// only (the instructions are German). Runs in SpeakerIdentifier's background pass through `BetterSummaries.run`
+/// (foreground only, never while recording), chunk after chunk; each chunk is handed back as it is answered, so an
+/// interrupted pass keeps what it has and goes on from there (`Recording.correctedUntil`).
 ///
-/// Off by default: on 80 real German clips (bank calls, audiobooks) it did not lower the word error rate (11.0 % ->
-/// 11.2 %); it pushed vocabulary terms into ordinary sentences ("Es" -> "ESG", "rollen" -> "Rollout"). Its gains on
-/// synthetic test voices came from their garbled non-words.
+/// The first version (until October 2026) asked Apple's Foundation Models model about single suspicious words (low
+/// recognition confidence, misspelled) with sound-alike vocabulary terms as hints, under code-side checks; on 80 real
+/// German clips it did not lower the word error rate (11.0 → 11.2 %) and pushed vocabulary terms into ordinary
+/// sentences ("Es" → "ESG"). Its measurements are in the README.
 @MainActor
 final class TranscriptCorrector {
     static let settingKey = "smartCorrections"           // Bool, absent means OFF (Settings screen, experimental)
     static var isEnabled: Bool { UserDefaults.standard.object(forKey: settingKey) as? Bool ?? false }
 
-    static let chunkWords = 120                          // context per request, far below the model's window
-    static let maxChangedShare = 0.2
-    static let maxDistance = 0.5                         // for applying a fix
-    static let candidateDistance = 0.45                  // for offering a vocabulary term as a hint
-    static let suspiciousConfidence = 0.7
+    /// Speaker turns per request, at most; the turns are evened out over the requests, so 16 turns go as 8 + 8.
+    nonisolated static let maxTurnsPerRequest = 15
+    /// Characters per request, at most (long monologue paragraphs): about 1,700 tokens, and the answer is as long again.
+    nonisolated static let maxCharactersPerRequest = 6_000
+    /// Sampling temperature: low, so the model copies the text instead of paraphrasing it (0.2–0.3, not greedy).
+    nonisolated static let temperature: Float = 0.25
 
-    var isAvailable: Bool { SystemLanguageModel.default.availability == .available }
+    nonisolated static let instructions = """
+    Du korrigierst automatisch erstellte Transkripte auf Deutsch.
 
-    func correct(_ words: [TranscriptWord], confidences: [Double], vocabulary: [String], locale: Locale) async -> [TranscriptWord] {
-        guard Self.isEnabled, isAvailable, !words.isEmpty, confidences.count == words.count else { return words }
-        let known = Set(vocabulary.map { VocabularyMerge.normalized($0) })
-        let language = locale.language.languageCode?.identifier ?? "de"
-        let suspicious = words.indices.map { i in
-            let core = words[i].text.trimmingCharacters(in: .punctuationCharacters)
-            guard core.count > 1, !known.contains(VocabularyMerge.normalized(core)) else { return false }
-            return confidences[i] < Self.suspiciousConfidence || Self.isMisspelled(core, language: language)
+    Regeln:
+    1. Korrigiere nur Grammatik, Rechtschreibung, Zeichensetzung und offensichtlich falsch verstandene Wörter.
+    2. Ändere NICHT den Inhalt, den Stil oder die Wortwahl der Sprecher.
+    3. Wenn ein Satzteil eindeutig zum vorherigen Sprecher gehört, füge ihn dort an.
+    4. Unverständliche Stellen markierst du mit [unklar]. Erfinde nichts.
+    5. Behalte das Format „Name: Text“ bei.
+    6. Gib NUR das korrigierte Transkript aus, ohne Kommentar.
+
+    Beispiel:
+    Eingabe:
+    Anna: Das geht dir an Kragen, ich will
+    Ben: nur sagen das stimmt
+    Ausgabe:
+    Anna: Das geht dir an den Kragen. Ich will nur sagen: Das stimmt.
+    """
+
+    /// Whether the corrections apply to a transcript: German, by its text when NaturalLanguage is sure, else by the
+    /// recording's locale.
+    nonisolated static func isGerman(_ texts: [String], recordingLocale: Locale) -> Bool {
+        let recognizer = NLLanguageRecognizer()
+        recognizer.processString(String(texts.joined(separator: " ").prefix(2_000)))
+        if let (language, confidence) = recognizer.languageHypotheses(withMaximum: 1).first, confidence > 0.8 {
+            return language == .german
         }
-        var output: [TranscriptWord] = []
-        var start = 0
-        while start < words.count {
-            var end = min(words.count, start + Self.chunkWords)
-            // End chunks at a sentence end when there is one in the last third, so the model sees whole sentences.
-            if end < words.count,
-               let cut = (start + Self.chunkWords * 2 / 3..<end).last(where: { Self.endsSentence(words[$0]) }) {
-                end = cut + 1
+        return recordingLocale.language.languageCode?.identifier == "de"
+    }
+
+    /// The next chunk of `paragraphs` from `start`: the turns left evened out over the requests still to come (at most
+    /// `maxTurnsPerRequest` each), and at most `maxCharactersPerRequest` characters (a longer paragraph goes alone).
+    nonisolated static func chunk(of paragraphs: [CorrectionMerge.Paragraph], from start: Int) -> Range<Int> {
+        let remaining = paragraphs.count - start
+        guard remaining > 0 else { return start..<start }
+        let requests = (remaining + maxTurnsPerRequest - 1) / maxTurnsPerRequest
+        let turns = (remaining + requests - 1) / requests
+        var end = start, characters = 0
+        while end < paragraphs.count, end - start < turns {
+            let length = paragraphs[end].text.count
+            if end > start, characters + length > maxCharactersPerRequest { break }
+            characters += length
+            end += 1
+        }
+        return start..<end
+    }
+
+    /// Corrects `paragraphs` from index `start` on, chunk by chunk, with `model`. After every chunk `apply` gets the
+    /// whole list as corrected so far, how far (transcript seconds) the pass has come, and whether this chunk changed
+    /// anything (false: the answer was rejected, the chunk stays); it returns whether to go on (false once the
+    /// transcript changed under the pass). `name` names a speaker for the lines. Throws CancellationError when stopped
+    /// (the app resigned active, a recording started).
+    func correct(_ paragraphs: [CorrectionMerge.Paragraph], from start: Int, name: (Int?) -> String,
+                 model: LocalLanguageModel,
+                 apply: ([CorrectionMerge.Paragraph], TimeInterval, Bool) -> Bool) async throws {
+        var paragraphs = paragraphs
+        var cursor = start
+        while cursor < paragraphs.count {
+            let range = Self.chunk(of: paragraphs, from: cursor)
+            let names = range.map { name(paragraphs[$0].speakerIndex) }
+            let prompt = zip(range, names).map { "\($1): \(paragraphs[$0].text)" }.joined(separator: "\n")
+            let maxTokens = min(3_000, prompt.count / 2 + 150)       // the answer is about as long as the request
+            #if DEBUG
+            let started = ContinuousClock.now
+            #endif
+            let answer = try await model.respond(instructions: Self.instructions, prompt: prompt, maxTokens: maxTokens,
+                                                 temperature: Self.temperature)
+            try Task.checkCancellation()
+            var corrected: [CorrectionMerge.Paragraph]?
+            if let texts = CorrectionMerge.lines(in: answer, names: names) {
+                corrected = await CorrectionMerge.apply(texts, to: Array(paragraphs[range]))
             }
-            output += await correctChunk(Array(words[start..<end]), suspicious: Array(suspicious[start..<end]),
-                                         vocabulary: vocabulary, locale: locale)
-            start = end
-        }
-        return output
-    }
-
-    private func correctChunk(_ chunk: [TranscriptWord], suspicious: [Bool], vocabulary: [String],
-                              locale: Locale) async -> [TranscriptWord] {
-        guard suspicious.contains(true) else { return chunk }
-        let hints = chunk.indices.filter { suspicious[$0] }.map { i -> String in
-            let word = chunk[i].text.trimmingCharacters(in: .punctuationCharacters)
-            let terms = Self.soundAlikes(at: i, in: chunk, vocabulary: vocabulary)
-            return terms.isEmpty ? word : "\(word) (sounds like: \(terms.joined(separator: " or ")))"
-        }
-        let prompt = """
-        Vocabulary (terms that often occur in these conversations): \(vocabulary.joined(separator: ", "))
-
-        Possibly misheard words: \(hints.joined(separator: "; "))
-
-        Transcript:
-        \(chunk.map(\.text).joined(separator: " "))
-        """
-        let session = LanguageModelSession(instructions: Self.instructions(locale: locale))
-        guard let response = try? await session.respond(to: prompt, generating: Corrections.self,
-                                                        options: GenerationOptions(samplingMode: .greedy)) else { return chunk }
-        var words = chunk
-        var flags = suspicious
-        var changed = 0
-        for fix in response.content.corrections {
-            guard let replaced = Self.apply(fix, to: &words, suspicious: &flags) else { continue }
-            changed += replaced
-            if Double(changed) > Double(chunk.count) * Self.maxChangedShare { return chunk }   // too much: reject all
-        }
-        #if DEBUG
-        if words.map(\.text) != chunk.map(\.text) {
-            print("[Scribe] corrections: \(response.content.corrections.map { "\($0.heard) -> \($0.meant)" })")
-        }
-        #endif
-        return words
-    }
-
-    /// Vocabulary terms that sound like the word at `index`, alone or together with its neighbour (best first, max 2).
-    static func soundAlikes(at index: Int, in words: [TranscriptWord], vocabulary: [String]) -> [String] {
-        let spans = [index...index, index...min(index + 1, words.count - 1), max(index - 1, 0)...index]
-        var scored: [(term: String, score: Double)] = []
-        for term in vocabulary {
-            let t = VocabularyMerge.normalized(term.replacingOccurrences(of: " ", with: ""))
-            guard t.count >= 3 else { continue }
-            for span in Set(spans) {
-                let heard = words[span].map { VocabularyMerge.normalized($0.text) }.joined()
-                let d = Double(VocabularyMerge.distance(heard, t)) / Double(max(heard.count, t.count))
-                if d > 0, d <= candidateDistance { scored.append((term, d)) }
+            let changed: Bool
+            if let corrected, !corrected.isEmpty, corrected.map(\.words) != paragraphs[range].map(\.words) {
+                paragraphs.replaceSubrange(range, with: corrected)
+                cursor = range.lowerBound + corrected.count
+                changed = true
+            } else {
+                cursor = range.upperBound
+                changed = false
             }
+            #if DEBUG
+            let took = (ContinuousClock.now - started).formatted(.units(allowed: [.seconds], width: .narrow))
+            let outcome = corrected == nil ? "rejected" : (changed ? "applied" : "unchanged")
+            print("[Scribe] corrections: \(range.count) turns, \(prompt.count) chars: \(outcome) in \(took)")
+            if corrected == nil { print("[Scribe] corrections: rejected answer:\n\(answer)") }
+            #endif
+            guard apply(paragraphs, paragraphs[cursor - 1].end, changed) else { return }
         }
-        var seen = Set<String>()
-        return scored.sorted { $0.score < $1.score }.map(\.term).filter { seen.insert($0).inserted }.prefix(2).map { $0 }
     }
-
-    /// Applies one checked fix in place; returns how many words it replaced, or nil when it was rejected.
-    static func apply(_ fix: Correction, to words: inout [TranscriptWord], suspicious: inout [Bool]) -> Int? {
-        let heard = fix.heard.split(separator: " ").map { VocabularyMerge.normalized(String($0)) }
-        let meant = fix.meant.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard (1...3).contains(heard.count), !heard.contains(""), !meant.isEmpty, meant.split(separator: " ").count <= 3,
-              heard.count <= words.count else { return nil }
-        let tokens = words.map { VocabularyMerge.normalized($0.text) }
-        guard let first = (0...(tokens.count - heard.count)).first(where: {
-            Array(tokens[$0..<($0 + heard.count)]) == heard && suspicious[$0..<($0 + heard.count)].contains(true)
-        }) else { return nil }
-        let last = first + heard.count - 1
-        let a = heard.joined(), b = VocabularyMerge.normalized(meant.replacingOccurrences(of: " ", with: ""))
-        guard a != b || words[first...last].map(\.text).joined(separator: " ") != meant,
-              VocabularyMerge.distance(a, b) <= Int(Double(max(a.count, b.count)) * maxDistance),
-              !isInflection(a, b) else { return nil }
-        let trailing = String(words[last].text.reversed().prefix { $0.isPunctuation }.reversed())
-        let text = meant.hasSuffix(trailing) ? meant : meant + trailing
-        words.replaceSubrange(first...last, with: [TranscriptWord(text: text, start: words[first].start, end: words[last].end)])
-        suspicious.replaceSubrange(first...last, with: [false])
-        return heard.count
-    }
-
-    /// "Schnittstellen" vs "Schnittstelle": the same word with a different ending is grammar, not a misheard word.
-    static func isInflection(_ a: String, _ b: String) -> Bool {
-        let (short, long) = a.count <= b.count ? (a, b) : (b, a)
-        return short.count >= 4 && long.hasPrefix(short) && long.count - short.count <= 2
-    }
-
-    static func isMisspelled(_ word: String, language: String) -> Bool {
-        #if canImport(UIKit)
-        let checker = UITextChecker()
-        let range = checker.rangeOfMisspelledWord(in: word, range: NSRange(location: 0, length: (word as NSString).length),
-                                                  startingAt: 0, wrap: false, language: language)
-        return range.location != NSNotFound
-        #else
-        return NSSpellChecker.shared.checkSpelling(of: word, startingAt: 0, language: language, wrap: false,
-                                                   inSpellDocumentWithTag: 0, wordCount: nil).location != NSNotFound
-        #endif
-    }
-
-    private static func endsSentence(_ word: TranscriptWord) -> Bool {
-        word.text.hasSuffix(".") || word.text.hasSuffix("?") || word.text.hasSuffix("!")
-    }
-
-    private static func instructions(locale: Locale) -> String {
-        let code = locale.language.languageCode?.identifier ?? "de"
-        let language = Locale(identifier: "en").localizedString(forLanguageCode: code) ?? "German"
-        return """
-        You fix speech recognition errors in a \(language) transcript of a business conversation (consulting, banking, \
-        finance). You get the transcript, words that may be misheard, and for some of them sound-alike vocabulary terms. \
-        For each possibly misheard word decide from the context of the sentence what was actually said: often the \
-        sound-alike vocabulary term, sometimes another real word that sounds similar and fits the sentence, and often \
-        the word is already right. Only correct words that make no sense where they are. Never rephrase, never fix \
-        grammar, style or punctuation, never add or remove content. Copy the misheard words exactly as they appear in \
-        the transcript. If nothing was misheard, return no corrections.
-        """
-    }
-}
-
-@Generable
-nonisolated struct Correction {
-    @Guide(description: "The misheard words exactly as they appear in the transcript, one to three words")
-    var heard: String
-    @Guide(description: "The words that were actually said")
-    var meant: String
-}
-
-@Generable
-nonisolated struct Corrections {
-    @Guide(description: "Corrections for clearly misheard words; empty if there are none", .maximumCount(12))
-    var corrections: [Correction]
 }
