@@ -2,9 +2,10 @@ import SwiftUI
 
 /// One line under the date while work is still being done on the transcript, the way Mail reports "Checking for
 /// Mail…": the step that is running now ("Transcribing…", "Identifying speakers…", "Checking vocabulary…", "Correcting
-/// text…", "Writing summary…"), in the date line's secondary type, no symbol, no spinner, no times (those are in the DEBUG log). A
+/// text…", "Writing summary…"), in the date line's secondary type, no spinner, no times (those are in the DEBUG log). A
 /// band in the label colour sweeps across the words while the step runs, like the status line of the Claude app (`ShimmerText`;
-/// still with Reduce Motion). It is gone the moment the last step ends. Replaces a row of four marks with checkmarks
+/// still with Reduce Motion), and three bodies on the three-body problem's figure-eight orbit circle in front of them
+/// (`ThreeBodyIcon`). It is gone the moment the last step ends. Replaces a row of four marks with checkmarks
 /// and seconds, which read as a progress panel in a place that should look like a document.
 struct PipelineStatusLine: View {
     let recording: Recording
@@ -32,13 +33,16 @@ struct PipelineStatusLine: View {
 
     var body: some View {
         if let text = Self.text(for: recording, identifier: services.identifier) {
-            ShimmerText(text: text)
-                .font(.subheadline)
-                .lineLimit(1)
-                // The words change in place with a short crossfade; the line itself never changes height.
-                .contentTransition(.opacity)
-                .animation(.easeInOut(duration: 0.25), value: text)
-                .accessibilityIdentifier("PipelineStatus")
+            HStack(spacing: 6) {
+                ThreeBodyIcon()                           // lower than the text: the line keeps its height
+                ShimmerText(text: text)
+                    .lineLimit(1)
+                    // The words change in place with a short crossfade; the line itself never changes height.
+                    .contentTransition(.opacity)
+                    .animation(.easeInOut(duration: 0.25), value: text)
+                    .accessibilityIdentifier("PipelineStatus")
+            }
+            .font(.subheadline)
         }
     }
 }
