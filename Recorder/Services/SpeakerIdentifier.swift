@@ -449,17 +449,30 @@ final class SpeakerIdentifier {
     }
 
     /// Smart Corrections (Settings): Gemma corrects the paragraphs about a dozen turns at a time (TranscriptCorrector).
-    /// Every answered chunk replaces its words and segments at once, so the text improves paragraph by paragraph and an
-    /// interrupted pass keeps what it has (`correctedUntil`). Off, no Gemma, or not German: the transcript is skipped
-    /// for good (the setting applies from the next recording). A fragment the model moved to the neighbouring speaker
-    /// stays there in the segments; words keep their times, so a re-run of the speakers ("Speakers: n", Try Again) folds
-    /// it back by time.
+    /// Nothing is written into the transcript yet: the corrected paragraphs are stored as a proposal
+    /// (`proposedCorrections`) that the card shows as a list of changes to accept one by one or all at once
+    /// (CorrectionReview, `acceptCorrection` / `applyCorrections` / `dismissCorrections`). Every answered chunk extends
+    /// the proposal at once, so an interrupted pass keeps what it has (`correctedUntil`). Off, no Gemma, or not German:
+    /// the transcript is skipped for good (the setting applies from the next recording). A fragment the model moved to
+    /// the neighbouring speaker follows only with "Apply All" (an accepted single change keeps the paragraphs as they
+    /// are); words keep their times either way, so a re-run of the speakers folds it back by time.
     private func applyCorrections(to recording: Recording) async {
         guard !isGone(recording) else { return }
         let id = recording.id
         guard recording.correctionsPending else { track(id) { $0.drop(.corrections) }; return }
-        let paragraphs = CorrectionMerge.paragraphs(words: recording.words, segments: recording.segments)
+        let paragraphs = recording.proposedCorrections
+            ?? CorrectionMerge.paragraphs(words: recording.words, segments: recording.segments)
         let locale = Locale(identifier: recording.localeIdentifier)
+        #if DEBUG
+        if Self.fakesCorrections, recording.speakerStatus == .done, !paragraphs.isEmpty {
+            // QA: a made-up proposal without Gemma, so the review box can be seen on the simulator.
+            recording.proposedCorrections = Self.fakeProposal(paragraphs)
+            recording.correctionsPending = false
+            try? modelContext.save()
+            track(id) { $0.finish(.corrections) }
+            return
+        }
+        #endif
         guard canCorrect, recording.speakerStatus == .done, !paragraphs.isEmpty,
               TranscriptCorrector.isGerman(paragraphs.map(\.text), recordingLocale: locale) else {
             recording.correctionsPending = false
@@ -479,20 +492,14 @@ final class SpeakerIdentifier {
             }
         }
         let start = paragraphs.firstIndex { $0.start > recording.correctedUntil } ?? paragraphs.count
-        var expected = recording.words                        // what the pass works on; replaced meanwhile = stop
+        let expected = recording.words                        // what the pass works on; replaced meanwhile = stop
         do {
             let corrector = corrector
             try await betterSummaries.run { model in
                 try await corrector.correct(paragraphs, from: start, name: { $0.map(recording.speakerName) ?? "Speaker" },
                                             model: model) { paragraphs, coveredUntil, changed in
                     guard !self.isGone(recording), recording.words == expected else { return false }
-                    if changed {
-                        let words = paragraphs.flatMap(\.words)
-                        self.flash(WordChange.changes(from: expected, to: words, vocabulary: false), in: id)
-                        recording.words = words
-                        recording.segments = TranscriptAligner.keepingIDs(of: recording.segments, in: paragraphs.map(\.segment))
-                        expected = words
-                    }
+                    if changed { recording.proposedCorrections = paragraphs }
                     recording.correctedUntil = coveredUntil
                     try? self.modelContext.save()
                     return true
@@ -511,9 +518,82 @@ final class SpeakerIdentifier {
         }
         guard !isGone(recording) else { return }
         recording.correctionsPending = false
+        if let proposal = recording.proposedCorrections,
+           !CorrectionMerge.differs(proposal, from: recording.words, segments: recording.segments) {
+            recording.proposedCorrections = nil               // Gemma changed nothing after all
+        }
         try? modelContext.save()
         track(id) { $0.finish(.corrections) }
     }
+
+    // MARK: Reviewing corrections
+
+    /// The proposal's differences from the transcript, for the review box; empty without a proposal.
+    func proposedChanges(for recording: Recording) -> [CorrectionMerge.Change] {
+        guard let proposal = recording.proposedCorrections else { return [] }
+        return CorrectionMerge.changes(from: recording.words, to: proposal.flatMap(\.words))
+    }
+
+    /// The fragments the proposal moves to another speaker (realized by "Apply All" only).
+    func proposedMoves(for recording: Recording) -> [CorrectionMerge.Move] {
+        guard let proposal = recording.proposedCorrections else { return [] }
+        return CorrectionMerge.moves(from: CorrectionMerge.paragraphs(words: recording.words, segments: recording.segments),
+                                     to: proposal)
+    }
+
+    /// One change taken over: its words replace the old ones (times kept), the paragraphs stay as they are. The last
+    /// change accepted ends the review.
+    func acceptCorrection(_ change: CorrectionMerge.Change, in recording: Recording) {
+        guard !isGone(recording) else { return }
+        let words = CorrectionMerge.accepting(change, in: recording.words)
+        guard words != recording.words else { return }
+        rewrite(recording, words: words, segments: CorrectionMerge.paragraphs(words: words, segments: recording.segments).map(\.segment))
+        if proposedChanges(for: recording).isEmpty, proposedMoves(for: recording).isEmpty { recording.proposedCorrections = nil }
+        try? modelContext.save()
+    }
+
+    /// "Apply All": the proposal as a whole, paragraphs included (a fragment moved to the previous speaker follows).
+    func applyCorrections(to recording: Recording) {
+        guard !isGone(recording), let proposal = recording.proposedCorrections else { return }
+        rewrite(recording, words: proposal.flatMap(\.words), segments: proposal.map(\.segment))
+        recording.proposedCorrections = nil
+        try? modelContext.save()
+    }
+
+    func dismissCorrections(for recording: Recording) {
+        guard !isGone(recording) else { return }
+        recording.proposedCorrections = nil
+        try? modelContext.save()
+    }
+
+    private func rewrite(_ recording: Recording, words: [TranscriptWord], segments: [TranscriptSegment]) {
+        flash(WordChange.changes(from: recording.words, to: words, vocabulary: false), in: recording.id)
+        recording.words = words
+        recording.segments = TranscriptAligner.keepingIDs(of: recording.segments, in: segments)
+        recording.correctionsAccepted += 1
+    }
+
+    #if DEBUG
+    /// QA: `-fakeCorrections` stands in for Gemma on the simulator: a proposal with "quick" → "brief" and "lighter" →
+    /// "fainter" (the canned words of FakeTranscriber), a period after the first paragraph if it has none, and the
+    /// third paragraph's first word moved to the end of the second.
+    nonisolated static var fakesCorrections: Bool { ProcessInfo.processInfo.arguments.contains("-fakeCorrections") }
+
+    nonisolated static func fakeProposal(_ paragraphs: [CorrectionMerge.Paragraph]) -> [CorrectionMerge.Paragraph] {
+        var result = paragraphs
+        for p in result.indices {
+            for w in result[p].words.indices {
+                result[p].words[w].text = result[p].words[w].text
+                    .replacingOccurrences(of: "quick", with: "brief").replacingOccurrences(of: "lighter", with: "fainter")
+            }
+        }
+        if let last = result[0].words.indices.last, !result[0].words[last].text.hasSuffix(".") { result[0].words[last].text += "." }
+        if result.count > 2, result[2].words.count > 1 {
+            result[1].words.append(result[2].words.removeFirst())
+        }
+        return result
+    }
+    #endif
 
     /// The summary, and the title while the transcript still has a name the app gave it ("New Transcript 3") and the
     /// user never edited it. Once per transcript (`summaryVersion`); without a model (Apple Intelligence off, older

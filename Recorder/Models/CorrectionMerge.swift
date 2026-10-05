@@ -8,8 +8,9 @@ import Foundation
 /// the words (a paraphrase, a summary, a lost turn), are rejected as a whole, so the model can never rewrite the
 /// transcript. Pure functions, no dependencies.
 nonisolated enum CorrectionMerge {
-    /// A paragraph as the corrector works on it: a segment's speaker and its words.
-    struct Paragraph: Equatable, Sendable {
+    /// A paragraph as the corrector works on it: a segment's speaker and its words. Stored on the Recording as the
+    /// proposal while the user reviews it (`proposedCorrections`).
+    struct Paragraph: Codable, Equatable, Sendable {
         var speakerIndex: Int?
         var words: [TranscriptWord]
 
@@ -30,6 +31,103 @@ nonisolated enum CorrectionMerge {
     static let guardedWords = 5
     /// The answer's word count relative to the input's must stay within this.
     static let countRange = 0.7...1.3
+
+    /// One difference between the transcript's words and the proposal, as the review shows it: the old words (a range
+    /// of the transcript's words, empty for an insertion) and the new words that stand in their place.
+    struct Change: Equatable, Identifiable, Sendable {
+        var oldRange: Range<Int>
+        var oldWords: [TranscriptWord]
+        var newWords: [TranscriptWord]
+        var id: String { "\(oldRange.lowerBound)-\(oldRange.upperBound)-\(newWords.map(\.text).joined(separator: " "))" }
+        /// Where the change is, for the paragraph that names its speaker.
+        var time: TimeInterval { oldWords.first?.start ?? newWords.first?.start ?? 0 }
+    }
+
+    /// The differences between `old` and `new` (exact texts, so case and punctuation count), each a contiguous run of
+    /// words that differ; two runs separated by a single unchanged word are one change ("an den Kragen." for
+    /// "an Kragen,"), so a row reads as one edit.
+    static func changes(from old: [TranscriptWord], to new: [TranscriptWord]) -> [Change] {
+        let n = old.count, m = new.count, stride = m + 1
+        var table = [Int32](repeating: 0, count: (n + 1) * stride)
+        for i in (0..<n).reversed() {
+            for j in (0..<m).reversed() {
+                table[i * stride + j] = old[i].text == new[j].text
+                    ? table[(i + 1) * stride + j + 1] + 1
+                    : max(table[(i + 1) * stride + j], table[i * stride + j + 1])
+            }
+        }
+        var changes: [Change] = []
+        var i = 0, j = 0
+        var run: (oldStart: Int, newStart: Int)?
+        func close(_ i: Int, _ j: Int) {
+            guard let r = run else { return }
+            let change = Change(oldRange: r.oldStart..<i, oldWords: Array(old[r.oldStart..<i]), newWords: Array(new[r.newStart..<j]))
+            // Joined with the previous change when only one unchanged word lies between them.
+            if let last = changes.last, last.oldRange.upperBound + 1 == change.oldRange.lowerBound,
+               let between = old[safe: last.oldRange.upperBound] {
+                changes[changes.count - 1] = Change(oldRange: last.oldRange.lowerBound..<change.oldRange.upperBound,
+                                                    oldWords: last.oldWords + [between] + change.oldWords,
+                                                    newWords: last.newWords + [between] + change.newWords)
+            } else {
+                changes.append(change)
+            }
+            run = nil
+        }
+        while i < n || j < m {
+            if i < n, j < m, old[i].text == new[j].text {
+                close(i, j); i += 1; j += 1
+            } else {
+                if run == nil { run = (i, j) }
+                if j >= m || (i < n && table[(i + 1) * stride + j] >= table[i * stride + j + 1]) { i += 1 } else { j += 1 }
+            }
+        }
+        close(i, j)
+        return changes
+    }
+
+    /// Words the proposal puts under another speaker than the transcript has them (rule 3: a fragment appended to
+    /// the previous speaker), as runs: the words and the speaker they move to. Only "Apply All" realizes a move (an
+    /// accepted single change keeps the paragraphs), so the review lists them without a checkmark.
+    struct Move: Equatable, Identifiable, Sendable {
+        var words: [TranscriptWord]
+        var toSpeaker: Int?
+        var id: String { "\(words.first?.start ?? 0)-\(toSpeaker ?? -1)" }
+        var time: TimeInterval { words.first?.start ?? 0 }
+    }
+
+    static func moves(from current: [Paragraph], to proposal: [Paragraph]) -> [Move] {
+        var speakerAt: [(start: TimeInterval, speaker: Int?)] = []
+        for paragraph in current { for word in paragraph.words { speakerAt.append((word.start, paragraph.speakerIndex)) } }
+        var moves: [Move] = []
+        for paragraph in proposal {
+            for word in paragraph.words {
+                // The transcript's speaker of this word: the last word starting at or before it (times are kept).
+                guard let before = speakerAt.last(where: { $0.start <= word.start + 0.001 }), before.speaker != paragraph.speakerIndex else { continue }
+                if let last = moves.indices.last, moves[last].toSpeaker == paragraph.speakerIndex,
+                   moves[last].words.last.map({ word.start - $0.end < 1.0 }) == true {
+                    moves[last].words.append(word)
+                } else {
+                    moves.append(Move(words: [word], toSpeaker: paragraph.speakerIndex))
+                }
+            }
+        }
+        return moves
+    }
+
+    /// Whether `proposal` differs from the transcript at all: in its words, or in which paragraph a word belongs to.
+    static func differs(_ proposal: [Paragraph], from words: [TranscriptWord], segments: [TranscriptSegment]) -> Bool {
+        proposal.flatMap(\.words) != words
+            || proposal.map(\.speakerIndex) != segments.map(\.speakerIndex)
+            || proposal.map(\.text) != segments.map(\.text)
+    }
+
+    /// `words` with one `change` accepted: its old words replaced by the new ones.
+    static func accepting(_ change: Change, in words: [TranscriptWord]) -> [TranscriptWord] {
+        guard change.oldRange.upperBound <= words.count, Array(words[change.oldRange]) == change.oldWords else { return words }
+        var words = words
+        words.replaceSubrange(change.oldRange, with: change.newWords)
+        return words
+    }
 
     /// `words` partitioned by `segments`, in their order: a word belongs to the segment whose time range holds its
     /// middle, one in the gap between two paragraphs to the nearer one. Exact for segments folded from these words
@@ -200,4 +298,8 @@ nonisolated enum CorrectionMerge {
         }
         return result
     }
+}
+
+nonisolated private extension Array {
+    subscript(safe index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
 }

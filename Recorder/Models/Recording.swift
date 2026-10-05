@@ -70,6 +70,8 @@ final class Recording {
     var vocabularyPending: Bool = false  // the vocabulary pass (vocabulary terms) still has to run on `words`
     var correctionsPending: Bool = false // the smart corrections (TranscriptCorrector, Gemma) still have to run on `words`
     var correctedUntil: TimeInterval = 0 // transcript seconds the corrections have covered (an interrupted pass goes on from there)
+    var proposedCorrections: [CorrectionMerge.Paragraph]? = nil   // Gemma's corrected paragraphs awaiting the user's review (CorrectionReview); nil: none
+    var correctionsAccepted: Int = 0     // counts accepted changes (the search index keys on it: each one rewrites `segments`)
     var speakerTurns: [SpeakerTurn] = [] // the final diarization (empty before it, and for transcripts diarized before it was kept)
     var alignmentOffset: TimeInterval = 0 // added to speakerTurns' times when aligning them with `words` (FileTranscript)
     var voicesVersion: Int = 0           // SpeakerIdentifier.voicesVersion of speakerVoices (0: diarizer centroids, or none)

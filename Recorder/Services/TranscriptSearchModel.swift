@@ -97,8 +97,8 @@ final class TranscriptSearchModel {
 extension Recording {
     /// Changes whenever something search reads changes, without reading the large `segments`/`words`: segments are
     /// only ever written together with one of these fields (RecordingSession: a new recording; SpeakerIdentifier:
-    /// `wordsRefined`, `speakerStatusRaw`, `vocabularyPending`, `correctedUntil`). A new writer of segments must change
-    /// one of them too.
+    /// `wordsRefined`, `speakerStatusRaw`, `vocabularyPending`, `correctionsAccepted`). A new writer of segments must
+    /// change one of them too.
     var searchKey: Int {
         var hasher = Hasher()
         hasher.combine(name)
@@ -110,6 +110,7 @@ extension Recording {
         hasher.combine(vocabularyPending)
         hasher.combine(correctionsPending)
         hasher.combine(correctedUntil)
+        hasher.combine(correctionsAccepted)
         hasher.combine(speakerCountOverride)
         hasher.combine(speakerNames)                 // order-independent; the key is only ever compared in memory
         return hasher.finalize()
