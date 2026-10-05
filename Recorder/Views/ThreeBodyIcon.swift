@@ -4,8 +4,8 @@ import SwiftUI
 /// three-body problem, seen through a slowly turning camera with perspective: a body nearer the viewer is larger,
 /// more opaque and drawn in front, each is shaded like a small sphere (a highlight towards the top left), and each
 /// leaves a short fading trail in 3D. The bodies differ: a large one in blue, a middle one in orange, a small one in
-/// green (the first three speakers' colours, SpeakerPalette, at 55 % over the background so they sit as quietly as the
-/// grey text), 20 × 16 pt, scaled with Dynamic Type. It begins with the three bodies together in the centre, flung
+/// green (the first three speakers' colours, SpeakerPalette, as a tint: half mixed with the text's grey, at 45 %), with
+/// hairline trails and a soft glint, 20 × 16 pt, scaled with Dynamic Type. It begins with the three bodies together in the centre, flung
 /// out, and every new step of the pipeline (`step`) pulls them back together and flings them out again (`burst`), at
 /// most once every 1.5 s, so steps that follow each other closely don't make it flicker. With Reduce Motion one
 /// irregular moment stands still. Decorative: hidden from VoiceOver (the text says what is happening).
@@ -35,10 +35,13 @@ struct ThreeBodyIcon: View {
         .onChange(of: step) { _, new in if new != nil { simulation.burst() } }
     }
 
-    /// Each body's colour and size: the first three speakers' colours (blue, orange, green), the largest first, at
-    /// 55 % over the background, so the icon weighs no more than the grey text beside it.
-    private static let colours: [Color] = (0..<3).map { SpeakerPalette.color($0).opacity(0.55) }
-    private static let sizes: [Double] = [1.3, 1.1, 0.9]
+    /// Each body's colour and size: the first three speakers' colours (blue, orange, green), the largest first, as a
+    /// tint: mixed half and half with the text's grey, at 45 % over the background, so the icon is a colour hint beside
+    /// the grey text, not a splash (at 55 % of the full colours it competed with the words).
+    private static let colours: [Color] = (0..<3).map {
+        SpeakerPalette.color($0).mix(with: Color(uiColor: .secondaryLabel), by: 0.5).opacity(0.45)
+    }
+    private static let sizes: [Double] = [1.2, 1.0, 0.8]
 
     private static func draw(_ frame: ThreeBodyFrame) -> some View {
         Canvas { context, size in
@@ -54,8 +57,10 @@ struct ThreeBodyIcon: View {
                     var segment = Path()
                     segment.move(to: point(trail[k - 1]))
                     segment.addLine(to: point(trail[k]))
-                    context.stroke(segment, with: .color(colours[i].opacity(0.7 * age * trail[k].light)),
-                                   style: StrokeStyle(lineWidth: radius * 1.1 * age * trail[k].size * sizes[i],
+                    // Hairlines (a third of the body's width at most), not comet tails: the motion still reads from
+                    // them, and the bodies no longer swim in colour.
+                    context.stroke(segment, with: .color(colours[i].opacity(0.6 * age * trail[k].light)),
+                                   style: StrokeStyle(lineWidth: max(0.5, radius * 0.35 * age * trail[k].size * sizes[i]),
                                                       lineCap: .round))
                 }
             }
@@ -65,13 +70,14 @@ struct ThreeBodyIcon: View {
                 let c = point(body)
                 let rect = CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)
                 let colour = colours[i]
-                let shading = Gradient(stops: [.init(color: .white.opacity(0.9), location: 0),
-                                               .init(color: colour, location: 0.55),
-                                               .init(color: colour.opacity(0.7), location: 1)])
+                // A small soft glint towards the top left (a bright white dot read as a bead).
+                let shading = Gradient(stops: [.init(color: .white.opacity(0.45), location: 0),
+                                               .init(color: colour, location: 0.4),
+                                               .init(color: colour.opacity(0.75), location: 1)])
                 context.opacity = body.light
                 context.fill(Path(ellipseIn: rect),
-                             with: .radialGradient(shading, center: CGPoint(x: c.x - r * 0.35, y: c.y - r * 0.35),
-                                                   startRadius: 0, endRadius: r * 1.35))
+                             with: .radialGradient(shading, center: CGPoint(x: c.x - r * 0.3, y: c.y - r * 0.3),
+                                                   startRadius: 0, endRadius: r * 1.2))
                 context.opacity = 1
             }
         }
@@ -95,8 +101,8 @@ nonisolated struct ThreeBodyFrame: Sendable {
 
 /// Three equal masses under softened gravity (G = 1, softening 0.5: close passes swing past instead of whipping), in a
 /// gentle pull towards the centre (k = 1.6, so no body leaves the picture) and a weak thermostat (friction 0.1 and
-/// random nudges at temperature 0.8, Langevin), integrated with velocity Verlet in 0.004 steps, 2.2 time units per
-/// second on screen (1.3 read as slow). Without the thermostat two bodies often locked into a pair for good (in 6 of 20 starts over 900
+/// random nudges at temperature 0.8, Langevin), integrated with velocity Verlet in 0.004 steps, 1.9 time units per
+/// second on screen (1.3 read as slow, 2.2 as hectic). Without the thermostat two bodies often locked into a pair for good (in 6 of 20 starts over 900
 /// time units); with it, no pair lasted longer than 6 time units in 16 starts, the bodies stay within about 2 units
 /// (p99), and two copies 1e-8 apart part visibly within about a minute: chaotic, never repeating. Tuned in a scratch
 /// replay (numpy), 2026-10-05. The camera follows the system's size smoothly and turns around the vertical axis.
@@ -109,7 +115,7 @@ final class ThreeBodySimulation {
     private static let friction = 0.1
     private static let temperature = 0.8
     private static let step = 0.004
-    private static let speed = 2.2                   // time units per second on screen
+    private static let speed = 1.9                   // time units per second on screen (2.2 was a touch hectic)
     private static let turn = 0.35                    // camera radians per second
     private static let tilt = 0.45                    // radians the camera looks down
     private static let trailLength = 26               // positions per trail, one per frame: under half a second
