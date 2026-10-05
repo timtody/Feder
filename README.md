@@ -2,6 +2,8 @@
 
 Scribe (Xcode target, module and executable `Recorder`, bundle id `de.cofinpro.recorder`; only the display name changed, so existing data stays) is a local-only iPhone app (iOS 26+) that records audio, transcribes it live on device, shows preliminary speaker labels while recording, identifies speakers accurately after the recording ends, and lets you rename speakers, tag recordings and search them. Nothing leaves the phone: audio, transcripts and speaker data stay in the app's Documents/Application Support folders.
 
+`PIPELINE.md` is the map of what happens to a recording (both stages, every model, the measurements, the ideas on the table and what was tried and dropped); `TASKS.md` the open work. This README is the detailed reference.
+
 ## What it does
 
 - **Record**: tap the red button, watch the live transcript (Apple `SpeechAnalyzer`/`SpeechTranscriber`), tap Stop. The provisional text follows in a lighter colour and firms up in place; new words are readable the moment they appear (drawn at 60 % opacity, fully opaque within 0.2 s); a small level meter beside the big timer above the Stop follows the microphone; haptics mark the presses on Transcribe and Stop. The transcript follows new text while you are at the bottom; scroll up to reread and it stops following until you tap "Jump to Live".
