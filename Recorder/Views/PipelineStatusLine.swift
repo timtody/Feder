@@ -4,8 +4,8 @@ import SwiftUI
 /// Mail…": the step that is running now ("Transcribing…", "Identifying speakers…", "Checking vocabulary…", "Correcting
 /// text…", "Writing summary…"), in the date line's secondary type, no spinner, no times (those are in the DEBUG log). A
 /// band in the label colour sweeps across the words while the step runs, like the status line of the Claude app (`ShimmerText`;
-/// still with Reduce Motion), and three bodies on the three-body problem's figure-eight orbit circle in front of them
-/// (`ThreeBodyIcon`). It is gone the moment the last step ends. Replaces a row of four marks with checkmarks
+/// still with Reduce Motion), and a small pixel-art feather drifts down in front of them, fluttering on each new
+/// step (`PixelFeatherIcon`). It is gone the moment the last step ends. Replaces a row of four marks with checkmarks
 /// and seconds, which read as a progress panel in a place that should look like a document.
 struct PipelineStatusLine: View {
     let recording: Recording
@@ -40,7 +40,7 @@ struct PipelineStatusLine: View {
     var body: some View {
         if let text = Self.text(for: recording, identifier: services.identifier) {
             HStack(spacing: 6) {
-                ThreeBodyIcon(step: Self.runningStep(for: recording, identifier: services.identifier))
+                PixelFeatherIcon(step: Self.runningStep(for: recording, identifier: services.identifier))
                                                           // lower than the text: the line keeps its height
                 ShimmerText(text: text)
                     .lineLimit(1)
