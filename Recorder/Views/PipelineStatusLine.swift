@@ -4,9 +4,10 @@ import SwiftUI
 /// Mail…": the step that is running now ("Transcribing…", "Identifying speakers…", "Checking vocabulary…", "Correcting
 /// text…", "Writing summary…"), in the date line's secondary type, no spinner, no times (those are in the DEBUG log). A
 /// band in the label colour sweeps across the words while the step runs, like the status line of the Claude app (`ShimmerText`;
-/// still with Reduce Motion), and a small pixel-art feather drifts down in front of them, fluttering on each new
-/// step (`PixelFeatherIcon`). It is gone the moment the last step ends. Replaces a row of four marks with checkmarks
-/// and seconds, which read as a progress panel in a place that should look like a document.
+/// still with Reduce Motion). No mark in front of it: a three-body animation and then a pixel-art feather stood there
+/// for a while and clashed with the native look; the shimmering text is the Mail-like answer. It is gone the moment
+/// the last step ends. Replaces a row of four marks with checkmarks and seconds, which read as a progress panel in a
+/// place that should look like a document.
 struct PipelineStatusLine: View {
     let recording: Recording
 
@@ -31,25 +32,15 @@ struct PipelineStatusLine: View {
         }
     }
 
-    /// The step running now (nil: none), for the icon's bursts.
-    static func runningStep(for recording: Recording, identifier: SpeakerIdentifier) -> PipelineProgress.Step? {
-        guard let progress = identifier.progress[recording.id] else { return nil }
-        return progress.steps.first { if case .running = progress.state(of: $0) { true } else { false } }
-    }
-
     var body: some View {
         if let text = Self.text(for: recording, identifier: services.identifier) {
-            HStack(spacing: 6) {
-                PixelFeatherIcon(step: Self.runningStep(for: recording, identifier: services.identifier))
-                                                          // lower than the text: the line keeps its height
-                ShimmerText(text: text)
-                    .lineLimit(1)
-                    // The words change in place with a short crossfade; the line itself never changes height.
-                    .contentTransition(.opacity)
-                    .animation(.easeInOut(duration: 0.25), value: text)
-                    .accessibilityIdentifier("PipelineStatus")
-            }
-            .font(.subheadline)
+            ShimmerText(text: text)
+                .font(.subheadline)
+                .lineLimit(1)
+                // The words change in place with a short crossfade; the line itself never changes height.
+                .contentTransition(.opacity)
+                .animation(.easeInOut(duration: 0.25), value: text)
+                .accessibilityIdentifier("PipelineStatus")
         }
     }
 }
