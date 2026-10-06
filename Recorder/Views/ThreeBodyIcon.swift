@@ -22,6 +22,10 @@ struct ThreeBodyIcon: View {
     @ScaledMetric(relativeTo: .subheadline) private var width: CGFloat = ThreeBodyLook.iconWidth
     @State private var simulation = ThreeBodySimulation()
 
+    /// The Canvas is this much larger than the icon's layout frame on each side: a Canvas clips to its own bounds,
+    /// and a body at the edge of the scene, with its size and glow, was cut off at the frame's corner.
+    private static let overflow = 1.8
+
     var body: some View {
         Group {
             if reduceMotion {
@@ -33,7 +37,8 @@ struct ThreeBodyIcon: View {
                 }
             }
         }
-        .frame(width: width, height: width * 0.8)
+        .frame(width: width * Self.overflow, height: width * 0.8 * Self.overflow)
+        .frame(width: width, height: width * 0.8)         // the layout size; the drawing may overflow it
         .accessibilityHidden(true)
         .onChange(of: step) { _, new in if new != nil { simulation.burst() } }
     }
@@ -41,7 +46,7 @@ struct ThreeBodyIcon: View {
     private static func draw(_ frame: ThreeBodyFrame, dark: Bool) -> some View {
         Canvas { context, size in
             typealias L = ThreeBodyLook
-            let half = min(size.width, size.height) / 2
+            let half = min(size.width, size.height) / 2 / overflow   // the scene's scale is the layout frame's
             func point(_ p: ThreeBodyFrame.Point) -> CGPoint {
                 CGPoint(x: size.width / 2 + p.x * half, y: size.height / 2 - p.y * half)
             }
@@ -187,6 +192,7 @@ final class ThreeBodySimulation {
     private var extent = 1.0
     private var spin: (left: TimeInterval, direction: Double)?
     private var lastBurst: Date?
+    private var queued = false                        // a burst asked for inside the cooldown
     private(set) var frame = ThreeBodyFrame()
 
     init() {
@@ -204,10 +210,14 @@ final class ThreeBodySimulation {
         frame = project()
     }
 
-    /// Spins the bodies (at most once per `burstCooldown`); the start is one.
+    /// Spins the bodies (at most once per `burstCooldown`: a burst inside it waits for its end); the start is one.
     func burst(at date: Date = .now) {
-        if let last = lastBurst, date.timeIntervalSince(last) < Self.burstCooldown { return }
+        if let last = lastBurst, date.timeIntervalSince(last) < Self.burstCooldown {
+            queued = true                                   // fires when the cooldown ends (a quick first step, e.g.)
+            return
+        }
         lastBurst = date
+        queued = false
         startSpin()
     }
 
@@ -216,6 +226,7 @@ final class ThreeBodySimulation {
         let dt = min(max(0, last.map { date.timeIntervalSince($0) } ?? 0), 0.1)
         last = date
         guard dt > 0 else { return frame }
+        if queued, let last = lastBurst, date.timeIntervalSince(last) >= Self.burstCooldown { burst(at: date) }
         pending += dt
         while pending >= Self.slice {
             pending -= Self.slice
