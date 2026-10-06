@@ -1,143 +1,110 @@
 import SwiftUI
 
-/// The pipeline status line's activity mark: a small pixel-art feather hovering in front of the text as a feather
-/// hangs in the air, rocking slowly from tilted left through upright to tilted right and bobbing up and down, drawn
-/// from three hand-made sprites on a grid of whole cells, so it moves in pixel steps and stays crisp at every Dynamic
-/// Type size. On every new step of the pipeline (`step`) it flutters for a moment (the tilts alternate quickly), at
-/// most once every 1.5 s. Clay tones like the app's other marks. With Reduce Motion it rests upright. Decorative:
-/// hidden from VoiceOver (the text says what is happening). Replaced the three bodies of `ThreeBodyIcon` (kept for
-/// other apps of the family). A first version let the feather fall through the frame and come back in at the top: out
-/// of sight half the time, which a working mark must not be.
+/// The pipeline status line's activity mark: a pixel-art feather in front of the text that only jitters, a cell at a
+/// time, the way a hand-drawn sprite "boils": it steps one cell up, back, one cell right, back, about twice a second.
+/// On every new step of the pipeline (`step`) it shakes quickly for a moment, at most once every 1.5 s. The sprite is
+/// one hand-drawn 16 × 16 grid (`sprite`) in the app's clay tones with a dark outline, so it reads on light and dark
+/// backgrounds alike; its cells are whole device pixels (4 px at @3x) and filled without antialiasing, so the pixels
+/// stay crisp at every Dynamic Type size. The layout frame is the status line's 20 × 16 pt; the drawing may overflow
+/// it a little (as the three bodies did), so the line's height doesn't change. With Reduce Motion it stands still.
+/// Decorative: hidden from VoiceOver (the text says what is happening). The same design, redrawn at 24 × 24, is the
+/// app icon's glyph. Earlier versions let a code-drawn feather fall through the frame or rock through three tilts:
+/// out of sight half the time, and too much movement for a mark next to text.
 struct PixelFeatherIcon: View {
     var step: PipelineProgress.Step?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.displayScale) private var displayScale
     @ScaledMetric(relativeTo: .subheadline) private var width: CGFloat = 20
-    @State private var flutterUntil: Date?
-    @State private var lastFlutter: Date?
+    @State private var shakeUntil: Date?
+    @State private var lastShake: Date?
 
-    nonisolated private static let columns = 16
-    nonisolated private static let rows = 13
-    nonisolated private static let period: TimeInterval = 4.8        // one rock: left, upright, right, upright
-        nonisolated private static let flutter: TimeInterval = 0.6
+    nonisolated private static let shake: TimeInterval = 0.5
     nonisolated private static let cooldown: TimeInterval = 1.5
+    /// Cells of room around the sprite for the jitter.
+    nonisolated private static let margin = 1
 
     var body: some View {
-        let cell = width / CGFloat(Self.columns)
+        // A cell is a whole number of device pixels: 20 pt at @3x is 60 px, a 16-cell sprite gets 4 px (1.33 pt) cells.
+        let cell = max(1, (width * displayScale / CGFloat(Self.size)).rounded()) / displayScale
+        let side = cell * CGFloat(Self.size + 2 * Self.margin)
         Group {
             if reduceMotion {
-                Self.draw(frame: .upright, column: (Self.columns - Sprite.upright.width) / 2,
-                          row: (Self.rows - Sprite.upright.height) / 2, cell: cell, dark: colorScheme == .dark)
+                Self.draw(offset: (0, 0), cell: cell)
             } else {
-                TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
-                    let placed = Self.place(at: context.date, fluttering: flutterUntil.map { context.date < $0 } ?? false)
-                    Self.draw(frame: placed.frame, column: placed.column, row: placed.row, cell: cell, dark: colorScheme == .dark)
+                TimelineView(.animation(minimumInterval: 1.0 / 20)) { context in
+                    Self.draw(offset: Self.jitter(at: context.date, shaking: shakeUntil.map { context.date < $0 } ?? false),
+                              cell: cell)
                 }
             }
         }
-        .frame(width: cell * CGFloat(Self.columns), height: cell * CGFloat(Self.rows))
+        .frame(width: side, height: side)
+        .frame(width: width, height: width * 0.8)       // the layout size; the drawing may overflow it
         .accessibilityHidden(true)
         .onChange(of: step) { _, new in
             guard new != nil else { return }
             let now = Date.now
-            if let last = lastFlutter, now.timeIntervalSince(last) < Self.cooldown { return }
-            lastFlutter = now
-            flutterUntil = now.addingTimeInterval(Self.flutter)
+            if let last = lastShake, now.timeIntervalSince(last) < Self.cooldown { return }
+            lastShake = now
+            shakeUntil = now.addingTimeInterval(Self.shake)
         }
     }
 
-    /// Where the feather is at `date`: it bobs a cell up and down and rocks through the tilts, each a quarter of the
-    /// period, upright between them. Fluttering, the tilts alternate quickly.
-    nonisolated static func place(at date: Date, fluttering: Bool) -> (frame: Sprite, column: Int, row: Int) {
+    /// The sprite's offset in cells at `date`: a slow four-step boil (still, up, still, right), or while shaking a
+    /// quick walk through the four neighbours.
+    nonisolated static func jitter(at date: Date, shaking: Bool) -> (x: Int, y: Int) {
         let t = date.timeIntervalSinceReferenceDate
-        let u = (t / period).truncatingRemainder(dividingBy: 1)
-        let frame: Sprite
-        if fluttering {
-            frame = sin(2 * .pi * 7 * t) > 0 ? .left : .right
-        } else {
-            frame = u < 0.25 ? .upright : u < 0.5 ? .right : u < 0.75 ? .upright : .left
-        }
-        let bob = Int((1.2 * sin(2 * .pi * t / 2.4)).rounded())
-        let sway = Int((1.0 * sin(2 * .pi * u)).rounded())
-        return (frame, (columns - frame.width) / 2 + sway, (rows - frame.height) / 2 + bob)
+        let steps = shaking ? [(1, 0), (0, -1), (-1, 0), (0, 1)] : [(0, 0), (0, -1), (0, 0), (1, 0)]
+        return steps[Int(t / (shaking ? 0.06 : 0.45)) % steps.count]
     }
 
-    private static func draw(frame: Sprite, column: Int, row: Int, cell: CGFloat, dark: Bool) -> some View {
+    private static func draw(offset: (x: Int, y: Int), cell: CGFloat) -> some View {
         Canvas { context, _ in
-            let palette: [Character: Color] = dark
-                ? ["s": Color(hue: 0.04, saturation: 0.35, brightness: 0.6),
-                   "v": Color(hue: 0.07, saturation: 0.3, brightness: 0.82),
-                   "h": Color(hue: 0.10, saturation: 0.2, brightness: 0.96)]
-                : ["s": Color(hue: 0.05, saturation: 0.5, brightness: 0.38),
-                   "v": Color(hue: 0.07, saturation: 0.45, brightness: 0.55),
-                   "h": Color(hue: 0.08, saturation: 0.35, brightness: 0.72)]
-            for (y, line) in frame.lines.enumerated() {
-                for (x, char) in line.enumerated() {
-                    guard let colour = palette[char] else { continue }
-                    let cx = column + x, cy = row + y
-                    guard (0..<columns).contains(cx), (0..<rows).contains(cy) else { continue }
-                    context.fill(Path(CGRect(x: CGFloat(cx) * cell, y: CGFloat(cy) * cell, width: cell, height: cell)),
-                                 with: .color(colour))
+            for (y, line) in rows.enumerated() {
+                for (x, letter) in line.enumerated() {
+                    guard let colour = palette[letter] else { continue }
+                    let rect = CGRect(x: CGFloat(x + margin + offset.x) * cell, y: CGFloat(y + margin + offset.y) * cell,
+                                      width: cell, height: cell)
+                    context.fill(Path(rect), with: .color(colour), style: FillStyle(antialiased: false))
                 }
             }
         }
     }
 
-    /// The three sprites: `s` shaft, `v` vane, `h` the vane's light edge, `.` nothing. The quill's tip is at the
-    /// bottom left, the feather's tip at the top right.
-    nonisolated enum Sprite {
-        case left, upright, right
+    nonisolated private static let rows: [[Character]] = sprite.split(separator: "\n").map(Array.init)
+    nonisolated private static let size = max(rows.count, rows.map(\.count).max() ?? 0)
 
-        var lines: [[Character]] { Array(text.split(separator: "\n").map { Array($0) }) }
-        var width: Int { lines.map(\.count).max() ?? 0 }
-        var height: Int { lines.count }
+    /// The palette's letters (the design tool's): o outline, q quill, r rachis, w sparkle, h highlight, v vane,
+    /// d vane shade, H/m/D the mid section, t/T the tip.
+    nonisolated private static let palette: [Character: Color] = [
+        "o": rgb(46, 32, 28), "q": rgb(140, 102, 74), "r": rgb(118, 84, 62), "w": rgb(255, 252, 244),
+        "h": rgb(252, 244, 230), "v": rgb(236, 220, 196), "d": rgb(206, 176, 146), "H": rgb(248, 220, 184),
+        "m": rgb(230, 180, 132), "D": rgb(196, 138, 98), "t": rgb(206, 110, 72), "T": rgb(160, 76, 52),
+    ]
 
-        private var text: String {
-            switch self {
-            case .upright: """
-                ........hv
-                .......hvv
-                ......hvvv
-                .....hvvvv
-                ....hvvvvs
-                ....vv.vs.
-                ...hvvvs..
-                ...vvvs...
-                ..hvvs....
-                ..vvs.....
-                ...s......
-                ..s.......
-                .s........
-                """
-            case .right: """
-                .........hvvv
-                ......hvvvvvv
-                ...hvvvvvvvs.
-                ..vvvv.vvss..
-                .vvvvvss.....
-                ..vvss.......
-                ...s.........
-                ..s..........
-                .s...........
-                """
-            case .left: """
-                .....hv
-                .....vv
-                ....hvv
-                ....vvv
-                ...hvvs
-                ...vvvs
-                ...v.s.
-                ..hvvs.
-                ..vvs..
-                ..vvs..
-                ...s...
-                ...s...
-                ..s....
-                ..s....
-                """
-            }
-        }
+    nonisolated private static func rgb(_ r: Double, _ g: Double, _ b: Double) -> Color {
+        Color(.sRGB, red: r / 255, green: g / 255, blue: b / 255)
     }
+
+    /// 16 × 16, quill at the bottom left, tip at the top right: a slender writing quill with a light rachis, three
+    /// barb splits on the upper edge, cream to sand to a terracotta tip. Drawn by hand in a design pass over four
+    /// styles (broad two-tone, quill, phoenix, soft) judged at the real status-line size; the quill read best.
+    nonisolated private static let sprite = """
+        .............oo.
+        ...........ootto
+        ..........otttTo
+        .........oHtmTTo
+        .......ooHHwmDo.
+        ......oHoHwmDo..
+        ......oHHwmDDo..
+        ....oovHwmDoo...
+        ...ovovhmDDo....
+        ...ovvhvddo.....
+        ...ovhvddo......
+        ..ovhddoo.......
+        ..ohdoo.........
+        .oqoo...........
+        oqo.............
+        .o..............
+        """
 }

@@ -22,77 +22,40 @@
     {
       "layers": [
         {
-          "fill-specializations": [
+          "image-name": "silhouette.svg",
+          "name": "silhouette",
+          "glass": false,
+          "hidden-specializations": [
             {
-              "value": {
-                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            },
-            {
-              "appearance": "dark",
-              "value": {
-                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
+              "value": true
             },
             {
               "appearance": "tinted",
-              "value": {
-                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
+              "value": false
             }
-          ],
-          "glass": true,
-          "image-name": "vane.svg",
-          "name": "vane"
-        }
-      ],
-      "name": "vane",
-      "shadow": {
-        "kind": "neutral",
-        "opacity": 0.5
-      },
-      "specular": true,
-      "translucency": {
-        "enabled": true,
-        "value": 0.3
-      }
-    },
-    {
-      "layers": [
+          ]
+        },
         {
-          "fill-specializations": [
-            {
-              "value": {
-                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            },
-            {
-              "appearance": "dark",
-              "value": {
-                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            },
+          "image-name": "feather.svg",
+          "name": "feather",
+          "glass": false,
+          "hidden-specializations": [
             {
               "appearance": "tinted",
-              "value": {
-                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
+              "value": true
             }
-          ],
-          "glass": true,
-          "image-name": "ink.svg",
-          "name": "ink"
+          ]
         }
       ],
-      "name": "ink",
+      "name": "feather",
       "shadow": {
         "kind": "neutral",
-        "opacity": 0.5
+        "opacity": 0.35
       },
-      "specular": true,
+      "specular": false,
       "translucency": {
         "enabled": false,
-        "value": 0.0
+        "value": 0
       }
     }
   ],

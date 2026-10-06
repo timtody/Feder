@@ -178,6 +178,7 @@ From a review of an "optimal pipeline" proposal (October 2026), kept where they 
 | **`ViewThatFits` for row layout** | measured off the main thread, trapped in Swift 6's isolation check | `nonisolated` custom layout |
 | **Starting Gemma while recording** | GPU and memory belong to the recording | waits for Stop |
 | **Continuous-ink waveform in the app icon** (six forms) | read as handwriting or an ECG at icon size | kept, then redesigned as a fading wave into a scribble |
+| **Activity mark: three bodies, then code-drawn feathers** (falling through the frame; rocking through three tilts) | the bodies said nothing about the app; the falling feather was out of sight half the time; procedurally rasterized feathers came out lumpy, like brushes or torches | a hand-drawn 16 × 16 pixel quill that only jitters a cell; the same quill at 24 × 24 is the app icon |
 
 ## 8. Open measurements
 
