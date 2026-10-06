@@ -51,6 +51,7 @@ struct SummaryText: View {
                     .hidden()
                     .accessibilityHidden(true)
                 }
+                .fontDesign(.serif)                       // New York, as the transcript (the copies too: same height)
             if isLong {
                 Text(isExpanded ? "Less" : "More")
                     .fontWeight(.semibold)

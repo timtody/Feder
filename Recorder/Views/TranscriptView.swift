@@ -191,7 +191,8 @@ enum TranscriptStyle {
 }
 
 extension View {
-    /// The transcript's text: slightly larger than body, with more space between lines.
+    /// The transcript's text: New York (the system serif, as in Books: a document to read, not an interface), slightly
+    /// larger than body, with more space between lines. Speaker names and times stay in SF Pro, like all the chrome.
     func transcriptText() -> some View {
         modifier(TranscriptText())
     }
@@ -202,7 +203,7 @@ private struct TranscriptText: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .font(.system(size: size))
+            .font(.system(size: size, design: .serif))
             .lineSpacing(size * TranscriptStyle.lineSpacing)
     }
 }

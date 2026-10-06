@@ -23,6 +23,7 @@ struct SummaryInProgress: View {
             }
         }
         .font(.subheadline)
+        .fontDesign(.serif)                               // as the summary it becomes (SummaryText)
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.snappy, value: partial.isEmpty)
         .onChange(of: partial, initial: true) { _, text in
