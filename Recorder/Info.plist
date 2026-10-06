@@ -26,6 +26,13 @@
 	<string>Scribe saves where a transcript was started, so you can see and search it later.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Scribe uses the microphone to record and transcribe audio. Everything stays on this iPhone.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Libron-Bold.ttf</string>
+		<string>Libron-BoldItalic.ttf</string>
+		<string>Libron-Italic.ttf</string>
+		<string>Libron-Regular.ttf</string>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

@@ -7,6 +7,7 @@ struct SummaryText: View {
     let summary: String
     let highlights: [Range<String.Index>]
 
+    @AppStorage(TranscriptFont.key) private var typeface = TranscriptFont.standard
     @State private var isExpanded = false
     @State private var fullHeight: CGFloat = 0           // of the whole summary at this width
     @State private var clippedHeight: CGFloat = 0        // of its first three lines
@@ -51,7 +52,7 @@ struct SummaryText: View {
                     .hidden()
                     .accessibilityHidden(true)
                 }
-                .fontDesign(.serif)                       // New York, as the transcript (the copies too: same height)
+                .font(typeface.font(.subheadline))        // the transcript's typeface (the copies too: same height)
             if isLong {
                 Text(isExpanded ? "Less" : "More")
                     .fontWeight(.semibold)

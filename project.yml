@@ -68,6 +68,7 @@ targets:
         NSMicrophoneUsageDescription: "Scribe uses the microphone to record and transcribe audio. Everything stays on this iPhone."
         NSLocationWhenInUseUsageDescription: "Scribe saves where a transcript was started, so you can see and search it later."
         UIBackgroundModes: [audio]
+        UIAppFonts: [Libron-Bold.ttf, Libron-BoldItalic.ttf, Libron-Italic.ttf, Libron-Regular.ttf]   # Recorder/Fonts, bundled (OFL)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false

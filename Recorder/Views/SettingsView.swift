@@ -4,7 +4,7 @@ import SwiftData
 /// Settings (a tab; its heading scrolls away with the form, no navigation-bar title). Grouped by what the user is
 /// doing, not by the pipeline's modules: People first and alone (a list you maintain, used in both stages), then
 /// "While Recording" (live speaker labels), "After Recording" (the post-stop pass in its order: transcription,
-/// speaker identification, summaries, smart corrections) and "Vocabulary". Each model has a detail page with its
+/// speaker identification, summaries, smart corrections), "Vocabulary" and "Reading" (the transcript's typeface). Each model has a detail page with its
 /// explanation, download and options; the main page shows only the outcome as the row's value ("Parakeet",
 /// "Downloading 40 %", "Apple Intelligence"), and every footer is one line. The model comparison (E4B, Qwen) is a
 /// Developer section in DEBUG builds only. Everything applies from the next recording.
@@ -17,6 +17,7 @@ struct SettingsView: View {
     /// Smart Corrections run on the local model: downloaded under Summaries (not on the simulator).
     private var correctionsAvailable: Bool { BetterSummaries.isSupported && services.betterSummaries.state == .ready }
     @AppStorage(AppServices.liveSpeakerLabelsKey) private var liveSpeakerLabels = true
+    @AppStorage(TranscriptFont.key) private var typeface = TranscriptFont.standard
     @State private var path = NavigationPath()          // untyped: People pushes Person values too
 
     var body: some View {
@@ -84,6 +85,24 @@ struct SettingsView: View {
                     Text("Vocabulary")
                 } footer: {
                     Text("Names and terms the transcription often gets wrong.")
+                }
+
+                // Each typeface's name in that typeface: the choice shows itself (a menu picker can't draw a custom
+                // font, so the options are rows with a checkmark).
+                Section {
+                    Picker("Transcript Font", selection: $typeface) {
+                        ForEach(TranscriptFont.allCases) { option in
+                            Text(option.name)
+                                .font(option.font(.body))
+                                .tag(option)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                } header: {
+                    Text("Reading")
+                } footer: {
+                    Text("For the transcript and its summary. Libron by Nico Verbruggen, SIL Open Font License.")
                 }
 
                 #if DEBUG

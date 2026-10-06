@@ -9,6 +9,7 @@ struct SummaryInProgress: View {
 
     @Environment(AppServices.self) private var services
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage(TranscriptFont.key) private var typeface = TranscriptFont.standard
     @State private var births: [Date] = []           // when each word first appeared
 
     /// Read here, not in the detail view: every streamed piece re-evaluates only this view, not the transcript.
@@ -22,8 +23,7 @@ struct SummaryInProgress: View {
                 streamed
             }
         }
-        .font(.subheadline)
-        .fontDesign(.serif)                               // as the summary it becomes (SummaryText)
+        .font(typeface.font(.subheadline))                // as the summary it becomes (SummaryText)
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.snappy, value: partial.isEmpty)
         .onChange(of: partial, initial: true) { _, text in
