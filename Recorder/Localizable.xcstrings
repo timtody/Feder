@@ -211,16 +211,6 @@
         }
       }
     },
-    "After Recording": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nach der Aufnahme"
-          }
-        }
-      }
-    },
     "Already in this transcript": {
       "localizations": {
         "de": {
@@ -340,16 +330,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Schließen"
-          }
-        }
-      }
-    },
-    "Consulting & Banking Terms": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Beratungs- und Bankbegriffe"
           }
         }
       }
@@ -534,16 +514,6 @@
         }
       }
     },
-    "Each recording is transcribed again more accurately after you stop.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Jede Aufnahme wird nach dem Stoppen noch einmal genauer transkribiert."
-          }
-        }
-      }
-    },
     "Each recording is transcribed again on this iPhone after you stop. Apple Speech needs no download; Parakeet is more accurate for German and other European languages and needs a one-time 610 MB download.": {
       "localizations": {
         "de": {
@@ -710,6 +680,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sprecher live anzeigen"
+          }
+        }
+      }
+    },
+    "Live Speaker Labels show who is speaking as you record. After you stop, each recording is transcribed again and its speakers are identified more accurately.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„Sprecher live anzeigen“ zeigt beim Aufnehmen, wer spricht. Nach dem Stoppen wird jede Aufnahme noch einmal genauer transkribiert, und die Sprecher werden genauer erkannt."
           }
         }
       }
@@ -1193,16 +1173,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zeigt nur die ersten Zeilen."
-          }
-        }
-      }
-    },
-    "Shows who is speaking as you record. Speakers are identified again, more accurately, after you stop.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zeigt beim Aufnehmen, wer spricht. Nach dem Stoppen werden die Sprecher noch einmal genauer erkannt."
           }
         }
       }
@@ -1713,16 +1683,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Wartet auf WLAN …"
-          }
-        }
-      }
-    },
-    "While Recording": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Während der Aufnahme"
           }
         }
       }

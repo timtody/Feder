@@ -41,14 +41,19 @@ final class TranscriptListTests: ScribeUITestCase {
         XCTAssertLessThan(settings.frame.minY, 120, "at the top at rest: \(settings.frame)")
         XCTAssertFalse(app.navigationBars.staticTexts["Settings"].exists, "no navigation bar title")
         shot("Settings at rest", app)
-        let rest = settings.frame
-        app.swipeUp()
-        // Since the October 2026 cleanup (no font, Smart Corrections or Developer rows) the form is only a little taller
-        // than an iPhone 17's screen, so the heading may stop just below the status bar instead of leaving it: what
-        // matters is that it moves with the form (a navigation bar title would stay).
-        XCTAssertTrue(scrolledAway(settings, app) || settings.frame.minY < rest.minY - 30,
-                      "the heading scrolls with the form: \(rest) -> \(settings.frame)")
-        shot("Settings scrolled", app)
+        // Since the Recording sections were merged (October 2026) the form fits an iPhone 17 Pro's screen at the
+        // default text size and doesn't scroll at all. At a large text size it does, and the heading must move with it
+        // (a navigation bar title would stay).
+        app.terminate()
+        let large = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityM"])
+        large.buttons["Settings"].firstMatch.tap()
+        let largeHeading = large.collectionViews.staticTexts["Settings"]
+        XCTAssertTrue(largeHeading.waitForExistence(timeout: 5), "the Settings heading at a large text size")
+        let rest = largeHeading.frame
+        large.swipeUp()
+        XCTAssertTrue(scrolledAway(largeHeading, large) || largeHeading.frame.minY < rest.minY - 30,
+                      "the heading scrolls with the form: \(rest) -> \(largeHeading.frame)")
+        shot("Settings scrolled, large text", large)
     }
 
     /// Gone, or above the top safe area (under the status bar), once the scroll settles.

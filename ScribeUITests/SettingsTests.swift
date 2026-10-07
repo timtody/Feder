@@ -83,24 +83,31 @@ final class SettingsTests: ScribeUITestCase {
         shot("Transcripts in German", app)
         app.buttons["Einstellungen"].firstMatch.tap()
         XCTAssertTrue(app.switches["Sprecher live anzeigen"].waitForExistence(timeout: 5), "Settings in German")
-        XCTAssertTrue(app.staticTexts["Nach der Aufnahme"].exists)
+        XCTAssertTrue(app.staticTexts["Aufnahme"].exists, "the Recording section's header")
         shot("Settings in German", app)
     }
 
     /// The October 2026 cleanup: no font choice, Smart Corrections or Developer section. Transcription is Apple Speech by
     /// default, and Parakeet is an optional download named with its size (not tapped: it would fetch 610 MB), not in
-    /// the picker until it is there. The Consulting & Banking Terms toggle is on the main page only, not under Your Words.
+    /// the picker until it is there. One "Recording" section (Live Speaker Labels, then the post-stop models) instead of
+    /// "While Recording" and "After Recording"; no Consulting & Banking Terms (off for the launch), here or under Your Words.
     @MainActor
     func testSettingsAfterCleanup() throws {
         let app = launch()
         app.buttons["Settings"].firstMatch.tap()
         let transcription = app.buttons["Transcription"].firstMatch
         XCTAssertTrue(transcription.waitForExistence(timeout: 5), "the Transcription row")
-        for gone in ["Smart Corrections", "Reading", "Developer", "New York", "Libron", "Local Model"] {
+        for gone in ["Smart Corrections", "Reading", "Developer", "New York", "Libron", "Local Model",
+                     "Consulting & Banking Terms", "While Recording", "After Recording"] {
             XCTAssertFalse(app.descendants(matching: .any)[gone].exists, "\(gone) is gone")
         }
         XCTAssertTrue(transcription.label.contains("Apple Speech"), "Apple Speech by default: \(transcription.label)")
-        XCTAssertTrue(app.switches["Consulting & Banking Terms"].exists, "the built-in terms toggle on the main page")
+        let header = app.staticTexts["Recording"].firstMatch
+        let labels = app.switches["Live Speaker Labels"].firstMatch
+        XCTAssertTrue(header.exists && labels.exists, "one Recording section with Live Speaker Labels")
+        XCTAssertLessThanOrEqual(header.frame.maxY, labels.frame.minY + 1, "the header above the switch")
+        XCTAssertLessThanOrEqual(labels.frame.maxY, transcription.frame.minY + 1, "while recording first, then after")
+        XCTAssertLessThan(transcription.frame.minY - labels.frame.maxY, 20, "in the same section, no header between")
         shot("Settings", app)
 
         transcription.tap()
@@ -115,11 +122,11 @@ final class SettingsTests: ScribeUITestCase {
         for _ in 0..<3 where !yourWords.isHittable { app.swipeUp() }
         yourWords.tap()
         XCTAssertTrue(app.textFields["Add a word or name"].waitForExistence(timeout: 5), "the Your Words page")
-        XCTAssertFalse(app.switches["Consulting & Banking Terms"].exists, "not repeated under Your Words")
+        XCTAssertFalse(app.switches["Consulting & Banking Terms"].exists, "not under Your Words either")
         shot("Your Words", app)
     }
 
-    /// Settings › After Recording › Summaries: only Gemma writes titles and summaries. Without it (the simulator has no
+    /// Settings › Recording › Summaries: only Gemma writes titles and summaries. Without it (the simulator has no
     /// MLX GPU) the row says "Not available" and the page explains that it needs an 8 GB iPhone; with `-fakeGemma` the
     /// row names Gemma and the page has the switch.
     @MainActor
@@ -127,7 +134,7 @@ final class SettingsTests: ScribeUITestCase {
         var app = launch()
         app.buttons["Settings"].firstMatch.tap()
         var row = app.buttons["Summaries"].firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "the Summaries row under After Recording")
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "the Summaries row under Recording")
         XCTAssertTrue(row.label.contains("Not available"), "no Gemma on the simulator: \(row.label)")
         row.tap()
         let footer = app.staticTexts["Automatic titles and summaries need an iPhone with 8 GB of memory (iPhone 17 or later)."]

@@ -3,8 +3,9 @@ import SwiftData
 
 /// Settings (a tab; its heading scrolls away with the form, no navigation-bar title). Grouped by what the user is
 /// doing, not by the pipeline's modules: People first and alone (a list you maintain, used in both stages), then
-/// "While Recording" (live speaker labels), "After Recording" (the post-stop pass in its order: transcription,
-/// speaker identification, summaries) and "Vocabulary". Each model has a detail page with its
+/// "Recording" (in the order they happen: live speaker labels while recording, then the post-stop pass: transcription,
+/// speaker identification, summaries; split into "While Recording" and "After Recording" until October 2026, a divide
+/// with one switch on one side that didn't help) and "Vocabulary". Each model has a detail page with its
 /// explanation, download and options; the main page shows only the outcome as the row's value ("Parakeet",
 /// "Downloading 40 %", "Not downloaded"), and every footer is one line. Everything applies from the next recording.
 struct SettingsView: View {
@@ -40,13 +41,6 @@ struct SettingsView: View {
 
                 Section {
                     Toggle("Live Speaker Labels", isOn: $liveSpeakerLabels)
-                } header: {
-                    Text("While Recording")
-                } footer: {
-                    Text("Shows who is speaking as you record. Speakers are identified again, more accurately, after you stop.")
-                }
-
-                Section {
                     NavigationLink(value: SettingsRoute.transcription) {
                         LabeledContent("Transcription", value: transcriptionValue)
                     }
@@ -60,16 +54,15 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("Summaries")
                 } header: {
-                    Text("After Recording")
+                    Text("Recording")
                 } footer: {
-                    Text("Each recording is transcribed again more accurately after you stop.")
+                    Text("Live Speaker Labels show who is speaking as you record. After you stop, each recording is transcribed again and its speakers are identified more accurately.")
                 }
 
                 Section {
                     NavigationLink(value: SettingsRoute.vocabulary) {
                         LabeledContent("Your Words", value: Vocabulary.custom.isEmpty ? "" : "\(Vocabulary.custom.count)")
                     }
-                    Toggle("Consulting & Banking Terms", isOn: usesBuiltIn)
                 } header: {
                     Text("Vocabulary")
                 } footer: {
@@ -99,10 +92,6 @@ struct SettingsView: View {
                 if on { Task { await services.prepareLiveDiarizer() } }   // applies from the next recording
             }
         }
-    }
-
-    private var usesBuiltIn: Binding<Bool> {
-        Binding(get: { Vocabulary.usesBuiltIn }, set: { Vocabulary.usesBuiltIn = $0 })
     }
 
     /// The engine that runs (Parakeet only once downloaded and chosen), or the download's progress.
@@ -275,8 +264,7 @@ struct SummariesModelView: View {
     }
 }
 
-/// Settings › Your Words: the user's vocabulary, one word per row, swipe to delete, a field to add. The built-in terms
-/// are the Consulting & Banking Terms toggle on the main Settings page (it was here too, twice in two screens).
+/// Settings › Your Words: the user's vocabulary, one word per row, swipe to delete, a field to add.
 struct VocabularyView: View {
     @State private var words = Vocabulary.custom
     @State private var draft = ""

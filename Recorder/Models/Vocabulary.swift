@@ -1,11 +1,12 @@
 import Foundation
 
-/// Words the speech recognizer should expect (Apple's contextual strings): the user's own words plus, optionally, a
-/// built-in list of German consulting, banking and finance terms. Used by the vocabulary pass after Stop
-/// (SpeechFileTranscriber), not by the live transcriber. Stored in UserDefaults; changes apply from the next recording.
+/// Words the speech recognizer should expect (Apple's contextual strings): the user's own words. Used by the vocabulary
+/// pass after Stop (SpeechFileTranscriber), not by the live transcriber. Stored in UserDefaults; changes apply from the
+/// next recording. The built-in German consulting and banking terms (`builtIn`, the "Consulting & Banking Terms" switch
+/// in Settings) are off for the App Store launch (October 2026): a list for one trade doesn't fit a general app. Kept
+/// for a later, optional word pack; a stored `vocabularyUseBuiltIn` is ignored meanwhile.
 nonisolated enum Vocabulary {
     static let customKey = "vocabularyCustom"          // [String], the user's words in the order they were added
-    static let builtInKey = "vocabularyUseBuiltIn"     // Bool, absent means on
 
     /// Apple gives no hard limit for contextual strings; very long lists dilute the bias, so the total is capped.
     /// The user's own words always come first.
@@ -16,15 +17,10 @@ nonisolated enum Vocabulary {
         set { UserDefaults.standard.set(newValue, forKey: customKey) }
     }
 
-    static var usesBuiltIn: Bool {
-        get { UserDefaults.standard.object(forKey: builtInKey) as? Bool ?? true }
-        set { UserDefaults.standard.set(newValue, forKey: builtInKey) }
-    }
-
-    /// What goes to the recognizer: custom words, then the built-in terms, without duplicates, capped.
+    /// What goes to the recognizer: the user's words without duplicates, capped.
     static var current: [String] {
         var seen = Set<String>()
-        return (custom + (usesBuiltIn ? builtIn : []))
+        return custom
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
             .prefix(maximumCount)
