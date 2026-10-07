@@ -25,6 +25,9 @@ final class SpeakerIdentifier {
     private(set) var inFlight: Set<UUID> = []        // Recording.ids queued or being identified (or getting new voices)
     /// The steps after Stop per transcript in flight (the card's status row); dropped shortly after the last step.
     private(set) var progress: [UUID: PipelineProgress] = [:]
+    /// The speaker model is still being prepared (AppServices.prewarmModels: after a new build iOS compiles it for the
+    /// Neural Engine again, about 35 s on an iPhone 17): a speakers step waits for it, and the card says so.
+    var isPreparingSpeakerModel = false
     /// Words a pass just replaced, per transcript, for a few seconds (the card flashes them).
     private(set) var recentChanges: [UUID: [WordChange]] = [:]
     /// The summary as the model writes it, per transcript, until it is saved.

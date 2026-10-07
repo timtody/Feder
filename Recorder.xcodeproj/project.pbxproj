@@ -12,6 +12,7 @@
 		2A56270AD1816BDD640A4854 /* SummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5864C5737E1A73204C68C61 /* SummaryTests.swift */; };
 		379E55B6F6D2FC5C25580291 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 8B6605A6E71DAC28C11A6736 /* MLXLLM */; };
 		5DA165C65B82BD2FDCC77184 /* TranscriptListTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD49FF381B0530C8297D2E4 /* TranscriptListTests.swift */; };
+		6A0E34B4405D331458A53253 /* SpeakerModelPrewarmTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C47DC3D3045444F493063CD3 /* SpeakerModelPrewarmTests.swift */; };
 		9842882BB124165D5F36A048 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 4BF152A52DD140039F8897C1 /* MLX */; };
 		ACE3A2F03E31206AE3CA1D0A /* TagEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6061ACE8B763190CD40341F /* TagEditorTests.swift */; };
 		B1FB85133BB65085CC0C8494 /* TranscriptionLanguageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3914E00B46027D3444C29616 /* TranscriptionLanguageTests.swift */; };
@@ -40,6 +41,7 @@
 		3FE0FEEB768611208CA19668 /* SpeakerNamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerNamingTests.swift; sourceTree = "<group>"; };
 		5FD49FF381B0530C8297D2E4 /* TranscriptListTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptListTests.swift; sourceTree = "<group>"; };
 		B5E5334822ED139DB77164FF /* ScribeUITestCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScribeUITestCase.swift; sourceTree = "<group>"; };
+		C47DC3D3045444F493063CD3 /* SpeakerModelPrewarmTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerModelPrewarmTests.swift; sourceTree = "<group>"; };
 		C7F19636A7502AD131706A5F /* SearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchTests.swift; sourceTree = "<group>"; };
 		E198C3CAE095A97FBBB1C7B1 /* Recorder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Recorder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E6061ACE8B763190CD40341F /* TagEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagEditorTests.swift; sourceTree = "<group>"; };
@@ -104,6 +106,7 @@
 				B5E5334822ED139DB77164FF /* ScribeUITestCase.swift */,
 				C7F19636A7502AD131706A5F /* SearchTests.swift */,
 				34990786B63747A3152C8DA7 /* SettingsTests.swift */,
+				C47DC3D3045444F493063CD3 /* SpeakerModelPrewarmTests.swift */,
 				3FE0FEEB768611208CA19668 /* SpeakerNamingTests.swift */,
 				F5864C5737E1A73204C68C61 /* SummaryTests.swift */,
 				E6061ACE8B763190CD40341F /* TagEditorTests.swift */,
@@ -235,6 +238,7 @@
 				B739DD0671E8E7B2825F900A /* ScribeUITestCase.swift in Sources */,
 				C52AA21891D8870AA04AFDE1 /* SearchTests.swift in Sources */,
 				E1032F5173E6FFC4C1C6878F /* SettingsTests.swift in Sources */,
+				6A0E34B4405D331458A53253 /* SpeakerModelPrewarmTests.swift in Sources */,
 				EB3C3FFDA4851C15F84E8FE6 /* SpeakerNamingTests.swift in Sources */,
 				2A56270AD1816BDD640A4854 /* SummaryTests.swift in Sources */,
 				ACE3A2F03E31206AE3CA1D0A /* TagEditorTests.swift in Sources */,

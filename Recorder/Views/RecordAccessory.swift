@@ -14,6 +14,7 @@ struct RecordAccessory: View {
     @Binding var isInline: Bool
 
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
+    @Environment(AppServices.self) private var services
     @State private var presses = 0                     // Transcribe and Stop: the haptic comes with the press
     /// TranscriptionLanguage.key: the next recording's language, "" = the phone's.
     @AppStorage(TranscriptionLanguage.key) private var language = ""
@@ -61,9 +62,16 @@ struct RecordAccessory: View {
                         Text("Transcribe")
                             .font(.subheadline.weight(.semibold))
                         if !inline {
-                            Text("\(TranscriptionLanguage.name(locale)) · On device")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            if services.identifier.isPreparingSpeakerModel {
+                                // After a new build or update the speaker model is compiled at launch (about 35 s):
+                                // said here, where it is seen without a recording, as the status line says it after Stop.
+                                ShimmerText(text: "Preparing speaker model…")
+                                    .font(.caption)
+                            } else {
+                                Text("\(TranscriptionLanguage.name(locale)) · On device")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                     .lineLimit(1)

@@ -67,15 +67,32 @@ final class AppServices {
     /// at launch by SpeakerIdentifier.prepareAndRetryPending). Without this the first recording after a build waited
     /// minutes for its speakers. Utility priority; downloads nothing. (Parakeet, about 14 s the first time, is left
     /// alone: it is optional and the fallback at most.)
+    /// While it runs, `identifier.isPreparingSpeakerModel` is set, so a recording stopped meanwhile says "Preparing
+    /// speaker model…" instead of an unexplained long "Refining speakers…".
     func prewarmModels() {
-        guard !usesFakes, !prewarmed else { return }
+        guard !prewarmed else { return }
         prewarmed = true
+        #if DEBUG
+        // QA (simulator): `-fakeSpeakerModelSeconds <s>` pretends the speaker model takes that long to prepare.
+        let fake = UserDefaults.standard.double(forKey: "fakeSpeakerModelSeconds")
+        if usesFakes, fake > 0 {
+            identifier.isPreparingSpeakerModel = true
+            Task { [identifier] in
+                try? await Task.sleep(for: .seconds(fake))
+                identifier.isPreparingSpeakerModel = false
+            }
+            return
+        }
+        #endif
+        guard !usesFakes, NemotronDiarizer.isDownloaded else { return }
         let nemotron = nemotronDiarizer
-        Task.detached(priority: .utility) {
+        identifier.isPreparingSpeakerModel = true
+        Task { [identifier] in
             #if DEBUG
             let start = ContinuousClock.now
             #endif
-            await nemotron.prewarm()
+            await Task.detached(priority: .utility) { await nemotron.prewarm() }.value
+            identifier.isPreparingSpeakerModel = false
             #if DEBUG
             print("[Scribe] prewarm: Nemotron after \(ContinuousClock.now - start)")
             #endif
