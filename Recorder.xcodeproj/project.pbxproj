@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		02CD8C4FECB1072974082C3B /* ResponsivenessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D9844FE4177FE163F4856E7 /* ResponsivenessTests.swift */; };
+		196D9B1D9C1FC93B2D97EAC5 /* GemmaDownloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0960C3DA36C230C1F4975E37 /* GemmaDownloadTests.swift */; };
 		1C553266EE103103B03AF64B /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = 0F1CBAC905522385F14CAD16 /* Tokenizers */; };
 		2A56270AD1816BDD640A4854 /* SummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5864C5737E1A73204C68C61 /* SummaryTests.swift */; };
 		379E55B6F6D2FC5C25580291 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 8B6605A6E71DAC28C11A6736 /* MLXLLM */; };
@@ -35,6 +36,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0960C3DA36C230C1F4975E37 /* GemmaDownloadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GemmaDownloadTests.swift; sourceTree = "<group>"; };
 		1D9844FE4177FE163F4856E7 /* ResponsivenessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponsivenessTests.swift; sourceTree = "<group>"; };
 		34990786B63747A3152C8DA7 /* SettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTests.swift; sourceTree = "<group>"; };
 		3914E00B46027D3444C29616 /* TranscriptionLanguageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionLanguageTests.swift; sourceTree = "<group>"; };
@@ -102,6 +104,7 @@
 		450F05D8F32855007DA5CC69 /* ScribeUITests */ = {
 			isa = PBXGroup;
 			children = (
+				0960C3DA36C230C1F4975E37 /* GemmaDownloadTests.swift */,
 				1D9844FE4177FE163F4856E7 /* ResponsivenessTests.swift */,
 				B5E5334822ED139DB77164FF /* ScribeUITestCase.swift */,
 				C7F19636A7502AD131706A5F /* SearchTests.swift */,
@@ -234,6 +237,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				196D9B1D9C1FC93B2D97EAC5 /* GemmaDownloadTests.swift in Sources */,
 				02CD8C4FECB1072974082C3B /* ResponsivenessTests.swift in Sources */,
 				B739DD0671E8E7B2825F900A /* ScribeUITestCase.swift in Sources */,
 				C52AA21891D8870AA04AFDE1 /* SearchTests.swift in Sources */,

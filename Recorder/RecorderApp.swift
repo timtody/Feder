@@ -1,9 +1,11 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 @main
 struct RecorderApp: App {
     @Environment(\.scenePhase) private var scenePhase
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var services: AppServices
 
     init() {
@@ -47,5 +49,16 @@ struct RecorderApp: App {
                 }
         }
         .modelContainer(services.container)
+    }
+}
+
+/// Only for Gemma's background download (GemmaDownload): iOS launches or wakes Feder when its transfers have finished
+/// while the app was suspended or not running, and wants a call back once their events are handled.
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String,
+                     completionHandler: @escaping () -> Void) {
+        guard identifier == GemmaDownload.sessionIdentifier else { return completionHandler() }
+        nonisolated(unsafe) let completion = completionHandler    // UIKit's handler; called on the main queue
+        GemmaDownload.shared.handleBackgroundEvents { completion() }
     }
 }

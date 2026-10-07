@@ -1,13 +1,15 @@
 import Foundation
+import Network
 import Observation
 import UIKit
 
-/// "Better Summaries" (Settings): Gemma 4 E2B (`LocalLanguageModel`) writes the titles and summaries instead of Apple's
-/// model. Owns the model's one-time download (3.6 GB, only when the user taps it: pinned files from Hugging Face into
-/// Application Support, excluded from backups), the on/off setting, deleting it, and running it: only while the app is
-/// in the foreground, because iOS does not let apps use the GPU in the background (a request is stopped when the app
-/// resigns active and tried again on the next return, see `run`). The weights (about 3.7 GB of memory) are freed after a
-/// minute without requests and when a recording starts.
+/// Gemma 4 E2B (`LocalLanguageModel`), the only writer of titles and summaries (TranscriptTitler). Owns the model's
+/// one-time download (3.6 GB, only when the user asks for it in the onboarding sheet or Settings: pinned files from
+/// Hugging Face into Application Support, excluded from backups; a background transfer over Wi-Fi, see GemmaDownload),
+/// the on/off setting, deleting it, and running it: only while the app is in the foreground, because iOS does not let
+/// apps use the GPU in the background (a request is stopped when the app resigns active and tried again on the next
+/// return, see `run`). The weights (about 3.7 GB of memory) are freed after a minute without requests and when a
+/// recording starts.
 @MainActor @Observable
 final class BetterSummaries {
     /// UserDefaults key of the toggle; absent means on (once downloaded).
@@ -46,7 +48,12 @@ final class BetterSummaries {
     /// Called when the model becomes usable (downloaded, or turned on): AppServices starts the re-describe sweep.
     @ObservationIgnored var onBecameActive: (() -> Void)?
 
-    @ObservationIgnored private var downloadTask: Task<Void, Never>?
+    /// Bytes of the download so far (also while it waits for Wi-Fi, so the bar resumes where it was).
+    private(set) var downloadedFraction: Double = 0
+    @ObservationIgnored private var pathMonitor: NWPathMonitor?
+    #if DEBUG
+    @ObservationIgnored private var fakeDownload: Task<Void, Never>?
+    #endif
     @ObservationIgnored private var cancelRunning: (() -> Void)?   // stops the request in flight
     @ObservationIgnored private var unloadTask: Task<Void, Never>?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
@@ -90,6 +97,16 @@ final class BetterSummaries {
             model = FakeTextWriter()
         }
         #endif
+        GemmaDownload.shared.setHandler { [weak self] event in
+            Task { @MainActor in self?.handle(event) }
+        }
+        // Asked for earlier and not complete: the transfer goes on in the background (or is started again after a
+        // force-quit, from its resume data); show it.
+        if Self.isSupported, state != .ready, GemmaDownload.isWanted, !Self.usesFakeDownload {
+            states[variant] = .downloading(0)
+            watchNetwork()
+            GemmaDownload.shared.start()
+        }
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: UIApplication.willResignActiveNotification, object: nil,
                                             queue: .main) { [weak self] _ in
@@ -151,129 +168,125 @@ final class BetterSummaries {
 
     // MARK: Download
 
-    /// "Download Gemma 4 E2B": the pinned files, one after another, each into a temporary file first; a
-    /// file already complete from an earlier, interrupted download is kept.
+    /// Free space Gemma needs: its files plus room for the moment a finished file is moved in.
+    nonisolated static let neededBytes: Int64 = 4_000_000_000
+
+    /// "Download Gemma 4 E2B" (Settings, onboarding): starts the background transfer, which waits for Wi-Fi.
     func download() {
-        guard Self.isSupported, downloadTask == nil else { return }
-        let build = variant
+        guard Self.isSupported else { return }
         switch state {
-        case .ready, .downloading: return
-        case .notDownloaded, .waitingForWiFi, .failed: break
+        case .ready, .downloading, .waitingForWiFi: return
+        case .notDownloaded, .failed: break
         }
-        states[build] = .downloading(0)
-        UIApplication.shared.isIdleTimerDisabled = true      // auto-lock would suspend the app and fail the gigabytes
-        downloadTask = Task {
-            do {
-                try await Self.fetchFiles(build) { fraction in
-                    Task { @MainActor in
-                        if let next = self.states[build]?.advanced(to: fraction) { self.states[build] = next }
-                    }
-                }
-                states[build] = .ready
-                if build == variant {
-                    model = LocalLanguageModel(variant: build, directory: Self.modelDirectory(build))
-                    if isEnabled { onBecameActive?() }
-                }
-            } catch let error as URLError where error.code == .cancelled {
-                states[build] = .notDownloaded
-            } catch is CancellationError {
-                states[build] = .notDownloaded
-            } catch {
-                states[build] = .failed(error.localizedDescription)
+        let free = (try? URL.applicationSupportDirectory.deletingLastPathComponent()
+            .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage) ?? .max
+        guard free >= Self.neededBytes else {
+            states[variant] = .failed("Gemma needs 4 GB of free storage on this iPhone.")
+            return
+        }
+        states[variant] = .downloading(downloadedFraction)
+        #if DEBUG
+        if Self.usesFakeDownload { return startFakeDownload() }
+        #endif
+        watchNetwork()
+        GemmaDownload.shared.start()
+    }
+
+    /// GemmaDownload's events, on the main actor.
+    private func handle(_ event: GemmaDownload.Event) {
+        switch event {
+        case .progress(let bytes):
+            downloadedFraction = min(1, Double(bytes) / Double(variant.downloadBytes))
+            if case .downloading(let shown) = state, downloadedFraction - shown >= 0.005 {
+                states[variant] = .downloading(downloadedFraction)
             }
-            downloadTask = nil
-            UIApplication.shared.isIdleTimerDisabled = false
+        case .finished:
+            finishDownload()
+        case .failed(let reason):
+            guard state != .ready else { return }
+            stopWatchingNetwork()
+            states[variant] = .failed(reason)
         }
     }
 
+    private func finishDownload() {
+        stopWatchingNetwork()
+        downloadedFraction = 1
+        states[variant] = .ready
+        #if DEBUG && targetEnvironment(simulator)
+        model = FakeTextWriter()
+        #else
+        model = LocalLanguageModel(variant: variant, directory: Self.modelDirectory(variant))
+        #endif
+        if isEnabled { onBecameActive?() }
+    }
+
+    /// "Waiting for Wi-Fi" while the path is not Wi-Fi (or Ethernet) without Low Data Mode: the background session
+    /// would not move a byte there. Only while a download is wanted.
+    private func watchNetwork() {
+        guard pathMonitor == nil else { return }
+        let monitor = NWPathMonitor()
+        monitor.pathUpdateHandler = { [weak self] path in
+            let wifi = path.status == .satisfied && !path.isExpensive && !path.isConstrained
+            Task { @MainActor in self?.setWiFi(wifi) }
+        }
+        monitor.start(queue: DispatchQueue(label: "Feder.gemma.network"))
+        pathMonitor = monitor
+    }
+
+    private func stopWatchingNetwork() {
+        pathMonitor?.cancel()
+        pathMonitor = nil
+    }
+
+    private func setWiFi(_ wifi: Bool) {
+        switch state {
+        case .downloading where !wifi: states[variant] = .waitingForWiFi
+        case .waitingForWiFi where wifi: states[variant] = .downloading(downloadedFraction)
+        default: break
+        }
+    }
+
+    /// DEBUG on the simulator: `-fakeGemmaDownload` stands in for the transfer (`-fakeGemmaDownloadSeconds`, default
+    /// 8, from 0 to 100 %), `-fakeNoWiFi` keeps it waiting for Wi-Fi.
+    private static var usesFakeDownload: Bool {
+        #if DEBUG && targetEnvironment(simulator)
+        ProcessInfo.processInfo.arguments.contains("-fakeGemmaDownload")
+        #else
+        false
+        #endif
+    }
+
+    #if DEBUG
+    private func startFakeDownload() {
+        if ProcessInfo.processInfo.arguments.contains("-fakeNoWiFi") {
+            states[variant] = .waitingForWiFi
+            return
+        }
+        let seconds = UserDefaults.standard.double(forKey: "fakeGemmaDownloadSeconds")
+        let duration = seconds > 0 ? seconds : 8
+        fakeDownload = Task { [weak self] in
+            for step in 1...100 {
+                try? await Task.sleep(for: .seconds(duration / 100))
+                guard let self, !Task.isCancelled else { return }
+                self.handle(.progress(self.variant.downloadBytes * Int64(step) / 100))
+            }
+            self?.finishDownload()
+        }
+    }
+    #endif
+
     /// Removes the chosen build's files (all revisions) and frees the memory. Summaries it wrote stay.
     func delete() async {
-        downloadTask?.cancel()
+        GemmaDownload.shared.cancel()
+        stopWatchingNetwork()
+        downloadedFraction = 0
+        #if DEBUG
+        fakeDownload?.cancel()
+        #endif
         await unload()
         model = nil
         try? FileManager.default.removeItem(at: Self.modelDirectory(variant).deletingLastPathComponent())
         states[variant] = .notDownloaded
-    }
-
-    private nonisolated static func fetchFiles(_ variant: LocalLanguageModel.Variant,
-                                               progress: @escaping @Sendable (Double) -> Void) async throws {
-        let directory = modelDirectory(variant)
-        let fileManager = FileManager.default
-        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        var models = directory.deletingLastPathComponent().deletingLastPathComponent()   // …/Models: no iCloud backup
-        var values = URLResourceValues()
-        values.isExcludedFromBackup = true
-        try? models.setResourceValues(values)
-
-        let total = Double(variant.downloadBytes)
-        var done: Int64 = 0
-        for name in variant.files {
-            let target = directory.appending(path: name)
-            if fileManager.fileExists(atPath: target.path(percentEncoded: false)) {
-                done += (try? fileManager.attributesOfItem(atPath: target.path(percentEncoded: false))[.size] as? Int64) ?? 0
-                continue
-            }
-            let url = URL(string: "https://huggingface.co/\(variant.repository)/resolve/\(variant.revision)/\(name)")!
-            let before = done
-            let temporary = try await FileDownload.run(url) { written in progress(min(1, Double(before + written) / total)) }
-            try fileManager.moveItem(at: temporary, to: target)
-            done += (try? fileManager.attributesOfItem(atPath: target.path(percentEncoded: false))[.size] as? Int64) ?? 0
-            progress(min(1, Double(done) / total))
-        }
-    }
-
-    /// One file, with progress: a session whose delegate gets `didWriteData` (the async `download(from:delegate:)` does
-    /// not report progress to a task delegate). Cancelling the Swift task cancels the download.
-    nonisolated private final class FileDownload: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
-        private let report: @Sendable (Int64) -> Void
-        private var continuation: CheckedContinuation<URL, any Error>?
-        private let lock = NSLock()
-
-        private init(report: @escaping @Sendable (Int64) -> Void) { self.report = report }
-
-        static func run(_ url: URL, progress: @escaping @Sendable (Int64) -> Void) async throws -> URL {
-            let download = FileDownload(report: progress)
-            let session = URLSession(configuration: .default, delegate: download, delegateQueue: nil)
-            defer { session.finishTasksAndInvalidate() }
-            let task = session.downloadTask(with: url)
-            return try await withTaskCancellationHandler {
-                try await withCheckedThrowingContinuation { continuation in
-                    download.lock.withLock { download.continuation = continuation }
-                    task.resume()
-                }
-            } onCancel: { task.cancel() }
-        }
-
-        private func finish(_ result: Result<URL, any Error>) {
-            let continuation = lock.withLock { () -> CheckedContinuation<URL, any Error>? in
-                defer { self.continuation = nil }
-                return self.continuation
-            }
-            continuation?.resume(with: result)
-        }
-
-        func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64,
-                        totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-            report(totalBytesWritten)
-        }
-
-        func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-            guard let http = downloadTask.response as? HTTPURLResponse, http.statusCode == 200 else {
-                finish(.failure(URLError(.badServerResponse)))
-                return
-            }
-            // The file at `location` is deleted when this returns: move it somewhere of ours first.
-            let kept = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-            do {
-                try FileManager.default.moveItem(at: location, to: kept)
-                finish(.success(kept))
-            } catch {
-                finish(.failure(error))
-            }
-        }
-
-        func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
-            if let error { finish(.failure(error)) }
-        }
     }
 }

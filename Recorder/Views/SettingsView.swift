@@ -117,6 +117,7 @@ struct SettingsView: View {
         let better = services.betterSummaries
         guard BetterSummaries.isSupported else { return "Not available" }
         if better.state == .ready { return better.isEnabled ? better.variant.displayName : "Off" }
+        if better.state == .waitingForWiFi { return "Waiting for Wi-Fi" }
         return Self.value(better.state, ready: better.variant.displayName, missing: "Not downloaded")
     }
 
@@ -134,8 +135,8 @@ struct SettingsView: View {
 }
 
 /// A downloadable model's row: downloaded, progress, "Download <name> (<size>)" or the failure with "Try Again". Every
-/// state names the model: a bare "Download Now" under "Model: Apple Intelligence" read as if Apple's model were being
-/// downloaded.
+/// state names the model: a bare "Download Now" under "Model: Apple Intelligence" (before October 2026) read as if
+/// Apple's model were being downloaded.
 struct ModelDownloadRow: View {
     let name: String
     let state: ModelDownloadState
@@ -242,8 +243,21 @@ struct SummariesModelView: View {
                         Button("Delete \(better.variant.displayName) (\(better.variant.sizeText))", role: .destructive) {
                             Task { await better.delete() }
                         }
+                    } else if better.state == .waitingForWiFi {
+                        // The background download moves no byte off Wi-Fi: it says so instead of a Download button.
+                        ProgressView(value: better.downloadedFraction) {
+                            Text("Waiting for Wi-Fi…")
+                        } currentValueLabel: {
+                            Text("\(better.variant.displayName) downloads when this iPhone is on Wi-Fi.")
+                        }
                     } else {
                         ModelDownloadRow(name: better.variant.displayName, state: better.state, size: better.variant.sizeText) { better.download() }
+                    }
+                    switch better.state {
+                    case .downloading, .waitingForWiFi:
+                        Button("Cancel Download", role: .destructive) { Task { await better.delete() } }
+                    default:
+                        EmptyView()
                     }
                 } else {
                     LabeledContent("Model", value: "Not available")
@@ -252,7 +266,7 @@ struct SummariesModelView: View {
                 Text("Titles and Summaries")
             } footer: {
                 Text(BetterSummaries.isSupported
-                     ? "Google's Gemma 4 E2B writes a title and a short summary of every transcript, on this iPhone: it reads a whole meeting at once and keeps who said what. It needs a one-time 3.6 GB download and works while Feder is open. Existing transcripts get summaries too; titles you typed stay."
+                     ? "Google's Gemma 4 E2B writes a title and a short summary of every transcript, on this iPhone: it reads a whole meeting at once and keeps who said what. It needs a one-time 3.6 GB download over Wi-Fi, which goes on in the background, also when Feder is closed. Existing transcripts get summaries too; titles you typed stay."
                      : "Automatic titles and summaries need an iPhone with 8 GB of memory (iPhone 17 or later).")
             }
         }
