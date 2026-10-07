@@ -1,6 +1,6 @@
-# Scribe → App Store checklist
+# Feder → App Store checklist
 
-Scribe is free; users can tip via In-App Purchase. Implementation items first, in the order to do them; account and listing items after. State of the project when this was written (October 2026): usage descriptions (microphone, location), `UIBackgroundModes: audio`, `ITSAppUsesNonExemptEncryption: false`, the launch screen and the icon are done; no Release build has ever been made.
+Feder is free; users can tip via In-App Purchase. Implementation items first, in the order to do them; account and listing items after. State of the project when this was written (October 2026): usage descriptions (microphone, location), `UIBackgroundModes: audio`, `ITSAppUsesNonExemptEncryption: false`, the launch screen and the icon are done; no Release build has ever been made.
 
 ## 1. Implementation — must-haves
 
@@ -13,9 +13,9 @@ Scribe is free; users can tip via In-App Purchase. Implementation items first, i
 - [ ] **Tip jar (StoreKit 2)** — tips must be In-App Purchases (App Review 3.1.1; no Ko-fi/PayPal links).
   - App Store Connect: three consumables (`tip.small` €0.99, `tip.medium` €2.99, `tip.large` €9.99); a `.storekit` configuration file for local testing.
   - Code: a `TipJar` observable — `Product.products(for:)`, `purchase()`, a `Transaction.updates` listener, `finish()` on verified transactions, a thank-you state; consumables need no restore.
-  - UI: "Support Scribe" row at the bottom of Settings → a page with the three tips (StoreKit's `ProductView`) and one line: "Scribe is free and stays free; a tip helps keep it that way."
+  - UI: "Support Feder" row at the bottom of Settings → a page with the three tips (StoreKit's `ProductView`) and one line: "Feder is free and stays free; a tip helps keep it that way."
   - Needs the Paid Apps agreement, banking and tax forms first (days).
-- [ ] **App Store name**: "Scribe" is almost certainly taken (names are unique). Pick the listing name now, e.g. "Scribe – On-Device Transcripts"; the display name under the icon stays "Scribe"; the bundle id `de.cofinpro.recorder` and `PRODUCT_NAME` never change.
+- [ ] **App Store name**: the app is called Feder (it was Scribe, which five transcription apps already use). "Feder" is free in the transcription category in the German and US stores; check the exact listing name before submitting; the bundle id `de.cofinpro.recorder` and `PRODUCT_NAME` never change.
 - [ ] **Review path**: the reviewer tests with English speech on an unknown device. Verify: Apple Speech path works without any download; the empty state explains the record button; offline is handled (it is); nothing crashes with downloads refused. Review notes: the optional downloads (610 MB / 100 MB / 3.6 GB), German as the primary language, a short demo video link.
 
 ## 2. Implementation — should-haves for 1.0

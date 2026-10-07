@@ -40,7 +40,7 @@ struct SettingsView: View {
                         .padding(.bottom, 8)
                         .accessibilityAddTraits(.isHeader)
                 } footer: {
-                    Text("The voices Scribe knows. Named speakers are recognized in new recordings.")
+                    Text("The voices Feder knows. Named speakers are recognized in new recordings.")
                 }
 
                 Section {
@@ -293,7 +293,7 @@ struct SummariesModelView: View {
                 Text("Titles and Summaries")
             } footer: {
                 Text(BetterSummaries.isSupported
-                     ? "Better Summaries use Google's Gemma 4 E2B on this iPhone instead of Apple Intelligence: it reads a whole meeting at once, keeps who said what, and writes more precise titles and summaries. It needs a one-time 3.6 GB download (keep Scribe open meanwhile) and works while Scribe is open. Existing transcripts get new summaries too; titles you typed stay. Smart Corrections use the same model."
+                     ? "Better Summaries use Google's Gemma 4 E2B on this iPhone instead of Apple Intelligence: it reads a whole meeting at once, keeps who said what, and writes more precise titles and summaries. It needs a one-time 3.6 GB download (keep Feder open meanwhile) and works while Feder is open. Existing transcripts get new summaries too; titles you typed stay. Smart Corrections use the same model."
                      : "Better Summaries need an iPhone (not the simulator).")
             }
         }

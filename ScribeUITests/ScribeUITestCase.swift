@@ -1,6 +1,6 @@
 import XCTest
 
-/// Shared setup of Scribe's UI tests. Every test launches the app (Debug, simulator fakes) with `-seedSamples`, which
+/// Shared setup of Feder's UI tests. Every test launches the app (Debug, simulator fakes) with `-seedSamples`, which
 /// replaces the sample transcripts in the app's store: "Project Kickoff" (newest; Anna Schmidt and Jonas Weber, two
 /// turns each, so its name rows are SpeakerHeader.0-3) and "Budget Review" (Lena Vogel and Anna Schmidt).
 /// Simulator only: they write to the app's own store, so on an iPhone (real transcripts and people) every test is skipped
@@ -9,7 +9,7 @@ import XCTest
 class ScribeUITestCase: XCTestCase {
     override func setUpWithError() throws {
         #if !targetEnvironment(simulator)
-        throw XCTSkip("Scribe's UI tests write to the app's own store: run them on a simulator, never on an iPhone with real data")
+        throw XCTSkip("Feder's UI tests write to the app's own store: run them on a simulator, never on an iPhone with real data")
         #endif
     }
 

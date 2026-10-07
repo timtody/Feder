@@ -1,10 +1,10 @@
-# Scribe — notes for Claude
+# Feder — notes for Claude
 
-Scribe is a local-only iPhone transcription app: SwiftUI, Swift 6, iOS 26+, built with Xcode 27 / iOS 27 SDK. It does live transcription, speaker identification, people, tags, search and on-device summaries. The README is the detailed reference for architecture, measurements and every design decision. Read the section you are touching before changing it, and keep it in sync afterwards (Look, Search, UI tests and the file list in particular).
+Feder is a local-only iPhone transcription app: SwiftUI, Swift 6, iOS 26+, built with Xcode 27 / iOS 27 SDK. It does live transcription, speaker identification, people, tags, search and on-device summaries. The README is the detailed reference for architecture, measurements and every design decision. Read the section you are touching before changing it, and keep it in sync afterwards (Look, Search, UI tests and the file list in particular).
 
 ## Hard rules
 
-- **Never change the bundle id (`de.cofinpro.recorder`) or `PRODUCT_NAME` (`Recorder`).** The user's real transcripts live on their iPhone under this identity. Only the display name ("Scribe") may change.
+- **Never change the bundle id (`de.cofinpro.recorder`) or `PRODUCT_NAME` (`Recorder`).** The user's real transcripts live on their iPhone under this identity. Only the display name (now "Feder"; it was "Scribe") may change.
 - **Nothing leaves the phone.** Do not add network calls except the existing, user-initiated model downloads: Parakeet, Nemotron and Gemma via pinned Hugging Face revisions. No analytics and no cloud models.
 - **UI tests and the `-seedSamples` launch hooks are simulator only.** They must never touch an iPhone's store.
 - **A local git repo, no remote.** Commit after each step with a clear message, so steps can be reverted; still look before you overwrite or delete. `build/`, DerivedData and `*.xcresult` are ignored.

@@ -1,4 +1,4 @@
-# Scribe's pipeline
+# Feder's pipeline
 
 What happens to audio from the moment Record is tapped until the transcript has its speakers, its corrections and its summary — every model, every step, with the numbers measured so far. Then the ideas on the table and where they would go, and what was tried and dropped. The README holds the full design rationale; this is the map. (State: October 2026.)
 
@@ -145,7 +145,7 @@ xychart-beta
 
 ## 6. Ideas on the table
 
-From a review of an "optimal pipeline" proposal (October 2026), kept where they add something Scribe lacks.
+From a review of an "optimal pipeline" proposal (October 2026), kept where they add something Feder lacks.
 
 | # | Idea | Where it fits | What it could improve | Risk / cost | Priority |
 |---|---|---|---|---|---|
