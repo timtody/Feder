@@ -1,13 +1,10 @@
 {
-  "features": [
-    "refractivity"
-  ],
   "fill-specializations": [
     {
       "value": {
         "linear-gradient": [
-          "srgb:0.22745,0.53333,0.93333,1.00000",
-          "srgb:0.12941,0.39216,0.81176,1.00000"
+          "srgb:0.36073,0.60886,0.93333,1.00000",
+          "srgb:0.09227,0.27963,0.57882,1.00000"
         ]
       }
     },
@@ -15,7 +12,7 @@
       "appearance": "dark",
       "value": {
         "linear-gradient": [
-          "srgb:0.11765,0.24706,0.52549,1.00000",
+          "srgb:0.16931,0.35554,0.75622,1.00000",
           "srgb:0.04314,0.10980,0.27059,1.00000"
         ]
       }
@@ -23,131 +20,132 @@
   ],
   "groups": [
     {
-      "name": "spine",
+      "blur-material": null,
       "layers": [
         {
           "fill": {
             "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
           },
           "hidden": false,
-          "image-name": "shaft.svg",
-          "name": "shaft",
+          "image-name": "core.svg",
+          "name": "core",
           "position": {
             "scale": 1,
             "translation-in-points": [
-              19.000000000000057,
-              -51.00000000000006
+              17.000000000000057,
+              -51.60000000000019
             ]
           }
         }
       ],
-      "lighting": "individual",
-      "specular": true,
-      "blur-material": 0.5,
-      "shadow": {
-        "kind": "neutral",
-        "opacity": 0.4
-      },
-      "translucency": {
-        "enabled": true,
-        "value": 0.15
-      },
-      "refractivity": {
-        "depth": 0,
-        "enabled": true,
-        "strength": 0.5
-      },
+      "lighting": "combined",
+      "name": "core",
       "position": {
         "scale": 1.15,
         "translation-in-points": [
           0,
           0
         ]
+      },
+      "refractivity": {
+        "depth": 0.5,
+        "enabled": false,
+        "strength": 0
+      },
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": true,
+        "value": 0.5
       }
     },
     {
-      "name": "half",
+      "blur-material": null,
       "layers": [
         {
           "fill": {
             "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
           },
           "hidden": false,
-          "image-name": "vane_near.svg",
-          "name": "vane_near",
+          "image-name": "inner.svg",
+          "name": "inner",
           "position": {
             "scale": 1,
             "translation-in-points": [
-              19.000000000000057,
-              -51.00000000000006
+              17.000000000000057,
+              -51.60000000000019
             ]
           }
         }
       ],
-      "lighting": "individual",
-      "specular": true,
-      "blur-material": 0.6,
-      "shadow": {
-        "kind": "neutral",
-        "opacity": 0.35
-      },
-      "translucency": {
-        "enabled": true,
-        "value": 0.25
-      },
-      "refractivity": {
-        "depth": 0,
-        "enabled": true,
-        "strength": 0.5
-      },
+      "lighting": "combined",
+      "name": "inner",
       "position": {
         "scale": 1.15,
         "translation-in-points": [
           0,
           0
         ]
+      },
+      "refractivity": {
+        "depth": 0.5,
+        "enabled": false,
+        "strength": 0
+      },
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": true,
+        "value": 0.55
       }
     },
     {
-      "name": "body",
+      "blur-material": null,
       "layers": [
         {
           "fill": {
             "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
           },
+          "hidden": false,
           "image-name": "body.svg",
           "name": "body",
           "position": {
             "scale": 1,
             "translation-in-points": [
-              19.000000000000057,
-              -51.00000000000006
+              17.000000000000057,
+              -51.60000000000019
             ]
           }
         }
       ],
-      "lighting": "individual",
-      "specular": true,
-      "blur-material": 0.8,
-      "shadow": {
-        "kind": "neutral",
-        "opacity": 0.45
-      },
-      "translucency": {
-        "enabled": true,
-        "value": 0.45
-      },
-      "refractivity": {
-        "depth": 0,
-        "enabled": true,
-        "strength": 0.5
-      },
+      "lighting": "combined",
+      "name": "spine",
       "position": {
         "scale": 1.15,
         "translation-in-points": [
           0,
           0
         ]
+      },
+      "refractivity": {
+        "depth": 0.5,
+        "enabled": false,
+        "strength": 0
+      },
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": true,
+        "value": 0.65
       }
     }
   ],
