@@ -35,7 +35,8 @@ struct RecordAccessory: View {
                 status(Text("Can't Record"), busy: false, symbol: "exclamationmark.triangle.fill")
             }
         }
-        .padding(.horizontal, inline ? 12 : 18)
+        .padding(.leading, inline ? 2 : 4)
+        .padding(.trailing, inline ? 12 : 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
         .sensoryFeedback(trigger: presses) { _, _ in session == nil ? .impact(weight: .medium) : .impact(weight: .light) }
@@ -54,8 +55,8 @@ struct RecordAccessory: View {
                 presses += 1
                 start()
             } label: {
-                HStack(spacing: 10) {
-                    RecordDot(size: inline ? 12 : 14)
+                HStack(spacing: 0) {
+                    markSlot { RecordDot(size: inline ? 14 : 18) }
                     VStack(alignment: .leading, spacing: 0) {
                         Text("Transcribe")
                             .font(.subheadline.weight(.semibold))
@@ -106,17 +107,39 @@ struct RecordAccessory: View {
         .accessibilityHint("The language the next recording is transcribed in")
     }
 
+    /// Stop takes the record dot's place, so the control stays under the finger; the rest reads like the idle
+    /// state: the time over the language and, once found, the place, and at the end the microphone level.
     private func recording(_ session: RecordingSession, since: Date) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 0) {
+            Button {
+                InteractionTrace.begin("stop")
+                presses += 1
+                Task { await session.stop() }
+            } label: {
+                markSlot {
+                    RoundedRectangle(cornerRadius: inline ? 3 : 4, style: .continuous)
+                        .fill(.red)
+                        .frame(width: inline ? 13 : 16, height: inline ? 13 : 16)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Stop")
             HStack(spacing: 10) {
-                PulsingDot()
-                Text(since, style: .timer)
-                    .font(.subheadline.weight(.semibold))
-                    .monospacedDigit()
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(since, style: .timer)
+                        .font(.subheadline.weight(.semibold))
+                        .monospacedDigit()
+                    if !inline {
+                        Text(recordingDetails(session))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 0)
                 if !inline {
                     LevelMeter(session: session, isActive: true)
                 }
-                Spacer(minLength: 0)
             }
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
@@ -126,29 +149,34 @@ struct RecordAccessory: View {
             .accessibilityValue(Text(since, style: .timer))   // the label replaces the combined time: read it too
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { open() }
-            Button {
-                InteractionTrace.begin("stop")
-                presses += 1
-                Task { await session.stop() }
-            } label: {
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .fill(.red)
-                    .frame(width: 13, height: 13)
-                    .frame(width: 36, height: 36)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Stop")
         }
+    }
+
+    /// "German · Mitte, Berlin": the recording's language and, once PlaceLocator has it, where it started.
+    private func recordingDetails(_ session: RecordingSession) -> String {
+        let language = TranscriptionLanguage.name(session.locale ?? RecordingSession.transcriptionLocale)
+        guard let place = session.place?.name, !place.isEmpty else { return language }
+        return "\(language) · \(place)"
+    }
+
+    /// The leading mark's place, the same in every state (the dot, Stop, the progress spinner), a full touch target
+    /// wide, so Stop appears exactly where the record dot was.
+    private func markSlot<Mark: View>(@ViewBuilder _ mark: () -> Mark) -> some View {
+        mark()
+            .frame(width: inline ? 36 : 44, height: 44)
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
     }
 
     private func status(_ title: Text, busy: Bool, symbol: String? = nil) -> some View {
         Button(action: open) {
-            HStack(spacing: 10) {
-                if busy {
-                    ProgressView()
-                } else if let symbol {
-                    Image(systemName: symbol).foregroundStyle(.orange)
+            HStack(spacing: 0) {
+                markSlot {
+                    if busy {
+                        ProgressView()
+                    } else if let symbol {
+                        Image(systemName: symbol).foregroundStyle(.orange)
+                    }
                 }
                 title
                     .font(.subheadline.weight(.semibold))
@@ -171,20 +199,5 @@ struct RecordDot: View {
             .fill(.red)
             .frame(width: size, height: size)
             .accessibilityHidden(true)
-    }
-}
-
-/// The record mark pulsing while recording (steady with Reduce Motion).
-private struct PulsingDot: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var dim = false
-
-    var body: some View {
-        RecordDot(size: 10)
-            .opacity(dim ? 0.35 : 1)
-            .onAppear {
-                guard !reduceMotion else { return }
-                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) { dim = true }
-            }
     }
 }
