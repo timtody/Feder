@@ -2,8 +2,9 @@ import SwiftUI
 
 /// The tab bar's bottom accessory (Music's mini player spot; the system draws the glass capsule): the record control,
 /// in the mini player's sizes (subheadline semibold, a small mark).
-/// Without a recording: a red dot and "Transcribe", a tap starts one and opens the transcript card on it out of this
-/// accessory (zoom transition, like Music's mini player). While recording: a pulsing red dot, the time, the
+/// Without a recording: a red dot, "Transcribe" and under it the language ("German · On device"), and at the end a
+/// button with the language's code ("DE ⌄") that picks the next recording's language; a tap on the rest starts a
+/// recording and opens the transcript card on it out of this accessory (zoom transition, like Music's mini player). While recording: a pulsing red dot, the time, the
 /// microphone level and Stop; a tap elsewhere opens the card again.
 struct RecordAccessory: View {
     let session: RecordingSession?
@@ -14,6 +15,8 @@ struct RecordAccessory: View {
 
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
     @State private var presses = 0                     // Transcribe and Stop: the haptic comes with the press
+    /// TranscriptionLanguage.key: the next recording's language, "" = the phone's.
+    @AppStorage(TranscriptionLanguage.key) private var language = ""
 
     private var inline: Bool { placement == .inline }
 
@@ -41,24 +44,66 @@ struct RecordAccessory: View {
         }
     }
 
+    /// Like Music's mini player: the title with a line under it ("German · On device") and one control at the end,
+    /// here the language of the next recording. Minimized (inline) only the dot and the title, as Music shows only
+    /// the title and play there.
     private var idle: some View {
-        Button {
-            presses += 1
-            start()
-        } label: {
-            HStack(spacing: 10) {
-                RecordDot(size: inline ? 12 : 14)
-                Text("Transcribe")
-                    .font(.subheadline.weight(.semibold))
+        let locale = TranscriptionLanguage.locale(stored: language)
+        return HStack(spacing: 8) {
+            Button {
+                presses += 1
+                start()
+            } label: {
+                HStack(spacing: 10) {
+                    RecordDot(size: inline ? 12 : 14)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Transcribe")
+                            .font(.subheadline.weight(.semibold))
+                        if !inline {
+                            Text("\(TranscriptionLanguage.name(locale)) · On device")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                     .lineLimit(1)
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxHeight: .infinity)
+                .contentShape(Rectangle())
             }
-            .frame(maxHeight: .infinity)
+            .buttonStyle(.plain)
+            .accessibilityLabel("Transcribe")                // what it says
+            .accessibilityHint("Starts a new recording and its live transcript")
+            if !inline {
+                languageMenu(locale)
+            }
+        }
+    }
+
+    /// The language of the next recording: the phone's languages first, then the common European ones.
+    private func languageMenu(_ current: Locale) -> some View {
+        Menu {
+            Picker("Language", selection: $language) {
+                ForEach(TranscriptionLanguage.choices, id: \.identifier) { locale in
+                    Text(TranscriptionLanguage.name(locale)).tag(TranscriptionLanguage.stored(for: locale))
+                }
+            }
+        } label: {
+            HStack(spacing: 3) {
+                Text(TranscriptionLanguage.code(current))
+                    .font(.subheadline.weight(.semibold))
+                    .monospaced()
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(minWidth: 44, minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Transcribe")                // what it says
-        .accessibilityHint("Starts a new recording and its live transcript")
+        .accessibilityLabel("Language")
+        .accessibilityValue(TranscriptionLanguage.name(current))
+        .accessibilityHint("The language the next recording is transcribed in")
     }
 
     private func recording(_ session: RecordingSession, since: Date) -> some View {

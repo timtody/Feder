@@ -77,12 +77,8 @@ final class RecordingSession: Identifiable {
         transcriptName = "New Transcript \(count + 1)"
     }
 
-    /// The language to transcribe in: the first language in the iPhone's Settings > Language & Region list.
-    /// `Locale.current` would be wrong here: it reflects the app's own localization (English only), so on a
-    /// German phone it is "en_DE" and the transcriber would pick the English model.
-    static var transcriptionLocale: Locale {
-        Locale(identifier: Locale.preferredLanguages.first ?? Locale.current.identifier)
-    }
+    /// The language to transcribe in: the one chosen in the record accessory, else the phone's (TranscriptionLanguage).
+    static var transcriptionLocale: Locale { TranscriptionLanguage.current }
 
     func start() async {
         guard state == .idle else { return }

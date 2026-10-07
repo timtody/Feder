@@ -14,6 +14,7 @@
 		5DA165C65B82BD2FDCC77184 /* TranscriptListTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD49FF381B0530C8297D2E4 /* TranscriptListTests.swift */; };
 		9842882BB124165D5F36A048 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 4BF152A52DD140039F8897C1 /* MLX */; };
 		ACE3A2F03E31206AE3CA1D0A /* TagEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6061ACE8B763190CD40341F /* TagEditorTests.swift */; };
+		B1FB85133BB65085CC0C8494 /* TranscriptionLanguageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3914E00B46027D3444C29616 /* TranscriptionLanguageTests.swift */; };
 		B739DD0671E8E7B2825F900A /* ScribeUITestCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E5334822ED139DB77164FF /* ScribeUITestCase.swift */; };
 		BD3F585F5DF9E3B245ACC980 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 5369E989FEB69AFA9F06EF50 /* MLXLMCommon */; };
 		C52AA21891D8870AA04AFDE1 /* SearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F19636A7502AD131706A5F /* SearchTests.swift */; };
@@ -36,6 +37,7 @@
 /* Begin PBXFileReference section */
 		1D9844FE4177FE163F4856E7 /* ResponsivenessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponsivenessTests.swift; sourceTree = "<group>"; };
 		34990786B63747A3152C8DA7 /* SettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTests.swift; sourceTree = "<group>"; };
+		3914E00B46027D3444C29616 /* TranscriptionLanguageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionLanguageTests.swift; sourceTree = "<group>"; };
 		3FE0FEEB768611208CA19668 /* SpeakerNamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerNamingTests.swift; sourceTree = "<group>"; };
 		4E9415E9F61A32FB96B64A72 /* CorrectionReviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrectionReviewTests.swift; sourceTree = "<group>"; };
 		5FD49FF381B0530C8297D2E4 /* TranscriptListTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptListTests.swift; sourceTree = "<group>"; };
@@ -108,6 +110,7 @@
 				3FE0FEEB768611208CA19668 /* SpeakerNamingTests.swift */,
 				F5864C5737E1A73204C68C61 /* SummaryTests.swift */,
 				E6061ACE8B763190CD40341F /* TagEditorTests.swift */,
+				3914E00B46027D3444C29616 /* TranscriptionLanguageTests.swift */,
 				5FD49FF381B0530C8297D2E4 /* TranscriptListTests.swift */,
 			);
 			path = ScribeUITests;
@@ -240,6 +243,7 @@
 				2A56270AD1816BDD640A4854 /* SummaryTests.swift in Sources */,
 				ACE3A2F03E31206AE3CA1D0A /* TagEditorTests.swift in Sources */,
 				5DA165C65B82BD2FDCC77184 /* TranscriptListTests.swift in Sources */,
+				B1FB85133BB65085CC0C8494 /* TranscriptionLanguageTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
