@@ -131,6 +131,16 @@
     "0:00": {
       "shouldTranslate": false
     },
+    "3.6 GB": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3,6 GB"
+          }
+        }
+      }
+    },
     "A Title and the Key Points": {
       "localizations": {
         "de": {
@@ -146,7 +156,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ein einmaliger Download von 3,6 GB über WLAN. Nutze Feder weiter oder schließe die App – der Download wird von selbst fertig."
+            "value": "Ein einmaliger Download von 3,6 GB über WLAN. Nutze Feder weiter oder schließe die App – der Download läuft von selbst zu Ende."
           }
         }
       }
@@ -459,7 +469,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Download fehlgeschlagen"
+            "value": "Fehlgeschlagen"
           }
         }
       }
@@ -479,7 +489,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lädt %@"
+            "value": "%@ geladen"
           }
         }
       }
@@ -509,7 +519,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lädt im Hintergrund"
+            "value": "Download im Hintergrund"
           }
         }
       }
@@ -569,7 +579,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gemma konnte nicht geladen werden. Lade es erneut."
+            "value": "Gemma konnte nicht geladen werden. Lade das Modell erneut herunter."
           }
         }
       }
@@ -579,7 +589,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gemma braucht 4 GB freien Speicher auf diesem iPhone."
+            "value": "Gemma braucht 4 GB freien Speicherplatz auf diesem iPhone."
           }
         }
       }
@@ -609,7 +619,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Googles Gemma 4 E2B schreibt für jedes Transkript einen Titel und eine kurze Zusammenfassung, auf diesem iPhone: Es liest ein ganzes Meeting auf einmal und weiß, wer was gesagt hat. Dafür ist ein einmaliger Download von 3,6 GB über WLAN nötig, der im Hintergrund weiterläuft, auch wenn Feder geschlossen ist. Bestehende Transkripte bekommen ebenfalls Zusammenfassungen; eingegebene Titel bleiben."
+            "value": "Googles Gemma 4 E2B schreibt für jedes Transkript einen Titel und eine kurze Zusammenfassung, auf diesem iPhone: Es liest ein ganzes Meeting auf einmal und weiß, wer was gesagt hat. Dafür ist ein einmaliger Download von 3,6 GB über WLAN nötig, der im Hintergrund weiterläuft, auch wenn Feder geschlossen ist. Bestehende Transkripte bekommen ebenfalls Zusammenfassungen; eingegebene Titel bleiben erhalten."
           }
         }
       }
@@ -939,7 +949,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ältere Transkripte bekommen ebenfalls Titel und Zusammenfassungen. Eingegebene Titel bleiben."
+            "value": "Ältere Transkripte bekommen ebenfalls Titel und Zusammenfassungen. Eingegebene Titel bleiben erhalten."
           }
         }
       }
@@ -959,7 +969,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Transkription auf dem Gerät ist auf diesem Gerät nicht verfügbar."
+            "value": "Die lokale Transkription ist auf diesem Gerät nicht verfügbar."
           }
         }
       }
@@ -1542,7 +1552,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Stimme wird nicht mehr erkannt. Namen in bestehenden Transkripten bleiben."
+            "value": "Die Stimme wird nicht mehr erkannt. Namen in bestehenden Transkripten bleiben erhalten."
           }
         }
       }

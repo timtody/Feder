@@ -28,7 +28,7 @@ actor LocalLanguageModel {
         }
         var downloadBytes: Int64 { 3_583_000_000 }
         var displayName: String { "Gemma 4 E2B" }
-        var sizeText: String { "3.6 GB" }
+        var sizeText: String { String(localized: "3.6 GB") }    // "3,6 GB" in German
     }
 
     /// Tokens a request may use (instructions + transcript + answer). Gemma 4 reads 128K; 20K keeps the KV cache
