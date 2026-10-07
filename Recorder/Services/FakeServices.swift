@@ -215,4 +215,26 @@ nonisolated struct FakeLiveDiarizer: LiveDiarizer {
         return LiveSpeakerTurns(turns: turns, processedUntil: end)
     }
 }
+
+/// Simulator stand-in for Gemma (`-fakeGemma`): answers the title request with three canned lines after a second,
+/// streamed word by word like Gemma's tokens, and a part request with one sentence. Proves the pipeline's summary
+/// step, the card's streamed summary and the automatic title without MLX (which the simulator has no GPU for).
+nonisolated final class FakeTextWriter: TextWriter, @unchecked Sendable {
+    func respond(instructions: String, prompt: String, maxTokens: Int, temperature: Float,
+                 partial: (@Sendable (String) -> Void)?) async throws -> String {
+        try await Task.sleep(for: .seconds(1))
+        guard instructions.contains("Title:") else { return "A part of the test conversation about the live transcript." }
+        let answer = "Topics: live transcript; provisional words\nSummary: The test checks the live transcript; new words " +
+            "show at once and provisional ones stay lighter until final.\nTitle: Live Transcript Test"
+        var text = ""
+        for word in answer.split(separator: " ", omittingEmptySubsequences: false) {
+            text += (text.isEmpty ? "" : " ") + word
+            partial?(text)
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        return answer
+    }
+
+    func unload() async {}
+}
 #endif

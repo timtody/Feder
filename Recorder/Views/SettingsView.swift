@@ -6,7 +6,7 @@ import SwiftData
 /// "While Recording" (live speaker labels), "After Recording" (the post-stop pass in its order: transcription,
 /// speaker identification, summaries) and "Vocabulary". Each model has a detail page with its
 /// explanation, download and options; the main page shows only the outcome as the row's value ("Parakeet",
-/// "Downloading 40 %", "Apple Intelligence"), and every footer is one line. Everything applies from the next recording.
+/// "Downloading 40 %", "Not downloaded"), and every footer is one line. Everything applies from the next recording.
 struct SettingsView: View {
     @Environment(AppServices.self) private var services
     @AppStorage(ParakeetModel.engineKey) private var engine = ParakeetModel.defaultEngine
@@ -111,11 +111,13 @@ struct SettingsView: View {
         return engine == "parakeet" && services.parakeet.isReady ? "Parakeet" : "Apple Speech"
     }
 
+    /// Only Gemma writes titles and summaries: its name, "Off", the download's state, or "Not available" on an
+    /// iPhone without 8 GB.
     private var summariesValue: String {
         let better = services.betterSummaries
-        guard BetterSummaries.isSupported else { return "Apple Intelligence" }
-        if better.activeModel != nil { return better.variant.displayName }
-        return Self.value(better.state, ready: "Apple Intelligence", missing: "Apple Intelligence")
+        guard BetterSummaries.isSupported else { return "Not available" }
+        if better.state == .ready { return better.isEnabled ? better.variant.displayName : "Off" }
+        return Self.value(better.state, ready: better.variant.displayName, missing: "Not downloaded")
     }
 
     /// A model row's value from its download: the model's name once there, "Downloading 40 %" meanwhile, the
@@ -222,7 +224,8 @@ struct SpeakerModelView: View {
     }
 }
 
-/// Settings › Summaries: Apple Intelligence or, downloaded, the local model ("Better Summaries", Gemma 4 E2B).
+/// Settings › Summaries: automatic titles and summaries, written only by Gemma 4 E2B (Apple's model wrote them until
+/// October 2026; its results were too weak). Its download, the on/off switch and Delete.
 struct SummariesModelView: View {
     @Environment(AppServices.self) private var services
 
@@ -230,10 +233,9 @@ struct SummariesModelView: View {
         @Bindable var better = services.betterSummaries
         Form {
             Section {
-                LabeledContent("Model", value: better.activeModel != nil ? better.variant.displayName : "Apple Intelligence")
                 if BetterSummaries.isSupported {
                     if better.state == .ready {
-                        Toggle("Better Summaries", isOn: $better.isEnabled)
+                        Toggle("Titles and Summaries", isOn: $better.isEnabled)
                         if better.isWorking {
                             LabeledContent("Writing summaries…") { ProgressView() }
                         }
@@ -243,13 +245,15 @@ struct SummariesModelView: View {
                     } else {
                         ModelDownloadRow(name: better.variant.displayName, state: better.state, size: better.variant.sizeText) { better.download() }
                     }
+                } else {
+                    LabeledContent("Model", value: "Not available")
                 }
             } header: {
                 Text("Titles and Summaries")
             } footer: {
                 Text(BetterSummaries.isSupported
-                     ? "Better Summaries use Google's Gemma 4 E2B on this iPhone instead of Apple Intelligence: it reads a whole meeting at once, keeps who said what, and writes more precise titles and summaries. It needs a one-time 3.6 GB download (keep Feder open meanwhile) and works while Feder is open. Existing transcripts get new summaries too; titles you typed stay."
-                     : "Better Summaries need an iPhone (not the simulator).")
+                     ? "Google's Gemma 4 E2B writes a title and a short summary of every transcript, on this iPhone: it reads a whole meeting at once and keeps who said what. It needs a one-time 3.6 GB download and works while Feder is open. Existing transcripts get summaries too; titles you typed stay."
+                     : "Automatic titles and summaries need an iPhone with 8 GB of memory (iPhone 17 or later).")
             }
         }
         .navigationTitle("Summaries")

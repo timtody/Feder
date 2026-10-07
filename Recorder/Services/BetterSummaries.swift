@@ -12,12 +12,20 @@ import UIKit
 final class BetterSummaries {
     /// UserDefaults key of the toggle; absent means on (once downloaded).
     nonisolated static let enabledKey = "betterSummaries"
-    /// The simulator has no MLX GPU support: the feature is shown as unavailable there.
+    /// Whether this iPhone can run Gemma: 8 GB of memory or more (it needs about 3.7 GB; on a 6 GB iPhone it would be
+    /// killed mid-summary), not the simulator (no MLX GPU there). Smaller iPhones are never offered it and get no
+    /// automatic titles and summaries. DEBUG on the simulator: `-fakeGemma` (downloaded) and `-fakeGemmaDownload`
+    /// (not yet) stand in with `FakeTextWriter`.
     nonisolated static let isSupported: Bool = {
         #if targetEnvironment(simulator)
-        false
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        return arguments.contains("-fakeGemma") || arguments.contains("-fakeGemmaDownload")
         #else
-        true
+        return false
+        #endif
+        #else
+        return ProcessInfo.processInfo.physicalMemory >= 7_000_000_000   // the iPhone 17's 8 GB report as about 7.5 GB
         #endif
     }()
 
@@ -25,7 +33,7 @@ final class BetterSummaries {
     private(set) var states: [LocalLanguageModel.Variant: ModelDownloadState] = [:]
     var state: ModelDownloadState { states[variant] ?? .notDownloaded }
     /// The model of the chosen build, once downloaded.
-    private(set) var model: LocalLanguageModel?
+    private(set) var model: (any TextWriter)?
     /// The local model: Gemma 4 E2B, the only one (see `LocalLanguageModel.Variant`).
     var variant: LocalLanguageModel.Variant { .e2b }
     /// The transcript being described with Gemma right now (Settings shows it while it works).
@@ -66,7 +74,7 @@ final class BetterSummaries {
     }
 
     /// The model to write with: downloaded, turned on, supported. nil = Apple's model.
-    var activeModel: LocalLanguageModel? {
+    var activeModel: (any TextWriter)? {
         guard Self.isSupported, isEnabled, state == .ready else { return nil }
         return model
     }
@@ -76,6 +84,12 @@ final class BetterSummaries {
             states[build] = .ready
         }
         if state == .ready { model = LocalLanguageModel(variant: variant, directory: Self.modelDirectory(variant)) }
+        #if DEBUG && targetEnvironment(simulator)
+        if ProcessInfo.processInfo.arguments.contains("-fakeGemma") {
+            states[variant] = .ready
+            model = FakeTextWriter()
+        }
+        #endif
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: UIApplication.willResignActiveNotification, object: nil,
                                             queue: .main) { [weak self] _ in
@@ -91,7 +105,7 @@ final class BetterSummaries {
 
     /// Runs `work` with Gemma while the app is active: throws RetryLater when it is not, or when it resigns active
     /// meanwhile (the request is cancelled). One request at a time (the background worker is serial anyway).
-    func run<T: Sendable>(_ work: @escaping @MainActor (LocalLanguageModel) async throws -> T) async throws -> T {
+    func run<T: Sendable>(_ work: @escaping @MainActor (any TextWriter) async throws -> T) async throws -> T {
         guard let model = activeModel else { throw TranscriptTitler.LocalModelFailed(underlying: "not available") }
         guard UIApplication.shared.applicationState == .active, !isRecording else { throw TranscriptTitler.RetryLater() }
         unloadTask?.cancel()

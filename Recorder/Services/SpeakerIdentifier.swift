@@ -94,7 +94,7 @@ final class SpeakerIdentifier {
         for recording in (try? modelContext.fetch(unfinished)) ?? [] {     // a kill or the background interrupted it
             enqueueBackgroundPass(recording, fresh: true)
         }
-        if titler.isAvailable || betterSummaries.activeModel != nil {   // also the sweep of older ones, newest first
+        if betterSummaries.activeModel != nil {                       // also the sweep of older ones, newest first
             let version = summaryVersion
             let undescribed = FetchDescriptor<Recording>(
                 predicate: #Predicate { $0.speakerStatusRaw == done && $0.summaryVersion < version },
@@ -138,8 +138,8 @@ final class SpeakerIdentifier {
         enqueueJob(for: recording) { await self.identify(recording) }
     }
 
-    /// A model that writes titles and summaries is there (Apple's, or Gemma).
-    private var canDescribe: Bool { titler.isAvailable || betterSummaries.activeModel != nil }
+    /// Gemma, which writes titles and summaries, is there.
+    private var canDescribe: Bool { betterSummaries.activeModel != nil }
 
     /// Shows the words a pass replaced for a few seconds.
     private func flash(_ changes: [WordChange], in id: UUID) {
@@ -444,9 +444,9 @@ final class SpeakerIdentifier {
     }
 
     /// The summary, and the title while the transcript still has a name the app gave it ("New Transcript 3") and the
-    /// user never edited it. Once per transcript (`summaryVersion`); without a model (Apple Intelligence off, older
-    /// iPhone, unsupported language), or when the model can't answer right now (rate limit in the background, assets
-    /// updating, time-out), nothing changes and the next launch or return to the foreground tries again.
+    /// user never edited it. Once per transcript (`summaryVersion`), by Gemma only; without it (not downloaded, off,
+    /// an iPhone too small for it) nothing changes, and when Gemma can't answer right now (the app left the foreground)
+    /// the next return to the foreground tries again.
     private func describe(_ recording: Recording) async {
         let target = summaryVersion
         guard !isGone(recording) else { return }
@@ -474,32 +474,22 @@ final class SpeakerIdentifier {
         let paragraphs = recording.segments.map { segment in
             TranscriptTitler.paragraph(segment.text, speaker: segment.speakerIndex.map(recording.speakerName))
         }
-        var description: TranscriptTitler.Description?
-        var version = TranscriptTitler.version
+        guard betterSummaries.activeModel != nil else { return }      // only Gemma writes them (TranscriptTitler)
+        guard !isRecording else {                                   // Gemma never runs while recording: after Stop
+            waitForGemma(recording, id: id)
+            return
+        }
+        let description: TranscriptTitler.Description?
+        let version = TranscriptTitler.localVersion
         do {
-            if betterSummaries.activeModel != nil {
-                guard !isRecording else {                      // Gemma never runs while recording: after Stop
-                    waitForGemma(recording, id: id)
-                    return
-                }
-                do {
-                    let titler = titler
-                    description = try await betterSummaries.run { model in
-                        try await titler.describe(paragraphs: paragraphs, locale: locale, writer: .local(model),
-                                                  partial: partial)
-                    }
-                    version = TranscriptTitler.localVersion
-                } catch is TranscriptTitler.LocalModelFailed {
-                    guard titler.canDescribe(locale) else { return }   // Gemma can't run: Apple's model this time
-                    partialSummaries[id] = nil                         // Gemma's half-written text goes
-                    description = try await titler.describe(paragraphs: paragraphs, locale: locale, partial: partial)
-                }
-            } else {
-                guard titler.canDescribe(locale) else { return }
-                description = try await titler.describe(paragraphs: paragraphs, locale: locale, partial: partial)
+            let titler = titler
+            description = try await betterSummaries.run { model in
+                try await titler.describe(paragraphs: paragraphs, locale: locale, writer: model, partial: partial)
             }
         } catch {
-            // TranscriptTitler.RetryLater: not marked described. Stopped because a recording started: again after it.
+            // RetryLater: not marked described, tried again later; stopped because a recording started: again right
+            // after it. LocalModelFailed (damaged files): BetterSummaries offers the download again, and the transcript
+            // is described once Gemma is back.
             if isRecording, !isGone(recording) { waitForGemma(recording, id: id) }
             return
         }
@@ -525,10 +515,9 @@ final class SpeakerIdentifier {
         if !waitingForGemma.contains(where: { $0.id == id }) { waitingForGemma.append((id, recording)) }
     }
 
-    /// The summaryVersion transcripts should have: Gemma's while "Better Summaries" is on, else Apple's.
-    private var summaryVersion: Int {
-        betterSummaries.activeModel != nil ? TranscriptTitler.localVersion : TranscriptTitler.version
-    }
+    /// The summaryVersion transcripts should have: Gemma's. (Transcripts Apple's model described are at
+    /// `TranscriptTitler.version` and get Gemma's once it is there.)
+    private var summaryVersion: Int { TranscriptTitler.localVersion }
 
     // MARK: Helpers
 

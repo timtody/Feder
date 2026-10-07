@@ -1,70 +1,52 @@
 import Foundation
-import FoundationModels
 import NaturalLanguage
 
-/// A short title and a short summary of a finished transcript, written on device in the transcript's language, by
-/// Apple's language model (Foundation Models, Apple Intelligence) or, once downloaded in Settings ("Better
-/// Summaries"), by Gemma 4 E2B (`LocalLanguageModel`). Runs in the background after speakers are shown
-/// (SpeakerIdentifier, after the vocabulary pass). The transcript goes in with each paragraph's speaker name. A model
-/// reads only so much at once (Apple's: 4,096 tokens on iOS 26, 8,192 on iOS 27, for instructions, prompt and answer
-/// together; Gemma: `LocalLanguageModel.contextTokens`), so a longer transcript is summarized part by part first and
-/// the title is written from those summaries (map-reduce); a request that still overflows is tried again with smaller
-/// parts. No model (older iPhone, Apple Intelligence off, unsupported language) = nil, silently.
+/// What writes titles and summaries: Gemma 4 E2B (`LocalLanguageModel`), or on the simulator a stand-in
+/// (`FakeTextWriter`, DEBUG). Sendable: the requests are awaited from the main actor.
+nonisolated protocol TextWriter: AnyObject, Sendable {
+    func respond(instructions: String, prompt: String, maxTokens: Int, temperature: Float,
+                 partial: (@Sendable (String) -> Void)?) async throws -> String
+    func unload() async
+}
+
+/// A short title and a short summary of a finished transcript, written on device in the transcript's language by
+/// Gemma 4 E2B (`LocalLanguageModel`, downloaded once: BetterSummaries). Without Gemma there are no automatic titles
+/// and summaries: Apple's Foundation Models model wrote them until October 2026 and its results were too weak
+/// (wordy, meta-style summaries: "Anna Schmidt führt ein Gespräch mit …"; see README › Automatic titles). Runs in the
+/// background after speakers are shown (SpeakerIdentifier, after the vocabulary pass). The transcript goes in with each
+/// paragraph's speaker name. A request reads at most `LocalLanguageModel.contextTokens`, so a longer transcript is
+/// summarized part by part first and the title is written from those summaries (map-reduce).
 @MainActor
 final class TranscriptTitler {
-    /// Recording.summaryVersion once a transcript has been described by Apple's model (it answered, refused or failed
-    /// for good). Not after RetryLater. 2: speaker names in the text, parts sized by the model's window.
+    /// Recording.summaryVersion of a transcript Apple's model described (before October 2026); kept so those stay
+    /// marked, and Gemma (`localVersion`, higher) describes them again once it is there.
     nonisolated static let version = 2
-    /// The same for Gemma ("Better Summaries"): higher, so turning it on describes every transcript again, and turning it
-    /// off keeps its descriptions.
+    /// Recording.summaryVersion once Gemma has described a transcript (it answered or failed for good). Not after
+    /// RetryLater.
     nonisolated static let localVersion = 100
-    /// Tokens of a request that are not transcript: ~270 of instructions, ~155 of output schema, at most 400 answered
-    /// (measured with `tokenCount`, macOS 27), plus room for the speaker names' share and the chat template.
+    /// Tokens of a request that are not transcript: ~270 of instructions, at most 400 answered (measured with
+    /// `tokenCount`), plus room for the speaker names' share and the chat template.
     nonisolated static let reservedTokens = 1_300
 
     /// Transcript characters per request for a model reading `contextSize` tokens: 3.5 characters per token, below the
-    /// 3.8-4.5 measured for German and English transcripts (4,096: 9,786; 8,192: 24,122; Gemma's 20,000: 65,450).
+    /// 3.8-4.5 measured for German and English transcripts (Gemma's 20,000: 65,450).
     nonisolated static func chunkCharacters(contextSize: Int) -> Int {
         max(3_000, (contextSize - reservedTokens) * 7 / 2)
     }
 
-    /// The model that writes: Apple's, or the downloaded Gemma.
-    enum Writer {
-        case apple
-        case local(LocalLanguageModel)
-
-        var chunkCharacters: Int {
-            switch self {
-            case .apple: TranscriptTitler.chunkCharacters(contextSize: SystemLanguageModel.default.contextSize)
-            case .local: TranscriptTitler.chunkCharacters(contextSize: LocalLanguageModel.contextTokens)
-            }
-        }
-    }
-
-    /// A request did not fit the model's window: tried again with smaller parts.
-    private struct ContextExceeded: Error {}
-    /// Gemma failed for another reason than being stopped (missing or damaged files): SpeakerIdentifier uses Apple's
-    /// model for this transcript instead.
+    /// Gemma failed for another reason than being stopped (missing or damaged files): the transcript stays undescribed.
     nonisolated struct LocalModelFailed: Error {
         var underlying: String
     }
-    /// Greedy: the same transcript gets the same title. The token cap stops a rare greedy repetition loop (once 360 s,
-    /// until the context window was full).
-    nonisolated static let options = GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 400)
 
     nonisolated struct Description: Sendable, Equatable {
         var title: String?      // nil when the model's title failed the checks: the name stays
         var summary: String
     }
 
-    /// describe() throws this when the model can't answer now but may later (`isTransient`: rate limited while the app
-    /// runs in the background, model assets updating, time-out): the transcript is not marked described, so the next
-    /// launch or return to the foreground tries again. Refusals and other failures are final (nil).
+    /// describe() throws this when the model can't answer now but may later (stopped because the app left the
+    /// foreground or a recording started): the transcript is not marked described, so it is tried again.
     nonisolated struct RetryLater: Error {}
-
-    var isAvailable: Bool { SystemLanguageModel.default.availability == .available }
-
-    func canDescribe(_ locale: Locale) -> Bool { isAvailable && SystemLanguageModel.default.supportsLocale(locale) }
 
     /// Title and summary of `paragraphs` (the transcript's segments in order, each "Name: text"), or nil without a
     /// usable model answer. Throws RetryLater when the model can't answer right now (Gemma: stopped because the app
@@ -72,26 +54,14 @@ final class TranscriptTitler {
     /// from some of the parts only. Throws LocalModelFailed when Gemma can't run.
     /// `partial` gets the summary as the model writes it (the final request only, not the parts of a long transcript),
     /// so the card can show it growing.
-    func describe(paragraphs: [String], locale recordingLocale: Locale, writer: Writer = .apple,
+    func describe(paragraphs: [String], locale recordingLocale: Locale, writer: any TextWriter,
                   partial: (@Sendable (String) -> Void)? = nil) async throws -> Description? {
         let locale = Self.textLocale(Self.withoutNames(paragraphs)) ?? recordingLocale
-        if case .apple = writer, !canDescribe(locale) { return nil }
-        var limit = writer.chunkCharacters
-        for _ in 0..<3 {
-            do {
-                return try await describe(paragraphs, locale: locale, writer: writer, limit: limit, partial: partial)
-            } catch is ContextExceeded {
-                #if DEBUG
-                print("[Scribe] title: context exceeded at \(limit) characters per part, smaller parts")
-                #endif
-                partial?("")                                    // what was streamed is abandoned
-                limit = limit * 6 / 10
-            }
-        }
-        return nil
+        return try await describe(paragraphs, locale: locale, writer: writer,
+                                  limit: Self.chunkCharacters(contextSize: LocalLanguageModel.contextTokens), partial: partial)
     }
 
-    private func describe(_ paragraphs: [String], locale: Locale, writer: Writer, limit: Int,
+    private func describe(_ paragraphs: [String], locale: Locale, writer: any TextWriter, limit: Int,
                           partial: (@Sendable (String) -> Void)?) async throws -> Description? {
         let language = Self.languageName(locale)
         var parts = Self.chunks(paragraphs, limit: limit)
@@ -114,27 +84,18 @@ final class TranscriptTitler {
         }
         let prompt = (fromSummaries ? "Summaries of the consecutive parts of one long conversation:\n" : "Transcript:\n")
             + parts[0]
-        let answer: TitleAndSummary?
-        switch writer {
-        case .apple:
-            answer = try await generate(prompt: prompt,
-                                        instructions: Self.titleInstructions(language: language, locale: locale,
-                                                                             fromSummaries: fromSummaries),
-                                        partial: partial)
-        case .local(let model):
-            let instructions = Self.localTitleInstructions(language: language, locale: locale, fromSummaries: fromSummaries)
-            // The task again after the transcript: without it Gemma went on with the transcript ("Anna Schmidt: …").
-            let request = prompt + "\n\n" + Self.localReminder
-            let text = try await Self.local {
-                try await model.respond(instructions: instructions, prompt: request) { text in
-                    if let summary = Self.partialSummary(in: text) { partial?(summary) }
-                }
+        let instructions = Self.localTitleInstructions(language: language, locale: locale, fromSummaries: fromSummaries)
+        // The task again after the transcript: without it Gemma went on with the transcript ("Anna Schmidt: …").
+        let request = prompt + "\n\n" + Self.localReminder
+        let text = try await Self.local {
+            try await writer.respond(instructions: instructions, prompt: request, maxTokens: 400, temperature: 0) { text in
+                if let summary = Self.partialSummary(in: text) { partial?(summary) }
             }
-            #if DEBUG
-            print("[Scribe] title (Gemma): \(text)")
-            #endif
-            answer = Self.parseLabelled(text)
         }
+        #if DEBUG
+        print("[Scribe] title (Gemma): \(text)")
+        #endif
+        let answer = Self.parseLabelled(text)
         guard let answer else { return nil }
         let summary = Self.plainSentences(answer.summary).trimmingCharacters(in: .whitespacesAndNewlines)
         guard let first = summary.first else { return nil }
@@ -145,82 +106,19 @@ final class TranscriptTitler {
         return Description(title: title, summary: first.uppercased() + summary.dropFirst())
     }
 
-    /// A part's summary as plain text (structured output returned "{" for some parts), under the guardrails for
-    /// transforming the user's own text.
-    private func summarize(_ text: String, language: String, fromSummaries: Bool, writer: Writer) async throws -> String? {
+    /// A part's summary as plain text.
+    private func summarize(_ text: String, language: String, fromSummaries: Bool, writer: any TextWriter) async throws -> String? {
         let prompt = (fromSummaries ? "Summaries of consecutive parts of one long conversation:\n" : "Part of a transcript:\n")
             + text
-        if case .local(let local) = writer {
-            let answer = try await Self.local {
-                try await local.respond(instructions: Self.partInstructions(language: language), prompt: prompt)
-            }
-            let summary = Self.plainSentences(answer)
-            #if DEBUG
-            print("[Scribe] part summary (Gemma): \(summary)")
-            #endif
-            return summary.isEmpty ? nil : summary
+        let answer = try await Self.local {
+            try await writer.respond(instructions: Self.partInstructions(language: language), prompt: prompt,
+                                     maxTokens: 400, temperature: 0, partial: nil)
         }
-        let model = SystemLanguageModel(guardrails: .permissiveContentTransformations)
-        let session = LanguageModelSession(model: model, instructions: Self.partInstructions(language: language))
-        do {
-            let summary = Self.plainSentences(try await session.respond(to: prompt, options: Self.options).content)
-            #if DEBUG
-            print("[Scribe] part summary: \(summary)")
-            #endif
-            return summary.isEmpty ? nil : summary
-        } catch {
-            #if DEBUG
-            print("[Scribe] part summary: \(error)")
-            #endif
-            if Self.isTransient(error) { throw RetryLater() }
-            if Self.isContextExceeded(error) { throw ContextExceeded() }
-            return nil
-        }
-    }
-
-    /// Structured output first. The default guardrails, and the model itself, now and then refuse harmless
-    /// conversations (`.refusal` for "ich möchte gerne Geld auf mein Konto einzahlen" with these instructions); then
-    /// once more with the guardrails for transforming the user's own text, which only apply to plain-text answers
-    /// (`plain` reads the answer).
-    private func generate(prompt: String, instructions: String,
-                          partial: (@Sendable (String) -> Void)?) async throws -> TitleAndSummary? {
-        do {
-            let session = LanguageModelSession(instructions: instructions)
-            guard let partial else {
-                return try await session.respond(to: prompt, generating: TitleAndSummary.self, options: Self.options).content
-            }
-            // Streamed: every snapshot carries the summary as far as it is written (the topics come first, so the
-            // summary starts a moment after the model does).
-            let stream = session.streamResponse(to: prompt, generating: TitleAndSummary.self, options: Self.options)
-            for try await snapshot in stream {
-                if let summary = snapshot.content.summary, !summary.isEmpty { partial(summary) }
-            }
-            return try await stream.collect().content
-        } catch let error where Self.isRefusal(error) {
-            #if DEBUG
-            print("[Scribe] title: refused, plain text instead")
-            #endif
-            partial?("")                                        // the refused attempt's text goes
-            let permissive = SystemLanguageModel(guardrails: .permissiveContentTransformations)
-            let session = LanguageModelSession(model: permissive, instructions: instructions + "\n" + Self.plainFormat)
-            do {
-                return Self.parseLabelled(try await session.respond(to: prompt, options: Self.options).content)
-            } catch {
-                #if DEBUG
-                print("[Scribe] title, plain text: \(error)")
-                #endif
-                if Self.isTransient(error) { throw RetryLater() }
-                if Self.isContextExceeded(error) { throw ContextExceeded() }
-                return nil
-            }
-        } catch {
-            #if DEBUG
-            print("[Scribe] title: \(error)")
-            #endif
-            if Self.isTransient(error) { throw RetryLater() }
-            if Self.isContextExceeded(error) { throw ContextExceeded() }
-            return nil
-        }
+        let summary = Self.plainSentences(answer)
+        #if DEBUG
+        print("[Scribe] part summary (Gemma): \(summary)")
+        #endif
+        return summary.isEmpty ? nil : summary
     }
 
     /// Runs a Gemma request: stopped (the app left the foreground) = RetryLater, any other failure = LocalModelFailed.
@@ -239,17 +137,6 @@ final class TranscriptTitler {
 
     // MARK: Pure helpers
 
-    /// The request did not fit the model's window (iOS 26: GenerationError, iOS 27: LanguageModelError).
-    nonisolated static func isContextExceeded(_ error: any Error) -> Bool {
-        if #available(iOS 27.0, macOS 27.0, *), let error = error as? LanguageModelError {
-            if case .contextSizeExceeded = error { return true }
-            return false
-        }
-        guard let error = error as? LanguageModelSession.GenerationError else { return false }
-        if case .exceededContextWindowSize = error { return true }
-        return false
-    }
-
     /// A transcript paragraph as the model reads it: "Name: text" ("Speaker 2" while unnamed), the text alone without
     /// a speaker.
     nonisolated static func paragraph(_ text: String, speaker: String?) -> String {
@@ -260,44 +147,6 @@ final class TranscriptTitler {
     /// The paragraphs without their "Name: " prefixes (language detection should not read names).
     nonisolated static func withoutNames(_ paragraphs: [String]) -> [String] {
         paragraphs.map { $0.replacing(/^[^:\n]{1,40}:\s/, with: "") }
-    }
-
-    /// A refusal or guardrail violation: asked once more as plain text. iOS 26 throws LanguageModelSession
-    /// .GenerationError; iOS 27 throws LanguageModelError instead (GenerationError is deprecated there and not thrown).
-    nonisolated static func isRefusal(_ error: any Error) -> Bool {
-        if #available(iOS 27.0, macOS 27.0, *), let error = error as? LanguageModelError {
-            switch error {
-            case .guardrailViolation, .refusal: return true
-            default: return false
-            }
-        }
-        guard let error = error as? LanguageModelSession.GenerationError else { return false }
-        switch error {
-        case .guardrailViolation, .refusal: return true
-        default: return false
-        }
-    }
-
-    /// The model can't answer now but may later: rate limited (Apple: only while the app runs in the background), busy,
-    /// model assets missing or updating, timed out, or cancelled. Everything else (refusals, context window, unsupported
-    /// language, unreadable answers, unknown errors) would fail the same way again.
-    nonisolated static func isTransient(_ error: any Error) -> Bool {
-        if error is CancellationError { return true }
-        if #available(iOS 27.0, macOS 27.0, *) {
-            if let error = error as? LanguageModelError {
-                switch error {
-                case .rateLimited, .timeout: return true
-                default: return false
-                }
-            }
-            if error is SystemLanguageModel.Error { return true }                  // its only case: assetsUnavailable
-            if let error = error as? LanguageModelSession.Error, error == .concurrentRequests { return true }
-        }
-        guard let error = error as? LanguageModelSession.GenerationError else { return false }
-        switch error {
-        case .rateLimited, .concurrentRequests, .assetsUnavailable: return true
-        default: return false
-        }
     }
 
     /// Names the app gives a transcript itself; only these are replaced by an automatic title.
@@ -349,9 +198,6 @@ final class TranscriptTitler {
         return (1...6).contains(words) ? title : nil
     }
 
-    nonisolated static let plainFormat = "Answer in plain text without Markdown. For a title, answer with exactly two " +
-        "lines: \"Summary: …\" and then \"Title: …\"."
-
     /// The "Summary: …" and "Title: …" lines of a plain-text answer.
     /// The summary line of a plain-text answer as far as it is written (Gemma's three lines arrive token by token).
     nonisolated static func partialSummary(in text: String) -> String? {
@@ -395,29 +241,7 @@ final class TranscriptTitler {
         return Locale(identifier: "en").localizedString(forLanguageCode: code) ?? "English"
     }
 
-    nonisolated static func titleInstructions(language: String, locale: Locale, fromSummaries: Bool) -> String {
-        let example = locale.language.languageCode?.identifier == "de" ? "Testphase Kreditprojekt und Abnahme"
-                                                                       : "Credit Project Test Phase and Sign-off"
-        let source = fromSummaries
-            ? "You get summaries of the consecutive parts of one long conversation. The summary names the main topics " +
-              "of the whole conversation, not only those of the first or the last part."
-            : "The transcript comes from speech recognition and may contain misheard words; ignore words that make no " +
-              "sense. Each line starts with the speaker's name and a colon (\"Speaker 2\" while the name is unknown)."
-        return """
-        You write the title and a short summary of a recorded conversation. Write both in \(language).
-        Summary: one or two complete, short sentences that state what was said, asked or decided, in the third person \
-        (never "ich", "wir", "I" or "we"). Name people by their names where the text gives them, but never write \
-        "Speaker 1" or similar. Prefer the active voice. State the content directly; do not begin with phrases like \
-        "In dem Gespräch" or "Die Diskussion".
-        Title: 2 to 6 words (at least two) that name the specific main topic, like a document heading, for example \
-        "\(example)". A natural phrase, not a list of keywords. No quotation marks, no final period, and do not begin \
-        with generic words like "Meeting über", "Besprechung", "Gespräch über" or "Discussion of".
-        Use only what the text says: never invent names, numbers, places, dates, decisions or details. \(source)
-        """
-    }
-
-    /// Gemma's instructions for title and summary: more explicit than Apple's (a small model follows examples and
-    /// prohibitions literally; without them it wrote "Anna fasst die Ergebnisse zusammen" and "Zusammenfassung der …").
+    /// Gemma's instructions for title and summary: explicit (a small model follows examples and prohibitions literally; without them it wrote "Anna fasst die Ergebnisse zusammen" and "Zusammenfassung der …").
     nonisolated static func localTitleInstructions(language: String, locale: Locale, fromSummaries: Bool) -> String {
         let german = locale.language.languageCode?.identifier == "de"
         let example = german ? "Kreditprojekt: Testphase und Abnahme" : "Credit Project: Test Phase and Sign-off"
@@ -458,13 +282,10 @@ final class TranscriptTitler {
     }
 }
 
-@Generable
+/// A parsed answer: the topics are asked for first, so the summary of a long conversation covers more than its
+/// first part.
 nonisolated struct TitleAndSummary {
-    // Generated first: listing the topics makes the summary of a long conversation cover more than its first part.
-    @Guide(description: "The main topics of the whole conversation, in order", .maximumCount(5))
     var topics: [String]
-    @Guide(description: "One or two complete, short sentences: the main topics and what was said, asked or decided")
     var summary: String
-    @Guide(description: "2 to 6 words: a natural heading for the most important topic (at most two topics), not a list")
     var title: String
 }

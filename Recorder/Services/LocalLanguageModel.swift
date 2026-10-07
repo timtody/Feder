@@ -133,3 +133,5 @@ nonisolated struct TransformersTokenizerLoader: MLXLMCommon.TokenizerLoader {
         }
     }
 }
+
+extension LocalLanguageModel: TextWriter {}
