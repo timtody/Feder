@@ -20,12 +20,15 @@ final class AppServices {
     let people: PeopleDirectory
     let betterSummaries = BetterSummaries()          // Gemma for titles and summaries (Settings)
     let usesFakes: Bool
+    private let nemotronDiarizer: NemotronDiarizer
+    @ObservationIgnored private var prewarmed = false
     /// The live model is loaded. Only then does a new recording get live labels; a recording never waits for it.
     private(set) var isLiveModelReady = false
 
     init(container: ModelContainer) {
         self.container = container
         let nemotronDiarizer = NemotronDiarizer()
+        self.nemotronDiarizer = nemotronDiarizer
         nemotron = NemotronModel(diarizer: nemotronDiarizer)
         #if DEBUG && targetEnvironment(simulator)
         usesFakes = true
@@ -55,6 +58,27 @@ final class AppServices {
             isLiveModelReady = true
         } catch {
             isLiveModelReady = false
+        }
+    }
+
+    /// Once per launch, in the background: loads the downloaded Nemotron model before the first recording needs it.
+    /// After every new build iOS compiles CoreML models for the Neural Engine again on first use; measured on an
+    /// iPhone 17 right after an install: Nemotron 178 s (then 0.1-0.4 s), pyannote 2.5 s (then 0.1 s; already loaded
+    /// at launch by SpeakerIdentifier.prepareAndRetryPending). Without this the first recording after a build waited
+    /// minutes for its speakers. Utility priority; downloads nothing. (Parakeet, about 14 s the first time, is left
+    /// alone: it is optional and the fallback at most.)
+    func prewarmModels() {
+        guard !usesFakes, !prewarmed else { return }
+        prewarmed = true
+        let nemotron = nemotronDiarizer
+        Task.detached(priority: .utility) {
+            #if DEBUG
+            let start = ContinuousClock.now
+            #endif
+            await nemotron.prewarm()
+            #if DEBUG
+            print("[Scribe] prewarm: Nemotron after \(ContinuousClock.now - start)")
+            #endif
         }
     }
 

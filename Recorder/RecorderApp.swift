@@ -28,6 +28,12 @@ struct RecorderApp: App {
                 .environment(services)
                 .onChange(of: scenePhase, initial: true) { _, phase in
                     guard phase == .active else { return }
+                    #if DEBUG
+                    if WarmupBench.isRequested {               // QA: the models' cold timings, nothing else loading
+                        Task { await WarmupBench.run() }
+                        return
+                    }
+                    #endif
                     Task {
                         await services.identifier.prepareAndRetryPending()
                         await services.identifier.refreshVoices()       // once per transcript: voices from final labels
@@ -37,6 +43,7 @@ struct RecorderApp: App {
                         // (Parakeet is not downloaded here: it is optional, only on the user's tap in Settings.)
                     }
                     Task { await services.prepareLiveDiarizer() }   // independent: neither waits for the other
+                    services.prewarmModels()                        // once per launch: Nemotron compiled before Stop
                 }
         }
         .modelContainer(services.container)

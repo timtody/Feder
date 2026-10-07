@@ -34,6 +34,7 @@ nonisolated final class NemotronDiarizer: Sendable {
 
     private enum Request: Sendable {
         case download(@Sendable (Double) -> Void, CheckedContinuation<Void, any Error>)
+        case prewarm(CheckedContinuation<Void, Never>)
         case diarize(URL, CheckedContinuation<[SpeakerTurn], any Error>)
     }
 
@@ -62,6 +63,12 @@ nonisolated final class NemotronDiarizer: Sendable {
                 case .download(let progress, let reply):
                     do { _ = try await load { progress($0.fractionCompleted) }; reply.resume() }
                     catch { reply.resume(throwing: RecorderError.diarizationFailed(error.localizedDescription)) }
+                case .prewarm(let reply):
+                    // Loads a downloaded model ahead of the first recording: after a new build iOS compiles it for
+                    // the Neural Engine again on first use (178 s on an iPhone 17, then 0.1-0.4 s), which the first
+                    // recording's speakers used to wait for. Never downloads.
+                    if diarizer == nil, Self.isDownloaded { _ = try? await load(progress: nil) }
+                    reply.resume()
                 case .diarize(let url, let reply):
                     do {
                         guard diarizer != nil || Self.isDownloaded else {
@@ -81,6 +88,11 @@ nonisolated final class NemotronDiarizer: Sendable {
     /// Downloads (if needed, ~100 MB) and loads the model; `progress` gets the fraction downloaded.
     func download(progress: @escaping @Sendable (Double) -> Void) async throws {
         try await withCheckedThrowingContinuation { requests.yield(.download(progress, $0)) }
+    }
+
+    /// Loads the model if it is downloaded and not loaded yet (AppServices.prewarmModels); never downloads, never throws.
+    func prewarm() async {
+        await withCheckedContinuation { requests.yield(.prewarm($0)) }
     }
 
     /// Exclusive turns of the whole file, speakerIndex 0-based by first appearance. Throws when the model isn't
