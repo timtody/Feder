@@ -70,23 +70,63 @@ final class SettingsTests: ScribeUITestCase {
         shot("Expanded again", app)
     }
 
-    /// Settings › After Recording › Summaries: the model in use (the simulator has no MLX GPU, so Apple Intelligence
-    /// and a note that Better Summaries need an iPhone; on an iPhone the Gemma download row), on its own page.
+    /// The October 2026 cleanup: no font choice, Smart Corrections or Developer section. Transcription is Apple Speech by
+    /// default, and Parakeet is an optional download named with its size (not tapped: it would fetch 610 MB), not in
+    /// the picker until it is there. The Consulting & Banking Terms toggle is on the main page only, not under Your Words.
     @MainActor
-    func testSummariesSectionInSettings() throws {
+    func testSettingsAfterCleanup() throws {
         let app = launch()
         app.buttons["Settings"].firstMatch.tap()
-        let row = app.buttons["Summaries"].firstMatch
+        let transcription = app.buttons["Transcription"].firstMatch
+        XCTAssertTrue(transcription.waitForExistence(timeout: 5), "the Transcription row")
+        for gone in ["Smart Corrections", "Reading", "Developer", "New York", "Libron", "Local Model"] {
+            XCTAssertFalse(app.descendants(matching: .any)[gone].exists, "\(gone) is gone")
+        }
+        XCTAssertTrue(transcription.label.contains("Apple Speech"), "Apple Speech by default: \(transcription.label)")
+        XCTAssertTrue(app.switches["Consulting & Banking Terms"].exists, "the built-in terms toggle on the main page")
+        shot("Settings", app)
+
+        transcription.tap()
+        let apple = app.buttons["Apple Speech"]
+        XCTAssertTrue(apple.waitForExistence(timeout: 5) && apple.isSelected, "Apple Speech chosen")
+        XCTAssertFalse(app.buttons["Parakeet"].exists, "Parakeet is not in the picker before it is downloaded")
+        XCTAssertTrue(app.buttons["Download Parakeet (610 MB)"].exists, "the download names the model and its size")
+        shot("Transcription", app)
+        app.navigationBars.buttons.firstMatch.tap()
+
+        let yourWords = app.staticTexts["Your Words"].firstMatch   // the row is a link, not a button
+        for _ in 0..<3 where !yourWords.isHittable { app.swipeUp() }
+        yourWords.tap()
+        XCTAssertTrue(app.textFields["Add a word or name"].waitForExistence(timeout: 5), "the Your Words page")
+        XCTAssertFalse(app.switches["Consulting & Banking Terms"].exists, "not repeated under Your Words")
+        shot("Your Words", app)
+    }
+
+    /// Settings › After Recording › Summaries: only Gemma writes titles and summaries. Without it (the simulator has no
+    /// MLX GPU) the row says "Not available" and the page explains that it needs an 8 GB iPhone; with `-fakeGemma` the
+    /// row names Gemma and the page has the switch.
+    @MainActor
+    func testSummariesSectionInSettings() throws {
+        var app = launch()
+        app.buttons["Settings"].firstMatch.tap()
+        var row = app.buttons["Summaries"].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5), "the Summaries row under After Recording")
-        XCTAssertTrue(row.label.contains("Apple Intelligence"), "the row shows the model in use: \(row.label)")
+        XCTAssertTrue(row.label.contains("Not available"), "no Gemma on the simulator: \(row.label)")
         row.tap()
-        let footer = app.staticTexts["Better Summaries need an iPhone (not the simulator)."]
-        XCTAssertTrue(footer.waitForExistence(timeout: 5), "the page's footer on the simulator")
-        shot("Titles and Summaries", app)
+        let footer = app.staticTexts["Automatic titles and summaries need an iPhone with 8 GB of memory (iPhone 17 or later)."]
+        XCTAssertTrue(footer.waitForExistence(timeout: 5), "the page's footer without Gemma")
         XCTAssertTrue(app.staticTexts["Titles and Summaries"].exists, "the section header")
-        let model = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label CONTAINS 'Apple Intelligence' OR value CONTAINS 'Apple Intelligence'"))
-        XCTAssertTrue(model.firstMatch.exists, "the model in use: \(app.cells.allElementsBoundByIndex.map(\.label))")
+        shot("Summaries without Gemma", app)
+
+        app.terminate()
+        app = launch(["-fakeGemma"])
+        app.buttons["Settings"].firstMatch.tap()
+        row = app.buttons["Summaries"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.label.contains("Gemma 4 E2B"), "Gemma there: \(row.label)")
+        row.tap()
+        XCTAssertTrue(app.switches["Titles and Summaries"].waitForExistence(timeout: 5), "the on/off switch")
+        shot("Summaries with Gemma", app)
     }
 
     @MainActor
