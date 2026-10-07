@@ -4,14 +4,16 @@ import Observation
 
 /// NVIDIA Parakeet TDT 0.6B "Ultra" (FluidAudio, CoreML, on device) for the full-accuracy pass after Stop. Measured on
 /// 80 real German clips: read speech 11.0 % -> 8.9 % word errors (4.4 % -> 2.4 % character errors) against Apple's
-/// SpeechTranscriber, phone calls equal (11.1 %), about 7x faster. 25 European languages. The ~610 MB model downloads
-/// once from Hugging Face into Application Support/FluidAudio/Models: automatically on Wi-Fi, on cellular only when the
-/// user taps "Download Now". Until it is there, the pass uses Apple's recognizer.
+/// SpeechTranscriber, phone calls equal (11.1 %), about 7x faster. 25 European languages. Optional: Apple Speech is the
+/// default, and the ~610 MB model downloads from Hugging Face into Application Support/FluidAudio/Models only when the
+/// user taps "Download Parakeet" in Settings › Transcription (any network); a finished download selects it. Until it
+/// is there and chosen, the pass uses Apple's recognizer.
 @MainActor @Observable
 final class ParakeetModel {
-    /// UserDefaults key of the engine choice ("parakeet" or "apple"); absent means Parakeet.
+    /// UserDefaults key of the engine choice ("parakeet" or "apple"); absent means Apple Speech (`defaultEngine`).
     nonisolated static let engineKey = "transcriptionEngine"
-    nonisolated static var isPreferred: Bool { UserDefaults.standard.string(forKey: engineKey) ?? "parakeet" == "parakeet" }
+    nonisolated static let defaultEngine = "apple"
+    nonisolated static var isPreferred: Bool { UserDefaults.standard.string(forKey: engineKey) == "parakeet" }
     nonisolated static let version: AsrModelVersion = .ultra
 
     private(set) var state: ModelDownloadState
@@ -23,16 +25,12 @@ final class ParakeetModel {
 
     var isReady: Bool { state == .ready }
 
-    /// Launch and every return to the foreground (`force == false`: Wi-Fi only), or "Download Now" (`force == true`).
-    func download(force: Bool) async {
-        guard Self.isPreferred else { return }
+    /// "Download Parakeet" in Settings, the only way it downloads (on any network). Once it is there it is the engine:
+    /// the tap was the choice.
+    func download() async {
         switch state {
         case .ready, .downloading: return
         case .notDownloaded, .waitingForWiFi, .failed: break
-        }
-        if !force, await ModelDownload.isExpensiveNetwork() {
-            state = .waitingForWiFi
-            return
         }
         state = .downloading(0)
         do {
@@ -43,6 +41,7 @@ final class ParakeetModel {
             }
             FluidAudioDiarizer.excludeModelsFromBackup()
             state = .ready
+            UserDefaults.standard.set("parakeet", forKey: Self.engineKey)
         } catch {
             state = .failed(error.localizedDescription)
         }

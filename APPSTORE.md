@@ -16,7 +16,7 @@ Feder is free; users can tip via In-App Purchase. Implementation items first, in
   - UI: "Support Feder" row at the bottom of Settings → a page with the three tips (StoreKit's `ProductView`) and one line: "Feder is free and stays free; a tip helps keep it that way."
   - Needs the Paid Apps agreement, banking and tax forms first (days).
 - [ ] **App Store name**: the app is called Feder (it was Scribe, which five transcription apps already use). "Feder" is free in the transcription category in the German and US stores; check the exact listing name before submitting; the bundle id `de.cofinpro.recorder` and `PRODUCT_NAME` never change.
-- [ ] **Review path**: the reviewer tests with English speech on an unknown device. Verify: Apple Speech path works without any download; the empty state explains the record button; offline is handled (it is); nothing crashes with downloads refused. Review notes: the optional downloads (610 MB / 100 MB / 3.6 GB), German as the primary language, a short demo video link.
+- [ ] **Review path**: the reviewer tests with English speech on an unknown device. Verify: the default Apple Speech path works without any download; the empty state explains the record button; offline is handled (it is); nothing crashes with downloads refused. Review notes: the optional downloads (610 MB / 100 MB / 3.6 GB), German as the primary language, a short demo video link.
 
 ## 2. Implementation — should-haves for 1.0
 

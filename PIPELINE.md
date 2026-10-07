@@ -22,7 +22,7 @@ flowchart TB
     UI1 -. Stop .-> SAVE[Recording saved<br/>words, live labels as segments]
 
     subgraph POST["Stage 2 — after Stop (SpeakerIdentifier, one recording at a time)"]
-        SAVE --> W[1 · Words<br/>Parakeet TDT 0.6B Ultra<br/>fallback: Apple offline pass]
+        SAVE --> W[1 · Words<br/>Apple offline pass<br/>optional: Parakeet TDT 0.6B Ultra]
         W --> D[2 · Speakers<br/>Nemotron 3 diarizer<br/>fallback: pyannote/VBx]
         D --> AL[3 · Alignment<br/>TranscriptAligner: word midpoint → turn]
         AL --> V[4 · Voices<br/>WeSpeaker embeddings from final labels]
@@ -45,8 +45,8 @@ The status line under the date names the running step: *Transcribing… → Refi
 |---|---|---|---|---|---|
 | Live ASR | Apple `SpeechTranscriber` (progressive) | Speech framework | system | locale asset once | finals ~15 s after speech (p50 8.7 s) |
 | Live diarization | LS-EEND (FluidAudio) | CoreML | 43 MB | automatic | right speaker p50 2.2 s / p90 3.1 s after a change |
-| Offline ASR | NVIDIA Parakeet TDT 0.6B "Ultra" | CoreML via FluidAudio | ~610 MB | Wi-Fi automatic / on demand | 8.9 % WER audiobooks, 11.1 % phone calls |
-| Offline ASR fallback | Apple `SpeechTranscriber` (offline, full context) | Speech framework | system | — | 11.0 % / 11.1 % |
+| Offline ASR (optional) | NVIDIA Parakeet TDT 0.6B "Ultra" | CoreML via FluidAudio | ~610 MB | on demand (Settings) | 8.9 % WER audiobooks, 11.1 % phone calls |
+| Offline ASR (default) | Apple `SpeechTranscriber` (offline, full context) | Speech framework | system | — | 11.0 % / 11.1 % |
 | Offline diarization | NVIDIA Nemotron 3 | CoreML via FluidAudio | ~100 MB | Wi-Fi automatic / on demand | 2.22 → 1.77 % wrong words with alignment offset (DiarBench) |
 | Diarization fallback | pyannote community-1 + VBx | CoreML via FluidAudio | ~21 MB | first use | weaker; recognition thresholds stricter for its speakers |
 | Voice embeddings | WeSpeaker (FluidAudio) | CoreML | in the 21 MB | with pyannote | 256-d, unit length |
@@ -75,7 +75,7 @@ xychart-beta
 ## 4. Stage 2 in detail — after Stop
 
 ### Step 1 · Words
-The WAV is transcribed again with full context. Parakeet Ultra when chosen, downloaded and the language is supported (25 European languages), else Apple's offline pass. Word times from Parakeet's token timings (shifted by `alignmentOffset` −0.12 s for the turns). Better words replace the live ones at once, with the live labels re-applied; changed words flash. Runs once per transcript (`wordsRefined`).
+The WAV is transcribed again with full context. Apple's offline pass by default; Parakeet Ultra once downloaded in Settings, while it is chosen and the language is supported (25 European languages). Word times from Parakeet's token timings (shifted by `alignmentOffset` −0.12 s for the turns). Better words replace the live ones at once, with the live labels re-applied; changed words flash. Runs once per transcript (`wordsRefined`).
 
 ```mermaid
 xychart-beta
@@ -100,7 +100,7 @@ Nemotron 3 diarizes the file (`.automatic`, or `.exactly(n)` from the Speakers m
 Cosine match against the enrolled people (`PeopleDirectory`); thresholds depend on the diarizer (stricter for pyannote's less pure speakers). Named speakers get the person's name; renaming a speaker enrolls or re-enrols the voice.
 
 ### Step 6 · Vocabulary pass (background)
-Only with a vocabulary. `DictationTranscriber` over the whole file with the terms as contextual strings; `VocabularyMerge` takes over **only** the terms it recognized, at the same time (±0.15 s), replacing the most similar word run (Levenshtein ≤ 50 %): "Bufin" → "BaFin", "KoFin Pro" → "Cofinpro"; plus case fixes ("Marisk" → "MaRisk"). Everything else stays Parakeet's. Words are re-aligned with the stored turns, so speakers and names stay.
+Only with a vocabulary. `DictationTranscriber` over the whole file with the terms as contextual strings; `VocabularyMerge` takes over **only** the terms it recognized, at the same time (±0.15 s), replacing the most similar word run (Levenshtein ≤ 50 %): "Bufin" → "BaFin", "KoFin Pro" → "Cofinpro"; plus case fixes ("Marisk" → "MaRisk"). Everything else stays as the words pass wrote it. Words are re-aligned with the stored turns, so speakers and names stay.
 
 ### Step 7 · Smart Corrections (background, experimental, off by default)
 

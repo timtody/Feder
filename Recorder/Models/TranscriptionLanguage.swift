@@ -16,7 +16,7 @@ nonisolated enum TranscriptionLanguage {
 
     static var current: Locale { locale(stored: UserDefaults.standard.string(forKey: key) ?? "") }
 
-    /// The menu's languages: the phone's own languages first, then the European languages Parakeet transcribes most
+    /// The menu's languages: the phone's own languages first, then the European languages transcribed most
     /// often in this app's use (German, English, French, Spanish, Italian, Dutch), one per language.
     static var choices: [Locale] {
         var seen = Set<String>()

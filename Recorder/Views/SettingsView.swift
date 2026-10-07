@@ -9,7 +9,7 @@ import SwiftData
 /// "Downloading 40 %", "Apple Intelligence"), and every footer is one line. Everything applies from the next recording.
 struct SettingsView: View {
     @Environment(AppServices.self) private var services
-    @AppStorage(ParakeetModel.engineKey) private var engine = "parakeet"
+    @AppStorage(ParakeetModel.engineKey) private var engine = ParakeetModel.defaultEngine
     @Query private var people: [Person]
     private var peopleCount: Int { people.count }
     @AppStorage(TranscriptCorrector.settingKey) private var smartCorrections = false
@@ -114,8 +114,10 @@ struct SettingsView: View {
         Binding(get: { Vocabulary.usesBuiltIn }, set: { Vocabulary.usesBuiltIn = $0 })
     }
 
+    /// The engine that runs (Parakeet only once downloaded and chosen), or the download's progress.
     private var transcriptionValue: String {
-        engine == "parakeet" ? Self.value(services.parakeet.state, ready: "Parakeet", missing: "Apple Speech") : "Apple Speech"
+        if case .downloading = services.parakeet.state { return Self.value(services.parakeet.state, ready: "", missing: "") }
+        return engine == "parakeet" && services.parakeet.isReady ? "Parakeet" : "Apple Speech"
     }
 
     private var summariesValue: String {
@@ -172,29 +174,35 @@ struct ModelDownloadRow: View {
 
 // MARK: - Detail pages
 
-/// Settings › Transcription: the model of the full-accuracy pass after Stop (Parakeet or Apple Speech) and
-/// Parakeet's download.
+/// Settings › Transcription: the model of the full-accuracy pass after Stop. Apple Speech by default; Parakeet is an
+/// optional 610 MB download, listed in the picker once it is there (a finished download selects it). The picker shows
+/// what runs: a stored "parakeet" without the model reads as Apple Speech.
 struct TranscriptionModelView: View {
     @Environment(AppServices.self) private var services
-    @AppStorage(ParakeetModel.engineKey) private var engine = "parakeet"
+    @AppStorage(ParakeetModel.engineKey) private var engine = ParakeetModel.defaultEngine
+
+    private var selection: Binding<String> {
+        Binding(get: { engine == "parakeet" && services.parakeet.isReady ? "parakeet" : "apple" },
+                set: { engine = $0 })
+    }
 
     var body: some View {
         Form {
             Section {
-                Picker("Model", selection: $engine) {
-                    Text("Parakeet").tag("parakeet")
+                Picker("Model", selection: selection) {
                     Text("Apple Speech").tag("apple")
+                    if services.parakeet.isReady {
+                        Text("Parakeet").tag("parakeet")
+                    }
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()
             } footer: {
-                Text(engine == "parakeet"
-                     ? "Parakeet re-transcribes each recording on this iPhone after you stop, more accurately than Apple Speech. It needs a one-time 610 MB download, which starts automatically on Wi-Fi. Until then Apple Speech is used."
-                     : "Apple Speech re-transcribes each recording on this iPhone after you stop. No download needed.")
+                Text("Each recording is transcribed again on this iPhone after you stop. Apple Speech needs no download; Parakeet is more accurate for German and other European languages and needs a one-time 610 MB download.")
             }
-            if engine == "parakeet" {
+            if !services.parakeet.isReady {
                 Section {
-                    ModelDownloadRow(name: "Parakeet", state: services.parakeet.state, size: "610 MB") { await services.parakeet.download(force: true) }
+                    ModelDownloadRow(name: "Parakeet", state: services.parakeet.state, size: "610 MB") { await services.parakeet.download() }
                 }
             }
         }
