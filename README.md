@@ -93,7 +93,7 @@ Recorder/
     TranscriptSearchBar.swift  the Search tab's bar; SearchTokensBar.swift: the token chips; WrappingLayout.swift
     SearchHighlight.swift      highlighted Text, TranscriptSearchContext
     SpeakerNameSheet.swift     the rename sheet; TagEditor.swift (the tag line: pills, the comma field, suggestions); ShareSheet.swift (the system share sheet at once)
-    SettingsView.swift         Settings grouped by what the user does: People; While Recording (live labels); After Recording (Transcription, Speaker Identification, Summaries as detail pages with the model's download, Smart Corrections); Vocabulary (Your Words page); Developer (DEBUG: model comparison)
+    SettingsView.swift         Settings grouped by what the user does: People; While Recording (live labels); After Recording (Transcription, Speaker Identification, Summaries as detail pages with the model's download, Smart Corrections); Vocabulary (Your Words page: the user's words only; the Consulting & Banking Terms toggle is on the main page); Developer (DEBUG: model comparison)
     PeopleView.swift           People (in Settings) + PersonView
     ScrollDragObserver.swift   the List's pan gesture (pull-to-search's lift); RelativeDate.swift; PreviewData.swift (+ the seeded samples)
 ScribeUITests/                 XCUITest target (see UI tests)

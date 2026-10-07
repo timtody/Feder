@@ -284,11 +284,10 @@ struct SummariesModelView: View {
     }
 }
 
-/// Settings › Your Words: the user's vocabulary, one word per row, swipe to delete, a field to add; and the built-in
-/// German consulting and banking list to read.
+/// Settings › Your Words: the user's vocabulary, one word per row, swipe to delete, a field to add. The built-in terms
+/// are the Consulting & Banking Terms toggle on the main Settings page (it was here too, twice in two screens).
 struct VocabularyView: View {
     @State private var words = Vocabulary.custom
-    @State private var usesBuiltIn = Vocabulary.usesBuiltIn
     @State private var draft = ""
     @FocusState private var isAdding: Bool
 
@@ -309,19 +308,6 @@ struct VocabularyView: View {
             } footer: {
                 Text("Names, products and terms the transcription often gets wrong. Applies from the next recording.")
             }
-
-            Section {
-                Toggle("Consulting & Banking Terms", isOn: $usesBuiltIn)
-                if usesBuiltIn {
-                    DisclosureGroup("\(Vocabulary.builtIn.count) terms") {
-                        Text(Vocabulary.builtIn.joined(separator: ", "))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } footer: {
-                Text("German office, consulting, banking and finance vocabulary, e.g. Cofinpro, Jour fixe, MaRisk, BaFin, Baufinanzierung.")
-            }
         }
         .navigationTitle("Your Words")
         .navigationBarTitleDisplayMode(.inline)
@@ -331,7 +317,6 @@ struct VocabularyView: View {
             isAdding = false
         }
         .onChange(of: words) { _, new in Vocabulary.custom = new }
-        .onChange(of: usesBuiltIn) { _, new in Vocabulary.usesBuiltIn = new }
     }
 
     /// Adds the draft (comma-separated input becomes several words); skips blanks and case-insensitive duplicates.
