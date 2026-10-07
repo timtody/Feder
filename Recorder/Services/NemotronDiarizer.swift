@@ -210,10 +210,16 @@ nonisolated final class NemotronDiarizer: Sendable {
 /// The Nemotron model's one-time download (~100 MB into Application Support/FluidAudio/Models/nemotron-3-diarization):
 /// automatic at launch and on every return to the foreground on Wi-Fi only (not on cellular, hotspot or Low Data Mode),
 /// on any network via "Download Nemotron" in Settings. Until it is there, speakers are identified with pyannote.
+/// The onboarding sheet's first page and the record accessory show the download (`state`). After the files the model is
+/// loaded and compiled for the Neural Engine before `download` returns; the state stays `.downloading(1)` meanwhile
+/// (`preparingFraction`), which both show as "Preparing".
 @MainActor @Observable
 final class NemotronModel {
     private(set) var state: ModelDownloadState
     private let diarizer: NemotronDiarizer
+
+    /// `.downloading(f)` with f at least this: the files are there and the model is being loaded.
+    nonisolated static let preparingFraction = 0.999
 
     init(diarizer: NemotronDiarizer) {
         self.diarizer = diarizer
@@ -226,6 +232,9 @@ final class NemotronModel {
         case .ready, .downloading: return
         case .notDownloaded, .waitingForWiFi, .failed: break
         }
+        #if DEBUG
+        if Self.fakesDownload { return await fakeDownload() }
+        #endif
         if !force, await ModelDownload.isExpensiveNetwork() {
             state = .waitingForWiFi
             return
@@ -234,7 +243,10 @@ final class NemotronModel {
         do {
             try await diarizer.download { [weak self] fraction in
                 Task { @MainActor in
-                    if let self, let next = self.state.advanced(to: fraction) { self.state = next }
+                    guard let self, case .downloading = self.state else { return }
+                    // The end is always published (advanced(to:) skips steps under half a per cent): it is "Preparing".
+                    if fraction >= 1 { self.state = .downloading(1) }
+                    else if let next = self.state.advanced(to: fraction) { self.state = next }
                 }
             }
             state = .ready
@@ -243,3 +255,33 @@ final class NemotronModel {
         }
     }
 }
+
+#if DEBUG
+extension NemotronModel {
+    /// Simulator QA: `-fakeNemotronDownload` pretends Nemotron isn't downloaded yet and downloads it at launch in
+    /// `-fakeNemotronDownloadSeconds` (default 8), then "prepares" it for 2 s; with `-fakeNoWiFi` it waits for Wi-Fi.
+    static var fakesDownload: Bool {
+        #if targetEnvironment(simulator)
+        ProcessInfo.processInfo.arguments.contains("-fakeNemotronDownload")
+        #else
+        false
+        #endif
+    }
+
+    private func fakeDownload() async {
+        if ProcessInfo.processInfo.arguments.contains("-fakeNoWiFi") {
+            state = .waitingForWiFi
+            return
+        }
+        let seconds = UserDefaults.standard.double(forKey: "fakeNemotronDownloadSeconds")
+        let duration = seconds > 0 ? seconds : 8
+        state = .downloading(0)
+        for step in 1...50 {
+            try? await Task.sleep(for: .seconds(duration / 50))
+            state = .downloading(Double(step) / 50)
+        }
+        try? await Task.sleep(for: .seconds(2))
+        state = .ready
+    }
+}
+#endif

@@ -40,7 +40,7 @@ struct RecorderApp: App {
                         await services.identifier.prepareAndRetryPending()
                         await services.identifier.refreshVoices()       // once per transcript: voices from final labels
                     }
-                    if !services.usesFakes {               // the simulator uses fake engines: no model downloads
+                    if !services.usesFakes || services.fakesNemotronDownload {   // the simulator: no real downloads
                         Task { await services.nemotron.download(force: false) }   // Wi-Fi only; no-op once downloaded
                         // (Parakeet is not downloaded here: it is optional, only on the user's tap in Settings.)
                     }

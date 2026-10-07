@@ -3,7 +3,7 @@ import SwiftUI
 /// The tab bar's bottom accessory (Music's mini player spot; the system draws the glass capsule): the record control,
 /// in the mini player's sizes (subheadline semibold, a small mark).
 /// Without a recording: a red dot, "Transcribe" and under it the language ("German · On device"; "Preparing speaker
-/// model…" or Gemma's download, "Downloading Gemma · 42 %", while those run), and at the end a
+/// model…", Nemotron's or Gemma's download, "Downloading Gemma · 42 %", while those run), and at the end a
 /// button with the language's code ("DE ⌄") that picks the next recording's language; a tap on the rest starts a
 /// recording and opens the transcript card on it out of this accessory (zoom transition, like Music's mini player). While recording: a pulsing red dot, the time, the
 /// microphone level and Stop; a tap elsewhere opens the card again.
@@ -64,12 +64,12 @@ struct RecordAccessory: View {
                         Text("Transcribe")
                             .font(.subheadline.weight(.semibold))
                         if !inline {
-                            if services.identifier.isPreparingSpeakerModel {
+                            if services.identifier.isPreparingSpeakerModel || isPreparingDownloadedSpeakerModel {
                                 // After a new build or update the speaker model is compiled at launch (about 35 s):
                                 // said here, where it is seen without a recording, as the status line says it after Stop.
                                 ShimmerText(text: String(localized: "Preparing speaker model…"))
                                     .font(.caption)
-                            } else if let download = gemmaDownload {
+                            } else if let download = speakerModelDownload ?? gemmaDownload {
                                 download
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -93,6 +93,26 @@ struct RecordAccessory: View {
             if !inline {
                 languageMenu(locale)
             }
+        }
+    }
+
+    /// Nemotron's files are there and the model is being loaded and compiled (most of a minute): said like the
+    /// preparation after an update.
+    private var isPreparingDownloadedSpeakerModel: Bool {
+        if case .downloading(let fraction) = services.nemotron.state { return fraction >= NemotronModel.preparingFraction }
+        return false
+    }
+
+    /// Nemotron's download (automatic on Wi-Fi, explained on the onboarding sheet's first page) while it runs; before
+    /// Gemma's, which waits for it in practice (100 MB against 3.6 GB). nil otherwise.
+    private var speakerModelDownload: Text? {
+        switch services.nemotron.state {
+        case .downloading(let fraction) where fraction < NemotronModel.preparingFraction:
+            Text("Downloading speaker model · \(fraction, format: .percent.precision(.fractionLength(0)))")
+        case .waitingForWiFi:
+            Text("Speaker model · Waiting for Wi-Fi")
+        default:
+            nil
         }
     }
 

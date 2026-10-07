@@ -55,8 +55,8 @@ struct MainView: View {
     @State private var pendingCard: CardRequest?
     @State var card = TranscriptCardContent()
     @Namespace private var cardZoom
-    /// GemmaOnboarding, once (see offerGemma).
-    @State private var showsGemmaOnboarding = false
+    /// The onboarding sheet's pages while it is up (see offerOnboarding); empty otherwise.
+    @State private var onboardingPages: [OnboardingPage] = []
 
     var body: some View {
         TabView(selection: tabSelection) {
@@ -86,10 +86,10 @@ struct MainView: View {
         }), onDismiss: cardDismissed) {
             TranscriptCard(content: card, onClose: closeCard, onRetry: retryRecording, namespace: cardZoom)
         }
-        .sheet(isPresented: $showsGemmaOnboarding) {
-            GemmaOnboarding { services.betterSummaries.download() }
+        .sheet(isPresented: Binding(get: { !onboardingPages.isEmpty }, set: { if !$0 { onboardingPages = [] } })) {
+            Onboarding(pages: onboardingPages)
         }
-        .task { await offerGemma() }
+        .task { await offerOnboarding() }
         .environment(\.cardZoom, cardZoom)
         .environment(\.openTranscript, OpenTranscriptAction { recording, search, sourceID in
             openCard(recording, search: search, sourceID: sourceID)
@@ -120,16 +120,21 @@ struct MainView: View {
         })
     }
 
-    /// Asks once for Gemma's download (GemmaOnboarding), on an iPhone that can run it, while it is not downloaded nor
-    /// on its way. A second after launch, so the sheet rises over the list instead of with the first frame, and not
-    /// over a recording or transcript opened meanwhile (`-autoRecord`, a tap).
-    private func offerGemma() async {
-        let better = services.betterSummaries
-        guard BetterSummaries.isSupported, better.state == .notDownloaded,
-              !UserDefaults.standard.bool(forKey: GemmaOnboarding.shownKey) else { return }
+    /// The onboarding sheet, once per page: Nemotron's while it isn't downloaded (it downloads by itself; the page
+    /// explains it and shows its progress), Gemma's on an iPhone that can run it while it isn't downloaded nor on its
+    /// way. Nothing when neither is left (an existing user with both). A second after launch, so the sheet rises over
+    /// the list instead of with the first frame, and not over a recording or transcript opened meanwhile
+    /// (`-autoRecord`, a tap). The simulator has no Nemotron download unless `-fakeNemotronDownload` pretends one.
+    private func offerOnboarding() async {
+        let defaults = UserDefaults.standard
+        let speakers = (!services.usesFakes || services.fakesNemotronDownload) && services.nemotron.state != .ready
+            && !defaults.bool(forKey: Onboarding.shownKey(.speakers))
+        let summaries = BetterSummaries.isSupported && services.betterSummaries.state == .notDownloaded
+            && !defaults.bool(forKey: Onboarding.shownKey(.summaries))
+        guard speakers || summaries else { return }
         try? await Task.sleep(for: .seconds(1))
-        guard cardPhase == .closed, card.session == nil, better.state == .notDownloaded else { return }
-        showsGemmaOnboarding = true
+        guard cardPhase == .closed, card.session == nil else { return }
+        onboardingPages = (speakers ? [.speakers] : []) + (summaries ? [.summaries] : [])
     }
 
     /// Puts the keyboard away. The Search tab's field stayed first responder over the next tab: its view is kept alive

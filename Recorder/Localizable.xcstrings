@@ -131,6 +131,16 @@
     "0:00": {
       "shouldTranslate": false
     },
+    "100 MB Download": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download von 100 MB"
+          }
+        }
+      }
+    },
     "3.6 GB": {
       "localizations": {
         "de": {
@@ -147,6 +157,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ein Titel und das Wichtigste"
+          }
+        }
+      }
+    },
+    "A one-time 100 MB download. Keep using Feder meanwhile.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein einmaliger Download von 100 MB. Du kannst Feder währenddessen weiter nutzen."
           }
         }
       }
@@ -207,6 +227,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fügt diesen Tag zur Suche hinzu"
+          }
+        }
+      }
+    },
+    "After you stop, NVIDIA's Nemotron tells the voices apart, also when people talk in quick succession.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach dem Stoppen unterscheidet NVIDIAs Nemotron die Stimmen, auch wenn schnell abwechselnd gesprochen wird."
           }
         }
       }
@@ -334,6 +364,16 @@
         }
       }
     },
+    "Continue": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weiter"
+          }
+        }
+      }
+    },
     "Couldn't identify speakers.": {
       "localizations": {
         "de": {
@@ -434,6 +474,16 @@
         }
       }
     },
+    "Download Failed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download fehlgeschlagen"
+          }
+        }
+      }
+    },
     "Download Gemma (3.6 GB)": {
       "localizations": {
         "de": {
@@ -460,6 +510,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Geladen"
+          }
+        }
+      }
+    },
+    "Downloaded. Feder is getting the model ready on this iPhone.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geladen. Feder macht das Modell auf diesem iPhone bereit."
           }
         }
       }
@@ -494,6 +554,16 @@
         }
       }
     },
+    "Downloading speaker model · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprechermodell wird geladen · %@"
+          }
+        }
+      }
+    },
     "Downloads in the Background": {
       "localizations": {
         "de": {
@@ -524,12 +594,32 @@
         }
       }
     },
+    "Every Speaker Apart": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jede Stimme für sich"
+          }
+        }
+      }
+    },
     "Every transcript gets a short title and a summary of what was said and decided, and by whom.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Jedes Transkript bekommt einen kurzen Titel und eine Zusammenfassung dessen, was gesagt und beschlossen wurde – und von wem."
+          }
+        }
+      }
+    },
+    "Feder tries again the next time it opens on Wi-Fi.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder versucht es erneut, wenn die App das nächste Mal im WLAN geöffnet wird."
           }
         }
       }
@@ -630,6 +720,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zum Live-Text"
+          }
+        }
+      }
+    },
+    "Know Who Said What": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wissen, wer was gesagt hat"
           }
         }
       }
@@ -794,6 +894,16 @@
         }
       }
     },
+    "Name a speaker once, and Feder knows their voice in later recordings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benenne einen Sprecher einmal, und Feder erkennt die Stimme in späteren Aufnahmen."
+          }
+        }
+      }
+    },
     "Names and terms the transcription often gets wrong.": {
       "localizations": {
         "de": {
@@ -830,6 +940,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Eingrenzen"
+          }
+        }
+      }
+    },
+    "Nemotron is on this iPhone.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nemotron ist auf diesem iPhone."
           }
         }
       }
@@ -920,16 +1040,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aus"
-          }
-        }
-      }
-    },
-    "Older transcripts get titles and summaries as well. Titles you typed stay.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ältere Transkripte bekommen ebenfalls Titel und Zusammenfassungen. Eingegebene Titel bleiben erhalten."
           }
         }
       }
@@ -1033,6 +1143,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vorheriger Treffer"
+          }
+        }
+      }
+    },
+    "Ready": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bereit"
+          }
+        }
+      }
+    },
+    "Recognizes Your People": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erkennt deine Personen"
           }
         }
       }
@@ -1247,12 +1377,32 @@
         }
       }
     },
+    "Speaker model · Waiting for Wi-Fi": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprechermodell · Wartet auf WLAN"
+          }
+        }
+      }
+    },
     "Speakers": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Sprecher"
+          }
+        }
+      }
+    },
+    "Speakers are identified on device. Your recordings never leave your iPhone.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Sprecher werden auf dem Gerät erkannt. Deine Aufnahmen verlassen nie dein iPhone."
           }
         }
       }
@@ -1343,6 +1493,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Startet eine neue Aufnahme mit Live-Transkript"
+          }
+        }
+      }
+    },
+    "Starts by itself on Wi-Fi.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Startet im WLAN von selbst."
           }
         }
       }
@@ -1453,6 +1613,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tippe auf „Transkribieren“, um zu beginnen."
+          }
+        }
+      }
+    },
+    "The 100 MB download starts when this iPhone is on Wi-Fi.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Download von 100 MB startet, sobald dieses iPhone mit einem WLAN verbunden ist."
           }
         }
       }
@@ -1713,16 +1883,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gestern"
-          }
-        }
-      }
-    },
-    "Your Earlier Transcripts Too": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Auch deine älteren Transkripte"
           }
         }
       }

@@ -99,6 +99,15 @@ final class AppServices {
         }
     }
 
+    /// Simulator QA: Nemotron's download is simulated (`-fakeNemotronDownload`), so the onboarding offers its page.
+    var fakesNemotronDownload: Bool {
+        #if DEBUG
+        NemotronModel.fakesDownload
+        #else
+        false
+        #endif
+    }
+
     /// A fresh session (fresh capture + transcriber) for every recording.
     func makeRecordingSession() -> RecordingSession {
         #if DEBUG && targetEnvironment(simulator)
