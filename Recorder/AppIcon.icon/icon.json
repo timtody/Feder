@@ -1,4 +1,7 @@
 {
+  "features": [
+    "refractivity"
+  ],
   "fill-specializations": [
     {
       "value": {
@@ -20,41 +23,131 @@
   ],
   "groups": [
     {
+      "name": "spine",
       "layers": [
         {
-          "image-name": "feather.svg",
-          "name": "feather",
-          "glass": false,
-          "fill-specializations": [
-            {
-              "value": {
-                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            },
-            {
-              "appearance": "dark",
-              "value": {
-                "solid": "srgb:0.95686,0.96863,0.98824,1.00000"
-              }
-            },
-            {
-              "appearance": "tinted",
-              "value": {
-                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
-              }
-            }
-          ]
+          "fill": {
+            "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
+          },
+          "hidden": false,
+          "image-name": "shaft.svg",
+          "name": "shaft",
+          "position": {
+            "scale": 1,
+            "translation-in-points": [
+              19.000000000000057,
+              -51.00000000000006
+            ]
+          }
         }
       ],
-      "name": "feather",
+      "lighting": "individual",
+      "specular": true,
+      "blur-material": 0.5,
       "shadow": {
         "kind": "neutral",
-        "opacity": 0.25
+        "opacity": 0.4
       },
-      "specular": false,
       "translucency": {
-        "enabled": false,
-        "value": 0
+        "enabled": true,
+        "value": 0.15
+      },
+      "refractivity": {
+        "depth": 0,
+        "enabled": true,
+        "strength": 0.5
+      },
+      "position": {
+        "scale": 1.15,
+        "translation-in-points": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "half",
+      "layers": [
+        {
+          "fill": {
+            "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
+          },
+          "hidden": false,
+          "image-name": "vane_near.svg",
+          "name": "vane_near",
+          "position": {
+            "scale": 1,
+            "translation-in-points": [
+              19.000000000000057,
+              -51.00000000000006
+            ]
+          }
+        }
+      ],
+      "lighting": "individual",
+      "specular": true,
+      "blur-material": 0.6,
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.35
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.25
+      },
+      "refractivity": {
+        "depth": 0,
+        "enabled": true,
+        "strength": 0.5
+      },
+      "position": {
+        "scale": 1.15,
+        "translation-in-points": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "body",
+      "layers": [
+        {
+          "fill": {
+            "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
+          },
+          "image-name": "body.svg",
+          "name": "body",
+          "position": {
+            "scale": 1,
+            "translation-in-points": [
+              19.000000000000057,
+              -51.00000000000006
+            ]
+          }
+        }
+      ],
+      "lighting": "individual",
+      "specular": true,
+      "blur-material": 0.8,
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.45
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.45
+      },
+      "refractivity": {
+        "depth": 0,
+        "enabled": true,
+        "strength": 0.5
+      },
+      "position": {
+        "scale": 1.15,
+        "translation-in-points": [
+          0,
+          0
+        ]
       }
     }
   ],
