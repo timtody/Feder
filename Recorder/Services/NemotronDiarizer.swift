@@ -45,7 +45,7 @@ nonisolated final class NemotronDiarizer: Sendable {
         Task.detached(priority: .userInitiated) {
             var diarizer: Nemotron3Diarizer?
             /// Loads the model once, then returns it. `loadFromHuggingFace` downloads whatever is missing, so only
-            /// `.download` (NemotronModel: Wi-Fi or "Download Now") may get here without the model on disk.
+            /// `.download` (NemotronModel: Wi-Fi or "Download Nemotron") may get here without the model on disk.
             func load(progress: ProgressHandler?) async throws -> Nemotron3Diarizer {
                 if let diarizer { return diarizer }
                 guard let config = Nemotron3Config.preset(named: Self.presetName) else {
@@ -197,7 +197,7 @@ nonisolated final class NemotronDiarizer: Sendable {
 
 /// The Nemotron model's one-time download (~100 MB into Application Support/FluidAudio/Models/nemotron-3-diarization):
 /// automatic at launch and on every return to the foreground on Wi-Fi only (not on cellular, hotspot or Low Data Mode),
-/// on any network via "Download Now" in Settings. Until it is there, speakers are identified with pyannote.
+/// on any network via "Download Nemotron" in Settings. Until it is there, speakers are identified with pyannote.
 @MainActor @Observable
 final class NemotronModel {
     private(set) var state: ModelDownloadState
@@ -208,7 +208,7 @@ final class NemotronModel {
         state = NemotronDiarizer.isDownloaded ? .ready : .notDownloaded
     }
 
-    /// Launch and every return to the foreground (`force == false`: Wi-Fi only), or "Download Now" (`force == true`).
+    /// Launch and every return to the foreground (`force == false`: Wi-Fi only), or "Download Nemotron" (`force == true`).
     func download(force: Bool) async {
         switch state {
         case .ready, .downloading: return

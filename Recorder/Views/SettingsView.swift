@@ -138,8 +138,11 @@ struct SettingsView: View {
 
 }
 
-/// A downloadable model's row: downloaded, progress, "Download Now" or the failure with "Try Again".
+/// A downloadable model's row: downloaded, progress, "Download <name> (<size>)" or the failure with "Try Again". Every
+/// state names the model: a bare "Download Now" under "Model: Apple Intelligence" read as if Apple's model were being
+/// downloaded.
 struct ModelDownloadRow: View {
+    let name: String
     let state: ModelDownloadState
     let size: String
     let download: () async -> Void
@@ -151,15 +154,15 @@ struct ModelDownloadRow: View {
                 .foregroundStyle(.secondary)
         case .downloading(let fraction):
             ProgressView(value: fraction) {
-                Text("Downloading model…")
+                Text("Downloading \(name)…")
             } currentValueLabel: {
                 Text(fraction, format: .percent.precision(.fractionLength(0)))
             }
         case .notDownloaded, .waitingForWiFi:
-            Button("Download Now (\(size))") { Task { await download() } }
+            Button("Download \(name) (\(size))") { Task { await download() } }
         case .failed(let reason):
             VStack(alignment: .leading, spacing: 6) {
-                Label("Download failed", systemImage: "exclamationmark.triangle")
+                Label("\(name) Download Failed", systemImage: "exclamationmark.triangle")
                 Text(reason).font(.footnote).foregroundStyle(.secondary)
                 Button("Try Again") { Task { await download() } }
             }
@@ -191,7 +194,7 @@ struct TranscriptionModelView: View {
             }
             if engine == "parakeet" {
                 Section {
-                    ModelDownloadRow(state: services.parakeet.state, size: "610 MB") { await services.parakeet.download(force: true) }
+                    ModelDownloadRow(name: "Parakeet", state: services.parakeet.state, size: "610 MB") { await services.parakeet.download(force: true) }
                 }
             }
         }
@@ -209,7 +212,7 @@ struct SpeakerModelView: View {
             Section {
                 LabeledContent("Model", value: services.nemotron.state == .ready ? "NVIDIA Nemotron" : "Standard")
                 if services.nemotron.state != .ready {
-                    ModelDownloadRow(state: services.nemotron.state, size: "100 MB") { await services.nemotron.download(force: true) }
+                    ModelDownloadRow(name: "Nemotron", state: services.nemotron.state, size: "100 MB") { await services.nemotron.download(force: true) }
                 }
             } footer: {
                 Text("NVIDIA Nemotron tells speakers apart on this iPhone after you stop, much more reliably than the standard model, also when people talk in quick succession. It needs a one-time 100 MB download, which starts automatically on Wi-Fi. Until then the standard model is used.")
@@ -239,7 +242,7 @@ struct SummariesModelView: View {
                             Task { await better.delete() }
                         }
                     } else {
-                        ModelDownloadRow(state: better.state, size: better.variant.sizeText) { better.download() }
+                        ModelDownloadRow(name: better.variant.displayName, state: better.state, size: better.variant.sizeText) { better.download() }
                     }
                 }
             } header: {

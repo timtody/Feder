@@ -137,7 +137,7 @@ final class BetterSummaries {
 
     // MARK: Download
 
-    /// "Download Now" for the chosen build: the pinned files, one after another, each into a temporary file first; a
+    /// "Download Gemma 4 E2B": the pinned files, one after another, each into a temporary file first; a
     /// file already complete from an earlier, interrupted download is kept.
     func download() {
         guard Self.isSupported, downloadTask == nil else { return }
