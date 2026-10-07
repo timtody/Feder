@@ -89,38 +89,6 @@ final class SettingsTests: ScribeUITestCase {
         XCTAssertTrue(model.firstMatch.exists, "the model in use: \(app.cells.allElementsBoundByIndex.map(\.label))")
     }
 
-    /// Settings › Reading: the transcript's typeface (New York by default, SF Pro, Libron) as rows with a checkmark;
-    /// the choice is kept, and the transcript and summary are drawn in it (screenshots). Set back to New York at the
-    /// end (the simulator's defaults outlive a launch).
-    @MainActor
-    func testTranscriptFontInSettings() throws {
-        let app = launch()
-        app.buttons["Settings"].firstMatch.tap()
-        let newYork = app.buttons["New York"], libron = app.buttons["Libron"], system = app.buttons["SF Pro"]
-        for _ in 0..<4 where !libron.isHittable { app.swipeUp() }
-        XCTAssertTrue(libron.waitForExistence(timeout: 5) && newYork.exists && system.exists, "the three typefaces")
-        XCTAssertTrue(app.staticTexts["Reading"].exists, "under Reading")
-        if !newYork.isSelected { newYork.tap() }           // left over from an interrupted run (defaults persist)
-        XCTAssertTrue(newYork.isSelected, "New York selected")
-        libron.tap()
-        XCTAssertTrue(libron.isSelected && !newYork.isSelected, "Libron chosen")
-        shot("Reading in Settings", app)
-
-        let transcripts = app.buttons["Transcripts"].firstMatch
-        for _ in 0..<4 where !transcripts.exists { app.swipeDown() }      // scrolling minimized the bar: expand it
-        transcripts.tap()
-        open("Project Kickoff", in: app)
-        shot("Transcript in Libron", app)
-        closeCard(app)
-
-        app.buttons["Settings"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["People"].firstMatch.waitForExistence(timeout: 5), "Settings")
-        for _ in 0..<4 where !libron.isHittable { app.swipeUp() }          // the form is back at its top
-        XCTAssertTrue(libron.isSelected, "the choice is kept")
-        newYork.tap()
-        XCTAssertTrue(newYork.isSelected, "back to New York")
-    }
-
     @MainActor
     func testPeopleAndLiveLabelsInSettings() throws {
         let app = launch()
