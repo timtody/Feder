@@ -10,8 +10,7 @@ import Speech
 ///   with the vocabulary as contextual strings. SpeechTranscriber ignores contextual strings (measured: identical output
 ///   with and without), DictationTranscriber honours them but is less accurate on ordinary words, so VocabularyMerge
 ///   takes over just the vocabulary terms it recognized. This step is most of the post-stop time (a whole-file
-///   Dictation pass: 5.4 s of 7.4 s for 5 minutes on an M5 Mac), so speakers never wait for it. The smart corrections
-///   (TranscriptCorrector, Gemma) follow as SpeakerIdentifier's own step: they need the speakers' names.
+///   Dictation pass: 5.4 s of 7.4 s for 5 minutes on an M5 Mac), so speakers never wait for it.
 /// Runs at utility priority. A later step failing never loses an earlier one.
 @MainActor
 final class SpeechFileTranscriber: FileTranscriber {

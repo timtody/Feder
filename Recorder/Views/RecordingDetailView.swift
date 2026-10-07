@@ -56,7 +56,6 @@ struct RecordingDetailView: View {
         let segments = recording.segments                 // read once per body (the SwiftData array is decoded on access)
         let statusText = PipelineStatusLine.text(for: recording, identifier: services.identifier)
         let showsNote = SpeakerStatusNote.applies(to: recording, identifier: services.identifier)
-        let showsReview = CorrectionReview.applies(to: recording)
         ScrollViewReader { proxy in
           ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -110,17 +109,9 @@ struct RecordingDetailView: View {
                             .opacity(bodyShown ? 1 : 0)
                             .transition(.opacity)
                     }
-
-                    // Gemma's smart corrections, to accept one by one or all at once, until reviewed.
-                    if showsReview {
-                        CorrectionReview(recording: recording)
-                            .opacity(bodyShown ? 1 : 0)
-                            .transition(.opacity)
-                    }
                 }
                 .animation(.snappy, value: statusText == nil)    // the line goes away softly after the last step
                 .animation(.snappy, value: showsNote)
-                .animation(.snappy, value: showsReview)
                 .animation(.snappy, value: !recording.tags.isEmpty || editingTags)   // the tag line comes and goes
                 // No spacing above: the first name row brings its own (the space above a name is part of its target).
                 TranscriptView(segments: segments, speakerName: recording.speakerName(_:),

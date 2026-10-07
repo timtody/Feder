@@ -9,10 +9,9 @@ import Observation
 /// 4. each speaker's voice from those final labels (VoiceWindows);
 /// 5. recognition of known people (PeopleDirectory), then `.done`: the user sees the speakers.
 /// Then, in the background and on its own queue, the vocabulary pass (FileTranscriber.applyVocabulary): its words are
-/// aligned with the stored turns again, so speaker numbers, names and links stay; then, when turned on, the smart
-/// corrections (TranscriptCorrector: Gemma corrects the paragraphs a dozen turns at a time); then the automatic title
-/// and summary (TranscriptTitler). Re-runs everything still `.pending` / `.processing` / vocabulary- or
-/// corrections-pending / without a summary on launch and when the app returns to the foreground.
+/// aligned with the stored turns again, so speaker numbers, names and links stay; then the automatic title and summary
+/// (TranscriptTitler). Re-runs everything still `.pending` / `.processing` / vocabulary-pending / without a summary on
+/// launch and when the app returns to the foreground.
 /// Two one-time sweeps over older transcripts run behind that work: new voices (`refreshVoices`) and titles and
 /// summaries. A stopped recording's own steps always go first (the sweeps wait for at most the transcript they are on),
 /// and while a recording is being made (`setRecording`) the sweeps start nothing new.
@@ -36,7 +35,6 @@ final class SpeakerIdentifier {
     private let modelContext: ModelContext
     private let people: PeopleDirectory
     private let titler = TranscriptTitler()
-    private let corrector = TranscriptCorrector()
     private let betterSummaries: BetterSummaries
     @ObservationIgnored private var queue: Task<Void, Never>?       // the last queued job: identification and voice refreshes
     @ObservationIgnored private var backgroundQueued: Set<UUID> = []
@@ -71,7 +69,7 @@ final class SpeakerIdentifier {
         print("[Scribe] queue: \(active ? "recording: sweeps pause" : "not recording: sweeps resume")")
         #endif
         guard !active else { return }
-        // Transcripts whose Gemma corrections or description waited for the recording to end (or were stopped by it)
+        // Transcripts whose Gemma description waited for the recording to end (or were stopped by it)
         // go again first.
         let waiting = waitingForGemma
         waitingForGemma = []
@@ -88,7 +86,7 @@ final class SpeakerIdentifier {
     func prepareAndRetryPending() async {
         let done = SpeakerStatus.done.rawValue
         let unfinished = FetchDescriptor<Recording>(
-            predicate: #Predicate { $0.speakerStatusRaw == done && ($0.vocabularyPending == true || $0.correctionsPending == true) },
+            predicate: #Predicate { $0.speakerStatusRaw == done && $0.vocabularyPending == true },
             sortBy: [SortDescriptor(\.createdAt)])
         for recording in (try? modelContext.fetch(unfinished)) ?? [] {     // a kill or the background interrupted it
             enqueueBackgroundPass(recording, fresh: true)
@@ -132,7 +130,6 @@ final class SpeakerIdentifier {
             if wordsToCome { progress.expect(.words) }
             progress.expect(.speakers)
             if wordsToCome || recording.vocabularyPending { progress.expect(.vocabulary) }
-            if canCorrect, wordsToCome || recording.correctionsPending { progress.expect(.corrections) }
             if canDescribe { progress.expect(.summary) }
         }
         enqueueJob(for: recording) { await self.identify(recording) }
@@ -140,8 +137,6 @@ final class SpeakerIdentifier {
 
     /// A model that writes titles and summaries is there (Apple's, or Gemma).
     private var canDescribe: Bool { titler.isAvailable || betterSummaries.activeModel != nil }
-    /// Smart Corrections are on and Gemma is there.
-    private var canCorrect: Bool { TranscriptCorrector.isEnabled && betterSummaries.activeModel != nil }
 
     /// Shows the words a pass replaced for a few seconds.
     private func flash(_ changes: [WordChange], in id: UUID) {
@@ -296,8 +291,6 @@ final class SpeakerIdentifier {
             }
             recording.wordsRefined = true
             recording.vocabularyPending = true
-            recording.correctionsPending = true
-            recording.correctedUntil = 0
             try? modelContext.save()
             track(id) { $0.finish(.words, failed: transcript == nil) }   // threw; "nothing better" is still done
         }
@@ -349,10 +342,10 @@ final class SpeakerIdentifier {
         }
         try? modelContext.save()
         if recording.speakerStatus == .done,
-           recording.vocabularyPending || recording.correctionsPending || recording.summaryVersion < summaryVersion {
+           recording.vocabularyPending || recording.summaryVersion < summaryVersion {
             enqueueBackgroundPass(recording, fresh: true)
         } else if recording.speakerStatus == .done {
-            track(id) { $0.drop(.vocabulary); $0.drop(.corrections); $0.drop(.summary) }
+            track(id) { $0.drop(.vocabulary); $0.drop(.summary) }
         }
     }
 
@@ -399,8 +392,7 @@ final class SpeakerIdentifier {
         backgroundWorker = Task {
             while let pass = nextBackgroundPass() {
                 await applyVocabulary(to: pass.recording)
-                await applyCorrections(to: pass.recording)
-                await describe(pass.recording)                // from the final, corrected words
+                await describe(pass.recording)                // from the final words
                 backgroundQueued.remove(pass.id)
             }
             backgroundWorker = nil                            // no suspension since the check: no pass can be missed
@@ -447,141 +439,6 @@ final class SpeakerIdentifier {
         try? modelContext.save()
         track(id) { $0.finish(.vocabulary) }
     }
-
-    /// Smart Corrections (Settings): Gemma corrects the paragraphs about a dozen turns at a time (TranscriptCorrector).
-    /// Nothing is written into the transcript yet: the corrected paragraphs are stored as a proposal
-    /// (`proposedCorrections`) that the card shows as a list of changes to accept one by one or all at once
-    /// (CorrectionReview, `acceptCorrection` / `applyCorrections` / `dismissCorrections`). Every answered chunk extends
-    /// the proposal at once, so an interrupted pass keeps what it has (`correctedUntil`). Off, no Gemma, or not German:
-    /// the transcript is skipped for good (the setting applies from the next recording). Every word stays with its
-    /// speaker (CorrectionMerge): the corrections change words, never who said them.
-    private func applyCorrections(to recording: Recording) async {
-        guard !isGone(recording) else { return }
-        let id = recording.id
-        guard recording.correctionsPending else { track(id) { $0.drop(.corrections) }; return }
-        let paragraphs = recording.proposedCorrections
-            ?? CorrectionMerge.paragraphs(words: recording.words, segments: recording.segments)
-        let locale = Locale(identifier: recording.localeIdentifier)
-        #if DEBUG
-        if Self.fakesCorrections, recording.speakerStatus == .done, !paragraphs.isEmpty {
-            // QA: a made-up proposal without Gemma, so the review box can be seen on the simulator.
-            recording.proposedCorrections = Self.fakeProposal(paragraphs)
-            recording.correctionsPending = false
-            try? modelContext.save()
-            track(id) { $0.finish(.corrections) }
-            return
-        }
-        #endif
-        guard canCorrect, recording.speakerStatus == .done, !paragraphs.isEmpty,
-              TranscriptCorrector.isGerman(paragraphs.map(\.text), recordingLocale: locale) else {
-            recording.correctionsPending = false
-            try? modelContext.save()
-            track(id) { $0.drop(.corrections) }
-            return
-        }
-        guard !isRecording else {                             // Gemma never runs while recording: right after Stop
-            waitForGemma(recording, id: id)
-            return
-        }
-        track(id) { $0.begin(.corrections) }
-        defer {
-            if case .running = progress[id]?.state(of: .corrections) {   // not now: waiting for Stop, or given up
-                let waits = waitingForGemma.contains { $0.id == id }
-                track(id) { waits ? $0.expect(.corrections, again: true) : $0.drop(.corrections) }
-            }
-        }
-        let start = paragraphs.firstIndex { $0.start > recording.correctedUntil } ?? paragraphs.count
-        let expected = recording.words                        // what the pass works on; replaced meanwhile = stop
-        do {
-            let corrector = corrector
-            try await betterSummaries.run { model in
-                try await corrector.correct(paragraphs, from: start, name: { $0.map(recording.speakerName) ?? "Speaker" },
-                                            glossary: Vocabulary.current, model: model) { paragraphs, coveredUntil, changed in
-                    guard !self.isGone(recording), recording.words == expected else { return false }
-                    if changed { recording.proposedCorrections = paragraphs }
-                    recording.correctedUntil = coveredUntil
-                    try? self.modelContext.save()
-                    return true
-                }
-            }
-        } catch is TranscriptTitler.LocalModelFailed {
-            guard !isGone(recording) else { return }
-            recording.correctionsPending = false              // Gemma can't run (damaged files): none for this one
-            try? modelContext.save()
-            return
-        } catch {
-            // RetryLater (the app isn't active) or cancelled: still pending, so the next return to the foreground goes
-            // on where it stopped; stopped by a recording: again right after it.
-            if isRecording, !isGone(recording) { waitForGemma(recording, id: id) }
-            return
-        }
-        guard !isGone(recording) else { return }
-        recording.correctionsPending = false
-        if let proposal = recording.proposedCorrections,
-           !CorrectionMerge.differs(proposal, from: recording.words, segments: recording.segments) {
-            recording.proposedCorrections = nil               // Gemma changed nothing after all
-        }
-        try? modelContext.save()
-        track(id) { $0.finish(.corrections) }
-    }
-
-    // MARK: Reviewing corrections
-
-    /// The proposal's differences from the transcript, for the review box; empty without a proposal.
-    func proposedChanges(for recording: Recording) -> [CorrectionMerge.Change] {
-        guard let proposal = recording.proposedCorrections else { return [] }
-        return CorrectionMerge.changes(from: recording.words, to: proposal.flatMap(\.words))
-    }
-
-    /// One change taken over: its words replace the old ones (times kept), the paragraphs stay as they are. The last
-    /// change accepted ends the review.
-    func acceptCorrection(_ change: CorrectionMerge.Change, in recording: Recording) {
-        guard !isGone(recording) else { return }
-        let words = CorrectionMerge.accepting(change, in: recording.words)
-        guard words != recording.words else { return }
-        rewrite(recording, words: words, segments: CorrectionMerge.paragraphs(words: words, segments: recording.segments).map(\.segment))
-        if proposedChanges(for: recording).isEmpty { recording.proposedCorrections = nil }
-        try? modelContext.save()
-    }
-
-    /// "Apply All": the proposal as a whole.
-    func applyCorrections(to recording: Recording) {
-        guard !isGone(recording), let proposal = recording.proposedCorrections else { return }
-        rewrite(recording, words: proposal.flatMap(\.words), segments: proposal.map(\.segment))
-        recording.proposedCorrections = nil
-        try? modelContext.save()
-    }
-
-    func dismissCorrections(for recording: Recording) {
-        guard !isGone(recording) else { return }
-        recording.proposedCorrections = nil
-        try? modelContext.save()
-    }
-
-    private func rewrite(_ recording: Recording, words: [TranscriptWord], segments: [TranscriptSegment]) {
-        flash(WordChange.changes(from: recording.words, to: words, vocabulary: false), in: recording.id)
-        recording.words = words
-        recording.segments = TranscriptAligner.keepingIDs(of: recording.segments, in: segments)
-        recording.correctionsAccepted += 1
-    }
-
-    #if DEBUG
-    /// QA: `-fakeCorrections` stands in for Gemma on the simulator: a proposal with "quick" → "brief" and "lighter" →
-    /// "fainter" (the canned words of FakeTranscriber) and a period after the first paragraph if it has none.
-    nonisolated static var fakesCorrections: Bool { ProcessInfo.processInfo.arguments.contains("-fakeCorrections") }
-
-    nonisolated static func fakeProposal(_ paragraphs: [CorrectionMerge.Paragraph]) -> [CorrectionMerge.Paragraph] {
-        var result = paragraphs
-        for p in result.indices {
-            for w in result[p].words.indices {
-                result[p].words[w].text = result[p].words[w].text
-                    .replacingOccurrences(of: "quick", with: "brief").replacingOccurrences(of: "lighter", with: "fainter")
-            }
-        }
-        if let last = result[0].words.indices.last, !result[0].words[last].text.hasSuffix(".") { result[0].words[last].text += "." }
-        return result
-    }
-    #endif
 
     /// The summary, and the title while the transcript still has a name the app gave it ("New Transcript 3") and the
     /// user never edited it. Once per transcript (`summaryVersion`); without a model (Apple Intelligence off, older
@@ -659,7 +516,7 @@ final class SpeakerIdentifier {
         track(id) { $0.finish(.summary) }
     }
 
-    /// Gemma can't run while a recording is made: corrected and described right after Stop (setRecording). Ids, not
+    /// Gemma can't run while a recording is made: described right after Stop (setRecording). Ids, not
     /// models, are compared: a transcript deleted meanwhile is detached, and reading it traps.
     private func waitForGemma(_ recording: Recording, id: UUID) {
         if !waitingForGemma.contains(where: { $0.id == id }) { waitingForGemma.append((id, recording)) }

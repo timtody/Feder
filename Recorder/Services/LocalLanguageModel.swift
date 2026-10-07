@@ -6,8 +6,8 @@ import Tokenizers
 
 /// Google's Gemma 4 E2B (instruction-tuned, 4-bit) run on this iPhone's GPU with MLX: the "Better Summaries"
 /// model of TranscriptTitler. A file-based model: `BetterSummaries` downloads the files into `directory`; this loads
-/// them on first use and answers one request at a time (an actor). Greedy decoding for the titles, so a transcript
-/// always gets the same one; the smart corrections sample at a low temperature. Platform-neutral (also builds for the
+/// them on first use and answers one request at a time (an actor). Greedy decoding, so a transcript always gets the
+/// same title. Platform-neutral (also builds for the
 /// Mac, where the summary bench runs it).
 actor LocalLanguageModel {
     /// The local model the app can download (Settings › After Recording › Summaries), 4-bit from mlx-community at a
@@ -63,8 +63,8 @@ actor LocalLanguageModel {
         Memory.clearCache()
     }
 
-    /// The answer to `prompt` under `instructions` (a system turn), at most `maxTokens` long; greedy at `temperature` 0
-    /// (the titles), sampled above it (the corrections, 0.25). Checks for cancellation between tokens and throws
+    /// The answer to `prompt` under `instructions` (a system turn), at most `maxTokens` long, greedy (at
+    /// `temperature` 0, which every caller uses). Checks for cancellation between tokens and throws
     /// CancellationError then.
     func respond(instructions: String, prompt: String, maxTokens: Int = 400, temperature: Float = 0,
                  partial: (@Sendable (String) -> Void)? = nil) async throws -> String {

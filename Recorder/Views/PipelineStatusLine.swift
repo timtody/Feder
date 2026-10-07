@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// One line under the date while work is still being done on the transcript, the way Mail reports "Checking for
-/// Mail…": the step that is running now ("Transcribing…", "Identifying speakers…", "Checking vocabulary…", "Correcting
-/// text…", "Writing summary…"), in the date line's secondary type, no spinner, no times (those are in the DEBUG log). A
+/// Mail…": the step that is running now ("Transcribing…", "Identifying speakers…", "Checking vocabulary…",
+/// "Writing summary…"), in the date line's secondary type, no spinner, no times (those are in the DEBUG log). A
 /// band in the label colour sweeps across the words while the step runs, like the status line of the Claude app (`ShimmerText`;
 /// still with Reduce Motion). No mark in front of it: a three-body animation and then a pixel-art feather stood there
 /// for a while and clashed with the native look; the shimmering text is the Mail-like answer. It is gone the moment
@@ -25,7 +25,6 @@ struct PipelineStatusLine: View {
         case (.words, _), (nil, .words): return "Transcribing…"
         case (.speakers, _), (nil, .speakers): return preliminary ? "Refining speakers…" : "Identifying speakers…"
         case (.vocabulary, _), (nil, .vocabulary): return "Checking vocabulary…"
-        case (.corrections, _), (nil, .corrections): return "Correcting text…"
         case (.summary, _): return "Writing summary…"
         case (nil, .summary): return "Loading the summary model…"
         case (nil, nil): return nil

@@ -5,7 +5,7 @@ Feder is free; users can tip via In-App Purchase. Implementation items first, in
 ## 1. Implementation — must-haves
 
 - [ ] **Privacy manifest** `Recorder/PrivacyInfo.xcprivacy`: required-reason APIs (`UserDefaults` → `CA92.1`; file attributes only if dates are read), tracking = no, collected data = none. Uploads without it are rejected.
-- [ ] **First Release build**: `xcodebuild archive -configuration Release`. Check that every QA hook (`-seedSamples`, `-fakeCorrections`, fakes, `print("[Scribe] …")`) compiles out under `#if DEBUG`, that MLX's Metal shaders compile in Release, and that the optimizer raises no concurrency warnings. Then TestFlight on the iPhone 17: the first Release run of the whole pipeline on a device.
+- [ ] **First Release build**: `xcodebuild archive -configuration Release`. Check that every QA hook (`-seedSamples`, fakes, `print("[Scribe] …")`) compiles out under `#if DEBUG`, that MLX's Metal shaders compile in Release, and that the optimizer raises no concurrency warnings. Then TestFlight on the iPhone 17: the first Release run of the whole pipeline on a device.
 - [ ] **Model-license disclosure**: the app distributes models by downloading them.
   - Gemma: Google's Gemma Terms of Use + Prohibited Use Policy shown before the first download, with "I agree".
   - Acknowledgements page in Settings: Parakeet (CC-BY-4.0), Nemotron (NVIDIA Open Model License), pyannote community-1, FluidAudio, MLX, swift-transformers (Apache/MIT).

@@ -4,7 +4,7 @@ import SwiftData
 /// Settings (a tab; its heading scrolls away with the form, no navigation-bar title). Grouped by what the user is
 /// doing, not by the pipeline's modules: People first and alone (a list you maintain, used in both stages), then
 /// "While Recording" (live speaker labels), "After Recording" (the post-stop pass in its order: transcription,
-/// speaker identification, summaries, smart corrections) and "Vocabulary". Each model has a detail page with its
+/// speaker identification, summaries) and "Vocabulary". Each model has a detail page with its
 /// explanation, download and options; the main page shows only the outcome as the row's value ("Parakeet",
 /// "Downloading 40 %", "Apple Intelligence"), and every footer is one line. Everything applies from the next recording.
 struct SettingsView: View {
@@ -12,9 +12,6 @@ struct SettingsView: View {
     @AppStorage(ParakeetModel.engineKey) private var engine = ParakeetModel.defaultEngine
     @Query private var people: [Person]
     private var peopleCount: Int { people.count }
-    @AppStorage(TranscriptCorrector.settingKey) private var smartCorrections = false
-    /// Smart Corrections run on the local model: downloaded under Summaries (not on the simulator).
-    private var correctionsAvailable: Bool { BetterSummaries.isSupported && services.betterSummaries.state == .ready }
     @AppStorage(AppServices.liveSpeakerLabelsKey) private var liveSpeakerLabels = true
     @State private var path = NavigationPath()          // untyped: People pushes Person values too
 
@@ -62,16 +59,10 @@ struct SettingsView: View {
                         LabeledContent("Summaries", value: summariesValue)
                     }
                     .accessibilityIdentifier("Summaries")
-                    Toggle("Smart Corrections", isOn: $smartCorrections)
-                        .disabled(!correctionsAvailable)
                 } header: {
                     Text("After Recording")
                 } footer: {
-                    if correctionsAvailable || !BetterSummaries.isSupported {
-                        Text("Each recording is transcribed again more accurately after you stop. Smart Corrections (experimental) let the summary model fix grammar, spelling and misheard words for you to review.")
-                    } else {
-                        Text("Each recording is transcribed again more accurately after you stop. Smart Corrections need the local model: download it under Summaries.")
-                    }
+                    Text("Each recording is transcribed again more accurately after you stop.")
                 }
 
                 Section {
@@ -257,7 +248,7 @@ struct SummariesModelView: View {
                 Text("Titles and Summaries")
             } footer: {
                 Text(BetterSummaries.isSupported
-                     ? "Better Summaries use Google's Gemma 4 E2B on this iPhone instead of Apple Intelligence: it reads a whole meeting at once, keeps who said what, and writes more precise titles and summaries. It needs a one-time 3.6 GB download (keep Feder open meanwhile) and works while Feder is open. Existing transcripts get new summaries too; titles you typed stay. Smart Corrections use the same model."
+                     ? "Better Summaries use Google's Gemma 4 E2B on this iPhone instead of Apple Intelligence: it reads a whole meeting at once, keeps who said what, and writes more precise titles and summaries. It needs a one-time 3.6 GB download (keep Feder open meanwhile) and works while Feder is open. Existing transcripts get new summaries too; titles you typed stay."
                      : "Better Summaries need an iPhone (not the simulator).")
             }
         }

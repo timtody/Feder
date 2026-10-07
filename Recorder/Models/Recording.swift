@@ -68,10 +68,12 @@ final class Recording {
     var speakerCountOverride: Int? = nil // the user's "Speakers" choice; nil = automatic
     var wordsRefined: Bool = false       // the full-accuracy pass after Stop ran (words are from it, or it found nothing better)
     var vocabularyPending: Bool = false  // the vocabulary pass (vocabulary terms) still has to run on `words`
-    var correctionsPending: Bool = false // the smart corrections (TranscriptCorrector, Gemma) still have to run on `words`
-    var correctedUntil: TimeInterval = 0 // transcript seconds the corrections have covered (an interrupted pass goes on from there)
-    var proposedCorrections: [CorrectionMerge.Paragraph]? = nil   // Gemma's corrected paragraphs awaiting the user's review (CorrectionReview); nil: none
-    var correctionsAccepted: Int = 0     // counts accepted changes (the search index keys on it: each one rewrites `segments`)
+    // Smart Corrections (Gemma proposing text fixes to review) were removed in October 2026. Their four properties stay
+    // so the store's schema does not change (SwiftData changes are additive only); nothing reads or writes them.
+    var correctionsPending: Bool = false
+    var correctedUntil: TimeInterval = 0
+    var proposedCorrections: [CorrectionMerge.Paragraph]? = nil
+    var correctionsAccepted: Int = 0
     var speakerTurns: [SpeakerTurn] = [] // the final diarization (empty before it, and for transcripts diarized before it was kept)
     var alignmentOffset: TimeInterval = 0 // added to speakerTurns' times when aligning them with `words` (FileTranscript)
     var voicesVersion: Int = 0           // SpeakerIdentifier.voicesVersion of speakerVoices (0: diarizer centroids, or none)
