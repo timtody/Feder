@@ -1,4 +1,7 @@
 {
+  "features": [
+    "refractivity"
+  ],
   "fill-specializations": [
     {
       "value": {
@@ -19,92 +22,6 @@
     }
   ],
   "groups": [
-    {
-      "blur-material": null,
-      "layers": [
-        {
-          "fill": {
-            "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
-          },
-          "hidden": false,
-          "image-name": "core.svg",
-          "name": "core",
-          "position": {
-            "scale": 1,
-            "translation-in-points": [
-              17.000000000000057,
-              -51.60000000000019
-            ]
-          }
-        }
-      ],
-      "lighting": "combined",
-      "name": "core",
-      "position": {
-        "scale": 1.15,
-        "translation-in-points": [
-          0,
-          0
-        ]
-      },
-      "refractivity": {
-        "depth": 0.5,
-        "enabled": false,
-        "strength": 0
-      },
-      "shadow": {
-        "kind": "layer-color",
-        "opacity": 0.5
-      },
-      "specular": true,
-      "translucency": {
-        "enabled": true,
-        "value": 0.5
-      }
-    },
-    {
-      "blur-material": null,
-      "layers": [
-        {
-          "fill": {
-            "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
-          },
-          "hidden": false,
-          "image-name": "inner.svg",
-          "name": "inner",
-          "position": {
-            "scale": 1,
-            "translation-in-points": [
-              17.000000000000057,
-              -51.60000000000019
-            ]
-          }
-        }
-      ],
-      "lighting": "combined",
-      "name": "inner",
-      "position": {
-        "scale": 1.15,
-        "translation-in-points": [
-          0,
-          0
-        ]
-      },
-      "refractivity": {
-        "depth": 0.5,
-        "enabled": false,
-        "strength": 0
-      },
-      "shadow": {
-        "kind": "layer-color",
-        "opacity": 0.5
-      },
-      "specular": true,
-      "translucency": {
-        "enabled": true,
-        "value": 0.55
-      }
-    },
     {
       "blur-material": null,
       "layers": [
@@ -135,7 +52,7 @@
       },
       "refractivity": {
         "depth": 0.5,
-        "enabled": false,
+        "enabled": true,
         "strength": 0
       },
       "shadow": {
