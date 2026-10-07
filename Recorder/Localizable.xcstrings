@@ -294,12 +294,12 @@
         }
       }
     },
-    "Automatic titles and summaries need an iPhone with 8 GB of memory (iPhone 17 or later).": {
+    "Automatic titles and summaries need an iPhone with at least 8 GB of memory.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Automatische Titel und Zusammenfassungen brauchen ein iPhone mit 8 GB Arbeitsspeicher (iPhone 17 oder neuer)."
+            "value": "Automatische Titel und Zusammenfassungen brauchen ein iPhone mit mindestens 8 GB Arbeitsspeicher."
           }
         }
       }
@@ -554,6 +554,16 @@
         }
       }
     },
+    "Done": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fertig"
+          }
+        }
+      }
+    },
     "Double-Check Important Details": {
       "localizations": {
         "de": {
@@ -704,12 +714,12 @@
         }
       }
     },
-    "Feder keeps a voice profile of each person you name, only on this iPhone, to recognize them later. Delete a person to forget their voice.": {
+    "Feder keeps a voice profile of everyone it hears, only on this iPhone, and recognizes people you've named. Delete a person and their transcripts to forget their voice.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Feder speichert für jede Person, die du benennst, ein Stimmprofil – nur auf diesem iPhone –, um sie später wiederzuerkennen. Lösche eine Person, damit ihre Stimme vergessen wird."
+            "value": "Feder speichert von allen, die es hört, ein Stimmprofil – nur auf diesem iPhone – und erkennt Personen wieder, die du benannt hast. Lösche eine Person und ihre Transkripte, damit ihre Stimme vergessen wird."
           }
         }
       }
@@ -954,12 +964,12 @@
         }
       }
     },
-    "Live Speaker Labels show who is speaking as you record. Save Location keeps where a recording started; the place name comes from Apple Maps. After you stop, each recording is transcribed again and its speakers are identified more accurately.": {
+    "Live Speaker Labels show who is speaking as you record. Save Location keeps where a recording was made; the place name comes from Apple Maps. After you stop, each recording is transcribed again and its speakers are identified more accurately.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "„Sprecher live anzeigen“ zeigt beim Aufnehmen, wer spricht. „Ort speichern“ merkt sich, wo eine Aufnahme begonnen hat; den Ortsnamen liefert Apple Karten. Nach dem Stoppen wird jede Aufnahme noch einmal genauer transkribiert, und die Sprecher werden genauer erkannt."
+            "value": "„Sprecher live anzeigen“ zeigt beim Aufnehmen, wer spricht. „Ort speichern“ merkt sich, wo eine Aufnahme entstanden ist; den Ortsnamen liefert Apple Karten. Nach dem Stoppen wird jede Aufnahme noch einmal genauer transkribiert, und die Sprecher werden genauer erkannt."
           }
         }
       }
@@ -1847,6 +1857,16 @@
         }
       }
     },
+    "The download starts on Wi-Fi with Low Data Mode off.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Download startet im WLAN, wenn der Datensparmodus aus ist."
+          }
+        }
+      }
+    },
     "The download starts when this iPhone is on Wi-Fi.": {
       "localizations": {
         "de": {
@@ -1992,7 +2012,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Transkribieren, während ihr sprecht"
+            "value": "Live mitschreiben"
           }
         }
       }
@@ -2097,12 +2117,12 @@
         }
       }
     },
-    "Voices You Name Are Remembered": {
+    "Voices Are Remembered": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Benannte Stimmen werden gespeichert"
+            "value": "Stimmen werden gespeichert"
           }
         }
       }

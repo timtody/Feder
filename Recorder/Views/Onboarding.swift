@@ -27,6 +27,8 @@ enum OnboardingPage: Hashable {
 /// Transcribe, as Voice Memos does, and location at the first Stop.
 struct Onboarding: View {
     let pages: [OnboardingPage]
+    /// Settings › About › Welcome: shown again to re-read, so it can be swiped away and has Done.
+    var isReplay = false
     @Environment(AppServices.self) private var services
     @Environment(\.dismiss) private var dismiss
     @State private var path: [OnboardingPage] = []
@@ -45,15 +47,24 @@ struct Onboarding: View {
                     .navigationDestination(for: OnboardingPage.self) { content($0) }
             }
         }
-        .interactiveDismissDisabled(current == .welcome || current == .beforeYouRecord)
+        .interactiveDismissDisabled(!isReplay && (current == .welcome || current == .beforeYouRecord))
     }
 
-    @ViewBuilder
+    /// A page, with Done in the replay (on every page: a toolbar on the NavigationStack itself wouldn't show).
     private func content(_ page: OnboardingPage) -> some View {
-        switch page {
-        case .welcome: welcome
-        case .beforeYouRecord: beforeYouRecord
-        case .summaries: summaries
+        Group {
+            switch page {
+            case .welcome: welcome
+            case .beforeYouRecord: beforeYouRecord
+            case .summaries: summaries
+            }
+        }
+        .toolbar {
+            if isReplay {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
         }
     }
 
@@ -95,8 +106,10 @@ struct Onboarding: View {
         OnboardingLayout(title: "Before You Record") {
             OnboardingRow(symbol: "hand.raised", title: "Ask First",
                           text: "Tell people you're recording and get their OK. Recording a private conversation without consent is against the law in Germany and many other countries.")
-            OnboardingRow(symbol: "person.crop.circle.badge.checkmark", title: "Voices You Name Are Remembered",
-                          text: "Feder keeps a voice profile of each person you name, only on this iPhone, to recognize them later. Delete a person to forget their voice.")
+            // Every speaker's voice profile is kept with its transcript (SpeakerIdentifier), not only named ones, and
+            // deleting a person leaves the profiles in their transcripts: said as it is.
+            OnboardingRow(symbol: "person.crop.circle.badge.checkmark", title: "Voices Are Remembered",
+                          text: "Feder keeps a voice profile of everyone it hears, only on this iPhone, and recognizes people you've named. Delete a person and their transcripts to forget their voice.")
             OnboardingRow(symbol: "checkmark.bubble", title: "Check What Matters",
                           text: "Transcripts, speaker names and summaries are made automatically and can contain mistakes.")
         } footnote: {
@@ -128,7 +141,7 @@ struct Onboarding: View {
 
 /// Gemma's page: what it does, that it runs here and can be wrong (HIG › Generative AI: say where AI is used and that
 /// it can make mistakes), the download. Free storage is checked when the page appears, so too little space is said
-/// here instead of failing after Download; off Wi-Fi it says the download starts on Wi-Fi.
+/// here instead of failing after Download; off Wi-Fi (or in Low Data Mode) it says when the download starts.
 private struct SummariesPage: View {
     let onDone: () -> Void
     @Environment(AppServices.self) private var services
@@ -149,8 +162,12 @@ private struct SummariesPage: View {
         } footnote: {
             if !hasRoom {
                 Text("Gemma needs 4 GB of free storage. Free up space, then download it in Settings.")
-            } else if services.network.kind != .wifi {
-                Text("The download starts when this iPhone is on Wi-Fi.")
+            } else {
+                switch services.network.kind {
+                case .lowData: Text("The download starts on Wi-Fi with Low Data Mode off.")
+                case .cellular, .offline: Text("The download starts when this iPhone is on Wi-Fi.")
+                case .wifi, nil: EmptyView()
+                }
             }
             Text("You can download it later in Settings.")
         } buttons: {
@@ -183,6 +200,7 @@ private struct OnboardingLayout<Rows: View, Footnote: View, Buttons: View>: View
                     .font(.largeTitle.bold())
                     .multilineTextAlignment(.center)
                     .padding(.top, 20)
+                    .accessibilityAddTraits(.isHeader)
                 VStack(alignment: .leading, spacing: 26) {
                     rows
                 }

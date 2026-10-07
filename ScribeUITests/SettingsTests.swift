@@ -139,7 +139,7 @@ final class SettingsTests: ScribeUITestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 5), "the Summaries row under Recording")
         XCTAssertTrue(row.label.contains("Not available"), "no Gemma on the simulator: \(row.label)")
         row.tap()
-        let footer = app.staticTexts["Automatic titles and summaries need an iPhone with 8 GB of memory (iPhone 17 or later)."]
+        let footer = app.staticTexts["Automatic titles and summaries need an iPhone with at least 8 GB of memory."]
         XCTAssertTrue(footer.waitForExistence(timeout: 5), "the page's footer without Gemma")
         XCTAssertTrue(app.staticTexts["Titles and Summaries"].exists, "the section header")
         shot("Summaries without Gemma", app)
@@ -245,6 +245,9 @@ final class SettingsTests: ScribeUITestCase {
         app.navigationBars.buttons.firstMatch.tap()
 
         app.buttons["Welcome"].firstMatch.tap()
-        XCTAssertTrue(app.staticTexts["Welcome to Feder"].waitForExistence(timeout: 5), "the onboarding again")
+        let welcome = app.staticTexts["Welcome to Feder"]
+        XCTAssertTrue(welcome.waitForExistence(timeout: 5), "the onboarding again")
+        app.buttons["Done"].tap()                          // a replay can be left without going through it
+        XCTAssertTrue(welcome.waitForNonExistence(timeout: 5), "Done closes the replay")
     }
 }

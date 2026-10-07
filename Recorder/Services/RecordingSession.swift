@@ -171,8 +171,16 @@ final class RecordingSession: Identifiable {
             state = failure.map { .failed($0) } ?? .discarded
             return
         }
-        // The first recording asks for location now, after Stop, instead of over the live recording (PlaceLocator).
-        if placeTask == nil, PlaceLocator.isEnabled { lookUpPlace() }
+        // The first recording asks for location now, after Stop, instead of over the live recording (PlaceLocator); its
+        // budget includes the time the user reads the alert. Save Location turned off meanwhile: no place, and the
+        // lookup stops before anything goes to Apple's geocoder.
+        if PlaceLocator.isEnabled {
+            if placeTask == nil { lookUpPlace(timeout: .seconds(60)) }
+        } else {
+            placeTask?.cancel()
+            placeTask = nil
+            place = nil
+        }
         let recording = Recording(name: transcriptName,
                                   audioFileName: fileName,
                                   localeIdentifier: (locale ?? Self.transcriptionLocale).identifier(.bcp47))
@@ -195,7 +203,8 @@ final class RecordingSession: Identifiable {
         identifier.enqueue(recording)
         if place == nil, let placeTask {                       // not found yet: added when it is; never holds up saving
             Task { [modelContext] in
-                guard let place = await placeTask.value, !recording.isDeleted, recording.modelContext != nil else { return }
+                guard let place = await placeTask.value, PlaceLocator.isEnabled, !recording.isDeleted,
+                      recording.modelContext != nil else { return }
                 recording.apply(place)
                 try? modelContext.save()
             }
@@ -203,9 +212,9 @@ final class RecordingSession: Identifiable {
     }
 
     /// Where the recording is, looked up in parallel; the transcript gets it when it arrives (never holds anything up).
-    private func lookUpPlace() {
+    private func lookUpPlace(timeout: Duration = .seconds(15)) {
         placeTask = Task { [weak self] in
-            let place = await PlaceLocator.current()
+            let place = await PlaceLocator.current(timeout: timeout)
             self?.place = place
             return place
         }

@@ -201,6 +201,10 @@ struct MainView: View {
         if let request = pendingCard {
             pendingCard = nil
             present(request)
+        } else if card.session == nil, onboardingPages.isEmpty {
+            // The onboarding skipped at launch because a recording or transcript was up comes now (a new user who
+            // recorded in the first second would otherwise never see Welcome or Before You Record).
+            Task { await offerOnboarding() }
         }
     }
 

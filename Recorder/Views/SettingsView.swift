@@ -59,7 +59,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Recording")
                 } footer: {
-                    Text("Live Speaker Labels show who is speaking as you record. Save Location keeps where a recording started; the place name comes from Apple Maps. After you stop, each recording is transcribed again and its speakers are identified more accurately.")
+                    Text("Live Speaker Labels show who is speaking as you record. Save Location keeps where a recording was made; the place name comes from Apple Maps. After you stop, each recording is transcribed again and its speakers are identified more accurately.")
                 }
 
                 Section {
@@ -101,15 +101,16 @@ struct SettingsView: View {
                 }
             }
             .sheet(isPresented: $showsWelcome) {
-                Onboarding(pages: [.welcome, .beforeYouRecord])
+                Onboarding(pages: [.welcome, .beforeYouRecord], isReplay: true)
             }
             #if DEBUG
             .task {                                    // QA hook: `-showPeople` opens Settings with People pushed
                 if ProcessInfo.processInfo.arguments.contains("-showPeople"), path.isEmpty { path.append(SettingsRoute.people) }
             }
             #endif
-            .onChange(of: liveSpeakerLabels) { _, on in
-                if on { Task { await services.prepareLiveDiarizer() } }   // applies from the next recording
+            .onChange(of: liveSpeakerLabels) {
+                // On: load the model (or wait for Wi-Fi); off: nothing waits any more. Applies from the next recording.
+                Task { await services.prepareLiveDiarizer() }
             }
         }
     }
@@ -317,7 +318,7 @@ struct SummariesModelView: View {
             } footer: {
                 Text(BetterSummaries.isSupported
                      ? "Google's Gemma 4 E2B writes a title and a short summary of every transcript, on this iPhone: it reads a whole meeting at once and keeps who said what. It needs a one-time 3.6 GB download over Wi-Fi, which goes on in the background, also when Feder is closed. Existing transcripts get summaries too; titles you typed stay."
-                     : "Automatic titles and summaries need an iPhone with 8 GB of memory (iPhone 17 or later).")
+                     : "Automatic titles and summaries need an iPhone with at least 8 GB of memory.")
             }
         }
         .navigationTitle("Summaries")

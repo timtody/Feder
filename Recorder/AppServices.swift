@@ -20,14 +20,16 @@ final class AppServices {
     nonisolated static let welcomeShownKey = "welcomeShown"
     static var modelDownloadsAllowed: Bool { UserDefaults.standard.bool(forKey: welcomeShownKey) }
 
-    /// The Hugging Face commits of the FluidAudio models the app downloads, pinned so a change upstream can't alter what
-    /// users get without an app update (FluidAudio 0.17.4 pins only the pyannote repo and fetches the others from
-    /// `main`). These are the commits that were `main` on 2026-10-07, the ones tested; FluidAudio resolves only files
-    /// that are missing, so models already on a phone stay as they are.
+    /// Hugging Face commits pinned for FluidAudio's downloads, so a change upstream can't alter what users get without
+    /// an app update. Only LS-EEND (the commit that was `main` on 2026-10-07, the one tested): its whole model is one
+    /// download whose revision marker sits inside the model folder. FluidAudio 0.17.4 pins pyannote itself. Nemotron
+    /// and Parakeet stay on `main`, because for a revision other than "main" FluidAudio deletes a repo folder that has no
+    /// `.fluidaudio-revision` marker of its own (ModelCache.swift:43-45): Nemotron's loader downloads its bundle and then
+    /// the repo root, which wiped the bundle it had just fetched (a fresh install failed once and downloaded twice), and
+    /// Parakeet folders downloaded before the pin have no marker (610 MB fetched again at the next transcription).
+    /// Nemotron is guarded by FluidAudio's weights-version marker instead (`discardStaleCache`).
     nonisolated static let modelRevisions = [
-        "FluidInference/nemotron-3-diarization-coreml": "25a90f97f254428d4b30374b76af9c74fdee8327",
         "FluidInference/ls-eend-coreml": "28ce1b1f8ef186729df63b3886fbaae7bc10c4a1",
-        "FluidInference/parakeet-ultra-coreml": "95eaa59a39d4394f047a4dc5cce480388a60d1b6",
     ]
 
     let container: ModelContainer
@@ -45,6 +47,9 @@ final class AppServices {
     private(set) var isLiveModelReady = false
     /// The live model isn't downloaded and waits for Wi-Fi (Settings › Speaker Identification offers it on cellular).
     private(set) var isLiveModelWaiting = false
+    /// A prepare is running: a second call (a foreground or a network change meanwhile) neither starts another nor
+    /// marks the model as waiting again.
+    @ObservationIgnored private var isPreparingLiveModel = false
 
     init(container: ModelContainer) {
         self.container = container
@@ -80,9 +85,10 @@ final class AppServices {
         let defaults = UserDefaults.standard
         guard defaults.object(forKey: welcomeShownKey) == nil else { return }
         let transcripts = (try? container.mainContext.fetchCount(FetchDescriptor<Recording>())) ?? 0
-        if transcripts > 0 || NemotronDiarizer.isDownloaded || defaults.object(forKey: "gemmaOnboardingShown") != nil {
-            defaults.set(true, forKey: welcomeShownKey)
-        }
+        // Decided once, on the first launch of this version: a new install stores false, so a recording made before
+        // its Welcome page appeared doesn't make it look like an existing user at the next launch.
+        defaults.set(transcripts > 0 || NemotronDiarizer.isDownloaded || defaults.object(forKey: "gemmaOnboardingShown") != nil,
+                     forKey: welcomeShownKey)
     }
 
     /// The Welcome page's Continue: the speaker models may download from now on.
@@ -100,9 +106,7 @@ final class AppServices {
             await identifier.prepareAndRetryPending()
             await identifier.refreshVoices()       // once per transcript: voices from final labels
         }
-        if !usesFakes || fakesNemotronDownload {   // the simulator: no real downloads
-            Task { await nemotron.download(force: false) }
-        }
+        if downloadsNemotron { Task { await nemotron.download(force: false) } }
         Task { await prepareLiveDiarizer() }       // independent: neither waits for the other
         prewarmModels()                            // once per launch: Nemotron compiled before Stop
     }
@@ -119,7 +123,7 @@ final class AppServices {
     private func networkChanged(_ kind: NetworkPath.Kind) {
         betterSummaries.networkChanged(kind)
         guard Self.modelDownloadsAllowed, UIApplication.shared.applicationState == .active else { return }
-        nemotron.networkChanged(kind, allowed: true)
+        if downloadsNemotron { nemotron.networkChanged(kind, allowed: true) }
         guard kind != .offline else { return }
         Task { await identifier.prepareAndRetryPending() }
         Task { await prepareLiveDiarizer() }
@@ -131,15 +135,22 @@ final class AppServices {
     /// A model already on the phone is only loaded (any connection, or none); a missing one downloads on Wi-Fi only,
     /// or anywhere with `force` ("Download Now Using Cellular").
     func prepareLiveDiarizer(force: Bool = false) async {
-        guard Self.liveSpeakerLabelsEnabled, !isLiveModelReady, Self.modelDownloadsAllowed || usesFakes else { return }
+        guard Self.liveSpeakerLabelsEnabled, !isLiveModelReady, Self.modelDownloadsAllowed || usesFakes else {
+            isLiveModelWaiting = false              // switched off (or ready): nothing waits
+            return
+        }
+        guard !isPreparingLiveModel else { return }
         if !force, !usesFakes, !LSEENDLiveDiarizer.isDownloaded, await network.current() != .wifi {
             isLiveModelWaiting = true
             return
         }
         isLiveModelWaiting = false
+        isPreparingLiveModel = true
+        defer { isPreparingLiveModel = false }
         do {
             try await liveDiarizer.prepare()
             isLiveModelReady = true
+            isLiveModelWaiting = false
         } catch {
             isLiveModelReady = false
             isLiveModelWaiting = !LSEENDLiveDiarizer.isDownloaded && network.kind != .wifi
@@ -184,7 +195,11 @@ final class AppServices {
         }
     }
 
-    /// Simulator QA: Nemotron's download is simulated (`-fakeNemotronDownload`), so the onboarding offers its page.
+    /// Nemotron downloads here: on an iPhone, and on the simulator only when `-fakeNemotronDownload` simulates it (the
+    /// simulator never fetches the real model, also not when the Mac's network changes).
+    private var downloadsNemotron: Bool { !usesFakes || fakesNemotronDownload }
+
+    /// Simulator QA: Nemotron's download is simulated (`-fakeNemotronDownload`).
     var fakesNemotronDownload: Bool {
         #if DEBUG
         NemotronModel.fakesDownload

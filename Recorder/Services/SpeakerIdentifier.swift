@@ -534,6 +534,9 @@ final class SpeakerIdentifier {
     }
 
     private func prepareModel() async -> Bool {
+        // Nothing downloads before the Welcome page has said what and how much (App Review 4.2.3(ii)), also when a
+        // new user records before it appeared: the transcript stays pending and is identified after its Continue.
+        guard AppServices.modelDownloadsAllowed else { return false }
         do {
             try await diarizer.prepare()
             if modelError != nil { modelError = nil }      // only a change is published: the open card re-renders on it

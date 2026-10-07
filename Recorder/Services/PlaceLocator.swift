@@ -32,6 +32,7 @@ enum PlaceLocator {
         defer { session.invalidate() }
         guard let location = await firstFix(timeout: timeout) else { return nil }
         var place = RecordingPlace(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+        guard !Task.isCancelled else { return nil }          // Save Location turned off at Stop: nothing to Apple
         if let request = MKReverseGeocodingRequest(location: location),
            let item = try? await request.mapItems.first {
             place.name = item.addressRepresentations?.cityWithContext ?? item.address?.shortAddress

@@ -2,35 +2,50 @@
   "models": [
     {
       "name": "Gemma 4 E2B",
-      "use": "Titles and summaries",
+      "use": {
+        "en": "Titles and summaries",
+        "de": "Titel und Zusammenfassungen"
+      },
       "credit": "Gemma 4 E2B by Google DeepMind, licensed under the Apache License 2.0 (https://ai.google.dev/gemma/docs/gemma_4_license).\nConverted to MLX with 4-bit quantization (modified) by mlx-community.",
       "license": "Apache-2.0",
       "url": "https://huggingface.co/mlx-community/gemma-4-e2b-it-4bit"
     },
     {
       "name": "NVIDIA Nemotron 3 Diarization",
-      "use": "Speakers after recording",
+      "use": {
+        "en": "Speakers after recording",
+        "de": "Sprecher nach der Aufnahme"
+      },
       "credit": "Nemotron 3 Diarization by NVIDIA (https://huggingface.co/nvidia/Nemotron-3-Diarization), licensed under the OpenMDW License Agreement, version 1.1.\nConverted to Core ML (modified) by Fluid Inference.",
       "license": "OpenMDW-1.1",
       "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml"
     },
     {
       "name": "pyannote Community-1, WeSpeaker and BUT PLDA",
-      "use": "Speaker voices and fallback speaker detection",
+      "use": {
+        "en": "Speaker voices and fallback speaker detection",
+        "de": "Stimmprofile und Ersatz-Sprechererkennung"
+      },
       "credit": "Speaker segmentation and WeSpeaker speaker embedding from pyannote speaker-diarization-community-1 by pyannote (https://huggingface.co/pyannote/speaker-diarization-community-1).\nPLDA parameters by BUT Speech@FIT. Copyright (c) Brno University of Technology / BUT Speech@FIT.\nConverted to Core ML (modified) by Fluid Inference.\nLicensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).\n\nCitations:\nAlexis Plaquet and Hervé Bredin. Powerset multi-class cross entropy loss for neural speaker diarization. Proc. INTERSPEECH 2023.\n\nHongji Wang, Chengdong Liang, Shuai Wang, Zhengyang Chen, Binbin Zhang, Xu Xiang, Yanlei Deng and Yanmin Qian. Wespeaker: A research and production oriented speaker embedding learning toolkit. ICASSP 2023, IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP), pp. 1–5. IEEE, 2023.\n\nFederico Landini, Ján Profant, Mireia Diez and Lukáš Burget. Bayesian HMM clustering of x-vector sequences (VBx) in speaker diarization: theory, implementation and analysis on standard tasks. Computer Speech & Language, 2022.",
       "license": "CC-BY-4.0",
       "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml"
     },
     {
       "name": "LS-EEND",
-      "use": "Live speaker labels",
+      "use": {
+        "en": "Live speaker labels",
+        "de": "Sprecher live anzeigen"
+      },
       "credit": "Copyright (c) 2023 Audio-WestlakeU\nLS-EEND by Di Liang and Xiaofei Li (Westlake University), https://github.com/Audio-WestlakeU/FS-EEND.\nConverted to Core ML by GradientDescent2718, published by Fluid Inference.\n\nCitation:\nDi Liang and Xiaofei Li. LS-EEND: Long-Form Streaming End-to-End Neural Diarization With Online Attractor Extraction. IEEE Transactions on Audio, Speech and Language Processing, vol. 33, pp. 3568–3581, 2025.",
       "license": "MIT",
       "url": "https://huggingface.co/FluidInference/ls-eend-coreml"
     },
     {
       "name": "Parakeet Ultra",
-      "use": "Full-accuracy transcript after recording",
+      "use": {
+        "en": "Full-accuracy transcript after recording",
+        "de": "Genaues Transkript nach der Aufnahme"
+      },
       "credit": "Parakeet Ultra by Moondream (https://huggingface.co/moondream/parakeet-ultra), a post-trained version of parakeet-tdt-0.6b-v3 by NVIDIA (https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3).\nConverted to Core ML with int8 encoder weights (modified) by Fluid Inference.\nLicensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).",
       "license": "CC-BY-4.0",
       "url": "https://huggingface.co/FluidInference/parakeet-ultra-coreml"

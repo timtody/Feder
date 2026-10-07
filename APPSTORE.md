@@ -44,12 +44,12 @@ Status: **[done]** is in the app; **[this change]** is being added now; **[open]
 - [x] **[done] Usage descriptions, background audio, export key, launch screen, icon.**
 - [ ] **[open] German purpose strings**: both are `needs_review` in `InfoPlist.xcstrings`; five keys in `Localizable.xcstrings` have no German (e.g. "%@ Speakers"). Consider saying in the location string that the place name is looked up with Apple Maps. Every new onboarding, legal and Settings string needs German.
 - [ ] **[open] `Recorder/Saved state!.icon`** is untracked and sits in the synced folder, so the next archive would ship it. Remove it or move it out of `Recorder/` before archiving; check the archive has only `AppIcon`.
-- [ ] **[this change] Download rules and the Save Location switch** (`NetworkPath`, onboarding, Settings › Recording), as decided for this release: pyannote/WeSpeaker 21 MB after the Welcome screen on any network; LS-EEND 45 MB and Nemotron 100 MB automatically on Wi-Fi only, or on cellular after "Download Now Using Cellular"; Gemma 3.6 GB and Parakeet 610 MB only on request. **[open]** Before submitting, check that the final code matches `Legal.json`, the review notes and the description, and that the welcome page states the sizes before anything downloads (4.2.3(ii)).
-- [ ] **[open] Pin the model revisions.** FluidAudio pins only the pyannote repo (`df2625ac…`); Nemotron, Parakeet Ultra and LS-EEND come from mutable `main`, against CLAUDE.md's "pinned Hugging Face revisions". Set `ModelRegistry.revisionOverrides` at launch: `FluidInference/nemotron-3-diarization-coreml` `25a90f97f254428d4b30374b76af9c74fdee8327`, `FluidInference/parakeet-ultra-coreml` `95eaa59a39d4394f047a4dc5cce480388a60d1b6`, `FluidInference/ls-eend-coreml` `28ce1b1f8ef186729df63b3886fbaae7bc10c4a1` (re-check the SHAs that day), and keep the Acknowledgements in step.
+- [ ] **[this change] Download rules and the Save Location switch** (`NetworkPath`, onboarding, Settings › Recording), as decided for this release: pyannote/WeSpeaker 21 MB after the Welcome screen on any network; LS-EEND 45 MB and Nemotron 100 MB start automatically on Wi-Fi only (a download started on Wi-Fi may finish over cellular: FluidAudio's session can't be configured from outside), or on cellular after "Download Now Using Cellular"; Gemma 3.6 GB and Parakeet 610 MB only on request. **[open]** Before submitting, check that the final code matches `Legal.json`, the review notes and the description, and that the welcome page states the sizes before anything downloads (4.2.3(ii)).
+- [ ] **[this change] Pin the model revisions, where FluidAudio allows it**: `AppServices.modelRevisions` → `ModelRegistry.revisionOverrides` pins `FluidInference/ls-eend-coreml` to `28ce1b1f8ef186729df63b3886fbaae7bc10c4a1` (`main` on 2026-10-07, the one tested). FluidAudio pins pyannote itself (`df2625ac…`). Nemotron and Parakeet Ultra stay on `main`: for a revision other than "main" FluidAudio deletes a repo folder that lacks its private `.fluidaudio-revision` marker (ModelCache.swift:43-45), so a pin made a fresh Nemotron download fail (its loader's second, root-level download wiped the bundle it had just fetched) and made existing Parakeet users download 610 MB again. Nemotron is still guarded by FluidAudio's `weightsVersion` marker. **[open]** Pinning those two needs FluidAudio to adopt an existing cache (upstream change or fork); until then re-check their repos before each release, and keep the Acknowledgements in step.
 - [ ] **[open] Drop the unused NemoTextProcessing trait** (~8 MB Rust library, plus NOTICE duties for NeMo, rustfst, flate2 and others). FluidAudio documents `.package(url: …, traits: [])`. The installed XcodeGen 2.46.0 has a `traits` field for packages (seen in its binary; not tried): try `traits: []` on FluidAudio in `project.yml`, regenerate, and check that `libtext_processing_rs.a` is gone. If it can't be turned off, show its NOTICE and THIRD-PARTY-LICENSES on the Acknowledgements page.
 - [ ] **[this change] Settings › Transcription footer** no longer says "Apple Speech needs no download" (iOS may download Apple's speech model at the first recording in a language).
-- [ ] **[this change] AI label** (HIG Generative AI): "Automatic summary · can contain mistakes" under the summary. **[open]** A regenerate or remove action for the summary. Gemma onboarding copy: "close it; it finishes on its own" is wrong after a force-quit (iOS cancels background transfers then); it resumes at the next launch.
-- [ ] **[open] Recording-consent note** in the onboarding (one balanced screen, a single Continue): ask people before recording them (§ 201 StGB); voices you name are remembered on this iPhone; transcripts and summaries can be wrong. Link the Privacy Policy there too.
+- [ ] **[this change] AI label** (HIG Generative AI): "Automatic summary · can contain mistakes" under the summary. **[open]** A regenerate or remove action for the summary.
+- [ ] **[this change] Recording-consent note**: the onboarding's Before You Record page (one balanced screen, a single Continue, once for everyone): ask people before recording them (§ 201 StGB); voices are remembered on this iPhone (a voice profile of everyone it hears; delete a person and their transcripts to forget a voice); automatic results can be wrong; a Privacy Policy link.
 
 ### Build, device and TestFlight
 
@@ -69,7 +69,7 @@ Status: **[done]** is in the app; **[this change]** is being added now; **[open]
 - [ ] **[open] Content Rights**: the app downloads third-party content (model weights under open licences, §3); answer accordingly.
 - [ ] **[open] Screenshots**: the only required iPhone size is 1206×2622 (or 1179×2556); take them on the iPhone 17 iOS 27 simulator with seeded transcripts, in EN and DE, PNG without alpha, 1–10. 6.9" is optional.
 - [ ] **[open] Availability**: deselect **China mainland** (needs an ICP filing and approval for generative AI). Decide **Mac (Apple silicon) and Apple Vision Pro**: on by default, untested (microphone, background audio, MLX, the 8 GB check), so deselect for 1.0 unless tested. Reviewers may also run the iPhone app on an iPad (2.4.1).
-- [ ] **[open] Description**: "Requires iPhone 12 or later" (SpeechTranscriber is unavailable on iPhone 11 and SE 2, which iOS 26 still supports; the app installs there and can't record) and "Titles and summaries need an iPhone with 8 GB of memory". No "Gemma", "Google" or "NVIDIA" in the name, subtitle or keywords (descriptive use in the app is fine).
+- [ ] **[open] Description**: "Requires iPhone 12 or later" (SpeechTranscriber is unavailable on iPhone 11 and SE 2, which iOS 26 still supports; the app installs there and can't record) and "Titles and summaries need an iPhone with at least 8 GB of memory". No "Gemma", "Google" or "NVIDIA" in the name, subtitle or keywords (descriptive use in the app is fine).
 - [ ] **[open] Release**: manual release for 1.0; phased release for updates.
 - [ ] **[open] Legal review by Cofinpro legal**: the Impressum and the privacy policy (placeholders, the legal-basis paragraph, whether the model and place-name requests are attributable to the provider, the consumer-dispute sentence), and the **EU AI Act Art. 50(2)** question: machine-readable marking of AI-generated text applies since 2 Aug 2026; Feder launches after that, so no grace period; are on-device titles and summaries of the user's own transcript an "assistive function" that does "not substantially alter the input data"? Cheap hedge: the AI label above.
 
@@ -88,17 +88,17 @@ Gemma needs **no** "I agree" step. Attribution goes on the Acknowledgements page
 | Model | Repository downloaded | Licence | Credit |
 |---|---|---|---|
 | Gemma 4 E2B (titles, summaries) | `mlx-community/gemma-4-e2b-it-4bit` @ `2387675…` (pinned) | **Apache-2.0** (Google). The Gemma Terms of Use scope themselves away from Gemma 4; the mlx-community card's `license: gemma` tag is stale | "Gemma 4 E2B by Google DeepMind, Apache License 2.0 (ai.google.dev/gemma/docs/gemma_4_license). 4-bit MLX conversion by mlx-community." Don't call the Prohibited Use Policy inapplicable in user-facing text. |
-| Nemotron 3 Diarization (speakers after Stop) | `FluidInference/nemotron-3-diarization-coreml` (main) | **OpenMDW-1.1** (not the "NVIDIA Open Model License") | "NVIDIA Nemotron 3 Diarization by NVIDIA, OpenMDW License Agreement v1.1 (openmdw.ai/license/1-1). Core ML conversion by Fluid Inference." + full text |
+| Nemotron 3 Diarization (speakers after Stop) | `FluidInference/nemotron-3-diarization-coreml` (main; not pinned, see §2) | **OpenMDW-1.1** (not the "NVIDIA Open Model License") | "NVIDIA Nemotron 3 Diarization by NVIDIA, OpenMDW License Agreement v1.1 (openmdw.ai/license/1-1). Core ML conversion by Fluid Inference." + full text |
 | pyannote community-1 + WeSpeaker + BUT PLDA (speakers, voices) | `FluidInference/speaker-diarization-coreml` @ `df2625ac…` (pinned) | **CC-BY-4.0, scoped** to the files Feder loads (NOTICE.md) | Name pyannote, WeSpeaker, BUT Speech@FIT and Fluid Inference, link CC-BY-4.0, say the files are modified Core ML conversions; citations Plaquet & Bredin (INTERSPEECH 2023), Wang et al. (Wespeaker, ICASSP 2023), Landini et al. (VBx, CSL 2022) |
-| LS-EEND `dih3` (live labels) | `FluidInference/ls-eend-coreml` (main) | **MIT**, © 2023 Audio-WestlakeU | LS-EEND by Di Liang and Xiaofei Li (Westlake University); Core ML conversion by Fluid Inference |
-| Parakeet **Ultra** (optional transcription) | `FluidInference/parakeet-ultra-coreml` (main) | **CC-BY-4.0** | "Parakeet Ultra by Moondream, based on NVIDIA parakeet-tdt-0.6b-v3; converted to Core ML (modified) by Fluid Inference. CC BY 4.0." |
+| LS-EEND `dih3` (live labels) | `FluidInference/ls-eend-coreml` @ `28ce1b1…` (pinned) | **MIT**, © 2023 Audio-WestlakeU | LS-EEND by Di Liang and Xiaofei Li (Westlake University); Core ML conversion by Fluid Inference |
+| Parakeet **Ultra** (optional transcription) | `FluidInference/parakeet-ultra-coreml` (main; not pinned, see §2) | **CC-BY-4.0** | "Parakeet Ultra by Moondream, based on NVIDIA parakeet-tdt-0.6b-v3; converted to Core ML (modified) by Fluid Inference. CC BY 4.0." |
 
 Compiled into the binary (required): FluidAudio 0.17.4 (Apache-2.0) with everything in its `ThirdPartyLicenses/` (fastcluster BSD-2, VBx port Apache-2.0 © BUT Speech@FIT, NemoTextProcessing with its NOTICE unless the trait is off, JapaneseG2P and KokoroAneSpanishFrenchG2P: Misaki Apache-2.0, cutlet MIT, Convert-Numbers-to-Japanese MIT); mlx-swift 0.32.3 (MIT) with mlx (MIT © Apple), mlx-c, PocketFFT (BSD-3), metal-cpp (Apache-2.0), nlohmann/json (MIT); mlx-swift-lm 3.32.3 (MIT); swift-transformers 1.3.4, swift-huggingface 0.12.0, swift-jinja 2.5.1 (Apache-2.0); swift-crypto 4.5.2 (Apache-2.0, **NOTICE.txt verbatim**); EventSource 1.5.1 and yyjson 0.12.0 (MIT); swift-collections and swift-numerics (Apache-2.0 with the runtime exception; listing them does no harm). Not shipped: swift-asn1, swift-syntax. Open questions for Fluid Inference: the Mandarin G2P ports have no licence file, and the bundled LuxTTS lexicon (`luxtts_en_us_lexicon.tsv.zz`, from espeak-ng pronunciations) has no stated licence; both are TTS code Feder never uses and the trait does not remove.
 
 ## 4. Network facts the texts rely on
 
 - Hugging Face (huggingface.co and its CDN) sees the IP address, the requested file and ordinary connection data; no account, token, identifier or telemetry is sent.
-- Apple: the speech model for a language (downloaded by iOS) and MapKit reverse geocoding of the start location (only with location allowed; "Save Location" turns it off).
+- Apple: the speech model for a language (downloaded by iOS) and MapKit reverse geocoding of the recording location, once per recording: at Start, for the first recording at Stop, when iOS asks for location (only with location allowed; "Save Location" turns it off, and turned off before Stop the running recording saves no place and nothing is looked up).
 - Recordings (WAV in Documents), the SwiftData store (transcripts, summaries, people, voice profiles, tags, places) and UserDefaults are in the iOS/iCloud backup like other app data; the model folders are excluded from backup (`FluidAudioDiarizer.swift`, `GemmaDownload.swift`).
 - Sizes: the Release build was 67 MB with 31 MB of `__TEXT` (limit 500 MB for iOS 9+, 4 GB uncompressed); no weights are bundled.
 
@@ -113,7 +113,7 @@ Compiled into the binary (required): FluidAudio 0.17.4 (Apache-2.0) with everyth
 
 Counts are characters (keywords: bytes). The name and subtitle words are indexed already, so keywords don't repeat them.
 
-### Description, English (1,565 characters of 4,000)
+### Description, English (1,583 characters of 4,000)
 
 ```
 Feder turns what people say into text, right on your iPhone. Tap Transcribe and watch the words appear as you talk. When you stop, Feder transcribes the recording again for accuracy and works out who said what.
@@ -126,10 +126,10 @@ KNOW WHO SAID WHAT
 FIND ANYTHING
 • Search every word in all your transcripts.
 • Narrow results by people and tags.
-• See where a recording started, if you allow location.
+• See where a recording was made, if you allow location.
 
 TITLES AND SUMMARIES
-• On iPhones with 8 GB of memory, an AI model that runs on your iPhone gives each transcript a title and a short summary. Summaries can contain mistakes, so check what matters.
+• On iPhones with 8 GB of memory or more, an AI model that runs on your iPhone gives each transcript a title and a short summary. Summaries can contain mistakes, so check what matters.
 
 PRIVATE BY DESIGN
 • Your recordings and transcripts never leave your iPhone. No account, no analytics, no ads.
@@ -144,10 +144,10 @@ MORE
 
 Please ask people before you record them.
 
-Requires iPhone 12 or later. Titles and summaries need an iPhone with 8 GB of memory.
+Requires iPhone 12 or later. Titles and summaries need an iPhone with at least 8 GB of memory.
 ```
 
-### Description, German (1,855 characters of 4,000)
+### Description, German (1,879 characters of 4,000)
 
 ```
 Feder macht aus Gesprochenem Text, direkt auf deinem iPhone. Tippe auf „Transkribieren“ und sieh zu, wie die Wörter erscheinen, während ihr sprecht. Nach dem Stoppen transkribiert Feder die Aufnahme noch einmal genauer und erkennt, wer was gesagt hat.
@@ -160,10 +160,10 @@ WISSEN, WER WAS GESAGT HAT
 ALLES WIEDERFINDEN
 • Durchsuche jedes Wort in all deinen Transkripten.
 • Grenze Ergebnisse nach Personen und Tags ein.
-• Sieh, wo eine Aufnahme begann, wenn du den Standort erlaubst.
+• Sieh, wo eine Aufnahme entstand, wenn du den Standort erlaubst.
 
 TITEL UND ZUSAMMENFASSUNGEN
-• Auf iPhones mit 8 GB Arbeitsspeicher gibt ein KI-Modell, das auf deinem iPhone läuft, jedem Transkript einen Titel und eine kurze Zusammenfassung. Zusammenfassungen können Fehler enthalten – prüfe, was wichtig ist.
+• Auf iPhones mit mindestens 8 GB Arbeitsspeicher gibt ein KI-Modell, das auf deinem iPhone läuft, jedem Transkript einen Titel und eine kurze Zusammenfassung. Zusammenfassungen können Fehler enthalten – prüfe, was wichtig ist.
 
 PRIVAT VON GRUND AUF
 • Deine Aufnahmen und Transkripte verlassen dein iPhone nie. Kein Konto, keine Analyse, keine Werbung.
@@ -178,10 +178,10 @@ MEHR
 
 Bitte frag Menschen, bevor du sie aufnimmst.
 
-Erfordert ein iPhone 12 oder neuer. Titel und Zusammenfassungen brauchen ein iPhone mit 8 GB Arbeitsspeicher.
+Erfordert ein iPhone 12 oder neuer. Titel und Zusammenfassungen brauchen ein iPhone mit mindestens 8 GB Arbeitsspeicher.
 ```
 
-## 6. App Review notes (draft, 2,736 bytes of 4,000)
+## 6. App Review notes (draft, 3,056 bytes of 4,000)
 
 ```
 Feder transcribes on the device. No account or sign-in; this version has no In-App Purchases.
@@ -194,23 +194,23 @@ HOW TO TEST
 DOWNLOADS (all are model weights, i.e. data, no executable code; no user data is uploaded)
 - First recording in a language: iOS may download Apple's on-device speech model for it, with progress on the Record screen.
 - After the Welcome screen: a 21 MB speaker model from huggingface.co, on any network. Until it is there, recording works and transcripts say that speakers will be identified once it has downloaded.
-- Automatic on Wi-Fi only: a 45 MB live speaker-label model and a 100 MB improved speaker model. On cellular only after the user taps "Download Now Using Cellular".
-- Only on request: Parakeet transcription (610 MB, Settings > Transcription) and the Gemma model for titles and summaries (3.6 GB, Wi-Fi only, background, offered only on iPhones with 8 GB of memory).
+- Started automatically on Wi-Fi only: a 45 MB live speaker-label model and a 100 MB improved speaker model (a download started on Wi-Fi may finish over cellular if Wi-Fi drops). Started on cellular only after the user taps "Download Now Using Cellular".
+- Only on request: Parakeet transcription (610 MB, Settings > Transcription) and the Gemma model for titles and summaries (3.6 GB, Wi-Fi only, background, offered only on iPhones with at least 8 GB of memory).
 
 BACKGROUND AUDIO
 UIBackgroundModes "audio" keeps an ongoing recording and its live transcription running when the screen locks or the user switches apps. It is not used after Stop.
 
 RECORDING CONSENT AND INDICATOR (2.5.14)
-Recording starts only when the user taps Transcribe, after the system microphone permission. While recording, the card and the bar's accessory show a timer, a level meter and Stop, and iOS shows its microphone indicator. [If shipped: the onboarding asks users to get consent before recording others.]
+Recording starts only when the user taps Transcribe, after the system microphone permission. While recording, the card and the bar's accessory show a timer, a level meter and Stop, and iOS shows its microphone indicator. Before the first recording, the onboarding's Before You Record page asks users to tell people they are recording and get their consent.
 
 LOCATION (optional)
-If allowed, the start location is reverse-geocoded with MapKit to show a place name. A Save Location switch in Settings turns it off; denying it changes nothing else.
+iOS asks for location at the first Stop, not over the live recording. If allowed, the recording's location (for the first recording, where it was stopped; later ones, where they started) is reverse-geocoded with MapKit to show a place name. A Save Location switch in Settings turns it off; denying it changes nothing else.
 
 AI
 Titles and summaries are generated on the device by Gemma 4 E2B (Apache-2.0), running with MLX. Nothing is sent to a third-party AI service.
 
 REQUIREMENTS
-Transcription uses SpeechTranscriber, which needs an iPhone 12 or later (it is not available on iPhone 11 or iPhone SE 2nd generation). Titles and summaries need 8 GB of memory; on other iPhones they are not offered.
+Transcription uses SpeechTranscriber, which needs an iPhone 12 or later (it is not available on iPhone 11 or iPhone SE 2nd generation). Titles and summaries need at least 8 GB of memory; on other iPhones they are not offered.
 
 LANGUAGE
 The primary language is German; the app is fully available in English and transcribes English speech on an English device.
@@ -225,7 +225,7 @@ Contact: [name, phone, email]
 ## Order
 
 1. Account decision and DSA trader status (can take weeks; start now) → fill the placeholders in `Legal.json`, host the privacy page and the support page.
-2. Remove `Saved state!.icon`; privacy manifest, Privacy Policy, Legal Notice and Acknowledgements in; German strings; pin the model revisions; the NemoTextProcessing trait.
+2. Remove `Saved state!.icon`; privacy manifest, Privacy Policy, Legal Notice and Acknowledgements in; German strings; the NemoTextProcessing trait.
 3. Signed Release archive → TestFlight on the iPhone 17 → a week of real use, including the airplane-mode checks.
 4. Cofinpro legal reviews the texts (and Art. 50) in parallel.
 5. App record, App Privacy, age rating, screenshots (EN, DE), availability (no China mainland; Mac/Vision Pro decided) → submit with manual release.

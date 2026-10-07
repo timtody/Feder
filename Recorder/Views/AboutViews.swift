@@ -23,9 +23,11 @@ nonisolated struct LegalDocument: Decodable, Sendable {
               let data = try? Data(contentsOf: url),
               let all = try? JSONDecoder().decode([String: [String: LegalDocument]].self, from: data),
               let languages = all[kind.rawValue] else { return nil }
-        let language = Bundle.main.preferredLocalizations.first == "de" ? "de" : "en"
         return languages[language] ?? languages["en"]
     }
+
+    /// The app's language for the JSON texts: German when the app runs in German, English otherwise.
+    static var language: String { Bundle.main.preferredLocalizations.first == "de" ? "de" : "en" }
 }
 
 /// A legal document as a plain reading page: its sections as headed paragraphs.
@@ -77,7 +79,9 @@ struct LegalTextView: View {
 nonisolated struct Acknowledgements: Decodable, Sendable {
     struct Model: Decodable, Sendable, Hashable {
         var name: String
-        var use: String?
+        var use: [String: String]?               // "en", "de": what Feder uses it for
+        /// `use` in the app's language.
+        var localizedUse: String? { use?[LegalDocument.language] ?? use?["en"] }
         var credit: String
         var license: String
         var url: String?
@@ -124,7 +128,7 @@ struct AcknowledgementsView: View {
                                 Text(model.license)
                             } label: {
                                 Text(model.name)
-                                if let use = model.use { Text(use) }
+                                if let use = model.localizedUse { Text(use) }
                             }
                         }
                     }

@@ -164,4 +164,17 @@ final class OnboardingTests: ScribeUITestCase {
         app.alerts.buttons["Wait for Wi-Fi"].tap()
         XCTAssertTrue(app.staticTexts["Paused by Low Data Mode"].waitForExistence(timeout: 5), "still waiting")
     }
+
+    /// A new user who records before the sheet appears (it waits a second): the onboarding is not lost, it comes once
+    /// the card is closed.
+    @MainActor
+    func testOnboardingComesAfterAnEarlyRecording() throws {
+        let app = launch(["-welcomeShown", "NO", "-recordingNoticeShown", "NO", "-autoRecord", "-autoStopAfter", "4"])
+        let back = app.buttons["Minimize"]
+        XCTAssertTrue(back.waitForExistence(timeout: 10), "the recording card is up")
+        XCTAssertFalse(app.staticTexts["Welcome to Feder"].exists, "not over the recording")
+        XCTAssertTrue(app.buttons["Delete Transcript"].waitForExistence(timeout: 20), "saved: the card shows the transcript")
+        closeCard(app)
+        XCTAssertTrue(app.staticTexts["Welcome to Feder"].waitForExistence(timeout: 5), "then the onboarding")
+    }
 }
