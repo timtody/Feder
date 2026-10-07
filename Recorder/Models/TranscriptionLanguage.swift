@@ -7,8 +7,8 @@ nonisolated enum TranscriptionLanguage {
     /// UserDefaults key: a BCP-47 identifier ("en-US"); absent means the phone's language.
     static let key = "transcriptionLanguage"
 
-    /// The phone's language. `Locale.current` would be wrong: it reflects the app's own localization (English only),
-    /// so on a German phone it is "en_DE" and the transcriber would pick the English model.
+    /// The phone's language. `Locale.current` would be wrong: it reflects the app's own localization (English or German),
+    /// so on a phone set to French it is "en_FR" and the transcriber would pick the English model.
     static var phone: Locale { Locale(identifier: Locale.preferredLanguages.first ?? Locale.current.identifier) }
 
     /// The chosen language, or the phone's.
@@ -27,7 +27,7 @@ nonisolated enum TranscriptionLanguage {
         }
     }
 
-    /// "German" (in English, like the rest of the UI).
+    /// "German" or "Deutsch": in the app's language (`AppLanguage`), like the rest of the UI.
     static func name(_ locale: Locale) -> String {
         let code = locale.language.languageCode?.identifier ?? locale.identifier
         return AppLanguage.locale.localizedString(forLanguageCode: code) ?? code   // "German" / "Deutsch"
