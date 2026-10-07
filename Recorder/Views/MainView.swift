@@ -55,6 +55,8 @@ struct MainView: View {
     @State private var pendingCard: CardRequest?
     @State var card = TranscriptCardContent()
     @Namespace private var cardZoom
+    /// GemmaOnboarding, once (see offerGemma).
+    @State private var showsGemmaOnboarding = false
 
     var body: some View {
         TabView(selection: tabSelection) {
@@ -84,6 +86,10 @@ struct MainView: View {
         }), onDismiss: cardDismissed) {
             TranscriptCard(content: card, onClose: closeCard, onRetry: retryRecording, namespace: cardZoom)
         }
+        .sheet(isPresented: $showsGemmaOnboarding) {
+            GemmaOnboarding { services.betterSummaries.download() }
+        }
+        .task { await offerGemma() }
         .environment(\.cardZoom, cardZoom)
         .environment(\.openTranscript, OpenTranscriptAction { recording, search, sourceID in
             openCard(recording, search: search, sourceID: sourceID)
@@ -112,6 +118,18 @@ struct MainView: View {
             if new == .search { searchState.focusRequest += 1 }
             tab = new
         })
+    }
+
+    /// Asks once for Gemma's download (GemmaOnboarding), on an iPhone that can run it, while it is not downloaded nor
+    /// on its way. A second after launch, so the sheet rises over the list instead of with the first frame, and not
+    /// over a recording or transcript opened meanwhile (`-autoRecord`, a tap).
+    private func offerGemma() async {
+        let better = services.betterSummaries
+        guard BetterSummaries.isSupported, better.state == .notDownloaded,
+              !UserDefaults.standard.bool(forKey: GemmaOnboarding.shownKey) else { return }
+        try? await Task.sleep(for: .seconds(1))
+        guard cardPhase == .closed, card.session == nil, better.state == .notDownloaded else { return }
+        showsGemmaOnboarding = true
     }
 
     /// Puts the keyboard away. The Search tab's field stayed first responder over the next tab: its view is kept alive

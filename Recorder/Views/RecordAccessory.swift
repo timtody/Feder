@@ -2,7 +2,8 @@ import SwiftUI
 
 /// The tab bar's bottom accessory (Music's mini player spot; the system draws the glass capsule): the record control,
 /// in the mini player's sizes (subheadline semibold, a small mark).
-/// Without a recording: a red dot, "Transcribe" and under it the language ("German · On device"), and at the end a
+/// Without a recording: a red dot, "Transcribe" and under it the language ("German · On device"; "Preparing speaker
+/// model…" or Gemma's download, "Downloading Gemma · 42 %", while those run), and at the end a
 /// button with the language's code ("DE ⌄") that picks the next recording's language; a tap on the rest starts a
 /// recording and opens the transcript card on it out of this accessory (zoom transition, like Music's mini player). While recording: a pulsing red dot, the time, the
 /// microphone level and Stop; a tap elsewhere opens the card again.
@@ -67,6 +68,11 @@ struct RecordAccessory: View {
                                 // said here, where it is seen without a recording, as the status line says it after Stop.
                                 ShimmerText(text: "Preparing speaker model…")
                                     .font(.caption)
+                            } else if let download = gemmaDownload {
+                                download
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
                             } else {
                                 Text("\(TranscriptionLanguage.name(locale)) · On device")
                                     .font(.caption)
@@ -86,6 +92,19 @@ struct RecordAccessory: View {
             if !inline {
                 languageMenu(locale)
             }
+        }
+    }
+
+    /// Gemma's background download while it runs (started from the onboarding sheet or Settings): said here, where it
+    /// is seen without opening Settings, as Music's mini player shows what is going on. nil otherwise.
+    private var gemmaDownload: Text? {
+        switch services.betterSummaries.state {
+        case .downloading(let fraction):
+            Text("Downloading Gemma · \(fraction, format: .percent.precision(.fractionLength(0)))")
+        case .waitingForWiFi:
+            Text("Gemma · Waiting for Wi-Fi")
+        default:
+            nil
         }
     }
 
