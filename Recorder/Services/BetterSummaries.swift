@@ -145,7 +145,7 @@ final class BetterSummaries {
             #endif
             let failed = variant
             await delete()
-            states[failed] = .failed("Gemma could not be loaded. Download it again.")
+            states[failed] = .failed(String(localized: "Gemma could not be loaded. Download it again."))
             throw error
         }
     }
@@ -181,7 +181,7 @@ final class BetterSummaries {
         let free = (try? URL.applicationSupportDirectory.deletingLastPathComponent()
             .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage) ?? .max
         guard free >= Self.neededBytes else {
-            states[variant] = .failed("Gemma needs 4 GB of free storage on this iPhone.")
+            states[variant] = .failed(String(localized: "Gemma needs 4 GB of free storage on this iPhone."))
             return
         }
         states[variant] = .downloading(downloadedFraction)

@@ -362,8 +362,8 @@ struct RecordingDetailView: View {
     /// What tapping a name says while speakers are not final: preliminary (live) speaker numbers are not the offline
     /// ones, so a name given now could land on a different person when the offline pass replaces the segments.
     private var preliminaryNotice: String {
-        recording.speakerStatus == .failed ? "Speakers couldn't be identified — try again above, then name them"
-                                           : "Speakers are still being identified — you can name them in a moment"
+        recording.speakerStatus == .failed ? String(localized: "Speakers couldn't be identified — try again above, then name them")
+                                           : String(localized: "Speakers are still being identified — you can name them in a moment")
     }
 
     #if DEBUG
@@ -424,7 +424,7 @@ struct RecordingDetailView: View {
 
     private func normalizeTitle() {
         let trimmed = recording.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        recording.name = trimmed.isEmpty ? "Untitled Transcript" : trimmed
+        recording.name = trimmed.isEmpty ? String(localized: "Untitled Transcript") : trimmed
     }
 }
 

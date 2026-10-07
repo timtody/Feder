@@ -118,9 +118,10 @@ struct TranscriptRow: View {
     private func metaAccessibilityLabel(people: [String]) -> String {
         var parts = [recording.createdAt.relativeDayText(), recording.duration.clockFormatted]
         if let place = recording.placeName { parts.append(place) }
-        parts += people.map { "Speaker \($0)" }
+        parts += people.map { String(localized: "Speaker \($0)") }
         if !recording.tags.isEmpty {
-            parts.append((recording.tags.count == 1 ? "Tag: " : "Tags: ") + recording.tags.joined(separator: ", "))
+            let tags = recording.tags.joined(separator: ", ")
+            parts.append(recording.tags.count == 1 ? String(localized: "Tag: \(tags)") : String(localized: "Tags: \(tags)"))
         }
         return parts.joined(separator: ", ")
     }

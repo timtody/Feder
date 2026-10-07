@@ -172,7 +172,7 @@ nonisolated final class GemmaDownload: NSObject, URLSessionDownloadDelegate, @un
         guard let http = downloadTask.response as? HTTPURLResponse, http.statusCode == 200 else {
             let code = (downloadTask.response as? HTTPURLResponse)?.statusCode ?? 0
             lock.withLock { inFlight[name] = nil; received[name] = nil }
-            emit(.failed("The download server answered with error \(code). Try again later."))
+            emit(.failed(String(localized: "The download server answered with error \(code). Try again later.")))
             return
         }
         // The file at `location` is deleted when this returns: into place now.

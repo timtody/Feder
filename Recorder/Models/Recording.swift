@@ -114,7 +114,9 @@ final class Recording {
     /// Number of distinct speakers labelled (0 when unlabelled). Before `.done` these are the live, preliminary labels.
     var speakerCount: Int { (segments.compactMap(\.speakerIndex).max() ?? -1) + 1 }
 
-    func speakerName(_ index: Int) -> String { speakerNames[index] ?? "Speaker \(index + 1)" }
+    /// The user's name for the speaker, else the default in the app's language ("Speaker 2", "Sprecher 2"): the default is
+    /// never stored, so it follows the language.
+    func speakerName(_ index: Int) -> String { speakerNames[index] ?? String(localized: "Speaker \(index + 1)") }
 
     /// A blank name resets to the default "Speaker N".
     func setSpeakerName(_ name: String, for index: Int) {

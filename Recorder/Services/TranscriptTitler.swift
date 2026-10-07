@@ -149,9 +149,10 @@ final class TranscriptTitler {
         paragraphs.map { $0.replacing(/^[^:\n]{1,40}:\s/, with: "") }
     }
 
-    /// Names the app gives a transcript itself; only these are replaced by an automatic title.
+    /// Names the app gives a transcript itself; only these are replaced by an automatic title. The name is stored in the
+    /// language the app ran in when it was made, so the English and the German forms both count.
     nonisolated static func isDefaultName(_ name: String) -> Bool {
-        name.wholeMatch(of: /(New Transcript|New Recording) \d+|Untitled Transcript/) != nil
+        name.wholeMatch(of: /(New Transcript|New Recording|Neues Transkript|Neue Aufnahme) \d+|Untitled Transcript|Unbenanntes Transkript/) != nil
     }
 
     /// Paragraphs joined into chunks of at most `limit` characters (a longer paragraph is cut at word boundaries).

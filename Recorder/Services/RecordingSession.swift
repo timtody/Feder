@@ -74,7 +74,7 @@ final class RecordingSession: Identifiable {
         self.identifier = identifier
         self.liveDiarizer = liveDiarizer
         let count = (try? modelContext.fetchCount(FetchDescriptor<Recording>())) ?? 0
-        transcriptName = "New Transcript \(count + 1)"
+        transcriptName = String(localized: "New Transcript \(count + 1)")   // stored: TranscriptTitler.isDefaultName knows both languages
     }
 
     /// The language to transcribe in: the one chosen in the record accessory, else the phone's (TranscriptionLanguage).

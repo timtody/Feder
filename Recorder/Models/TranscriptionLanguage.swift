@@ -30,7 +30,7 @@ nonisolated enum TranscriptionLanguage {
     /// "German" (in English, like the rest of the UI).
     static func name(_ locale: Locale) -> String {
         let code = locale.language.languageCode?.identifier ?? locale.identifier
-        return Locale(identifier: "en").localizedString(forLanguageCode: code) ?? code
+        return AppLanguage.locale.localizedString(forLanguageCode: code) ?? code   // "German" / "Deutsch"
     }
 
     /// "DE", for the accessory's button.

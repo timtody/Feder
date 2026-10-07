@@ -70,6 +70,23 @@ final class SettingsTests: ScribeUITestCase {
         shot("Expanded again", app)
     }
 
+    /// German (Localizable.xcstrings): with the phone in German the tabs, the record control, Settings and the dates are
+    /// German; the seeded transcripts' own words stay as they are.
+    @MainActor
+    func testGermanLocalization() throws {
+        let app = launch(["-AppleLanguages", "(de)", "-AppleLocale", "de_DE"])
+        XCTAssertTrue(app.buttons["Transkripte"].firstMatch.waitForExistence(timeout: 5), "the Transcripts tab in German")
+        XCTAssertTrue(app.buttons["Transkribieren"].firstMatch.exists, "the record control in German")
+        XCTAssertTrue(app.collectionViews.staticTexts["Transkripte"].exists, "the heading in German")
+        let dates = app.staticTexts.matching(NSPredicate(format: "label CONTAINS ' um '"))
+        XCTAssertTrue(dates.firstMatch.exists, "dates read \"… um 12:00\"")
+        shot("Transcripts in German", app)
+        app.buttons["Einstellungen"].firstMatch.tap()
+        XCTAssertTrue(app.switches["Sprecher live anzeigen"].waitForExistence(timeout: 5), "Settings in German")
+        XCTAssertTrue(app.staticTexts["Nach der Aufnahme"].exists)
+        shot("Settings in German", app)
+    }
+
     /// The October 2026 cleanup: no font choice, Smart Corrections or Developer section. Transcription is Apple Speech by
     /// default, and Parakeet is an optional download named with its size (not tapped: it would fetch 610 MB), not in
     /// the picker until it is there. The Consulting & Banking Terms toggle is on the main page only, not under Your Words.

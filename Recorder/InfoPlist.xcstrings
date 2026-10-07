@@ -1,0 +1,26 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSMicrophoneUsageDescription": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder verwendet das Mikrofon, um Audio aufzunehmen und zu transkribieren. Alles bleibt auf diesem iPhone."
+          }
+        }
+      }
+    },
+    "NSLocationWhenInUseUsageDescription": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder speichert, wo ein Transkript begonnen wurde, damit du es später sehen und danach suchen kannst."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

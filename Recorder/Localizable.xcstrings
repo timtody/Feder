@@ -1,0 +1,1819 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "": {
+      "shouldTranslate": false
+    },
+    "%@ Download Failed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laden von %@ fehlgeschlagen"
+          }
+        }
+      }
+    },
+    "%@ at %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ um %2$@"
+          }
+        }
+      }
+    },
+    "%@ downloads when this iPhone is on Wi-Fi.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ wird geladen, sobald dieses iPhone mit einem WLAN verbunden ist."
+          }
+        }
+      }
+    },
+    "%@ isn't in any transcript right now.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ kommt derzeit in keinem Transkript vor."
+          }
+        }
+      }
+    },
+    "%@ · %@": {
+      "shouldTranslate": false
+    },
+    "%@ · On device": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · Auf dem Gerät"
+          }
+        }
+      }
+    },
+    "%@ · voice not known yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · Stimme noch nicht bekannt"
+          }
+        }
+      }
+    },
+    "%@%@": {
+      "shouldTranslate": false
+    },
+    "%@, Person": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, Person"
+          }
+        }
+      }
+    },
+    "%@, Tag": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, Tag"
+          }
+        }
+      }
+    },
+    "%lld": {
+      "shouldTranslate": false
+    },
+    "%lld Speakers": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Sprecher"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Sprecher"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld of %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld von %2$lld"
+          }
+        }
+      }
+    },
+    "+%lld": {
+      "shouldTranslate": false
+    },
+    "0:00": {
+      "shouldTranslate": false
+    },
+    "A Title and the Key Points": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Titel und das Wichtigste"
+          }
+        }
+      }
+    },
+    "A one-time 3.6 GB download over Wi-Fi. Keep using Feder or close it; it finishes on its own.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein einmaliger Download von 3,6 GB über WLAN. Nutze Feder weiter oder schließe die App – der Download wird von selbst fertig."
+          }
+        }
+      }
+    },
+    "Add Tag": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tag hinzufügen"
+          }
+        }
+      }
+    },
+    "Add a word or name": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wort oder Namen hinzufügen"
+          }
+        }
+      }
+    },
+    "Adds this person to the search": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fügt diese Person zur Suche hinzu"
+          }
+        }
+      }
+    },
+    "Adds this tag": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fügt diesen Tag hinzu"
+          }
+        }
+      }
+    },
+    "Adds this tag to the search": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fügt diesen Tag zur Suche hinzu"
+          }
+        }
+      }
+    },
+    "After Recording": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach der Aufnahme"
+          }
+        }
+      }
+    },
+    "Already in this transcript": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bereits in diesem Transkript"
+          }
+        }
+      }
+    },
+    "Apple Speech": {
+      "shouldTranslate": false
+    },
+    "Automatic": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch"
+          }
+        }
+      }
+    },
+    "Automatic titles and summaries need an iPhone with 8 GB of memory (iPhone 17 or later).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatische Titel und Zusammenfassungen brauchen ein iPhone mit 8 GB Arbeitsspeicher (iPhone 17 oder neuer)."
+          }
+        }
+      }
+    },
+    "Back to the transcripts": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurück zu den Transkripten"
+          }
+        }
+      }
+    },
+    "Back to the transcripts; recording goes on": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurück zu den Transkripten; die Aufnahme läuft weiter"
+          }
+        }
+      }
+    },
+    "Can't Record": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme nicht möglich"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abbrechen"
+          }
+        }
+      }
+    },
+    "Cancel Download": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download abbrechen"
+          }
+        }
+      }
+    },
+    "Checking vocabulary…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vokabular wird geprüft …"
+          }
+        }
+      }
+    },
+    "Clear Name": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Namen löschen"
+          }
+        }
+      }
+    },
+    "Clear Search": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suche löschen"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schließen"
+          }
+        }
+      }
+    },
+    "Consulting & Banking Terms": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beratungs- und Bankbegriffe"
+          }
+        }
+      }
+    },
+    "Couldn't identify speakers.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprecher konnten nicht erkannt werden."
+          }
+        }
+      }
+    },
+    "Couldn't refine speakers. The labels shown are preliminary.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprecher konnten nicht verfeinert werden. Die angezeigten Zuordnungen sind vorläufig."
+          }
+        }
+      }
+    },
+    "Current match": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktueller Treffer"
+          }
+        }
+      }
+    },
+    "Delete": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Löschen"
+          }
+        }
+      }
+    },
+    "Delete %@ (%@)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ löschen (%2$@)"
+          }
+        }
+      }
+    },
+    "Delete %@?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ löschen?"
+          }
+        }
+      }
+    },
+    "Delete Person": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Person löschen"
+          }
+        }
+      }
+    },
+    "Delete Transcript": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkript löschen"
+          }
+        }
+      }
+    },
+    "Delete this transcript?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Transkript löschen?"
+          }
+        }
+      }
+    },
+    "Download %@ (%@)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ laden (%2$@)"
+          }
+        }
+      }
+    },
+    "Download Gemma (3.6 GB)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma laden (3,6 GB)"
+          }
+        }
+      }
+    },
+    "Download failed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download fehlgeschlagen"
+          }
+        }
+      }
+    },
+    "Downloaded": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geladen"
+          }
+        }
+      }
+    },
+    "Downloading %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lädt %@"
+          }
+        }
+      }
+    },
+    "Downloading %@…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ wird geladen …"
+          }
+        }
+      }
+    },
+    "Downloading Gemma · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma wird geladen · %@"
+          }
+        }
+      }
+    },
+    "Downloads in the Background": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lädt im Hintergrund"
+          }
+        }
+      }
+    },
+    "Downloads the on-device speech model once. Everything runs on this iPhone afterwards.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lädt einmalig das Spracherkennungsmodell. Danach läuft alles auf diesem iPhone."
+          }
+        }
+      }
+    },
+    "Each recording is transcribed again more accurately after you stop.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jede Aufnahme wird nach dem Stoppen noch einmal genauer transkribiert."
+          }
+        }
+      }
+    },
+    "Each recording is transcribed again on this iPhone after you stop. Apple Speech needs no download; Parakeet is more accurate for German and other European languages and needs a one-time 610 MB download.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jede Aufnahme wird nach dem Stoppen auf diesem iPhone noch einmal transkribiert. Apple Speech braucht keinen Download; Parakeet ist für Deutsch und andere europäische Sprachen genauer und braucht einen einmaligen Download von 610 MB."
+          }
+        }
+      }
+    },
+    "Every transcript gets a short title and a summary of what was said and decided, and by whom.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jedes Transkript bekommt einen kurzen Titel und eine Zusammenfassung dessen, was gesagt und beschlossen wurde – und von wem."
+          }
+        }
+      }
+    },
+    "Filter by tag %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach Tag %@ filtern"
+          }
+        }
+      }
+    },
+    "Gemma could not be loaded. Download it again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma konnte nicht geladen werden. Lade es erneut."
+          }
+        }
+      }
+    },
+    "Gemma needs 4 GB of free storage on this iPhone.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma braucht 4 GB freien Speicher auf diesem iPhone."
+          }
+        }
+      }
+    },
+    "Gemma · Waiting for Wi-Fi": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma · Wartet auf WLAN"
+          }
+        }
+      }
+    },
+    "Google's Gemma 4 E2B runs on device. Your recordings never leave your iPhone.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Googles Gemma 4 E2B läuft auf dem Gerät. Deine Aufnahmen verlassen nie dein iPhone."
+          }
+        }
+      }
+    },
+    "Google's Gemma 4 E2B writes a title and a short summary of every transcript, on this iPhone: it reads a whole meeting at once and keeps who said what. It needs a one-time 3.6 GB download over Wi-Fi, which goes on in the background, also when Feder is closed. Existing transcripts get summaries too; titles you typed stay.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Googles Gemma 4 E2B schreibt für jedes Transkript einen Titel und eine kurze Zusammenfassung, auf diesem iPhone: Es liest ein ganzes Meeting auf einmal und weiß, wer was gesagt hat. Dafür ist ein einmaliger Download von 3,6 GB über WLAN nötig, der im Hintergrund weiterläuft, auch wenn Feder geschlossen ist. Bestehende Transkripte bekommen ebenfalls Zusammenfassungen; eingegebene Titel bleiben."
+          }
+        }
+      }
+    },
+    "Identify Again": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut erkennen"
+          }
+        }
+      }
+    },
+    "Identify speakers again?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprecher erneut erkennen?"
+          }
+        }
+      }
+    },
+    "Identifying speakers…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprecher werden erkannt …"
+          }
+        }
+      }
+    },
+    "Jump to Live": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zum Live-Text"
+          }
+        }
+      }
+    },
+    "Language": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprache"
+          }
+        }
+      }
+    },
+    "Last %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@"
+          }
+        }
+      }
+    },
+    "Less": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weniger"
+          }
+        }
+      }
+    },
+    "Listening…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hört zu …"
+          }
+        }
+      }
+    },
+    "Live Speaker Labels": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprecher live anzeigen"
+          }
+        }
+      }
+    },
+    "Loading the summary model…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zusammenfassungsmodell wird geladen …"
+          }
+        }
+      }
+    },
+    "Match %lld of %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Treffer %1$lld von %2$lld"
+          }
+        }
+      }
+    },
+    "Microphone Access Off": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Mikrofonzugriff"
+          }
+        }
+      }
+    },
+    "Microphone access is off. Allow it in Settings to record.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Mikrofonzugriff ist aus. Erlaube ihn in den Einstellungen, um aufzunehmen."
+          }
+        }
+      }
+    },
+    "Minimize": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Minimieren"
+          }
+        }
+      }
+    },
+    "Model": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modell"
+          }
+        }
+      }
+    },
+    "More": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mehr"
+          }
+        }
+      }
+    },
+    "NVIDIA Nemotron tells speakers apart on this iPhone after you stop, much more reliably than the standard model, also when people talk in quick succession. It needs a one-time 100 MB download, which starts automatically on Wi-Fi. Until then the standard model is used.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NVIDIA Nemotron unterscheidet nach dem Stoppen auf diesem iPhone die Sprecher, viel zuverlässiger als das Standardmodell, auch wenn schnell abwechselnd gesprochen wird. Dafür ist ein einmaliger Download von 100 MB nötig, der im WLAN automatisch startet. Bis dahin wird das Standardmodell verwendet."
+          }
+        }
+      }
+    },
+    "Name": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name"
+          }
+        }
+      }
+    },
+    "Name a speaker in a transcript to add them here. Their voice is then recognized in new recordings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benenne einen Sprecher in einem Transkript, um ihn hier hinzuzufügen. Seine Stimme wird dann in neuen Aufnahmen erkannt."
+          }
+        }
+      }
+    },
+    "Names and terms the transcription often gets wrong.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Namen und Begriffe, die die Transkription oft falsch schreibt."
+          }
+        }
+      }
+    },
+    "Names every turn of this speaker in this transcript.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benennt jeden Beitrag dieses Sprechers in diesem Transkript."
+          }
+        }
+      }
+    },
+    "Names, products and terms the transcription often gets wrong. Applies from the next recording.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Namen, Produkte und Begriffe, die die Transkription oft falsch schreibt. Gilt ab der nächsten Aufnahme."
+          }
+        }
+      }
+    },
+    "Narrow down": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eingrenzen"
+          }
+        }
+      }
+    },
+    "New Transcript %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neues Transkript %lld"
+          }
+        }
+      }
+    },
+    "Next Match": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächster Treffer"
+          }
+        }
+      }
+    },
+    "No People": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Personen"
+          }
+        }
+      }
+    },
+    "No Transcripts": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Transkripte"
+          }
+        }
+      }
+    },
+    "Not Available on This Device": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf diesem Gerät nicht verfügbar"
+          }
+        }
+      }
+    },
+    "Not Now": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht jetzt"
+          }
+        }
+      }
+    },
+    "Not available": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht verfügbar"
+          }
+        }
+      }
+    },
+    "Not downloaded": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht geladen"
+          }
+        }
+      }
+    },
+    "Off": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus"
+          }
+        }
+      }
+    },
+    "Older transcripts get titles and summaries as well. Titles you typed stay.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ältere Transkripte bekommen ebenfalls Titel und Zusammenfassungen. Eingegebene Titel bleiben."
+          }
+        }
+      }
+    },
+    "On This iPhone": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf diesem iPhone"
+          }
+        }
+      }
+    },
+    "On-device transcription isn't available on this device.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Transkription auf dem Gerät ist auf diesem Gerät nicht verfügbar."
+          }
+        }
+      }
+    },
+    "Open Settings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen öffnen"
+          }
+        }
+      }
+    },
+    "Parakeet": {
+      "shouldTranslate": false
+    },
+    "People": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personen"
+          }
+        }
+      }
+    },
+    "People, tags or words": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personen, Tags oder Wörter"
+          }
+        }
+      }
+    },
+    "Person filter": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personenfilter"
+          }
+        }
+      }
+    },
+    "Preparing Speech Recognition": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spracherkennung wird vorbereitet"
+          }
+        }
+      }
+    },
+    "Preparing speaker model…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprechermodell wird vorbereitet …"
+          }
+        }
+      }
+    },
+    "Preparing…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird vorbereitet …"
+          }
+        }
+      }
+    },
+    "Previous Match": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorheriger Treffer"
+          }
+        }
+      }
+    },
+    "Recording": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme"
+          }
+        }
+      }
+    },
+    "Refining speakers…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprecher werden verfeinert …"
+          }
+        }
+      }
+    },
+    "Remove %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ entfernen"
+          }
+        }
+      }
+    },
+    "Rename Speaker": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprecher umbenennen"
+          }
+        }
+      }
+    },
+    "Rename Speaker…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprecher umbenennen …"
+          }
+        }
+      }
+    },
+    "Renames this speaker everywhere in this transcript.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benennt diesen Sprecher überall in diesem Transkript um."
+          }
+        }
+      }
+    },
+    "Save": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichern"
+          }
+        }
+      }
+    },
+    "Saving…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird gesichert …"
+          }
+        }
+      }
+    },
+    "Search": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suchen"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen"
+          }
+        }
+      }
+    },
+    "Share": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teilen"
+          }
+        }
+      }
+    },
+    "Share Transcript": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkript teilen"
+          }
+        }
+      }
+    },
+    "Shows all of it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeigt alles."
+          }
+        }
+      }
+    },
+    "Shows only its first lines.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeigt nur die ersten Zeilen."
+          }
+        }
+      }
+    },
+    "Shows who is speaking as you record. Speakers are identified again, more accurately, after you stop.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeigt beim Aufnehmen, wer spricht. Nach dem Stoppen werden die Sprecher noch einmal genauer erkannt."
+          }
+        }
+      }
+    },
+    "Similar voice": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ähnliche Stimme"
+          }
+        }
+      }
+    },
+    "Speaker %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprecher %@"
+          }
+        }
+      }
+    },
+    "Speaker %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprecher %lld"
+          }
+        }
+      }
+    },
+    "Speaker %lld: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprecher %1$lld: %2$@"
+          }
+        }
+      }
+    },
+    "Speaker Identification": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprechererkennung"
+          }
+        }
+      }
+    },
+    "Speaker labels are preliminary and will be refined shortly.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Sprecherzuordnung ist vorläufig und wird gleich verfeinert."
+          }
+        }
+      }
+    },
+    "Speaker labels are preliminary. They'll be refined once the speaker model (21 MB) has downloaded. Connect to the internet and try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Sprecherzuordnung ist vorläufig. Sie wird verfeinert, sobald das Sprechermodell (21 MB) geladen ist. Verbinde dich mit dem Internet und versuche es erneut."
+          }
+        }
+      }
+    },
+    "Speakers": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprecher"
+          }
+        }
+      }
+    },
+    "Speakers are still being identified — you can name them in a moment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Sprecher werden noch erkannt – gleich kannst du sie benennen"
+          }
+        }
+      }
+    },
+    "Speakers are still being identified.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Sprecher werden noch erkannt."
+          }
+        }
+      }
+    },
+    "Speakers couldn't be identified — try again above, then name them": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Sprecher konnten nicht erkannt werden – versuche es oben erneut und benenne sie dann"
+          }
+        }
+      }
+    },
+    "Speakers couldn't be identified. %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Sprecher konnten nicht erkannt werden. %@"
+          }
+        }
+      }
+    },
+    "Speakers not identified yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprecher noch nicht erkannt"
+          }
+        }
+      }
+    },
+    "Speakers will be identified once the speaker model (21 MB) has downloaded. Connect to the internet and try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Sprecher werden erkannt, sobald das Sprechermodell (21 MB) geladen ist. Verbinde dich mit dem Internet und versuche es erneut."
+          }
+        }
+      }
+    },
+    "Speakers will be identified shortly.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Sprecher werden gleich erkannt."
+          }
+        }
+      }
+    },
+    "Standard": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard"
+          }
+        }
+      }
+    },
+    "Starts a new recording and its live transcript": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Startet eine neue Aufnahme mit Live-Transkript"
+          }
+        }
+      }
+    },
+    "Stop": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stoppen"
+          }
+        }
+      }
+    },
+    "Suggested": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorschläge"
+          }
+        }
+      }
+    },
+    "Suggested Tags": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorgeschlagene Tags"
+          }
+        }
+      }
+    },
+    "Suggestions": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorschläge"
+          }
+        }
+      }
+    },
+    "Summaries": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zusammenfassungen"
+          }
+        }
+      }
+    },
+    "Summary": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zusammenfassung"
+          }
+        }
+      }
+    },
+    "Summary being written": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zusammenfassung wird geschrieben"
+          }
+        }
+      }
+    },
+    "Tag filter": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tag-Filter"
+          }
+        }
+      }
+    },
+    "Tag: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tag: %@"
+          }
+        }
+      }
+    },
+    "Tags: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tags: %@"
+          }
+        }
+      }
+    },
+    "Tap Transcribe to start.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippe auf „Transkribieren“, um zu beginnen."
+          }
+        }
+      }
+    },
+    "The download server answered with error %lld. Try again later.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Download-Server meldet den Fehler %lld. Versuche es später erneut."
+          }
+        }
+      }
+    },
+    "The language the next recording is transcribed in": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Sprache, in der die nächste Aufnahme transkribiert wird"
+          }
+        }
+      }
+    },
+    "The microphone couldn't be started. %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Mikrofon konnte nicht gestartet werden. %@"
+          }
+        }
+      }
+    },
+    "The speaker names you entered will be reset.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die eingegebenen Sprechernamen werden zurückgesetzt."
+          }
+        }
+      }
+    },
+    "The speech model couldn't be downloaded. %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Spracherkennungsmodell konnte nicht geladen werden. %@"
+          }
+        }
+      }
+    },
+    "The voices Feder knows. Named speakers are recognized in new recordings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Stimmen, die Feder kennt. Benannte Sprecher werden in neuen Aufnahmen erkannt."
+          }
+        }
+      }
+    },
+    "Their voice will no longer be recognized. Names already in transcripts stay.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Stimme wird nicht mehr erkannt. Namen in bestehenden Transkripten bleiben."
+          }
+        }
+      }
+    },
+    "This speaker": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Sprecher"
+          }
+        }
+      }
+    },
+    "Title": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titel"
+          }
+        }
+      }
+    },
+    "Titles and Summaries": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titel und Zusammenfassungen"
+          }
+        }
+      }
+    },
+    "Today": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heute"
+          }
+        }
+      }
+    },
+    "Transcribe": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkribieren"
+          }
+        }
+      }
+    },
+    "Transcribing…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird transkribiert …"
+          }
+        }
+      }
+    },
+    "Transcription": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkription"
+          }
+        }
+      }
+    },
+    "Transcription isn't available for %@ yet.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für %@ ist die Transkription noch nicht verfügbar."
+          }
+        }
+      }
+    },
+    "Transcription stopped. %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Transkription wurde gestoppt. %@"
+          }
+        }
+      }
+    },
+    "Transcripts": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkripte"
+          }
+        }
+      }
+    },
+    "Try Again": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut versuchen"
+          }
+        }
+      }
+    },
+    "Untitled Transcript": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unbenanntes Transkript"
+          }
+        }
+      }
+    },
+    "Use Default Name": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standardnamen verwenden"
+          }
+        }
+      }
+    },
+    "Vocabulary": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vokabular"
+          }
+        }
+      }
+    },
+    "Waiting for Wi-Fi": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wartet auf WLAN"
+          }
+        }
+      }
+    },
+    "Waiting for Wi-Fi…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wartet auf WLAN …"
+          }
+        }
+      }
+    },
+    "While Recording": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Während der Aufnahme"
+          }
+        }
+      }
+    },
+    "Writing summaries…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zusammenfassungen werden geschrieben …"
+          }
+        }
+      }
+    },
+    "Writing summary…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zusammenfassung wird geschrieben …"
+          }
+        }
+      }
+    },
+    "Yesterday": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gestern"
+          }
+        }
+      }
+    },
+    "Your Earlier Transcripts Too": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auch deine älteren Transkripte"
+          }
+        }
+      }
+    },
+    "Your Words": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Wörter"
+          }
+        }
+      }
+    },
+    "^[%lld Transcript](inflect: true)": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Transkript"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Transkripte"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "^[%lld transcript](inflect: true)": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Transkript"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Transkripte"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "·": {
+      "shouldTranslate": false
+    }
+  },
+  "version": "1.0"
+}

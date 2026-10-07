@@ -52,7 +52,7 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("Transcription")
                     NavigationLink(value: SettingsRoute.speakers) {
-                        LabeledContent("Speaker Identification", value: Self.value(services.nemotron.state, ready: "Nemotron", missing: "Standard"))
+                        LabeledContent("Speaker Identification", value: Self.value(services.nemotron.state, ready: "Nemotron", missing: String(localized: "Standard")))
                     }
                     .accessibilityIdentifier("Speaker Identification")
                     NavigationLink(value: SettingsRoute.summaries) {
@@ -108,17 +108,17 @@ struct SettingsView: View {
     /// The engine that runs (Parakeet only once downloaded and chosen), or the download's progress.
     private var transcriptionValue: String {
         if case .downloading = services.parakeet.state { return Self.value(services.parakeet.state, ready: "", missing: "") }
-        return engine == "parakeet" && services.parakeet.isReady ? "Parakeet" : "Apple Speech"
+        return engine == "parakeet" && services.parakeet.isReady ? "Parakeet" : String(localized: "Apple Speech")
     }
 
     /// Only Gemma writes titles and summaries: its name, "Off", the download's state, or "Not available" on an
     /// iPhone without 8 GB.
     private var summariesValue: String {
         let better = services.betterSummaries
-        guard BetterSummaries.isSupported else { return "Not available" }
-        if better.state == .ready { return better.isEnabled ? better.variant.displayName : "Off" }
-        if better.state == .waitingForWiFi { return "Waiting for Wi-Fi" }
-        return Self.value(better.state, ready: better.variant.displayName, missing: "Not downloaded")
+        guard BetterSummaries.isSupported else { return String(localized: "Not available") }
+        if better.state == .ready { return better.isEnabled ? better.variant.displayName : String(localized: "Off") }
+        if better.state == .waitingForWiFi { return String(localized: "Waiting for Wi-Fi") }
+        return Self.value(better.state, ready: better.variant.displayName, missing: String(localized: "Not downloaded"))
     }
 
     /// A model row's value from its download: the model's name once there, "Downloading 40 %" meanwhile, the
@@ -126,8 +126,8 @@ struct SettingsView: View {
     static func value(_ state: ModelDownloadState, ready: String, missing: String) -> String {
         switch state {
         case .ready: ready
-        case .downloading(let fraction): "Downloading \(fraction.formatted(.percent.precision(.fractionLength(0))))"
-        case .failed: "Download failed"
+        case .downloading(let fraction): String(localized: "Downloading \(fraction.formatted(.percent.precision(.fractionLength(0))))")
+        case .failed: String(localized: "Download failed")
         case .notDownloaded, .waitingForWiFi: missing
         }
     }
@@ -212,7 +212,7 @@ struct SpeakerModelView: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent("Model", value: services.nemotron.state == .ready ? "NVIDIA Nemotron" : "Standard")
+                LabeledContent("Model", value: services.nemotron.state == .ready ? "NVIDIA Nemotron" : String(localized: "Standard"))
                 if services.nemotron.state != .ready {
                     ModelDownloadRow(name: "Nemotron", state: services.nemotron.state, size: "100 MB") { await services.nemotron.download(force: true) }
                 }
@@ -260,7 +260,7 @@ struct SummariesModelView: View {
                         EmptyView()
                     }
                 } else {
-                    LabeledContent("Model", value: "Not available")
+                    LabeledContent("Model", value: String(localized: "Not available"))
                 }
             } header: {
                 Text("Titles and Summaries")

@@ -33,7 +33,7 @@ struct SpeakerNameSheet: View {
         _draft = State(initialValue: name)
     }
 
-    private var defaultName: String { "Speaker \(speaker + 1)" }
+    private var defaultName: String { String(localized: "Speaker \(speaker + 1)") }
 
     private var choices: [SpeakerNameChoices.Choice] {
         let candidates = people.map { SpeakerNameChoices.Candidate(id: $0.id, name: $0.name, fingerprint: $0.fingerprint) }
@@ -159,11 +159,11 @@ struct SpeakerNameSheet: View {
 
     private func caption(_ choice: SpeakerNameChoices.Choice, transcripts count: Int) -> String {
         switch choice.reason {
-        case .current: return "This speaker"
-        case .similarVoice: return "Similar voice"
+        case .current: return String(localized: "This speaker")
+        case .similarVoice: return String(localized: "Similar voice")
         case .other:
             if recording.speakerPeople.contains(where: { $0.value == choice.id && $0.key != speaker }) {
-                return "Already in this transcript"
+                return String(localized: "Already in this transcript")
             }
             return count == 1 ? "1 transcript" : "\(count) transcripts"
         }

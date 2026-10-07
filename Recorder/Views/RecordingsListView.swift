@@ -234,9 +234,9 @@ struct RecordingsListView: View {
         .background(.fill.tertiary, in: Capsule())
         .contentShape(Capsule())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(suggestion.token.value), \(isPerson ? "Person" : "Tag")")
+        .accessibilityLabel(isPerson ? "\(suggestion.token.value), Person" : "\(suggestion.token.value), Tag")
         .accessibilityValue(count > 0 ? "^[\(count) transcript](inflect: true)" : "")
-        .accessibilityHint("Adds this \(isPerson ? "person" : "tag") to the search")
+        .accessibilityHint(isPerson ? "Adds this person to the search" : "Adds this tag to the search")
     }
 
     private var listName: String { isSearch ? Self.searchList : Self.transcriptsList }

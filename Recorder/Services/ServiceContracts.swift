@@ -15,13 +15,13 @@ nonisolated enum RecorderError: LocalizedError, Equatable, Sendable {
 
     var errorDescription: String? {
         switch self {
-        case .microphoneDenied: "Microphone access is off. Allow it in Settings to record."
-        case .transcriberUnavailable: "On-device transcription isn't available on this device."
-        case .localeUnsupported(let id): "Transcription isn't available for \(id) yet."
-        case .speechModelDownloadFailed(let why): "The speech model couldn't be downloaded. \(why)"
-        case .audioEngineFailed(let why): "The microphone couldn't be started. \(why)"
-        case .transcriptionFailed(let why): "Transcription stopped. \(why)"
-        case .diarizationFailed(let why): "Speakers couldn't be identified. \(why)"
+        case .microphoneDenied: String(localized: "Microphone access is off. Allow it in Settings to record.")
+        case .transcriberUnavailable: String(localized: "On-device transcription isn't available on this device.")
+        case .localeUnsupported(let id): String(localized: "Transcription isn't available for \(id) yet.")
+        case .speechModelDownloadFailed(let why): String(localized: "The speech model couldn't be downloaded. \(why)")
+        case .audioEngineFailed(let why): String(localized: "The microphone couldn't be started. \(why)")
+        case .transcriptionFailed(let why): String(localized: "Transcription stopped. \(why)")
+        case .diarizationFailed(let why): String(localized: "Speakers couldn't be identified. \(why)")
         }
     }
 }

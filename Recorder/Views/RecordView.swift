@@ -93,7 +93,7 @@ struct RecordView: View {
     private var localeCaption: String {
         let identifier = (session.locale ?? RecordingSession.transcriptionLocale).identifier
         let name = Locale.current.localizedString(forIdentifier: identifier) ?? ""
-        return "\(name) · On device"
+        return String(localized: "\(name) · On device")
     }
 
     var body: some View {

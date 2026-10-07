@@ -53,7 +53,7 @@ struct PeopleView: View {
         .navigationDestination(for: Person.self) { person in
             PersonView(person: person)
         }
-        .confirmationDialog(pendingDelete.map { "Delete \($0.name)?" } ?? "", isPresented: Binding(
+        .confirmationDialog(pendingDelete.map { String(localized: "Delete \($0.name)?") } ?? "", isPresented: Binding(
             get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }
         ), titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
@@ -65,8 +65,8 @@ struct PeopleView: View {
     }
 
     private func summary(_ person: Person, transcripts count: Int) -> String {
-        let transcripts = count == 1 ? "1 transcript" : "\(count) transcripts"
-        return person.fingerprint.isEmpty ? "\(transcripts) · voice not known yet" : transcripts
+        let transcripts = String(localized: "^[\(count) transcript](inflect: true)")
+        return person.fingerprint.isEmpty ? String(localized: "\(transcripts) · voice not known yet") : transcripts
     }
 }
 

@@ -20,7 +20,10 @@ class ScribeUITestCase: XCTestCase {
     @MainActor
     func launch(_ arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-seedSamples"] + arguments
+        // English unless a test asks for another language: the queries match the English labels, and the app follows
+        // the simulator's language otherwise (Localizable.xcstrings has German).
+        let language = arguments.contains("-AppleLanguages") ? [] : ["-AppleLanguages", "(en)"]
+        app.launchArguments = ["-seedSamples"] + language + arguments
         app.launch()
         XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15), "the seeded transcripts are listed")
         return app

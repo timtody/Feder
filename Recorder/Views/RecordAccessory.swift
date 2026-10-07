@@ -66,7 +66,7 @@ struct RecordAccessory: View {
                             if services.identifier.isPreparingSpeakerModel {
                                 // After a new build or update the speaker model is compiled at launch (about 35 s):
                                 // said here, where it is seen without a recording, as the status line says it after Stop.
-                                ShimmerText(text: "Preparing speaker model…")
+                                ShimmerText(text: String(localized: "Preparing speaker model…"))
                                     .font(.caption)
                             } else if let download = gemmaDownload {
                                 download

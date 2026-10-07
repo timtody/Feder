@@ -15,7 +15,7 @@ struct TranscriptView: View {
     let segments: [TranscriptSegment]
     var speakerName: ((Int) -> String)? = nil      // nil → never show names
     var preliminary = false                        // speaker labels not final yet (live labels until the offline pass)
-    var preliminaryNotice = "Speakers are still being identified — you can name them in a moment"
+    var preliminaryNotice = String(localized: "Speakers are still being identified — you can name them in a moment")
     var renameSpeaker: ((Int) -> Void)? = nil      // nil → names are plain text
     var search: TranscriptSearchContext? = nil
     var currentHit: UUID? = nil
