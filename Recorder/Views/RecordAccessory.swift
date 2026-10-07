@@ -17,7 +17,8 @@ struct RecordAccessory: View {
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
     @Environment(AppServices.self) private var services
     @State private var presses = 0                     // Transcribe and Stop: the haptic comes with the press
-    /// TranscriptionLanguage.key: the next recording's language, "" = the phone's.
+    /// TranscriptionLanguage.key: the next recording's language, "" = the standard one (German on a German iPhone,
+    /// English otherwise).
     @AppStorage(TranscriptionLanguage.key) private var language = ""
 
     private var inline: Bool { placement == .inline }

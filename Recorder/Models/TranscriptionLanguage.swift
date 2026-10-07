@@ -1,18 +1,28 @@
 import Foundation
 
 /// The language the next recording is transcribed in: chosen with the record accessory's language button, otherwise
-/// the first language in the iPhone's Settings > Language & Region list. Before the button, every recording used the
+/// German on a German iPhone and English on every other (`standard`). Before the button, every recording used the
 /// phone's language, so an English meeting on a German iPhone was transcribed as German.
 nonisolated enum TranscriptionLanguage {
-    /// UserDefaults key: a BCP-47 identifier ("en-US"); absent means the phone's language.
+    /// UserDefaults key: a BCP-47 identifier ("en-US"); absent means `standard`.
     static let key = "transcriptionLanguage"
 
-    /// The phone's language. `Locale.current` would be wrong: it reflects the app's own localization (English or German),
-    /// so on a phone set to French it is "en_FR" and the transcriber would pick the English model.
+    /// The phone's first language. `Locale.current` would be wrong: it reflects the app's own localization (English
+    /// or German), so on a phone set to French it is "en_FR".
     static var phone: Locale { Locale(identifier: Locale.preferredLanguages.first ?? Locale.current.identifier) }
 
-    /// The chosen language, or the phone's.
-    static func locale(stored: String) -> Locale { stored.isEmpty ? phone : Locale(identifier: stored) }
+    /// The language a recording gets when none was picked: the phone's when it is German or English (with its region,
+    /// "de-AT", "en-GB"), English otherwise, as the app's own texts are.
+    static var standard: Locale {
+        let phone = phone
+        switch phone.language.languageCode?.identifier {
+        case "de", "en": return phone
+        default: return Locale(identifier: "en-US")
+        }
+    }
+
+    /// The chosen language, or `standard`.
+    static func locale(stored: String) -> Locale { stored.isEmpty ? standard : Locale(identifier: stored) }
 
     static var current: Locale { locale(stored: UserDefaults.standard.string(forKey: key) ?? "") }
 
@@ -38,9 +48,9 @@ nonisolated enum TranscriptionLanguage {
         (locale.language.languageCode?.identifier ?? locale.identifier).uppercased()
     }
 
-    /// The stored value for `locale`: empty when it is the phone's language, so a change of the phone's language
+    /// The stored value for `locale`: empty when it is the standard language, so a change of the phone's language
     /// carries through.
     static func stored(for locale: Locale) -> String {
-        locale.language.languageCode == phone.language.languageCode ? "" : locale.identifier(.bcp47)
+        locale.language.languageCode == standard.language.languageCode ? "" : locale.identifier(.bcp47)
     }
 }
