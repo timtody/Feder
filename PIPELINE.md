@@ -2,7 +2,7 @@
 
 What happens to audio from the moment Record is tapped until the transcript has its speakers, its corrections and its summary — every model, every step, with the numbers measured so far. Then the ideas on the table and where they would go, and what was tried and dropped. The README holds the full design rationale; this is the map. (State: October 2026.)
 
-Everything runs on the iPhone. Nothing leaves it except the user-initiated model downloads (Parakeet, Nemotron, Gemma/Qwen, pinned Hugging Face revisions).
+Everything runs on the iPhone. Nothing leaves it except the user-initiated model downloads (Parakeet, Nemotron, Gemma, pinned Hugging Face revisions).
 
 ## 1. The two stages
 
@@ -51,8 +51,7 @@ The status line under the date names the running step: *Transcribing… → Refi
 | Diarization fallback | pyannote community-1 + VBx | CoreML via FluidAudio | ~21 MB | first use | weaker; recognition thresholds stricter for its speakers |
 | Voice embeddings | WeSpeaker (FluidAudio) | CoreML | in the 21 MB | with pyannote | 256-d, unit length |
 | Vocabulary pass | Apple `DictationTranscriber` | Speech framework | system | — | honours contextual strings; whole-file pass = most of the post-stop time |
-| Corrections + summaries | Gemma 4 E2B 4-bit (default) | MLX, GPU | 3.6 GB | Settings | 1.5 s short summary, 2.4 s for 8.3K tokens (M5 Mac) |
-| Comparison models | Gemma 4 E4B 4-bit · Qwen3.5 4B 4-bit | MLX, GPU | 5.1 GB · 3.1 GB | Settings picker | Qwen: most complete summaries, ~4× E2B's time, peak 3.8 GB |
+| Corrections + summaries | Gemma 4 E2B 4-bit | MLX, GPU | 3.6 GB | Settings | 1.5 s short summary, 2.4 s for 8.3K tokens (M5 Mac) |
 | Summary fallback | Apple Foundation Models (~3B) | FoundationModels | system | — | 4K/8K-token window; wordy, meta-style summaries |
 
 ## 3. Stage 1 in detail — live
@@ -138,7 +137,7 @@ xychart-beta
 | Concern | Rule |
 |---|---|
 | Order | a stopped recording's own steps first; the one-time sweeps (voices, titles) wait and pause while recording |
-| GPU | Gemma/Qwen only in the foreground (iOS gives no background GPU); cancelled when the app resigns active, retried on return |
+| GPU | Gemma only in the foreground (iOS gives no background GPU); cancelled when the app resigns active, retried on return |
 | Memory | Gemma unloaded after 60 s idle, when a recording starts, when the app backgrounds; peak 3.7 GB (E2B) |
 | Main thread | every press answers in its frame: no sync fetches/IO/model calls in actions or bodies |
 | Crash recovery | `.processing` rows go back to `.pending`; `vocabularyPending` / `correctionsPending` are resumed by the launch sweep |
@@ -184,5 +183,4 @@ From a review of an "optimal pipeline" proposal (October 2026), kept where they 
 
 - Pipeline step times on the iPhone 17 (nothing after Stop has been timed on a device).
 - Smart Corrections: WER/CER, term accuracy and false edits on the 80 clips with Parakeet words; the review box is the first instrument for this.
-- E4B and Qwen3.5 on the device: load, memory, time per chunk.
 - Live labels on real ASR/LS-EEND output rather than synthetic replays (`build/qa/livebench`).

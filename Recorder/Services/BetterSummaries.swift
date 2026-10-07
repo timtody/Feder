@@ -26,21 +26,8 @@ final class BetterSummaries {
     var state: ModelDownloadState { states[variant] ?? .notDownloaded }
     /// The model of the chosen build, once downloaded.
     private(set) var model: LocalLanguageModel?
-    /// Settings › Gemma Model: which build writes (and corrects). Switching frees the other's weights; a build not
-    /// downloaded yet shows its download row. For comparing E2B and E4B.
-    var variant: LocalLanguageModel.Variant {
-        get {
-            access(keyPath: \.variant)
-            return LocalLanguageModel.Variant.selected
-        }
-        set {
-            guard newValue != variant else { return }
-            withMutation(keyPath: \.variant) { LocalLanguageModel.Variant.selected = newValue }
-            Task { await unload() }
-            model = state == .ready ? LocalLanguageModel(variant: newValue, directory: Self.modelDirectory(newValue)) : nil
-            if model != nil, isEnabled { onBecameActive?() }
-        }
-    }
+    /// The local model: Gemma 4 E2B, the only one (see `LocalLanguageModel.Variant`).
+    var variant: LocalLanguageModel.Variant { .e2b }
     /// The transcript being described with Gemma right now (Settings shows it while it works).
     private(set) var isWorking = false
     /// SpeakerIdentifier.setRecording: Gemma does not run while recording (the GPU and memory belong to it); a request
@@ -48,7 +35,7 @@ final class BetterSummaries {
     @ObservationIgnored var isRecording = false {
         didSet { if isRecording { cancelRunning?() } }
     }
-    /// Called when the model becomes usable (downloaded, or turned on): MainView starts the re-describe sweep.
+    /// Called when the model becomes usable (downloaded, or turned on): AppServices starts the re-describe sweep.
     @ObservationIgnored var onBecameActive: (() -> Void)?
 
     @ObservationIgnored private var downloadTask: Task<Void, Never>?

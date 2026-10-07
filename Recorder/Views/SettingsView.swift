@@ -6,8 +6,7 @@ import SwiftData
 /// "While Recording" (live speaker labels), "After Recording" (the post-stop pass in its order: transcription,
 /// speaker identification, summaries, smart corrections) and "Vocabulary". Each model has a detail page with its
 /// explanation, download and options; the main page shows only the outcome as the row's value ("Parakeet",
-/// "Downloading 40 %", "Apple Intelligence"), and every footer is one line. The model comparison (E4B, Qwen) is a
-/// Developer section in DEBUG builds only. Everything applies from the next recording.
+/// "Downloading 40 %", "Apple Intelligence"), and every footer is one line. Everything applies from the next recording.
 struct SettingsView: View {
     @Environment(AppServices.self) private var services
     @AppStorage(ParakeetModel.engineKey) private var engine = "parakeet"
@@ -87,11 +86,6 @@ struct SettingsView: View {
                 }
 
 
-                #if DEBUG
-                if BetterSummaries.isSupported {
-                    developerSection
-                }
-                #endif
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -142,29 +136,6 @@ struct SettingsView: View {
         }
     }
 
-    #if DEBUG
-    /// The model comparison (Gemma 4 E4B, Qwen3.5 4B against E2B), for testing: DEBUG builds only.
-    @ViewBuilder
-    private var developerSection: some View {
-        @Bindable var better = services.betterSummaries
-        Section {
-            Picker("Local Model", selection: $better.variant) {
-                ForEach(LocalLanguageModel.Variant.allCases, id: \.self) { Text($0.shortName).tag($0) }
-            }
-            if better.state != .ready {
-                ModelDownloadRow(state: better.state, size: better.variant.sizeText) { better.download() }
-            } else {
-                Button("Delete \(better.variant.displayName) (\(better.variant.sizeText))", role: .destructive) {
-                    Task { await better.delete() }
-                }
-            }
-        } header: {
-            Text("Developer")
-        } footer: {
-            Text("Which local model writes summaries and corrections. E4B and Qwen3.5 are here to compare with E2B; each is its own download.")
-        }
-    }
-    #endif
 }
 
 /// A downloadable model's row: downloaded, progress, "Download Now" or the failure with "Try Again".
