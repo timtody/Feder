@@ -41,8 +41,13 @@ final class TranscriptListTests: ScribeUITestCase {
         XCTAssertLessThan(settings.frame.minY, 120, "at the top at rest: \(settings.frame)")
         XCTAssertFalse(app.navigationBars.staticTexts["Settings"].exists, "no navigation bar title")
         shot("Settings at rest", app)
+        let rest = settings.frame
         app.swipeUp()
-        XCTAssertTrue(scrolledAway(settings, app), "the heading scrolls away with the form: \(settings.frame)")
+        // Since the October 2026 cleanup (no font, Smart Corrections or Developer rows) the form is only a little taller
+        // than an iPhone 17's screen, so the heading may stop just below the status bar instead of leaving it: what
+        // matters is that it moves with the form (a navigation bar title would stay).
+        XCTAssertTrue(scrolledAway(settings, app) || settings.frame.minY < rest.minY - 30,
+                      "the heading scrolls with the form: \(rest) -> \(settings.frame)")
         shot("Settings scrolled", app)
     }
 
