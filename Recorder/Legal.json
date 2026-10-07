@@ -1,0 +1,214 @@
+{
+  "privacy": {
+    "en": {
+      "title": "Privacy Policy",
+      "updated": "October 2026",
+      "sections": [
+        {
+          "heading": "In Short",
+          "body": "Feder records and transcribes on your iPhone. Feder never uploads your recordings, transcripts, summaries, people or tags, and we never receive them.\n\nFeder has no account, no analytics, no tracking and no ads. We, the provider of Feder, receive no personal data from the app.\n\nFeder connects to the internet only to:\n• download its speech, speaker and summary models once from Hugging Face,\n• let iOS download Apple’s speech model for your language,\n• look up the name of the place where a recording started with Apple Maps, if you allow location access."
+        },
+        {
+          "heading": "Who Is Responsible",
+          "body": "Provider of Feder:\n[Provider name]\n[Street and number]\n[Postcode and city]\nEmail: [Email]\nPhone: [Phone]\n\n[Data protection officer: name and email, if one is appointed]\n\nThe provider processes no personal data through the app. If you use Feder at work to record other people, you are responsible for those recordings under data protection law (see “Recording Other People”)."
+        },
+        {
+          "heading": "What Feder Stores on Your iPhone",
+          "body": "Feder keeps everything it creates in its own storage on your iPhone:\n• the audio of your recordings,\n• transcripts, titles and summaries,\n• speaker names, people and their voice profiles,\n• tags and the words you add to your vocabulary,\n• where a recording started (coordinates and place name), if you allow it,\n• your settings.\n\nTranscription, speaker identification, titles and summaries run on your iPhone. None of this data is sent to us or to anyone else. It leaves your iPhone only when you share a transcript yourself, for example with the share sheet, and as part of your iPhone’s backups (see “Backups”)."
+        },
+        {
+          "heading": "Microphone",
+          "body": "Feder uses the microphone only while you record. A recording starts when you tap Transcribe and ends when you tap Stop. While it runs, Feder shows the recording and iOS shows its microphone indicator. The recording continues when you lock the screen or switch to another app, until you stop it.\n\nYou can turn off microphone access at any time in the iOS Settings app under Apps › Feder."
+        },
+        {
+          "heading": "Voice Profiles",
+          "body": "When you name a speaker, Feder computes a voice profile for that person: a set of numbers that describes their voice. Feder uses it to recognize the person in later recordings. Each transcript also keeps the voice profiles of its own speakers.\n\nVoice profiles are computed and stored only on your iPhone. They are never sent anywhere.\n\nDeleting a person deletes their voice profile. Deleting a transcript deletes the voice profiles from that transcript. Names you typed into a transcript stay in it until you change them or delete the transcript.\n\nA voice profile that identifies a person is biometric data. If you use Feder at work, you need a legal basis for it under Art. 9 GDPR, for example the person’s explicit consent."
+        },
+        {
+          "heading": "Location",
+          "body": "Location is optional. If you allow it, Feder determines once, when a recording starts, where you are. To turn the coordinates into a place name such as “Mitte, Berlin”, Feder sends them to Apple (Apple Maps). Apple receives the coordinates and the usual connection data, such as your IP address, and processes them under its own privacy policy.\n\nThe coordinates and the place name are stored only with the transcript on your iPhone.\n\nYou can turn this off with the Save Location switch in Feder’s Settings, or deny location access in the iOS Settings app under Apps › Feder. Recording works the same without it."
+        },
+        {
+          "heading": "Model Downloads From Hugging Face",
+          "body": "Feder downloads its models once from Hugging Face (huggingface.co). After that they run on your iPhone:\n• Speaker model (about 21 MB): downloads after you have passed the Welcome screen, on any network.\n• Live speaker-label model (about 45 MB) and improved speaker model (about 100 MB): download automatically on Wi-Fi, or on mobile data when you tap Download Now Using Cellular. The live model downloads only while Live Speaker Labels is on.\n• Titles and summaries (Gemma, about 3.6 GB): only when you ask for it, over Wi-Fi, in the background.\n• Parakeet transcription (about 610 MB): only when you ask for it.\n\nFor a download, your iPhone connects to Hugging Face’s servers and the content delivery servers they use. They receive your IP address, the file requested and the usual technical connection data. Feder sends no account, no identifier, no recordings and no usage data.\n\nHugging Face, Inc. is based in the USA. It processes this connection data on its own responsibility, under its privacy policy: huggingface.co/privacy"
+        },
+        {
+          "heading": "Apple Services",
+          "body": "• Speech model: the first time you record in a language, iOS may download Apple’s speech model for it from Apple.\n• Place names: see “Location”.\n• App Store: Apple handles the download of Feder. If Feder offers purchases, Apple processes them; we receive no payment details.\n• Crash reports: if you share analytics with app developers in iOS (Settings › Privacy & Security › Analytics & Improvements), Apple may give us crash reports and statistics that do not identify you. We use them only to fix errors.\n\nApple processes this data on its own responsibility, under its privacy policy: apple.com/legal/privacy"
+        },
+        {
+          "heading": "Backups",
+          "body": "Like the data of other apps, Feder’s data is part of your iPhone’s backups: in iCloud Backup or on your computer, depending on your settings. The downloaded models are left out of backups. Your iCloud or computer settings decide where backups are kept and for how long."
+        },
+        {
+          "heading": "Titles, Summaries and Mistakes",
+          "body": "On iPhones with 8 GB of memory, Feder can write titles and summaries with Gemma, an AI model that runs on your iPhone. Your transcript is not sent anywhere for this.\n\nTranscripts, speaker names, titles and summaries are created automatically and can contain mistakes. Check important details against the recording or the transcript."
+        },
+        {
+          "heading": "Recording Other People",
+          "body": "You are responsible for what you record. Tell people before you record them and get their consent. In Germany, recording words spoken in private without consent is a criminal offence (§ 201 StGB). Many other countries have similar laws.\n\nIf you record only for personal or household purposes, the GDPR does not apply (Art. 2(2)(c) GDPR). If you use Feder for work, you are the controller for your recordings, transcripts and voice profiles, and the GDPR’s duties apply to you, for example informing the people you record."
+        },
+        {
+          "heading": "Legal Basis",
+          "body": "We process no personal data ourselves.\n\nThe connections described above happen because you use Feder’s features: the model downloads so that Feder can transcribe, tell speakers apart and write summaries; the place lookup because you allowed location access. Hugging Face and Apple process the connection data on their own responsibility. Insofar as these connections are attributed to us, the legal basis is Art. 6(1)(b) GDPR (providing the features you use) and, for location, your consent (Art. 6(1)(a) GDPR). You can withdraw it at any time with the Save Location switch or in the iOS Settings app."
+        },
+        {
+          "heading": "How Long Data Is Kept",
+          "body": "Everything stays on your iPhone until you delete it:\n• Delete a transcript to remove its audio, text, summary, place and voice profiles.\n• Delete a person to remove their voice profile.\n• Delete Gemma in Feder’s Settings to remove the summary model.\n• Delete the app to remove all of Feder’s data and models from your iPhone.\n\nCopies in your backups are kept for as long as those backups are."
+        },
+        {
+          "heading": "Your Rights",
+          "body": "Under the GDPR you have the right of access (Art. 15), rectification (Art. 16), erasure (Art. 17), restriction of processing (Art. 18), data portability (Art. 20) and to object (Art. 21). You can withdraw a consent at any time (Art. 7(3)). You can also lodge a complaint with a data protection supervisory authority (Art. 77), in particular in the EU country where you live or work. The authority responsible for us is: [Supervisory authority].\n\nWe hold no data about you from the app. Your data is on your iPhone, where you can view, change, share and delete it yourself. For data that Hugging Face or Apple process, please contact them directly."
+        },
+        {
+          "heading": "Contact",
+          "body": "For questions about privacy, write to [Email] or to:\n[Provider name]\n[Street and number]\n[Postcode and city]"
+        },
+        {
+          "heading": "Changes to This Policy",
+          "body": "We update this policy when Feder or the law changes. The current version is the one in the app and at [Privacy policy URL]. The date at the top shows the last change."
+        }
+      ]
+    },
+    "de": {
+      "title": "Datenschutzerklärung",
+      "updated": "Oktober 2026",
+      "sections": [
+        {
+          "heading": "Kurz gesagt",
+          "body": "Feder nimmt auf deinem iPhone auf und transkribiert dort. Feder lädt deine Aufnahmen, Transkripte, Zusammenfassungen, Personen und Tags nirgendwohin hoch, und wir erhalten sie nie.\n\nFeder hat kein Konto, keine Analyse, kein Tracking und keine Werbung. Wir als Anbieter von Feder erhalten aus der App keine personenbezogenen Daten.\n\nFeder verbindet sich nur mit dem Internet, um:\n• seine Sprach-, Sprecher- und Zusammenfassungsmodelle einmalig von Hugging Face zu laden,\n• iOS Apples Sprachmodell für deine Sprache laden zu lassen,\n• mit Apple Karten den Namen des Orts nachzuschlagen, an dem eine Aufnahme begann, wenn du den Standortzugriff erlaubst."
+        },
+        {
+          "heading": "Verantwortlich",
+          "body": "Anbieter von Feder:\n[Provider name]\n[Street and number]\n[Postcode and city]\nE-Mail: [Email]\nTelefon: [Phone]\n\n[Datenschutzbeauftragte(r): Name und E-Mail, falls benannt]\n\nDer Anbieter verarbeitet über die App keine personenbezogenen Daten. Wenn du Feder beruflich nutzt, um andere aufzunehmen, bist du für diese Aufnahmen datenschutzrechtlich verantwortlich (siehe „Andere Menschen aufnehmen“)."
+        },
+        {
+          "heading": "Was Feder auf deinem iPhone speichert",
+          "body": "Feder bewahrt alles, was es erstellt, in seinem eigenen Speicher auf deinem iPhone auf:\n• den Ton deiner Aufnahmen,\n• Transkripte, Titel und Zusammenfassungen,\n• Sprechernamen, Personen und ihre Stimmprofile,\n• Tags und die Wörter, die du deinem Vokabular hinzufügst,\n• wo eine Aufnahme begann (Koordinaten und Ortsname), wenn du es erlaubst,\n• deine Einstellungen.\n\nTranskription, Sprechererkennung, Titel und Zusammenfassungen laufen auf deinem iPhone. Nichts davon wird an uns oder an andere gesendet. Die Daten verlassen dein iPhone nur, wenn du selbst ein Transkript teilst, zum Beispiel über „Teilen“, und als Teil der Backups deines iPhone (siehe „Backups“)."
+        },
+        {
+          "heading": "Mikrofon",
+          "body": "Feder nutzt das Mikrofon nur, während du aufnimmst. Eine Aufnahme beginnt, wenn du auf „Transkribieren“ tippst, und endet, wenn du auf „Stoppen“ tippst. Solange sie läuft, zeigt Feder die Aufnahme an und iOS seine Mikrofonanzeige. Die Aufnahme läuft weiter, wenn du den Bildschirm sperrst oder zu einer anderen App wechselst, bis du sie stoppst.\n\nDu kannst den Mikrofonzugriff jederzeit in der App „Einstellungen“ von iOS unter „Apps“ › „Feder“ ausschalten."
+        },
+        {
+          "heading": "Stimmprofile",
+          "body": "Wenn du einem Sprecher einen Namen gibst, berechnet Feder ein Stimmprofil dieser Person: eine Reihe von Zahlen, die ihre Stimme beschreibt. Damit erkennt Feder die Person in späteren Aufnahmen wieder. Jedes Transkript bewahrt außerdem die Stimmprofile seiner eigenen Sprecher auf.\n\nStimmprofile werden nur auf deinem iPhone berechnet und gespeichert. Sie werden nie gesendet.\n\nWenn du eine Person löschst, wird ihr Stimmprofil gelöscht. Wenn du ein Transkript löschst, werden die Stimmprofile aus diesem Transkript gelöscht. Namen, die du in ein Transkript eingetragen hast, bleiben darin, bis du sie änderst oder das Transkript löschst.\n\nEin Stimmprofil, das eine Person erkennbar macht, ist ein biometrisches Datum. Wenn du Feder beruflich nutzt, brauchst du dafür eine Rechtsgrundlage nach Art. 9 DSGVO, zum Beispiel die ausdrückliche Einwilligung der Person."
+        },
+        {
+          "heading": "Standort",
+          "body": "Der Standort ist freiwillig. Wenn du ihn erlaubst, ermittelt Feder einmal zu Beginn einer Aufnahme, wo du bist. Um aus den Koordinaten einen Ortsnamen wie „Mitte, Berlin“ zu machen, sendet Feder sie an Apple (Apple Karten). Apple erhält die Koordinaten und die üblichen Verbindungsdaten, etwa deine IP-Adresse, und verarbeitet sie nach seiner eigenen Datenschutzrichtlinie.\n\nKoordinaten und Ortsname werden nur mit dem Transkript auf deinem iPhone gespeichert.\n\nDu kannst das mit dem Standort-Schalter in den Einstellungen von Feder ausschalten oder den Standortzugriff in der App „Einstellungen“ von iOS unter „Apps“ › „Feder“ verweigern. Aufnehmen funktioniert ohne Standort genauso."
+        },
+        {
+          "heading": "Modelle von Hugging Face",
+          "body": "Feder lädt seine Modelle einmalig von Hugging Face (huggingface.co). Danach laufen sie auf deinem iPhone:\n• Sprechermodell (etwa 21 MB): wird geladen, sobald du den Willkommensbildschirm hinter dir hast, über jedes Netz.\n• Modell für Sprecher während der Aufnahme (etwa 45 MB) und genaueres Sprechermodell (etwa 100 MB): werden automatisch im WLAN geladen, über das mobile Netz nur, wenn du den Download selbst startest. Das Modell für die Aufnahme wird nur geladen, solange „Sprecher live anzeigen“ eingeschaltet ist.\n• Titel und Zusammenfassungen (Gemma, etwa 3,6 GB): nur wenn du es möchtest, über WLAN, im Hintergrund.\n• Parakeet-Transkription (etwa 610 MB): nur wenn du es möchtest.\n\nFür einen Download verbindet sich dein iPhone mit den Servern von Hugging Face und den Auslieferungsservern, die Hugging Face nutzt. Sie erhalten deine IP-Adresse, die angefragte Datei und die üblichen technischen Verbindungsdaten. Feder sendet kein Konto, keine Kennung, keine Aufnahmen und keine Nutzungsdaten.\n\nHugging Face, Inc. hat seinen Sitz in den USA. Das Unternehmen verarbeitet diese Verbindungsdaten in eigener Verantwortung nach seiner Datenschutzrichtlinie: huggingface.co/privacy"
+        },
+        {
+          "heading": "Dienste von Apple",
+          "body": "• Sprachmodell: Wenn du zum ersten Mal in einer Sprache aufnimmst, lädt iOS unter Umständen Apples Sprachmodell dafür von Apple.\n• Ortsnamen: siehe „Standort“.\n• App Store: Apple wickelt den Download von Feder ab. Falls Feder Käufe anbietet, wickelt Apple sie ab; wir erhalten keine Zahlungsdaten.\n• Absturzberichte: Wenn du in iOS Analysedaten mit App-Entwicklern teilst („Einstellungen“ › „Datenschutz & Sicherheit“ › „Analyse & Verbesserungen“), gibt Apple uns unter Umständen Absturzberichte und Statistiken, die dich nicht identifizieren. Wir nutzen sie nur, um Fehler zu beheben.\n\nApple verarbeitet diese Daten in eigener Verantwortung nach seiner Datenschutzrichtlinie: apple.com/de/legal/privacy"
+        },
+        {
+          "heading": "Backups",
+          "body": "Wie die Daten anderer Apps sind die Daten von Feder Teil der Backups deines iPhone: in iCloud oder auf deinem Computer, je nach deinen Einstellungen. Die geladenen Modelle sind von Backups ausgenommen. Deine iCloud- oder Computereinstellungen bestimmen, wo und wie lange Backups aufbewahrt werden."
+        },
+        {
+          "heading": "Titel, Zusammenfassungen und Fehler",
+          "body": "Auf iPhones mit 8 GB Arbeitsspeicher kann Feder Titel und Zusammenfassungen mit Gemma schreiben, einem KI-Modell, das auf deinem iPhone läuft. Dein Transkript wird dafür nirgendwohin gesendet.\n\nTranskripte, Sprechernamen, Titel und Zusammenfassungen entstehen automatisch und können Fehler enthalten. Prüfe wichtige Details anhand der Aufnahme oder des Transkripts."
+        },
+        {
+          "heading": "Andere Menschen aufnehmen",
+          "body": "Du bist dafür verantwortlich, was du aufnimmst. Sag den Menschen Bescheid, bevor du sie aufnimmst, und hol ihre Einwilligung ein. In Deutschland ist es strafbar, nichtöffentlich gesprochene Worte ohne Einwilligung aufzunehmen (§ 201 StGB). Viele andere Länder haben ähnliche Gesetze.\n\nWenn du nur für persönliche oder familiäre Zwecke aufnimmst, gilt die DSGVO nicht (Art. 2 Abs. 2 lit. c DSGVO). Wenn du Feder beruflich nutzt, bist du für deine Aufnahmen, Transkripte und Stimmprofile verantwortlich, und die Pflichten der DSGVO gelten für dich, zum Beispiel die Menschen zu informieren, die du aufnimmst."
+        },
+        {
+          "heading": "Rechtsgrundlage",
+          "body": "Wir selbst verarbeiten keine personenbezogenen Daten.\n\nDie oben beschriebenen Verbindungen entstehen, weil du Funktionen von Feder nutzt: die Modell-Downloads, damit Feder transkribieren, Sprecher unterscheiden und Zusammenfassungen schreiben kann; die Ortssuche, weil du den Standortzugriff erlaubt hast. Hugging Face und Apple verarbeiten die Verbindungsdaten in eigener Verantwortung. Soweit uns diese Verbindungen zugerechnet werden, ist die Rechtsgrundlage Art. 6 Abs. 1 lit. b DSGVO (Bereitstellung der Funktionen, die du nutzt) und für den Standort deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO). Du kannst sie jederzeit mit dem Standort-Schalter in Feder oder in der App „Einstellungen“ von iOS widerrufen."
+        },
+        {
+          "heading": "Wie lange Daten gespeichert werden",
+          "body": "Alles bleibt auf deinem iPhone, bis du es löschst:\n• Lösche ein Transkript, um seinen Ton, Text, seine Zusammenfassung, seinen Ort und seine Stimmprofile zu entfernen.\n• Lösche eine Person, um ihr Stimmprofil zu entfernen.\n• Lösche Gemma in den Einstellungen von Feder, um das Zusammenfassungsmodell zu entfernen.\n• Lösche die App, um alle Daten und Modelle von Feder von deinem iPhone zu entfernen.\n\nKopien in deinen Backups bleiben so lange erhalten wie diese Backups."
+        },
+        {
+          "heading": "Deine Rechte",
+          "body": "Nach der DSGVO hast du das Recht auf Auskunft (Art. 15), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21). Eine Einwilligung kannst du jederzeit widerrufen (Art. 7 Abs. 3). Du kannst dich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren (Art. 77), insbesondere in dem EU-Land, in dem du lebst oder arbeitest. Für uns zuständig ist: [Supervisory authority].\n\nWir haben aus der App keine Daten über dich. Deine Daten liegen auf deinem iPhone, wo du sie selbst ansehen, ändern, teilen und löschen kannst. Für Daten, die Hugging Face oder Apple verarbeiten, wende dich bitte direkt an sie."
+        },
+        {
+          "heading": "Kontakt",
+          "body": "Fragen zum Datenschutz schickst du an [Email] oder an:\n[Provider name]\n[Street and number]\n[Postcode and city]"
+        },
+        {
+          "heading": "Änderungen",
+          "body": "Wir passen diese Erklärung an, wenn sich Feder oder die Rechtslage ändert. Es gilt die Fassung in der App und unter [Privacy policy URL]. Das Datum oben zeigt die letzte Änderung."
+        }
+      ]
+    }
+  },
+  "legalNotice": {
+    "en": {
+      "title": "Legal Notice",
+      "updated": "October 2026",
+      "sections": [
+        {
+          "heading": "Information According to § 5 DDG",
+          "body": "[Provider name]\n[Street and number]\n[Postcode and city]\nGermany"
+        },
+        {
+          "heading": "Contact",
+          "body": "Email: [Email]\nPhone: [Phone]"
+        },
+        {
+          "heading": "Represented By",
+          "body": "[Managing directors]"
+        },
+        {
+          "heading": "Register Entry",
+          "body": "[Register court and number]"
+        },
+        {
+          "heading": "VAT ID",
+          "body": "VAT identification number according to § 27a of the German VAT Act (UStG): [VAT ID]"
+        },
+        {
+          "heading": "Consumer Dispute Resolution",
+          "body": "[We are neither willing nor obliged to take part in dispute resolution proceedings before a consumer arbitration board.]"
+        },
+        {
+          "heading": "Open-Source Software and Models",
+          "body": "Feder uses open-source software and models. Their authors and licences are listed in Feder’s Settings under Acknowledgements."
+        }
+      ]
+    },
+    "de": {
+      "title": "Impressum",
+      "updated": "Oktober 2026",
+      "sections": [
+        {
+          "heading": "Angaben gemäß § 5 DDG",
+          "body": "[Provider name]\n[Street and number]\n[Postcode and city]\nDeutschland"
+        },
+        {
+          "heading": "Kontakt",
+          "body": "E-Mail: [Email]\nTelefon: [Phone]"
+        },
+        {
+          "heading": "Vertreten durch",
+          "body": "[Managing directors]"
+        },
+        {
+          "heading": "Registereintrag",
+          "body": "[Register court and number]"
+        },
+        {
+          "heading": "Umsatzsteuer-ID",
+          "body": "Umsatzsteuer-Identifikationsnummer gemäß § 27a Umsatzsteuergesetz: [VAT ID]"
+        },
+        {
+          "heading": "Verbraucherstreitbeilegung",
+          "body": "[Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.]"
+        },
+        {
+          "heading": "Open-Source-Software und -Modelle",
+          "body": "Feder nutzt Open-Source-Software und -Modelle. Ihre Urheber und Lizenzen findest du in den Einstellungen von Feder."
+        }
+      ]
+    }
+  }
+}

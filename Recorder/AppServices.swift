@@ -1,6 +1,8 @@
 import Foundation
 import SwiftData
 import Observation
+import UIKit
+import FluidAudio   // ModelRegistry (revision pins)
 
 /// Composition root, injected with `.environment(services)` and read with `@Environment(AppServices.self)`.
 /// On the simulator (DEBUG) the fake engines are used because SpeechTranscriber is unavailable there.
@@ -11,25 +13,47 @@ final class AppServices {
     static var liveSpeakerLabelsEnabled: Bool {
         UserDefaults.standard.object(forKey: liveSpeakerLabelsKey) as? Bool ?? true
     }
+    /// UserDefaults key: the user has passed the Welcome page, so the speaker models may download. App Review 4.2.3(ii):
+    /// an app that downloads resources on first launch discloses their size and asks first, so a fresh install
+    /// downloads nothing (Hugging Face doesn't even see its IP address) until the Welcome page has said what and how
+    /// much. Existing users count as having passed it (`migrateExistingUser`).
+    nonisolated static let welcomeShownKey = "welcomeShown"
+    static var modelDownloadsAllowed: Bool { UserDefaults.standard.bool(forKey: welcomeShownKey) }
+
+    /// The Hugging Face commits of the FluidAudio models the app downloads, pinned so a change upstream can't alter what
+    /// users get without an app update (FluidAudio 0.17.4 pins only the pyannote repo and fetches the others from
+    /// `main`). These are the commits that were `main` on 2026-10-07, the ones tested; FluidAudio resolves only files
+    /// that are missing, so models already on a phone stay as they are.
+    nonisolated static let modelRevisions = [
+        "FluidInference/nemotron-3-diarization-coreml": "25a90f97f254428d4b30374b76af9c74fdee8327",
+        "FluidInference/ls-eend-coreml": "28ce1b1f8ef186729df63b3886fbaae7bc10c4a1",
+        "FluidInference/parakeet-ultra-coreml": "95eaa59a39d4394f047a4dc5cce480388a60d1b6",
+    ]
 
     let container: ModelContainer
     let identifier: SpeakerIdentifier
     let liveDiarizer: any LiveDiarizer
     let parakeet = ParakeetModel()
+    let network = NetworkPath()                      // Wi-Fi, cellular, Low Data Mode or offline, watched
     let nemotron: NemotronModel                      // the Nemotron speaker model's download (Settings)
     let people: PeopleDirectory
-    let betterSummaries = BetterSummaries()          // Gemma for titles and summaries (Settings)
+    let betterSummaries: BetterSummaries             // Gemma for titles and summaries (Settings)
     let usesFakes: Bool
     private let nemotronDiarizer: NemotronDiarizer
     @ObservationIgnored private var prewarmed = false
     /// The live model is loaded. Only then does a new recording get live labels; a recording never waits for it.
     private(set) var isLiveModelReady = false
+    /// The live model isn't downloaded and waits for Wi-Fi (Settings › Speaker Identification offers it on cellular).
+    private(set) var isLiveModelWaiting = false
 
     init(container: ModelContainer) {
         self.container = container
+        ModelRegistry.revisionOverrides = Self.modelRevisions
+        Self.migrateExistingUser(container: container)
         let nemotronDiarizer = NemotronDiarizer()
         self.nemotronDiarizer = nemotronDiarizer
-        nemotron = NemotronModel(diarizer: nemotronDiarizer)
+        nemotron = NemotronModel(diarizer: nemotronDiarizer, network: network)
+        betterSummaries = BetterSummaries(network: network)
         #if DEBUG && targetEnvironment(simulator)
         usesFakes = true
         let diarizer: any SpeakerDiarizer = FakeDiarizer()
@@ -46,18 +70,79 @@ final class AppServices {
                                        betterSummaries: betterSummaries, modelContext: container.mainContext)
         // Gemma downloaded or turned on: the transcripts are described again with it (newest first), wherever the user is.
         betterSummaries.onBecameActive = { [identifier] in Task { await identifier.prepareAndRetryPending() } }
+        network.onChange { [weak self] kind in self?.networkChanged(kind) }
+    }
+
+    /// Someone who used Feder before the Welcome page existed (October 2026) has passed it: transcripts or a downloaded
+    /// speaker model say so. They don't see it, and their downloads go on as before; they still see "Before You
+    /// Record" once. One fetchCount at launch (RecorderApp's init fetches the store anyway).
+    private static func migrateExistingUser(container: ModelContainer) {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: welcomeShownKey) == nil else { return }
+        let transcripts = (try? container.mainContext.fetchCount(FetchDescriptor<Recording>())) ?? 0
+        if transcripts > 0 || NemotronDiarizer.isDownloaded || defaults.object(forKey: "gemmaOnboardingShown") != nil {
+            defaults.set(true, forKey: welcomeShownKey)
+        }
+    }
+
+    /// The Welcome page's Continue: the speaker models may download from now on.
+    func allowModelDownloads() {
+        UserDefaults.standard.set(true, forKey: Self.welcomeShownKey)
+        startModelDownloads()
+    }
+
+    /// Launch, every return to the foreground, the Welcome page and a connection coming back: the speaker models.
+    /// pyannote (21 MB, needed for any speakers and for recognizing people) on any connection, through the identifier's
+    /// pending sweep; the live model (45 MB) and Nemotron (100 MB) on Wi-Fi only. Nothing before the Welcome page.
+    func startModelDownloads() {
+        guard Self.modelDownloadsAllowed else { return }
+        Task {
+            await identifier.prepareAndRetryPending()
+            await identifier.refreshVoices()       // once per transcript: voices from final labels
+        }
+        if !usesFakes || fakesNemotronDownload {   // the simulator: no real downloads
+            Task { await nemotron.download(force: false) }
+        }
+        Task { await prepareLiveDiarizer() }       // independent: neither waits for the other
+        prewarmModels()                            // once per launch: Nemotron compiled before Stop
+    }
+
+    /// "Download Now Using Cellular" (Settings › Speaker Identification): the speaker models that wait for Wi-Fi, now,
+    /// on whatever connection there is.
+    func downloadSpeakerModelsNow() {
+        Task { await nemotron.download(force: true) }
+        Task { await prepareLiveDiarizer(force: true) }
+    }
+
+    /// Every network change while the app runs. A connection coming back retries what failed offline (pyannote,
+    /// pending speakers); Wi-Fi starts the downloads that wait for it.
+    private func networkChanged(_ kind: NetworkPath.Kind) {
+        betterSummaries.networkChanged(kind)
+        guard Self.modelDownloadsAllowed, UIApplication.shared.applicationState == .active else { return }
+        nemotron.networkChanged(kind, allowed: true)
+        guard kind != .offline else { return }
+        Task { await identifier.prepareAndRetryPending() }
+        Task { await prepareLiveDiarizer() }
     }
 
     /// Launch, every return to the foreground, and switching the toggle on: downloads (once, ~45 MB) and loads the live
     /// model in the background. Failures (typically offline) are silent: recordings have no live labels until a later
     /// call succeeds.
-    func prepareLiveDiarizer() async {
-        guard Self.liveSpeakerLabelsEnabled, !isLiveModelReady else { return }
+    /// A model already on the phone is only loaded (any connection, or none); a missing one downloads on Wi-Fi only,
+    /// or anywhere with `force` ("Download Now Using Cellular").
+    func prepareLiveDiarizer(force: Bool = false) async {
+        guard Self.liveSpeakerLabelsEnabled, !isLiveModelReady, Self.modelDownloadsAllowed || usesFakes else { return }
+        if !force, !usesFakes, !LSEENDLiveDiarizer.isDownloaded, await network.current() != .wifi {
+            isLiveModelWaiting = true
+            return
+        }
+        isLiveModelWaiting = false
         do {
             try await liveDiarizer.prepare()
             isLiveModelReady = true
         } catch {
             isLiveModelReady = false
+            isLiveModelWaiting = !LSEENDLiveDiarizer.isDownloaded && network.kind != .wifi
         }
     }
 

@@ -1,5 +1,4 @@
 import Foundation
-import Network
 import Observation
 import UIKit
 
@@ -50,7 +49,7 @@ final class BetterSummaries {
 
     /// Bytes of the download so far (also while it waits for Wi-Fi, so the bar resumes where it was).
     private(set) var downloadedFraction: Double = 0
-    @ObservationIgnored private var pathMonitor: NWPathMonitor?
+    @ObservationIgnored private let network: NetworkPath
     #if DEBUG
     @ObservationIgnored private var fakeDownload: Task<Void, Never>?
     #endif
@@ -86,7 +85,8 @@ final class BetterSummaries {
         return model
     }
 
-    init() {
+    init(network: NetworkPath) {
+        self.network = network
         for build in LocalLanguageModel.Variant.allCases where Self.isSupported && Self.isDownloaded(build) {
             states[build] = .ready
         }
@@ -104,8 +104,8 @@ final class BetterSummaries {
         // force-quit, from its resume data); show it.
         if Self.isSupported, state != .ready, GemmaDownload.isWanted, !Self.usesFakeDownload {
             states[variant] = .downloading(0)
-            watchNetwork()
             GemmaDownload.shared.start()
+            Task { [weak self, network] in self?.networkChanged(await network.current()) }
         }
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: UIApplication.willResignActiveNotification, object: nil,
@@ -188,8 +188,15 @@ final class BetterSummaries {
         #if DEBUG
         if Self.usesFakeDownload { return startFakeDownload() }
         #endif
-        watchNetwork()
         GemmaDownload.shared.start()
+        Task { [weak self, network] in self?.networkChanged(await network.current()) }
+    }
+
+    /// Free storage for the onboarding page's check, off the main actor (a file-system call).
+    @concurrent
+    nonisolated static func freeBytes() async -> Int64? {
+        try? URL.applicationSupportDirectory.deletingLastPathComponent()
+            .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage
     }
 
     /// GemmaDownload's events, on the main actor.
@@ -204,13 +211,11 @@ final class BetterSummaries {
             finishDownload()
         case .failed(let reason):
             guard state != .ready else { return }
-            stopWatchingNetwork()
             states[variant] = .failed(reason)
         }
     }
 
     private func finishDownload() {
-        stopWatchingNetwork()
         downloadedFraction = 1
         states[variant] = .ready
         #if DEBUG && targetEnvironment(simulator)
@@ -221,34 +226,24 @@ final class BetterSummaries {
         if isEnabled { onBecameActive?() }
     }
 
-    /// "Waiting for Wi-Fi" while the path is not Wi-Fi (or Ethernet) without Low Data Mode: the background session
-    /// would not move a byte there. Only while a download is wanted.
-    private func watchNetwork() {
-        guard pathMonitor == nil else { return }
-        let monitor = NWPathMonitor()
-        monitor.pathUpdateHandler = { [weak self] path in
-            let wifi = path.status == .satisfied && !path.isExpensive && !path.isConstrained
-            Task { @MainActor in self?.setWiFi(wifi) }
-        }
-        monitor.start(queue: DispatchQueue(label: "Feder.gemma.network"))
-        pathMonitor = monitor
-    }
-
-    private func stopWatchingNetwork() {
-        pathMonitor?.cancel()
-        pathMonitor = nil
-    }
-
-    private func setWiFi(_ wifi: Bool) {
+    /// NetworkPath changed (AppServices forwards every change): "Waiting for Wi-Fi" while the path is not Wi-Fi without
+    /// Low Data Mode, since the background session moves no byte there; back to the bar when it is. The views name the
+    /// reason from NetworkPath.kind (no connection, cellular, Low Data Mode).
+    func networkChanged(_ kind: NetworkPath.Kind) {
+        let wifi = kind == .wifi
         switch state {
         case .downloading where !wifi: states[variant] = .waitingForWiFi
-        case .waitingForWiFi where wifi: states[variant] = .downloading(downloadedFraction)
+        case .waitingForWiFi where wifi:
+            states[variant] = .downloading(downloadedFraction)
+            #if DEBUG
+            if Self.usesFakeDownload { startFakeDownload() }
+            #endif
         default: break
         }
     }
 
     /// DEBUG on the simulator: `-fakeGemmaDownload` stands in for the transfer (`-fakeGemmaDownloadSeconds`, default
-    /// 8, from 0 to 100 %), `-fakeNoWiFi` keeps it waiting for Wi-Fi.
+    /// 8, from 0 to 100 %); NetworkPath's fakes (`-fakeNoWiFi`, `-fakeOffline`, `-fakeWiFiAfter`) keep it waiting.
     private static var usesFakeDownload: Bool {
         #if DEBUG && targetEnvironment(simulator)
         ProcessInfo.processInfo.arguments.contains("-fakeGemmaDownload")
@@ -259,10 +254,11 @@ final class BetterSummaries {
 
     #if DEBUG
     private func startFakeDownload() {
-        if ProcessInfo.processInfo.arguments.contains("-fakeNoWiFi") {
+        guard network.kind == .wifi else {
             states[variant] = .waitingForWiFi
             return
         }
+        guard fakeDownload == nil else { return }
         let seconds = UserDefaults.standard.double(forKey: "fakeGemmaDownloadSeconds")
         let duration = seconds > 0 ? seconds : 8
         fakeDownload = Task { [weak self] in
@@ -279,10 +275,10 @@ final class BetterSummaries {
     /// Removes the chosen build's files (all revisions) and frees the memory. Summaries it wrote stay.
     func delete() async {
         GemmaDownload.shared.cancel()
-        stopWatchingNetwork()
         downloadedFraction = 0
         #if DEBUG
         fakeDownload?.cancel()
+        fakeDownload = nil
         #endif
         await unload()
         model = nil

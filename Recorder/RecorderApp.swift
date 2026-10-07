@@ -36,16 +36,9 @@ struct RecorderApp: App {
                         return
                     }
                     #endif
-                    Task {
-                        await services.identifier.prepareAndRetryPending()
-                        await services.identifier.refreshVoices()       // once per transcript: voices from final labels
-                    }
-                    if !services.usesFakes || services.fakesNemotronDownload {   // the simulator: no real downloads
-                        Task { await services.nemotron.download(force: false) }   // Wi-Fi only; no-op once downloaded
-                        // (Parakeet is not downloaded here: it is optional, only on the user's tap in Settings.)
-                    }
-                    Task { await services.prepareLiveDiarizer() }   // independent: neither waits for the other
-                    services.prewarmModels()                        // once per launch: Nemotron compiled before Stop
+                    // The speaker models (pyannote any network, live model and Nemotron on Wi-Fi), pending speakers and
+                    // the prewarm; nothing before the Welcome page (AppServices.startModelDownloads).
+                    services.startModelDownloads()
                 }
         }
         .modelContainer(services.container)

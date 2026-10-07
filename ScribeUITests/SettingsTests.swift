@@ -107,7 +107,9 @@ final class SettingsTests: ScribeUITestCase {
         XCTAssertTrue(header.exists && labels.exists, "one Recording section with Live Speaker Labels")
         XCTAssertLessThanOrEqual(header.frame.maxY, labels.frame.minY + 1, "the header above the switch")
         XCTAssertLessThanOrEqual(labels.frame.maxY, transcription.frame.minY + 1, "while recording first, then after")
-        XCTAssertLessThan(transcription.frame.minY - labels.frame.maxY, 20, "in the same section, no header between")
+        let location = app.switches["Save Location"].firstMatch
+        XCTAssertTrue(location.exists, "Save Location between them")
+        XCTAssertLessThan(transcription.frame.minY - location.frame.maxY, 20, "in the same section, no header between")
         shot("Settings", app)
 
         transcription.tap()
@@ -212,5 +214,37 @@ final class SettingsTests: ScribeUITestCase {
             RunLoop.current.run(until: .now.addingTimeInterval(0.2))
         }
         return condition()
+    }
+
+    /// Settings › About: Welcome again, the privacy policy and legal notice (shipped in the app, Legal.json),
+    /// the acknowledgements (Acknowledgements.json); and Save Location under Recording.
+    @MainActor
+    func testAboutSection() throws {
+        let app = launch()
+        app.buttons["Settings"].firstMatch.tap()
+        XCTAssertTrue(app.switches["Save Location"].waitForExistence(timeout: 5), "Save Location under Recording")
+        let privacy = app.buttons["Privacy Policy"].firstMatch
+        for _ in 0..<4 where !privacy.isHittable { app.swipeUp() }
+        XCTAssertTrue(app.buttons["Welcome"].exists && app.buttons["Legal Notice"].exists
+                      && app.buttons["Acknowledgements"].exists, "the About rows")
+        shot("About section", app)
+
+        privacy.tap()
+        XCTAssertTrue(app.navigationBars["Privacy Policy"].waitForExistence(timeout: 5), "the policy, in the app")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Hugging Face'")).firstMatch
+                        .waitForExistence(timeout: 5), "it names the model downloads")
+        shot("Privacy Policy", app)
+        app.navigationBars.buttons.firstMatch.tap()
+
+        app.buttons["Acknowledgements"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["Gemma 4 E2B"].waitForExistence(timeout: 5), "models first")
+        app.staticTexts["Gemma 4 E2B"].tap()
+        XCTAssertTrue(app.staticTexts["Apache License 2.0"].waitForExistence(timeout: 5), "its licence text")
+        shot("Acknowledgement", app)
+        app.navigationBars.buttons.firstMatch.tap()
+        app.navigationBars.buttons.firstMatch.tap()
+
+        app.buttons["Welcome"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["Welcome to Feder"].waitForExistence(timeout: 5), "the onboarding again")
     }
 }

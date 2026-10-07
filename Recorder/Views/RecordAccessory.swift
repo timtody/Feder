@@ -110,7 +110,11 @@ struct RecordAccessory: View {
         case .downloading(let fraction) where fraction < NemotronModel.preparingFraction:
             Text("Downloading speaker model · \(fraction, format: .percent.precision(.fractionLength(0)))")
         case .waitingForWiFi:
-            Text("Speaker model · Waiting for Wi-Fi")
+            switch services.network.kind {
+            case .offline: Text("Speaker model · Offline")
+            case .lowData: Text("Speaker model · Low Data Mode")
+            default: Text("Speaker model · Waiting for Wi-Fi")
+            }
         default:
             nil
         }
@@ -123,7 +127,11 @@ struct RecordAccessory: View {
         case .downloading(let fraction):
             Text("Downloading Gemma · \(fraction, format: .percent.precision(.fractionLength(0)))")
         case .waitingForWiFi:
-            Text("Gemma · Waiting for Wi-Fi")
+            switch services.network.kind {
+            case .offline: Text("Gemma · Offline")
+            case .lowData: Text("Gemma · Low Data Mode")
+            default: Text("Gemma · Waiting for Wi-Fi")
+            }
         default:
             nil
         }

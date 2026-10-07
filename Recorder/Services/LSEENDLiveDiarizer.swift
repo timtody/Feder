@@ -164,4 +164,15 @@ nonisolated final class LSEENDLiveDiarizer: LiveDiarizer, Sendable {
     private static var modelURL: URL {
         repoURL.appending(path: relativePath, directoryHint: .isDirectory)
     }
+
+    /// The model is complete on disk, so `prepare` only loads it and needs no network (AppServices then prepares it on
+    /// any connection; a missing model waits for Wi-Fi). ModelHub creates the .mlmodelc directory before it fetches and
+    /// keeps unfinished files as `.partial` (ModelHub.swift:623-641, FileDownloader.swift:45-47), so a directory alone
+    /// proves nothing: the compiled model's `coremldata.bin` must be there and no `.partial` left.
+    static var isDownloaded: Bool {
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: modelURL.appending(path: "coremldata.bin").path(percentEncoded: false)),
+              let files = fileManager.enumerator(at: modelURL, includingPropertiesForKeys: nil) else { return false }
+        return !files.contains { ($0 as? URL)?.pathExtension == "partial" }
+    }
 }

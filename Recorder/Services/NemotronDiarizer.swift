@@ -207,38 +207,47 @@ nonisolated final class NemotronDiarizer: Sendable {
     }
 }
 
-/// The Nemotron model's one-time download (~100 MB into Application Support/FluidAudio/Models/nemotron-3-diarization):
-/// automatic at launch and on every return to the foreground on Wi-Fi only (not on cellular, hotspot or Low Data Mode),
-/// on any network via "Download Nemotron" in Settings. Until it is there, speakers are identified with pyannote.
-/// The onboarding sheet's first page and the record accessory show the download (`state`). After the files the model is
-/// loaded and compiled for the Neural Engine before `download` returns; the state stays `.downloading(1)` meanwhile
-/// (`preparingFraction`), which both show as "Preparing".
+/// The Nemotron model's one-time download (~100 MB into Application Support/FluidAudio/Models/nemotron-3-diarization).
+/// Automatic on Wi-Fi only (NetworkPath `.wifi`: not on cellular, a hotspot or Low Data Mode): at launch, on every
+/// return to the foreground and as soon as Wi-Fi appears while the app is open (`networkChanged`); before the user has
+/// passed the Welcome page nothing downloads (AppServices.modelDownloadsAllowed). "Download Now Using Cellular" in
+/// Settings downloads on any connection (`force`). Until it is there, speakers are identified with pyannote.
+/// A failure while the phone is off Wi-Fi (offline, the connection dropped) is not "Download Failed" but waiting: it
+/// starts again by itself on Wi-Fi. A download that started on Wi-Fi finishes on cellular if Wi-Fi drops (FluidAudio's
+/// session allows cellular and can't be configured from outside), so the copy says it "starts" on Wi-Fi.
+/// The record accessory shows the download (`state`). After the files the model is loaded and compiled for the Neural
+/// Engine before `download` returns; the state stays `.downloading(1)` meanwhile (`preparingFraction`), shown as
+/// "Preparing speaker model…".
 @MainActor @Observable
 final class NemotronModel {
     private(set) var state: ModelDownloadState
     private let diarizer: NemotronDiarizer
+    private let network: NetworkPath
 
     /// `.downloading(f)` with f at least this: the files are there and the model is being loaded.
     nonisolated static let preparingFraction = 0.999
 
-    init(diarizer: NemotronDiarizer) {
+    init(diarizer: NemotronDiarizer, network: NetworkPath) {
         self.diarizer = diarizer
+        self.network = network
         state = NemotronDiarizer.isDownloaded ? .ready : .notDownloaded
     }
 
-    /// Launch and every return to the foreground (`force == false`: Wi-Fi only), or "Download Nemotron" (`force == true`).
+    /// Launch, every return to the foreground and Wi-Fi arriving (`force == false`: Wi-Fi only), or "Download Now Using
+    /// Cellular" / "Try Again" in Settings (`force == true`: any connection).
     func download(force: Bool) async {
         switch state {
         case .ready, .downloading: return
         case .notDownloaded, .waitingForWiFi, .failed: break
         }
-        #if DEBUG
-        if Self.fakesDownload { return await fakeDownload() }
-        #endif
-        if !force, await ModelDownload.isExpensiveNetwork() {
+        let kind = await network.current()
+        if !force, kind != .wifi {
             state = .waitingForWiFi
             return
         }
+        #if DEBUG
+        if Self.fakesDownload { return await fakeDownload() }
+        #endif
         state = .downloading(0)
         do {
             try await diarizer.download { [weak self] fraction in
@@ -251,15 +260,34 @@ final class NemotronModel {
             }
             state = .ready
         } catch {
-            state = .failed(error.localizedDescription)
+            // Off Wi-Fi now (offline, dropped, or a forced download on a connection that went away): wait for Wi-Fi
+            // instead of reporting a failure; on Wi-Fi it is a real failure (Try Again, and the next foreground).
+            state = network.kind == .wifi ? .failed(error.localizedDescription) : .waitingForWiFi
+        }
+    }
+
+    /// NetworkPath changed: Wi-Fi starts a waiting (or failed) automatic download, after a short wait so a network
+    /// that just joined has settled (a captive portal or DHCP still running would fail it at once).
+    func networkChanged(_ kind: NetworkPath.Kind, allowed: Bool) {
+        guard allowed, kind == .wifi else { return }
+        switch state {
+        case .waitingForWiFi, .failed, .notDownloaded:
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                guard network.kind == .wifi else { return }
+                await download(force: false)
+            }
+        case .ready, .downloading:
+            break
         }
     }
 }
 
 #if DEBUG
 extension NemotronModel {
-    /// Simulator QA: `-fakeNemotronDownload` pretends Nemotron isn't downloaded yet and downloads it at launch in
-    /// `-fakeNemotronDownloadSeconds` (default 8), then "prepares" it for 2 s; with `-fakeNoWiFi` it waits for Wi-Fi.
+    /// Simulator QA: `-fakeNemotronDownload` pretends Nemotron isn't downloaded yet and downloads it in
+    /// `-fakeNemotronDownloadSeconds` (default 8), then "prepares" it for 2 s. The network comes from NetworkPath's fakes
+    /// (`-fakeNoWiFi`, `-fakeOffline`, `-fakeLowData`, `-fakeWiFiAfter`).
     static var fakesDownload: Bool {
         #if targetEnvironment(simulator)
         ProcessInfo.processInfo.arguments.contains("-fakeNemotronDownload")
@@ -269,10 +297,6 @@ extension NemotronModel {
     }
 
     private func fakeDownload() async {
-        if ProcessInfo.processInfo.arguments.contains("-fakeNoWiFi") {
-            state = .waitingForWiFi
-            return
-        }
         let seconds = UserDefaults.standard.double(forKey: "fakeNemotronDownloadSeconds")
         let duration = seconds > 0 ? seconds : 8
         state = .downloading(0)

@@ -120,21 +120,22 @@ struct MainView: View {
         })
     }
 
-    /// The onboarding sheet, once per page: Nemotron's while it isn't downloaded (it downloads by itself; the page
-    /// explains it and shows its progress), Gemma's on an iPhone that can run it while it isn't downloaded nor on its
-    /// way. Nothing when neither is left (an existing user with both). A second after launch, so the sheet rises over
-    /// the list instead of with the first frame, and not over a recording or transcript opened meanwhile
-    /// (`-autoRecord`, a tap). The simulator has no Nemotron download unless `-fakeNemotronDownload` pretends one.
+    /// The onboarding sheet with the pages still due: Welcome on a new install (it also allows the speaker models'
+    /// downloads; existing users are migrated past it, AppServices), Before You Record once for everyone, and Gemma's
+    /// page on an iPhone that can run it while it is neither downloaded nor on its way. Nothing when none is due. A
+    /// second after launch, so the sheet rises over the list instead of with the first frame, and not over a recording
+    /// or transcript opened meanwhile (`-autoRecord`, a tap).
     private func offerOnboarding() async {
         let defaults = UserDefaults.standard
-        let speakers = (!services.usesFakes || services.fakesNemotronDownload) && services.nemotron.state != .ready
-            && !defaults.bool(forKey: Onboarding.shownKey(.speakers))
-        let summaries = BetterSummaries.isSupported && services.betterSummaries.state == .notDownloaded
-            && !defaults.bool(forKey: Onboarding.shownKey(.summaries))
-        guard speakers || summaries else { return }
+        var pages: [OnboardingPage] = []
+        if !AppServices.modelDownloadsAllowed { pages.append(.welcome) }
+        if !defaults.bool(forKey: Onboarding.recordingNoticeKey) { pages.append(.beforeYouRecord) }
+        if BetterSummaries.isSupported, services.betterSummaries.state == .notDownloaded,
+           !defaults.bool(forKey: Onboarding.summariesShownKey) { pages.append(.summaries) }
+        guard !pages.isEmpty else { return }
         try? await Task.sleep(for: .seconds(1))
         guard cardPhase == .closed, card.session == nil else { return }
-        onboardingPages = (speakers ? [.speakers] : []) + (summaries ? [.summaries] : [])
+        onboardingPages = pages
     }
 
     /// Puts the keyboard away. The Search tab's field stayed first responder over the next tab: its view is kept alive

@@ -14,6 +14,8 @@ struct SettingsView: View {
     @Query private var people: [Person]
     private var peopleCount: Int { people.count }
     @AppStorage(AppServices.liveSpeakerLabelsKey) private var liveSpeakerLabels = true
+    @AppStorage(PlaceLocator.saveLocationKey) private var saveLocation = true
+    @State private var showsWelcome = false
     @State private var path = NavigationPath()          // untyped: People pushes Person values too
 
     var body: some View {
@@ -41,6 +43,7 @@ struct SettingsView: View {
 
                 Section {
                     Toggle("Live Speaker Labels", isOn: $liveSpeakerLabels)
+                    Toggle("Save Location", isOn: $saveLocation)
                     NavigationLink(value: SettingsRoute.transcription) {
                         LabeledContent("Transcription", value: transcriptionValue)
                     }
@@ -56,7 +59,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Recording")
                 } footer: {
-                    Text("Live Speaker Labels show who is speaking as you record. After you stop, each recording is transcribed again and its speakers are identified more accurately.")
+                    Text("Live Speaker Labels show who is speaking as you record. Save Location keeps where a recording started; the place name comes from Apple Maps. After you stop, each recording is transcribed again and its speakers are identified more accurately.")
                 }
 
                 Section {
@@ -69,7 +72,18 @@ struct SettingsView: View {
                     Text("Names and terms the transcription often gets wrong.")
                 }
 
-
+                // App Review 5.1.1(i): the privacy policy reachable in the app; § 5 DDG: the legal notice; the HIG
+                // (Onboarding): what the onboarding said stays findable; the licences of the code and models.
+                Section {
+                    Button("Welcome") { showsWelcome = true }
+                    NavigationLink("Privacy Policy", value: SettingsRoute.privacy)
+                    NavigationLink("Legal Notice", value: SettingsRoute.legalNotice)
+                    NavigationLink("Acknowledgements", value: SettingsRoute.acknowledgements)
+                } header: {
+                    Text("About")
+                } footer: {
+                    Text(Self.version)
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -81,7 +95,13 @@ struct SettingsView: View {
                 case .speakers: SpeakerModelView()
                 case .summaries: SummariesModelView()
                 case .vocabulary: VocabularyView()
+                case .privacy: LegalTextView(document: .privacy)
+                case .legalNotice: LegalTextView(document: .legalNotice)
+                case .acknowledgements: AcknowledgementsView()
                 }
+            }
+            .sheet(isPresented: $showsWelcome) {
+                Onboarding(pages: [.welcome, .beforeYouRecord])
             }
             #if DEBUG
             .task {                                    // QA hook: `-showPeople` opens Settings with People pushed
@@ -92,6 +112,14 @@ struct SettingsView: View {
                 if on { Task { await services.prepareLiveDiarizer() } }   // applies from the next recording
             }
         }
+    }
+
+    /// "Feder 1.0 (12)": the About section's footer.
+    private static var version: String {
+        let info = Bundle.main.infoDictionary
+        let short = info?["CFBundleShortVersionString"] as? String ?? ""
+        let build = info?["CFBundleVersion"] as? String ?? ""
+        return "Feder \(short) (\(build))"
     }
 
     /// The engine that runs (Parakeet only once downloaded and chosen), or the download's progress.
@@ -181,7 +209,7 @@ struct TranscriptionModelView: View {
                 .pickerStyle(.inline)
                 .labelsHidden()
             } footer: {
-                Text("Each recording is transcribed again on this iPhone after you stop. Apple Speech needs no download; Parakeet is more accurate for German and other European languages and needs a one-time 610 MB download.")
+                Text("Each recording is transcribed again on this iPhone after you stop. Apple Speech uses the speech model iOS keeps for your language; Parakeet is more accurate for German and other European languages and needs a one-time 610 MB download.")
             }
             if !services.parakeet.isReady {
                 Section {
@@ -197,20 +225,49 @@ struct TranscriptionModelView: View {
 /// Settings › Speaker Identification: Nemotron's download; the standard model until then.
 struct SpeakerModelView: View {
     @Environment(AppServices.self) private var services
+    @State private var asksLowData = false
+
+    /// MB of speaker models that wait for Wi-Fi: Nemotron (100) and the live-label model (45).
+    private var waitingMB: Int {
+        (services.nemotron.state == .waitingForWiFi ? 100 : 0) + (services.isLiveModelWaiting ? 45 : 0)
+    }
 
     var body: some View {
         Form {
             Section {
                 LabeledContent("Model", value: services.nemotron.state == .ready ? "NVIDIA Nemotron" : String(localized: "Standard"))
-                if services.nemotron.state != .ready {
+                if waitingMB > 0 {
+                    waiting
+                } else if services.nemotron.state != .ready {
                     ModelDownloadRow(name: "Nemotron", state: services.nemotron.state, size: "100 MB") { await services.nemotron.download(force: true) }
                 }
             } footer: {
-                Text("NVIDIA Nemotron tells speakers apart on this iPhone after you stop, much more reliably than the standard model, also when people talk in quick succession. It needs a one-time 100 MB download, which starts automatically on Wi-Fi. Until then the standard model is used.")
+                Text("NVIDIA Nemotron tells speakers apart on this iPhone after you stop, much more reliably than the standard model, also when people talk in quick succession. It downloads once (100 MB), by itself on Wi-Fi, together with the model for live speaker labels (45 MB). Until then the standard model is used.")
             }
         }
         .navigationTitle("Speaker Identification")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Low Data Mode Is On", isPresented: $asksLowData) {
+            Button("Download") { services.downloadSpeakerModelsNow() }
+            Button("Wait for Wi-Fi", role: .cancel) {}
+        } message: {
+            Text("The speaker models are \(waitingMB) MB. Download them now, or wait for Wi-Fi.")
+        }
+    }
+
+    /// The models wait: why, and how to get them now. Like the App Store's and Podcasts' cellular downloads, the
+    /// button names the network and the size; Low Data Mode asks once more; offline there is nothing to offer.
+    @ViewBuilder private var waiting: some View {
+        switch services.network.kind {
+        case .offline:
+            LabeledContent("No Internet Connection") { Image(systemName: "wifi.slash").foregroundStyle(.secondary) }
+        case .lowData:
+            LabeledContent("Paused by Low Data Mode") { Image(systemName: "pause.circle").foregroundStyle(.secondary) }
+            Button("Download Now (\(waitingMB) MB)") { asksLowData = true }
+        default:
+            LabeledContent("Waiting for Wi-Fi") { Image(systemName: "wifi").foregroundStyle(.secondary) }
+            Button("Download Now Using Cellular (\(waitingMB) MB)") { services.downloadSpeakerModelsNow() }
+        }
     }
 }
 
@@ -235,7 +292,11 @@ struct SummariesModelView: View {
                     } else if better.state == .waitingForWiFi {
                         // The background download moves no byte off Wi-Fi: it says so instead of a Download button.
                         ProgressView(value: better.downloadedFraction) {
-                            Text("Waiting for Wi-Fi…")
+                            switch services.network.kind {
+                            case .offline: Text("No Internet Connection")
+                            case .lowData: Text("Paused by Low Data Mode")
+                            default: Text("Waiting for Wi-Fi…")
+                            }
                         } currentValueLabel: {
                             Text("\(better.variant.displayName) downloads when this iPhone is on Wi-Fi.")
                         }
@@ -318,5 +379,5 @@ struct VocabularyView: View {
 #endif
 
 enum SettingsRoute: Hashable {
-    case people, transcription, speakers, summaries, vocabulary
+    case people, transcription, speakers, summaries, vocabulary, privacy, legalNotice, acknowledgements
 }

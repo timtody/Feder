@@ -1,7 +1,8 @@
 import Foundation
-import Network
 
-/// Where an optional on-device model is, as Settings shows it (ParakeetModel, NemotronModel).
+/// Where an optional on-device model is, as Settings shows it (ParakeetModel, NemotronModel, BetterSummaries).
+/// `.waitingForWiFi` means an automatic download waits for a connection it may use; NetworkPath.kind says which reason
+/// to show (no connection, cellular, Low Data Mode).
 enum ModelDownloadState: Equatable {
     case notDownloaded
     case waitingForWiFi
@@ -14,19 +15,5 @@ enum ModelDownloadState: Equatable {
     func advanced(to fraction: Double) -> ModelDownloadState? {
         guard case .downloading(let shown) = self, fraction - shown >= 0.005 else { return nil }
         return .downloading(fraction)
-    }
-}
-
-nonisolated enum ModelDownload {
-    /// Cellular, personal hotspot or Low Data Mode: automatic model downloads wait for Wi-Fi there.
-    static func isExpensiveNetwork() async -> Bool {
-        await withCheckedContinuation { continuation in
-            let monitor = NWPathMonitor()
-            monitor.pathUpdateHandler = { path in
-                monitor.cancel()
-                continuation.resume(returning: path.isExpensive || path.isConstrained)
-            }
-            monitor.start(queue: DispatchQueue(label: "Scribe.network"))
-        }
     }
 }

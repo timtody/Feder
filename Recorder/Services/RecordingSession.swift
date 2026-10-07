@@ -121,11 +121,7 @@ final class RecordingSession: Identifiable {
             }
             observeInterruptions()
             state = .recording(since: .now)
-            placeTask = Task { [weak self] in
-                let place = await PlaceLocator.current()
-                self?.place = place
-                return place
-            }
+            if PlaceLocator.isEnabled, !PlaceLocator.isUndetermined { lookUpPlace() }   // first recording: at Stop
             showLevels(levels.stream)
             if let liveDiarizer, let liveSamples { startLiveDiarization(liveDiarizer, samples: liveSamples.stream) }
         } catch {
@@ -175,6 +171,8 @@ final class RecordingSession: Identifiable {
             state = failure.map { .failed($0) } ?? .discarded
             return
         }
+        // The first recording asks for location now, after Stop, instead of over the live recording (PlaceLocator).
+        if placeTask == nil, PlaceLocator.isEnabled { lookUpPlace() }
         let recording = Recording(name: transcriptName,
                                   audioFileName: fileName,
                                   localeIdentifier: (locale ?? Self.transcriptionLocale).identifier(.bcp47))
@@ -201,6 +199,15 @@ final class RecordingSession: Identifiable {
                 recording.apply(place)
                 try? modelContext.save()
             }
+        }
+    }
+
+    /// Where the recording is, looked up in parallel; the transcript gets it when it arrives (never holds anything up).
+    private func lookUpPlace() {
+        placeTask = Task { [weak self] in
+            let place = await PlaceLocator.current()
+            self?.place = place
+            return place
         }
     }
 
