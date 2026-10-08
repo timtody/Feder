@@ -93,6 +93,14 @@ struct RecordingDetailView: View {
                             SummaryInProgress(recordingID: recording.id)   // reads the streamed text itself
                                 .opacity(bodyShown ? 1 : 0)
                         }
+                        // HIG › Generative AI: say that AI made it and can be wrong. For the whole transcript, not only
+                        // the summary: the words, the speakers and the names recognized by voice are all generated (a
+                        // caption under the summary alone implied the rest was not).
+                        Text("AI-generated content can contain mistakes.")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .opacity(bodyShown ? 1 : 0)
+                            .accessibilityIdentifier("AINotice")
                     }
 
                     // Only with tags, or while adding them (the toolbar's Add Tag): no empty "Add Tag" line under

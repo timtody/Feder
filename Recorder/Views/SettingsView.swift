@@ -214,7 +214,7 @@ struct TranscriptionModelView: View {
             }
             if !services.parakeet.isReady {
                 Section {
-                    ModelDownloadRow(name: "Parakeet", state: services.parakeet.state, size: "610 MB") { await services.parakeet.download() }
+                    ModelDownloadRow(name: "Parakeet", state: services.parakeet.state, size: "610 MB") { await services.parakeet.download(force: true) }
                 }
             }
         }

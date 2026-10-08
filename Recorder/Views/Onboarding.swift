@@ -10,8 +10,9 @@ enum OnboardingPage: Hashable {
     /// The notice every user gets once, existing users too: ask people before recording them (§ 201 StGB), voices
     /// you name are remembered on this iPhone, automatic results can contain mistakes; and the privacy policy.
     case beforeYouRecord
-    /// Gemma for titles and summaries: 3.6 GB, so it asks (Download / Not Now). 8 GB iPhones only.
-    case summaries
+    /// The optional downloads, on one page, each with its switch: Parakeet (610 MB, more accurate transcripts after
+    /// Stop) and Gemma (3.6 GB, titles and summaries; 8 GB iPhones only). Download / Not Now.
+    case improvements
 }
 
 /// The onboarding sheet MainView shows once at launch (`offerOnboarding`), with only the pages still due on this
@@ -22,9 +23,10 @@ enum OnboardingPage: Hashable {
 /// Laid out like Apple's welcome sheets (Journal, Freeform, Notes' What's New): a large centred title, feature rows
 /// with tinted symbols, one prominent glass button at the bottom (and a plain one under it where there is a choice).
 /// The pages are a NavigationStack inside the sheet, so iOS draws the push, the back button and the edge swipe.
-/// Welcome and Before You Record can't be swiped away (each counts only once its Continue is tapped); the Gemma page
-/// can, and counts as shown when it appears. No permission is asked here: the microphone is asked at the first
-/// Transcribe, as Voice Memos does, and location at the first Stop.
+/// Welcome and Before You Record can't be swiped away (each counts only once its Continue is tapped); Optional
+/// Improvements can, and counts as shown when it appears. No permission is asked here: the microphone is asked at the
+/// first Transcribe, as Voice Memos does, and location at the first Stop. Copy without dashes (they read as machine
+/// written), and about privacy in the first person plural: "We never upload…", not "Feder doesn't…".
 struct Onboarding: View {
     let pages: [OnboardingPage]
     /// Settings › About › Welcome: shown again to re-read, so it can be swiped away and has Done.
@@ -35,8 +37,8 @@ struct Onboarding: View {
 
     /// UserDefaults: Before You Record was confirmed (Continue).
     static let recordingNoticeKey = "recordingNoticeShown"
-    /// UserDefaults: the Gemma page was shown.
-    static let summariesShownKey = "gemmaOnboardingShown"
+    /// UserDefaults: Optional Improvements was shown. (Until October 2026 a Gemma-only page, `gemmaOnboardingShown`.)
+    static let improvementsShownKey = "improvementsOnboardingShown"
 
     private var current: OnboardingPage? { path.last ?? pages.first }
 
@@ -56,7 +58,7 @@ struct Onboarding: View {
             switch page {
             case .welcome: welcome
             case .beforeYouRecord: beforeYouRecord
-            case .summaries: summaries
+            case .improvements: improvements
             }
         }
         .toolbar {
@@ -80,7 +82,7 @@ struct Onboarding: View {
     // MARK: Pages
 
     private var welcome: some View {
-        OnboardingLayout(title: "Welcome to Feder") {
+        OnboardingLayout(title: "Welcome to Feder", showsIcon: true) {
             OnboardingRow(symbol: "waveform", title: "Transcribe As You Talk",
                           text: "Tap Transcribe and watch the words appear as people speak.")
             OnboardingRow(symbol: "person.2.wave.2", title: "Know Who Said What",
@@ -88,7 +90,7 @@ struct Onboarding: View {
             OnboardingRow(symbol: "magnifyingglass", title: "Find Anything",
                           text: "Search every word, person and tag across your transcripts.")
             OnboardingRow(symbol: "lock.fill", title: "Your Recordings Stay Here",
-                          text: "Recording, transcription and speaker detection happen on this iPhone. Feder never uploads your recordings.")
+                          text: "Recording, transcription and speaker detection happen on this iPhone. We never upload your recordings.")
         } footnote: {
             if !Self.canTranscribe {
                 Text("Live transcription needs an iPhone 12 or later.")
@@ -123,9 +125,9 @@ struct Onboarding: View {
         }
     }
 
-    private var summaries: some View {
-        SummariesPage(onDone: { next(after: .summaries) })
-            .onAppear { UserDefaults.standard.set(true, forKey: Self.summariesShownKey) }
+    private var improvements: some View {
+        ImprovementsPage(onDone: { next(after: .improvements) })
+            .onAppear { UserDefaults.standard.set(true, forKey: Self.improvementsShownKey) }
     }
 
     /// SpeechTranscriber runs on an iPhone 12 (A14) or later; iOS 26 also runs on the iPhone 11 and SE 2, where Feder
@@ -139,47 +141,111 @@ struct Onboarding: View {
     }
 }
 
-/// Gemma's page: what it does, that it runs here and can be wrong (HIG › Generative AI: say where AI is used and that
-/// it can make mistakes), the download. Free storage is checked when the page appears, so too little space is said
-/// here instead of failing after Download; off Wi-Fi (or in Low Data Mode) it says when the download starts.
-private struct SummariesPage: View {
+/// Optional Improvements: Parakeet and Gemma, clearly optional (Feder works without them), each with its switch, both on
+/// by default since the page recommends them. Only what this iPhone can still get is listed: Parakeet unless it is
+/// there or already asked for, Gemma on 8 GB iPhones while it isn't downloaded. Gemma's free storage is checked when
+/// the page appears (it needs 4 GB): too little turns its switch off and says so, instead of failing after Download.
+/// Both downloads wait for Wi-Fi (and Low Data Mode off), which the footnote says when the phone isn't there.
+private struct ImprovementsPage: View {
     let onDone: () -> Void
     @Environment(AppServices.self) private var services
+    @State private var wantsParakeet = true
+    @State private var wantsGemma = true
     @State private var freeBytes: Int64?
 
-    private var hasRoom: Bool { (freeBytes ?? .max) >= BetterSummaries.neededBytes }
+    private var offersParakeet: Bool {
+        services.downloadsParakeet && !services.parakeet.isReady && !services.parakeet.isWanted
+    }
+    private var offersGemma: Bool { BetterSummaries.isSupported && services.betterSummaries.state == .notDownloaded }
+    private var gemmaHasRoom: Bool { (freeBytes ?? .max) >= BetterSummaries.neededBytes }
+    private var getsParakeet: Bool { offersParakeet && wantsParakeet }
+    private var getsGemma: Bool { offersGemma && wantsGemma && gemmaHasRoom }
 
     var body: some View {
-        OnboardingLayout(title: "Titles and Summaries") {
-            OnboardingRow(symbol: "text.alignleft", title: "A Title for Every Transcript",
-                          text: "Feder names each transcript and sums up what was said and decided.")
-            OnboardingRow(symbol: "iphone", title: "Written on This iPhone",
-                          text: "Gemma, an AI model from Google, runs right here. Your words stay on your iPhone.")
-            OnboardingRow(symbol: "exclamationmark.bubble", title: "Double-Check Important Details",
-                          text: "Summaries can get things wrong. The full transcript is always there to check.")
-            OnboardingRow(symbol: "arrow.down.circle", title: "A One-Time Download",
-                          text: "3.6 GB over Wi-Fi. It keeps going while you use other apps.")
+        OnboardingLayout(title: "Optional Improvements") {
+            Text(offersParakeet && offersGemma
+                 ? "Feder works without these. They run on this iPhone and download once over Wi-Fi. You can add or remove them later in Settings."
+                 : "Feder works without it. It runs on this iPhone and downloads once over Wi-Fi. You can add or remove it later in Settings.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+            if offersParakeet {
+                OptionRow(symbol: "text.badge.checkmark", title: "More Accurate Transcripts",
+                          text: "After you stop, Parakeet transcribes the recording again with fewer mistakes, especially in German and other European languages.",
+                          size: "610 MB", isOn: $wantsParakeet)
+            }
+            if offersGemma {
+                OptionRow(symbol: "text.alignleft", title: "Titles and Summaries",
+                          text: "Gemma, an AI model from Google, writes a title and a short summary for each transcript.",
+                          size: gemmaHasRoom ? "3.6 GB" : "3.6 GB · needs 4 GB free", isOn: $wantsGemma)
+                    .disabled(!gemmaHasRoom)
+            }
         } footnote: {
-            if !hasRoom {
-                Text("Gemma needs 4 GB of free storage. Free up space, then download it in Settings.")
-            } else {
+            if getsParakeet || getsGemma {
                 switch services.network.kind {
-                case .lowData: Text("The download starts on Wi-Fi with Low Data Mode off.")
-                case .cellular, .offline: Text("The download starts when this iPhone is on Wi-Fi.")
+                case .lowData: Text("The downloads start on Wi-Fi with Low Data Mode off.")
+                case .cellular, .offline: Text("The downloads start when this iPhone is on Wi-Fi.")
                 case .wifi, nil: EmptyView()
                 }
             }
-            Text("You can download it later in Settings.")
         } buttons: {
-            ProminentButton("Download (3.6 GB)") {
-                services.betterSummaries.download()
+            ProminentButton(downloadTitle) {
+                if getsParakeet { services.parakeet.request() }
+                if getsGemma { services.betterSummaries.download() }
                 onDone()
             }
-            .disabled(!hasRoom)
+            .disabled(!getsParakeet && !getsGemma)
             Button("Not Now", action: onDone)
                 .controlSize(.large)
         }
-        .task { freeBytes = await BetterSummaries.freeBytes() }
+        .task {
+            freeBytes = await BetterSummaries.freeBytes()
+            if !gemmaHasRoom { wantsGemma = false }
+        }
+    }
+
+    /// The button names what it downloads, as the App Store does.
+    private var downloadTitle: LocalizedStringKey {
+        switch (getsParakeet, getsGemma) {
+        case (true, true): "Download (4.2 GB)"
+        case (true, false): "Download (610 MB)"
+        case (false, true): "Download (3.6 GB)"
+        case (false, false): "Download"
+        }
+    }
+}
+
+/// An optional download: a tinted symbol, the headline, what it does and its size, and its switch.
+private struct OptionRow: View {
+    let symbol: String
+    let title: LocalizedStringKey
+    let text: LocalizedStringKey
+    let size: LocalizedStringKey
+    @Binding var isOn: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 18) {
+            Image(systemName: symbol)
+                .font(.title)
+                .foregroundStyle(.tint)
+                .frame(width: 40)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.headline)
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(size)
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+            }
+            Toggle(isOn: $isOn) { Text(title) }
+                .labelsHidden()
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -189,6 +255,8 @@ private struct SummariesPage: View {
 /// (`safeAreaBar`, iOS 26: the content scrolls under the glass edge, as in Apple's sheets).
 private struct OnboardingLayout<Rows: View, Footnote: View, Buttons: View>: View {
     let title: LocalizedStringKey
+    /// Feder's icon above the title, as Apple's welcome sheets show the app's (Welcome only).
+    var showsIcon = false
     @ViewBuilder let rows: Rows
     @ViewBuilder let footnote: Footnote
     @ViewBuilder let buttons: Buttons
@@ -196,11 +264,19 @@ private struct OnboardingLayout<Rows: View, Footnote: View, Buttons: View>: View
     var body: some View {
         ScrollView {
             VStack(spacing: 36) {
-                Text(title)
-                    .font(.largeTitle.bold())
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 20)
-                    .accessibilityAddTraits(.isHeader)
+                VStack(spacing: 16) {
+                    if showsIcon {
+                        Image("FederIcon")
+                            .resizable()
+                            .frame(width: 88, height: 88)
+                            .accessibilityHidden(true)
+                    }
+                    Text(title)
+                        .font(.largeTitle.bold())
+                        .multilineTextAlignment(.center)
+                        .accessibilityAddTraits(.isHeader)
+                }
+                .padding(.top, 20)
                 VStack(alignment: .leading, spacing: 26) {
                     rows
                 }

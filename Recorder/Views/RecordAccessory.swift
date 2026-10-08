@@ -69,7 +69,7 @@ struct RecordAccessory: View {
                                 // said here, where it is seen without a recording, as the status line says it after Stop.
                                 ShimmerText(text: String(localized: "Preparing speaker model…"))
                                     .font(.caption)
-                            } else if let download = speakerModelDownload ?? gemmaDownload {
+                            } else if let download = speakerModelDownload ?? parakeetDownload ?? gemmaDownload {
                                 download
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -114,6 +114,22 @@ struct RecordAccessory: View {
             case .offline: Text("Speaker model · Offline")
             case .lowData: Text("Speaker model · Low Data Mode")
             default: Text("Speaker model · Waiting for Wi-Fi")
+            }
+        default:
+            nil
+        }
+    }
+
+    /// Parakeet's download (asked for in the onboarding's Optional Improvements, Wi-Fi only) while it runs or waits.
+    private var parakeetDownload: Text? {
+        switch services.parakeet.state {
+        case .downloading(let fraction):
+            Text("Downloading Parakeet · \(fraction, format: .percent.precision(.fractionLength(0)))")
+        case .waitingForWiFi:
+            switch services.network.kind {
+            case .offline: Text("Parakeet · Offline")
+            case .lowData: Text("Parakeet · Low Data Mode")
+            default: Text("Parakeet · Waiting for Wi-Fi")
             }
         default:
             nil

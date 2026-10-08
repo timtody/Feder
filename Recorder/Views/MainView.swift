@@ -121,8 +121,8 @@ struct MainView: View {
     }
 
     /// The onboarding sheet with the pages still due: Welcome on a new install (it also allows the speaker models'
-    /// downloads; existing users are migrated past it, AppServices), Before You Record once for everyone, and Gemma's
-    /// page on an iPhone that can run it while it is neither downloaded nor on its way. Nothing when none is due. A
+    /// downloads; existing users are migrated past it, AppServices), Before You Record once for everyone, and Optional
+    /// Improvements once while Parakeet or Gemma (8 GB iPhones) can still be added. Nothing when none is due. A
     /// second after launch, so the sheet rises over the list instead of with the first frame, and not over a recording
     /// or transcript opened meanwhile (`-autoRecord`, a tap).
     private func offerOnboarding() async {
@@ -130,8 +130,11 @@ struct MainView: View {
         var pages: [OnboardingPage] = []
         if !AppServices.modelDownloadsAllowed { pages.append(.welcome) }
         if !defaults.bool(forKey: Onboarding.recordingNoticeKey) { pages.append(.beforeYouRecord) }
-        if BetterSummaries.isSupported, services.betterSummaries.state == .notDownloaded,
-           !defaults.bool(forKey: Onboarding.summariesShownKey) { pages.append(.summaries) }
+        let offersParakeet = services.downloadsParakeet && !services.parakeet.isReady && !services.parakeet.isWanted
+        let offersGemma = BetterSummaries.isSupported && services.betterSummaries.state == .notDownloaded
+        if offersParakeet || offersGemma, !defaults.bool(forKey: Onboarding.improvementsShownKey) {
+            pages.append(.improvements)
+        }
         guard !pages.isEmpty else { return }
         try? await Task.sleep(for: .seconds(1))
         guard cardPhase == .closed, card.session == nil else { return }

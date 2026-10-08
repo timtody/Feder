@@ -141,32 +141,32 @@
         }
       }
     },
-    "3.6 GB over Wi-Fi. It keeps going while you use other apps.": {
+    "3.6 GB · needs 4 GB free": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "3,6 GB über WLAN. Der Download läuft weiter, während du andere Apps nutzt."
+            "value": "3,6 GB · braucht 4 GB freien Speicher"
           }
         }
       }
     },
-    "A One-Time Download": {
+    "610 MB": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ein einmaliger Download"
+            "value": "610 MB"
           }
         }
       }
     },
-    "A Title for Every Transcript": {
+    "AI-generated content can contain mistakes.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ein Titel für jedes Transkript"
+            "value": "Mit KI generierte Inhalte können Fehler enthalten."
           }
         }
       }
@@ -241,6 +241,16 @@
         }
       }
     },
+    "After you stop, Parakeet transcribes the recording again with fewer mistakes, especially in German and other European languages.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach dem Stoppen transkribiert Parakeet die Aufnahme noch einmal, mit weniger Fehlern, besonders auf Deutsch und in anderen europäischen Sprachen."
+          }
+        }
+      }
+    },
     "Already in this transcript": {
       "localizations": {
         "de": {
@@ -270,26 +280,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Automatisch"
-          }
-        }
-      }
-    },
-    "Automatic Summary": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Automatische Zusammenfassung"
-          }
-        }
-      }
-    },
-    "Automatic summary · can contain mistakes": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Automatische Zusammenfassung · kann Fehler enthalten"
           }
         }
       }
@@ -330,36 +320,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bevor du aufnimmst"
-          }
-        }
-      }
-    },
-    "Can contain mistakes.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kann Fehler enthalten."
-          }
-        }
-      }
-    },
-    "Can contain mistakes. Shows all of it.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kann Fehler enthalten. Zeigt alles."
-          }
-        }
-      }
-    },
-    "Can contain mistakes. Shows only its first lines.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kann Fehler enthalten. Zeigt nur die ersten Zeilen."
           }
         }
       }
@@ -564,16 +524,6 @@
         }
       }
     },
-    "Double-Check Important Details": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wichtige Details prüfen"
-          }
-        }
-      }
-    },
     "Download": {
       "localizations": {
         "de": {
@@ -600,6 +550,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Laden (3,6 GB)"
+          }
+        }
+      }
+    },
+    "Download (4.2 GB)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laden (4,2 GB)"
+          }
+        }
+      }
+    },
+    "Download (610 MB)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laden (610 MB)"
           }
         }
       }
@@ -684,6 +654,16 @@
         }
       }
     },
+    "Downloading Parakeet · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet wird geladen · %@"
+          }
+        }
+      }
+    },
     "Downloading speaker model · %@": {
       "localizations": {
         "de": {
@@ -719,17 +699,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Feder speichert von allen, die es hört, ein Stimmprofil – nur auf diesem iPhone – und erkennt Personen wieder, die du benannt hast. Lösche eine Person und ihre Transkripte, damit ihre Stimme vergessen wird."
-          }
-        }
-      }
-    },
-    "Feder names each transcript and sums up what was said and decided.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Feder benennt jedes Transkript und fasst zusammen, was gesagt und beschlossen wurde."
+            "value": "Feder legt von allen, die es hört, ein Stimmprofil an, das auf diesem iPhone bleibt, und erkennt so Personen wieder, die du benannt hast. Lösche eine Person und ihre Transkripte, damit ihre Stimme vergessen wird."
           }
         }
       }
@@ -740,6 +710,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Feder unterscheidet Stimmen und erkennt Personen wieder, die du schon benannt hast."
+          }
+        }
+      }
+    },
+    "Feder works without it. It runs on this iPhone and downloads once over Wi-Fi. You can add or remove it later in Settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder funktioniert auch ohne diese Erweiterung. Sie läuft auf diesem iPhone und wird einmalig über WLAN geladen. Du kannst sie später in den Einstellungen hinzufügen oder entfernen."
+          }
+        }
+      }
+    },
+    "Feder works without these. They run on this iPhone and download once over Wi-Fi. You can add or remove them later in Settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder funktioniert auch ohne diese Erweiterungen. Sie laufen auf diesem iPhone und werden einmalig über WLAN geladen. Du kannst sie später in den Einstellungen hinzufügen oder entfernen."
           }
         }
       }
@@ -784,16 +774,6 @@
         }
       }
     },
-    "Gemma needs 4 GB of free storage. Free up space, then download it in Settings.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gemma braucht 4 GB freien Speicherplatz. Schaffe Platz und lade das Modell dann in den Einstellungen."
-          }
-        }
-      }
-    },
     "Gemma · Low Data Mode": {
       "localizations": {
         "de": {
@@ -824,12 +804,12 @@
         }
       }
     },
-    "Gemma, an AI model from Google, runs right here. Your words stay on your iPhone.": {
+    "Gemma, an AI model from Google, writes a title and a short summary for each transcript.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gemma, ein KI-Modell von Google, läuft direkt hier. Deine Worte bleiben auf deinem iPhone."
+            "value": "Gemma, ein KI-Modell von Google, schreibt für jedes Transkript einen Titel und eine kurze Zusammenfassung."
           }
         }
       }
@@ -1074,6 +1054,16 @@
         }
       }
     },
+    "More Accurate Transcripts": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genauere Transkripte"
+          }
+        }
+      }
+    },
     "NVIDIA Nemotron tells speakers apart on this iPhone after you stop, much more reliably than the standard model, also when people talk in quick succession. It downloads once (100 MB), by itself on Wi-Fi, together with the model for live speaker labels (45 MB). Until then the standard model is used.": {
       "localizations": {
         "de": {
@@ -1264,8 +1254,48 @@
         }
       }
     },
+    "Optional Improvements": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optionale Verbesserungen"
+          }
+        }
+      }
+    },
     "Parakeet": {
       "shouldTranslate": false
+    },
+    "Parakeet · Low Data Mode": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet · Datensparmodus"
+          }
+        }
+      }
+    },
+    "Parakeet · Offline": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet · Offline"
+          }
+        }
+      }
+    },
+    "Parakeet · Waiting for Wi-Fi": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet · Wartet auf WLAN"
+          }
+        }
+      }
     },
     "Paused by Low Data Mode": {
       "localizations": {
@@ -1367,12 +1397,12 @@
         }
       }
     },
-    "Recording, transcription and speaker detection happen on this iPhone. Feder never uploads your recordings.": {
+    "Recording, transcription and speaker detection happen on this iPhone. We never upload your recordings.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aufnahme, Transkription und Sprechererkennung laufen auf diesem iPhone. Feder lädt deine Aufnahmen nie hoch."
+            "value": "Aufnahme, Transkription und Sprechererkennung laufen auf diesem iPhone. Wir laden deine Aufnahmen nie hoch."
           }
         }
       }
@@ -1503,6 +1533,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Transkript teilen"
+          }
+        }
+      }
+    },
+    "Shows all of it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeigt alles."
+          }
+        }
+      }
+    },
+    "Shows only its first lines.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeigt nur die ersten Zeilen."
           }
         }
       }
@@ -1757,16 +1807,6 @@
         }
       }
     },
-    "Summaries can get things wrong. The full transcript is always there to check.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zusammenfassungen können danebenliegen. Das vollständige Transkript ist immer da, um nachzusehen."
-          }
-        }
-      }
-    },
     "Summary": {
       "localizations": {
         "de": {
@@ -1857,22 +1897,22 @@
         }
       }
     },
-    "The download starts on Wi-Fi with Low Data Mode off.": {
+    "The downloads start on Wi-Fi with Low Data Mode off.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Der Download startet im WLAN, wenn der Datensparmodus aus ist."
+            "value": "Die Downloads starten im WLAN, wenn der Datensparmodus aus ist."
           }
         }
       }
     },
-    "The download starts when this iPhone is on Wi-Fi.": {
+    "The downloads start when this iPhone is on Wi-Fi.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Der Download startet, sobald dieses iPhone mit einem WLAN verbunden ist."
+            "value": "Die Downloads starten, sobald dieses iPhone mit einem WLAN verbunden ist."
           }
         }
       }
@@ -2197,32 +2237,12 @@
         }
       }
     },
-    "Written on This iPhone": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Auf diesem iPhone geschrieben"
-          }
-        }
-      }
-    },
     "Yesterday": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Gestern"
-          }
-        }
-      }
-    },
-    "You can download it later in Settings.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Du kannst es später in den Einstellungen laden."
           }
         }
       }

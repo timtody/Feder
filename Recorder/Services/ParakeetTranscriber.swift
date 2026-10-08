@@ -6,8 +6,11 @@ import Observation
 /// 80 real German clips: read speech 11.0 % -> 8.9 % word errors (4.4 % -> 2.4 % character errors) against Apple's
 /// SpeechTranscriber, phone calls equal (11.1 %), about 7x faster. 25 European languages. Optional: Apple Speech is the
 /// default, and the ~610 MB model downloads from Hugging Face into Application Support/FluidAudio/Models only when the
-/// user taps "Download Parakeet" in Settings › Transcription (any network); a finished download selects it. Until it
-/// is there and chosen, the pass uses Apple's recognizer.
+/// user asks: in the onboarding's Optional Improvements (`request`: Wi-Fi only, remembered until done, so it starts by
+/// itself when Wi-Fi comes, also at a later launch) or with "Download Parakeet" in Settings › Transcription (`download
+/// (force: true)`: any network, the tap is the choice). A finished download selects it. Until it is there and chosen,
+/// the pass uses Apple's recognizer (SpeechFileTranscriber). The download runs while the app is open (FluidAudio's
+/// session); leaving the app pauses it, and the next foreground goes on from the partial files.
 @MainActor @Observable
 final class ParakeetModel {
     /// UserDefaults key of the engine choice ("parakeet" or "apple"); absent means Apple Speech (`defaultEngine`).
@@ -15,38 +18,97 @@ final class ParakeetModel {
     nonisolated static let defaultEngine = "apple"
     nonisolated static var isPreferred: Bool { UserDefaults.standard.string(forKey: engineKey) == "parakeet" }
     nonisolated static let version: AsrModelVersion = .ultra
+    /// UserDefaults: the onboarding asked for it and it isn't there yet.
+    nonisolated static let wantedKey = "parakeetDownloadWanted"
 
     private(set) var state: ModelDownloadState
+    private let network: NetworkPath
 
-    init() {
+    init(network: NetworkPath) {
+        self.network = network
         state = AsrModels.modelsExist(at: AsrModels.defaultCacheDirectory(for: Self.version), version: Self.version)
             ? .ready : .notDownloaded
+        if state == .ready { UserDefaults.standard.removeObject(forKey: Self.wantedKey) }
+        #if DEBUG
+        if Self.fakesDownload { UserDefaults.standard.removeObject(forKey: Self.wantedKey) }   // each test run fresh
+        #endif
     }
 
     var isReady: Bool { state == .ready }
+    var isWanted: Bool { UserDefaults.standard.bool(forKey: Self.wantedKey) }
 
-    /// "Download Parakeet" in Settings, the only way it downloads (on any network). Once it is there it is the engine:
-    /// the tap was the choice.
-    func download() async {
+    /// The onboarding's Optional Improvements: download it on Wi-Fi, now or as soon as there is Wi-Fi.
+    func request() {
+        guard state != .ready else { return }
+        UserDefaults.standard.set(true, forKey: Self.wantedKey)
+        Task { await download(force: false) }
+    }
+
+    /// Launch, every foreground and Wi-Fi arriving (AppServices): goes on with a requested download.
+    func resumeIfWanted() {
+        guard isWanted else { return }
+        Task { await download(force: false) }
+    }
+
+    /// `force == false`: Wi-Fi only (otherwise it waits, `.waitingForWiFi`); `force == true`: "Download Parakeet" in
+    /// Settings, any connection. Once it is there it is the engine: asking for it was the choice.
+    func download(force: Bool) async {
         switch state {
         case .ready, .downloading: return
         case .notDownloaded, .waitingForWiFi, .failed: break
         }
+        if !force, await network.current() != .wifi {
+            state = .waitingForWiFi
+            return
+        }
         state = .downloading(0)
         do {
-            _ = try await AsrModels.download(version: Self.version) { [weak self] progress in
-                Task { @MainActor in
-                    if let self, let next = self.state.advanced(to: progress.fractionCompleted) { self.state = next }
-                }
-            }
-            FluidAudioDiarizer.excludeModelsFromBackup()
+            #if DEBUG
+            if Self.fakesDownload { try await fakeDownload() } else { try await fetch() }
+            #else
+            try await fetch()
+            #endif
             state = .ready
             UserDefaults.standard.set("parakeet", forKey: Self.engineKey)
+            UserDefaults.standard.removeObject(forKey: Self.wantedKey)
         } catch {
-            state = .failed(error.localizedDescription)
+            // Off Wi-Fi now: wait for it (a requested download goes on by itself); on Wi-Fi it is a real failure.
+            state = network.kind == .wifi || !isWanted ? .failed(error.localizedDescription) : .waitingForWiFi
+        }
+    }
+
+    private func fetch() async throws {
+        _ = try await AsrModels.download(version: Self.version) { [weak self] progress in
+            Task { @MainActor in
+                if let self, let next = self.state.advanced(to: progress.fractionCompleted) { self.state = next }
+            }
+        }
+        FluidAudioDiarizer.excludeModelsFromBackup()
+    }
+}
+
+#if DEBUG
+extension ParakeetModel {
+    /// Simulator QA: `-fakeParakeetDownload` offers Parakeet in the onboarding and downloads it in
+    /// `-fakeParakeetDownloadSeconds` (default 8). The network comes from NetworkPath's fakes.
+    static var fakesDownload: Bool {
+        #if targetEnvironment(simulator)
+        ProcessInfo.processInfo.arguments.contains("-fakeParakeetDownload")
+        #else
+        false
+        #endif
+    }
+
+    private func fakeDownload() async throws {
+        let seconds = UserDefaults.standard.double(forKey: "fakeParakeetDownloadSeconds")
+        let duration = seconds > 0 ? seconds : 8
+        for step in 1...50 {
+            try await Task.sleep(for: .seconds(duration / 50))
+            state = .downloading(Double(step) / 50)
         }
     }
 }
+#endif
 
 /// Step 1 of the full-accuracy pass with Parakeet: words with timestamps and confidences from the saved file.
 @MainActor

@@ -15,6 +15,8 @@ final class SummaryTests: ScribeUITestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         XCTAssertFalse(row.label.contains("·"), "no separator in the row's label: \(row.label)")
         open("Budget Review", in: app)
+        XCTAssertTrue(app.staticTexts["AI-generated content can contain mistakes."].exists,
+                      "one note for everything generated, not only the summary")
         let summary = app.buttons["Summary"]
         XCTAssertTrue(summary.waitForExistence(timeout: 5), "a summary longer than three lines is a button")
         XCTAssertEqual(summary.value as? String, Self.summary, "VoiceOver reads all of it, also while it is collapsed")

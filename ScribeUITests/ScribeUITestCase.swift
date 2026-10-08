@@ -23,9 +23,10 @@ class ScribeUITestCase: XCTestCase {
         // English unless a test asks for another language: the queries match the English labels, and the app follows
         // the simulator's language otherwise (Localizable.xcstrings has German).
         let language = arguments.contains("-AppleLanguages") ? [] : ["-AppleLanguages", "(en)"]
-        // The onboarding's Welcome and Before You Record pages count as passed unless a test asks for them (a fresh
-        // simulator has no transcripts, so the app would take it for a new install and cover the list with the sheet).
-        let onboarding = ["-welcomeShown", "-recordingNoticeShown"].filter { !arguments.contains($0) }.flatMap { [$0, "YES"] }
+        // The onboarding's pages count as passed unless a test asks for them (a fresh simulator has no transcripts, so
+        // the app would take it for a new install and cover the list with the sheet).
+        let onboarding = ["-welcomeShown", "-recordingNoticeShown", "-improvementsOnboardingShown"]
+            .filter { !arguments.contains($0) }.flatMap { [$0, "YES"] }
         app.launchArguments = ["-seedSamples"] + language + onboarding + arguments
         app.launch()
         XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15), "the seeded transcripts are listed")

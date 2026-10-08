@@ -35,7 +35,7 @@ final class AppServices {
     let container: ModelContainer
     let identifier: SpeakerIdentifier
     let liveDiarizer: any LiveDiarizer
-    let parakeet = ParakeetModel()
+    let parakeet: ParakeetModel                      // Parakeet Ultra for the pass after Stop (optional download)
     let network = NetworkPath()                      // Wi-Fi, cellular, Low Data Mode or offline, watched
     let nemotron: NemotronModel                      // the Nemotron speaker model's download (Settings)
     let people: PeopleDirectory
@@ -59,6 +59,7 @@ final class AppServices {
         self.nemotronDiarizer = nemotronDiarizer
         nemotron = NemotronModel(diarizer: nemotronDiarizer, network: network)
         betterSummaries = BetterSummaries(network: network)
+        parakeet = ParakeetModel(network: network)
         #if DEBUG && targetEnvironment(simulator)
         usesFakes = true
         let diarizer: any SpeakerDiarizer = FakeDiarizer()
@@ -107,6 +108,7 @@ final class AppServices {
             await identifier.refreshVoices()       // once per transcript: voices from final labels
         }
         if downloadsNemotron { Task { await nemotron.download(force: false) } }
+        if downloadsParakeet { parakeet.resumeIfWanted() }   // asked for in the onboarding, Wi-Fi only
         Task { await prepareLiveDiarizer() }       // independent: neither waits for the other
         prewarmModels()                            // once per launch: Nemotron compiled before Stop
     }
@@ -124,6 +126,7 @@ final class AppServices {
         betterSummaries.networkChanged(kind)
         guard Self.modelDownloadsAllowed, UIApplication.shared.applicationState == .active else { return }
         if downloadsNemotron { nemotron.networkChanged(kind, allowed: true) }
+        if downloadsParakeet, kind == .wifi { parakeet.resumeIfWanted() }
         guard kind != .offline else { return }
         Task { await identifier.prepareAndRetryPending() }
         Task { await prepareLiveDiarizer() }
@@ -198,6 +201,15 @@ final class AppServices {
     /// Nemotron downloads here: on an iPhone, and on the simulator only when `-fakeNemotronDownload` simulates it (the
     /// simulator never fetches the real model, also not when the Mac's network changes).
     private var downloadsNemotron: Bool { !usesFakes || fakesNemotronDownload }
+
+    /// Parakeet likewise: the simulator only with `-fakeParakeetDownload`. Also decides whether the onboarding offers it.
+    var downloadsParakeet: Bool {
+        #if DEBUG
+        !usesFakes || ParakeetModel.fakesDownload
+        #else
+        true
+        #endif
+    }
 
     /// Simulator QA: Nemotron's download is simulated (`-fakeNemotronDownload`).
     var fakesNemotronDownload: Bool {

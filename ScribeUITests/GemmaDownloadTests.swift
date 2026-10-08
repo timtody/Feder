@@ -3,11 +3,11 @@ import XCTest
 /// Gemma's download (BetterSummaries, GemmaDownload). The simulator can't run MLX and the tests must not fetch 3.6 GB:
 /// `-fakeGemmaDownload` offers Gemma as if on an 8 GB iPhone and stands in for the background transfer
 /// (`-fakeGemmaDownloadSeconds`, from 0 to 100 %), `-fakeNoWiFi` keeps it waiting for Wi-Fi.
-/// `-gemmaOnboardingShown YES` keeps the onboarding sheet away (it has its own test).
+/// `-improvementsOnboardingShown YES` keeps the onboarding sheet away (it has its own test).
 final class GemmaDownloadTests: ScribeUITestCase {
     @MainActor
     func testDownloadInSettings() throws {
-        let app = launch(["-fakeGemmaDownload", "-fakeGemmaDownloadSeconds", "12", "-gemmaOnboardingShown", "YES"])
+        let app = launch(["-fakeGemmaDownload", "-fakeGemmaDownloadSeconds", "12", "-improvementsOnboardingShown", "YES"])
         app.buttons["Settings"].firstMatch.tap()
         let row = app.buttons["Summaries"].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5))
@@ -26,7 +26,7 @@ final class GemmaDownloadTests: ScribeUITestCase {
 
     @MainActor
     func testWaitsForWiFiAndCancels() throws {
-        let app = launch(["-fakeGemmaDownload", "-fakeNoWiFi", "-gemmaOnboardingShown", "YES"])
+        let app = launch(["-fakeGemmaDownload", "-fakeNoWiFi", "-improvementsOnboardingShown", "YES"])
         app.buttons["Settings"].firstMatch.tap()
         app.buttons["Summaries"].firstMatch.tap()
         let download = app.buttons["Download Gemma 4 E2B (3.6 GB)"]

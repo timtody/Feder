@@ -1,22 +1,24 @@
 import XCTest
 
 /// The onboarding sheet (Onboarding) and the model downloads it leads to. `-welcomeShown NO`, `-recordingNoticeShown NO`
-/// and `-gemmaOnboardingShown NO` show a page even when an earlier run stored it as passed (the argument overrides the
-/// stored value; ScribeUITestCase passes YES for the first two by default). `-fakeGemmaDownload` makes the simulator
-/// an iPhone that can run Gemma, without it; `-fakeNemotronDownload` pretends Nemotron isn't there and downloads it;
-/// NetworkPath's fakes set the network: `-fakeNoWiFi` (cellular), `-fakeOffline`, `-fakeLowData`, and `-fakeWiFiAfter
-/// <s>` joins Wi-Fi after that many seconds.
+/// and `-improvementsOnboardingShown NO` show a page even when an earlier run stored it as passed (the argument
+/// overrides the stored value; ScribeUITestCase passes YES for all three by default). `-fakeGemmaDownload` makes the
+/// simulator an iPhone that can run Gemma, without it; `-fakeParakeetDownload` offers Parakeet and simulates its
+/// download; `-fakeNemotronDownload` pretends Nemotron isn't there and downloads it; NetworkPath's fakes set the
+/// network: `-fakeNoWiFi` (cellular), `-fakeOffline`, `-fakeLowData`, and `-fakeWiFiAfter <s>` joins Wi-Fi after that
+/// many seconds.
 final class OnboardingTests: ScribeUITestCase {
-    /// A new install on an 8 GB iPhone: Welcome (with the download sizes; can't be swiped away), Before You Record
-    /// (with the privacy policy), then Gemma's page without the old "earlier transcripts" row.
+    /// A new install: Welcome (with the download sizes; can't be swiped away), Before You Record (with the privacy
+    /// policy), then Optional Improvements with a switch each for Parakeet and Gemma; the button names what it loads.
     @MainActor
     func testNewInstallPages() throws {
-        let app = launch(["-welcomeShown", "NO", "-recordingNoticeShown", "NO", "-fakeGemmaDownload",
-                          "-gemmaOnboardingShown", "NO"])
+        let app = launch(["-welcomeShown", "NO", "-recordingNoticeShown", "NO", "-improvementsOnboardingShown", "NO",
+                          "-fakeGemmaDownload", "-fakeParakeetDownload"])
         let welcome = app.staticTexts["Welcome to Feder"]
         XCTAssertTrue(welcome.waitForExistence(timeout: 5), "Welcome first")
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS '21 MB'")).firstMatch.exists,
                       "it says what downloads and how much")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'We never upload'")).firstMatch.exists)
         shot("Welcome", app)
         app.swipeDown(velocity: .fast)
         XCTAssertTrue(welcome.waitForExistence(timeout: 2), "it can't be swiped away before Continue")
@@ -28,13 +30,17 @@ final class OnboardingTests: ScribeUITestCase {
         shot("Before You Record", app)
 
         app.buttons["Continue"].tap()
-        let download = app.buttons["Download (3.6 GB)"]
-        XCTAssertTrue(download.waitForExistence(timeout: 5), "then Gemma's page")
-        XCTAssertTrue(app.staticTexts["Double-Check Important Details"].exists, "it says summaries can be wrong")
-        XCTAssertFalse(app.staticTexts["Your Earlier Transcripts Too"].exists)
-        shot("Titles and Summaries", app)
+        XCTAssertTrue(app.staticTexts["Optional Improvements"].waitForExistence(timeout: 5), "then the optional downloads")
+        let both = app.buttons["Download (4.2 GB)"]
+        XCTAssertTrue(both.exists, "both on by default")
+        let parakeet = app.switches.matching(NSPredicate(format: "label BEGINSWITH 'More Accurate Transcripts'")).firstMatch
+        let gemma = app.switches.matching(NSPredicate(format: "label BEGINSWITH 'Titles and Summaries'")).firstMatch
+        XCTAssertTrue(parakeet.exists && gemma.exists, "a switch each for Parakeet and Gemma")
+        shot("Optional Improvements", app)
+        parakeet.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()   // its switch: Parakeet off
+        XCTAssertTrue(app.buttons["Download (3.6 GB)"].waitForExistence(timeout: 2), "the button follows the switches")
         app.buttons["Not Now"].tap()
-        XCTAssertTrue(download.waitForNonExistence(timeout: 5), "the sheet closes")
+        XCTAssertTrue(app.staticTexts["Optional Improvements"].waitForNonExistence(timeout: 5), "the sheet closes")
     }
 
     /// An existing user (Welcome passed) sees Before You Record once, and not again at the next launch.
@@ -56,47 +62,60 @@ final class OnboardingTests: ScribeUITestCase {
         XCTAssertFalse(app.staticTexts["Before You Record"].exists, "remembered once Continue was tapped")
     }
 
-    /// Download on Gemma's page: the sheet goes, and the accessory says how far the download is until it is done.
+    /// Download on Optional Improvements: the sheet goes, Parakeet downloads (the accessory shows it, then Gemma's),
+    /// and once there it transcribes after Stop (Settings › Transcription reads Parakeet).
     @MainActor
-    func testGemmaPageStartsTheDownload() throws {
-        let app = launch(["-fakeGemmaDownload", "-fakeGemmaDownloadSeconds", "15", "-gemmaOnboardingShown", "NO"])
-        let download = app.buttons["Download (3.6 GB)"]
+    func testImprovementsStartBothDownloads() throws {
+        let app = launch(["-fakeGemmaDownload", "-fakeGemmaDownloadSeconds", "20", "-fakeParakeetDownload",
+                          "-fakeParakeetDownloadSeconds", "6", "-improvementsOnboardingShown", "NO"])
+        let download = app.buttons["Download (4.2 GB)"]
         XCTAssertTrue(download.waitForExistence(timeout: 5), "the sheet asks once at launch")
         download.tap()
         XCTAssertTrue(download.waitForNonExistence(timeout: 5), "the sheet closes")
-        let line = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Downloading Gemma · '")).firstMatch
-        XCTAssertTrue(line.waitForExistence(timeout: 5), "the accessory shows the download")
-        shot("Accessory downloading Gemma", app)
-        XCTAssertTrue(line.waitForNonExistence(timeout: 25), "done: the line goes")
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label ENDSWITH '· On device'")).firstMatch.exists,
-                      "the language line is back")
+        let parakeet = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Downloading Parakeet · '")).firstMatch
+        XCTAssertTrue(parakeet.waitForExistence(timeout: 5), "the accessory shows Parakeet's download")
+        shot("Accessory downloading Parakeet", app)
+        let gemma = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Downloading Gemma · '")).firstMatch
+        XCTAssertTrue(gemma.waitForExistence(timeout: 15), "then Gemma's")
+        app.buttons["Settings"].firstMatch.tap()
+        let transcription = app.buttons["Transcription"].firstMatch
+        XCTAssertTrue(transcription.waitForExistence(timeout: 5))
+        XCTAssertTrue(transcription.label.contains("Parakeet"), "downloaded, it is the engine: \(transcription.label)")
     }
 
     /// Not Now: the sheet goes and does not come back at the next launch.
     @MainActor
     func testNotNowIsRemembered() throws {
-        var app = launch(["-fakeGemmaDownload", "-gemmaOnboardingShown", "NO"])
+        var app = launch(["-fakeGemmaDownload", "-improvementsOnboardingShown", "NO"])
         let notNow = app.buttons["Not Now"]
         XCTAssertTrue(notNow.waitForExistence(timeout: 5))
         notNow.tap()
         XCTAssertTrue(notNow.waitForNonExistence(timeout: 5))
         app.terminate()
 
-        app = launch(["-fakeGemmaDownload"])
+        app = XCUIApplication()                            // without the default YES: the stored value counts
+        app.launchArguments = ["-seedSamples", "-AppleLanguages", "(en)", "-welcomeShown", "YES",
+                               "-recordingNoticeShown", "YES", "-fakeGemmaDownload"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15))
         sleep(3)
-        XCTAssertFalse(app.buttons["Download (3.6 GB)"].exists, "asked once only")
+        XCTAssertFalse(app.staticTexts["Optional Improvements"].exists, "asked once only")
     }
 
-    /// Off Wi-Fi, Gemma's page says the download starts on Wi-Fi, and the accessory says it waits.
+    /// Off Wi-Fi, Optional Improvements says the downloads start on Wi-Fi, and the accessory says Parakeet waits; when
+    /// Wi-Fi comes while the app is open, it downloads.
     @MainActor
-    func testGemmaWaitsForWiFi() throws {
-        let app = launch(["-fakeGemmaDownload", "-fakeNoWiFi", "-gemmaOnboardingShown", "NO"])
-        let download = app.buttons["Download (3.6 GB)"]
+    func testImprovementsWaitForWiFi() throws {
+        let app = launch(["-fakeParakeetDownload", "-fakeParakeetDownloadSeconds", "6", "-fakeNoWiFi",
+                          "-fakeWiFiAfter", "12", "-improvementsOnboardingShown", "NO"])
+        let download = app.buttons["Download (610 MB)"]
         XCTAssertTrue(download.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["The download starts when this iPhone is on Wi-Fi."].exists)
+        XCTAssertTrue(app.staticTexts["The downloads start when this iPhone is on Wi-Fi."].exists)
         download.tap()
-        XCTAssertTrue(app.staticTexts["Gemma · Waiting for Wi-Fi"].waitForExistence(timeout: 5), "waiting, said so")
-        shot("Accessory Gemma waiting", app)
+        XCTAssertTrue(app.staticTexts["Parakeet · Waiting for Wi-Fi"].waitForExistence(timeout: 5), "waiting, said so")
+        shot("Accessory Parakeet waiting", app)
+        let line = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Downloading Parakeet · '")).firstMatch
+        XCTAssertTrue(line.waitForExistence(timeout: 15), "Wi-Fi arrived: it downloads without leaving the app")
     }
 
     /// Nemotron's download in the accessory: the percentage, then "Preparing speaker model…" while it is loaded, then
