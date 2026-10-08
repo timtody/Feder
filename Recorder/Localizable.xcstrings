@@ -414,6 +414,16 @@
         }
       }
     },
+    "Completely Private": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Komplett privat"
+          }
+        }
+      }
+    },
     "Continue": {
       "localizations": {
         "de": {
@@ -700,6 +710,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Jede Aufnahme wird nach dem Stoppen auf diesem iPhone noch einmal transkribiert. Apple Speech nutzt das Sprachmodell, das iOS für deine Sprache bereithält; Parakeet ist für Deutsch und andere europäische Sprachen genauer und braucht einen einmaligen Download von 610 MB."
+          }
+        }
+      }
+    },
+    "Everything happens on this iPhone: recording, transcription, speakers and summaries. We never upload your recordings or transcripts.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alles passiert auf diesem iPhone: Aufnahme, Transkription, Sprecher und Zusammenfassungen. Wir laden deine Aufnahmen und Transkripte nie hoch."
           }
         }
       }
@@ -1457,16 +1477,6 @@
         }
       }
     },
-    "Recording, transcription and speaker detection happen on this iPhone. We never upload your recordings.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aufnahme, Transkription und Sprechererkennung laufen auf diesem iPhone. Wir laden deine Aufnahmen nie hoch."
-          }
-        }
-      }
-    },
     "Refining speakers…": {
       "localizations": {
         "de": {
@@ -2092,7 +2102,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Um Sprecher zu unterscheiden, lädt Feder einmalig seine Sprechermodelle: 21 MB jetzt und weitere 145 MB im WLAN."
+            "value": "Für die Sprechererkennung lädt Feder einmalig 21 MB jetzt und 145 MB im WLAN."
           }
         }
       }
@@ -2353,16 +2363,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gestern"
-          }
-        }
-      }
-    },
-    "Your Recordings Stay Here": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deine Aufnahmen bleiben hier"
           }
         }
       }

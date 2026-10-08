@@ -84,15 +84,15 @@ struct Onboarding: View {
     // MARK: Pages
 
     private var welcome: some View {
-        OnboardingLayout(title: "Welcome to Feder", showsIcon: true) {
+        OnboardingLayout(title: "Welcome to Feder") {
             OnboardingRow(symbol: "waveform", title: "Transcribe As You Talk",
                           text: "Tap Transcribe and watch the words appear as people speak.")
             OnboardingRow(symbol: "person.2.wave.2", title: "Know Who Said What",
                           text: "Feder tells voices apart and recognizes people you've named before.")
             OnboardingRow(symbol: "magnifyingglass", title: "Find Anything",
                           text: "Search every word, person and tag across your transcripts.")
-            OnboardingRow(symbol: "lock.fill", title: "Your Recordings Stay Here",
-                          text: "Recording, transcription and speaker detection happen on this iPhone. We never upload your recordings.")
+            OnboardingRow(symbol: "lock.fill", title: "Completely Private",
+                          text: "Everything happens on this iPhone: recording, transcription, speakers and summaries. We never upload your recordings or transcripts.")
         } footnote: {
             if !Self.canTranscribe {
                 Text("Live transcription needs an iPhone 12 or later.")
@@ -273,8 +273,6 @@ private struct OptionRow: View {
 /// (`safeAreaBar`, iOS 26: the content scrolls under the glass edge, as in Apple's sheets).
 private struct OnboardingLayout<Rows: View, Footnote: View, Buttons: View>: View {
     let title: LocalizedStringKey
-    /// Feder's icon above the title, as Apple's welcome sheets show the app's (Welcome only).
-    var showsIcon = false
     @ViewBuilder let rows: Rows
     @ViewBuilder let footnote: Footnote
     @ViewBuilder let buttons: Buttons
@@ -282,19 +280,11 @@ private struct OnboardingLayout<Rows: View, Footnote: View, Buttons: View>: View
     var body: some View {
         ScrollView {
             VStack(spacing: 36) {
-                VStack(spacing: 16) {
-                    if showsIcon {
-                        Image("FederIcon")
-                            .resizable()
-                            .frame(width: 88, height: 88)
-                            .accessibilityHidden(true)
-                    }
-                    Text(title)
-                        .font(.largeTitle.bold())
-                        .multilineTextAlignment(.center)
-                        .accessibilityAddTraits(.isHeader)
-                }
-                .padding(.top, 20)
+                Text(title)
+                    .font(.largeTitle.bold())
+                    .multilineTextAlignment(.center)
+                    .accessibilityAddTraits(.isHeader)
+                    .padding(.top, 20)
                 VStack(alignment: .leading, spacing: 26) {
                     rows
                 }
