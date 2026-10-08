@@ -1,7 +1,7 @@
 # XcodeGen spec. Run `xcodegen generate` here to (re)create Recorder.xcodeproj. Info.plist is generated from `info:`.
 name: Recorder
 options:
-  bundleIdPrefix: de.cofinpro                # placeholder: your reverse-DNS prefix
+  bundleIdPrefix: de.timtody
   deploymentTarget:
     iOS: "26.0"                              # SpeechTranscriber needs iOS 26; the installed simulator runtime is 26.5
   xcodeVersion: "27.0"
@@ -73,8 +73,8 @@ targets:
         ITSAppUsesNonExemptEncryption: false
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.cofinpro.recorder       # placeholder
-        PRODUCT_NAME: Recorder
+        PRODUCT_BUNDLE_IDENTIFIER: de.timtody.feder
+        PRODUCT_NAME: Feder
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         MARKETING_VERSION: "1.0"
@@ -101,7 +101,7 @@ targets:
       - target: Recorder
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: de.cofinpro.recorder.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: de.timtody.feder.uitests
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: Recorder
         TARGETED_DEVICE_FAMILY: "1"

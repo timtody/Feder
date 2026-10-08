@@ -2,7 +2,7 @@
 
 Feder is free. State in October 2026 (corrected against Apple's pages and the code on 2026-10-07): usage descriptions (microphone, location), `UIBackgroundModes: audio`, `ITSAppUsesNonExemptEncryption: false`, the launch screen, the icon and the 8 GB gating for Gemma are done. **No signed Release build has ever been made**: the only Release product (Oct 3) is unsigned and still says "Scribe". The bundle id `de.cofinpro.recorder` and `PRODUCT_NAME` `Recorder` never change.
 
-Status: **[done]** is in the app; **[this change]** is being added now; **[open]** is for you (or a later code change). Nothing here is legal advice; Cofinpro legal confirms the legal items.
+Status: **[done]** is in the app; **[this change]** is being added now; **[open]** is for you (or a later code change). Nothing here is legal advice; have a lawyer confirm the legal items.
 
 ## 1. Read first (Apple), in this order
 
@@ -61,8 +61,9 @@ Status: **[done]** is in the app; **[this change]** is being added now; **[open]
 
 ### App Store Connect
 
-- [ ] **[open] Account decision and DSA trader status**: Cofinpro organisation or personal account, before creating the app record. Under Cofinpro, Feder is a trader whether or not it has tips (developed in connection with a business); a trader's address, phone and email are verified and shown on the EU product page. Without a verified status the app is not distributed in the 27 EU storefronts. Needs the Admin role; verification has taken weeks. Use the same data in `Legal.json`.
+- [ ] **[open] DSA trader status**: Feder publishes under the personal account timtody (team GL55J24MCR, bundle id `de.timtody.feder`, decided 2026-10-08). Declare the trader status in App Store Connect › Business early (verification can take weeks). As a non-trader (free, no In-App Purchases, no business purpose) nothing is shown; as a trader Apple shows address, phone and email on the EU product page, and allows a P.O. box for individuals there. Tips would very likely make Feder a trader, which is one more reason to ship 1.0 without them.
 - [ ] **[open] App record**: name "Feder" (check it is free when you create the record), primary language German, category Productivity (secondary Business), English and German localizations (§5).
+- [ ] **[open] Impressum (§ 5 DDG)** in `Legal.json` › legalNotice, shown in the app (Settings › About › Legal Notice: two taps, works offline) and to be put on the support page, so it can be read before the download (e-recht24's app guidance: at most two clicks, online and offline). It needs the full first and last name (the account name timtody alone is not enough), a *ladungsfähige Anschrift* (a street address where court and official mail can be served; a P.O. box is not enough), so not the private address: use the c/o address of an Impressum or mail-forwarding service, and an email plus a second quick contact (phone or contact form). The privacy policy names the publisher with name and email and points to the Impressum.
 - [ ] **[open] Privacy policy URL**: host the same text as `Legal.json` (EN and DE) at a public URL and enter it; put the Impressum on the support page too. **Support URL** with real contact details (required).
 - [ ] **[open] App Privacy**: "Data Not Collected" (No to "Do you or your third-party partners collect data?"). Reasons: everything is processed on the device; the Hugging Face downloads carry no identifier or token and the IP address only serves the file; data Apple collects (MapKit, App Store) is not yours to disclose.
 - [x] **[done] Export compliance**: `ITSAppUsesNonExemptEncryption = false` (HTTPS via `URLSession`, CryptoKit hashing; no BoringSSL in the binary). Recheck if an encryption library is added.
@@ -72,7 +73,7 @@ Status: **[done]** is in the app; **[this change]** is being added now; **[open]
 - [ ] **[open] Availability**: deselect **China mainland** (needs an ICP filing and approval for generative AI). Decide **Mac (Apple silicon) and Apple Vision Pro**: on by default, untested (microphone, background audio, MLX, the 8 GB check), so deselect for 1.0 unless tested. Reviewers may also run the iPhone app on an iPad (2.4.1).
 - [ ] **[open] Description**: "Requires iPhone 12 or later" (SpeechTranscriber is unavailable on iPhone 11 and SE 2, which iOS 26 still supports; the app installs there and can't record) and "Titles and summaries need an iPhone with at least 8 GB of memory". No "Gemma", "Google" or "NVIDIA" in the name, subtitle or keywords (descriptive use in the app is fine).
 - [ ] **[open] Release**: manual release for 1.0; phased release for updates.
-- [ ] **[open] Legal review by Cofinpro legal**: the Impressum and the privacy policy (placeholders, the legal-basis paragraph, whether the model and place-name requests are attributable to the provider, the consumer-dispute sentence), and the **EU AI Act Art. 50(2)** question: machine-readable marking of AI-generated text applies since 2 Aug 2026; Feder launches after that, so no grace period; are on-device titles and summaries of the user's own transcript an "assistive function" that does "not substantially alter the input data"? Cheap hedge: the AI label above.
+- [ ] **[open] Legal review by a lawyer**: the Impressum and the privacy policy (placeholders, the legal-basis paragraph, whether the model and place-name requests are attributable to the provider, the consumer-dispute sentence), and the **EU AI Act Art. 50(2)** question: machine-readable marking of AI-generated text applies since 2 Aug 2026; Feder launches after that, so no grace period; are on-device titles and summaries of the user's own transcript an "assistive function" that does "not substantially alter the input data"? Cheap hedge: the AI label above.
 
 ### Optional, not for 1.0
 
@@ -228,5 +229,5 @@ Contact: [name, phone, email]
 1. Account decision and DSA trader status (can take weeks; start now) → fill the placeholders in `Legal.json`, host the privacy page and the support page.
 2. Remove `Saved state!.icon`; privacy manifest, Privacy Policy, Legal Notice and Acknowledgements in; German strings; the NemoTextProcessing trait.
 3. Signed Release archive → TestFlight on the iPhone 17 → a week of real use, including the airplane-mode checks.
-4. Cofinpro legal reviews the texts (and Art. 50) in parallel.
+4. A lawyer reviews the texts (and Art. 50) in parallel.
 5. App record, App Privacy, age rating, screenshots (EN, DE), availability (no China mainland; Mac/Vision Pro decided) → submit with manual release.

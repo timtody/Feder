@@ -6,7 +6,7 @@ import Synchronization
 /// DEBUG timing of the live screen, from a transcription result (or a live-label snapshot, or a label coming due) to
 /// the pixels: RecordingSession received it -> published the new LiveText -> LiveTranscriptModel.update -> the body of
 /// the first changed paragraph -> its text drawn (WordFadeRenderer). Always as signposts (Instruments: subsystem
-/// de.cofinpro.recorder, category "Live"); with the launch argument `-liveTrace` also one console line per update and
+/// de.timtody.feder, category "Live"); with the launch argument `-liveTrace` also one console line per update and
 /// a summary when the recording stops. Main-actor work per update = "session" + "model"; "drawn" is how long after the
 /// result the new text was drawn.
 nonisolated enum LiveTrace {
@@ -31,7 +31,7 @@ nonisolated enum LiveTrace {
         var drawn: [Double] = []
     }
 
-    private static let signposter = OSSignposter(subsystem: "de.cofinpro.recorder", category: "Live")
+    private static let signposter = OSSignposter(subsystem: "de.timtody.feder", category: "Live")
     private static let state = Mutex(State())
     private static let verbose = ProcessInfo.processInfo.arguments.contains("-liveTrace")
 

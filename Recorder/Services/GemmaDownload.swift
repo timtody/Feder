@@ -14,7 +14,7 @@ import Foundation
 /// UserDefaults `wantedKey` remembers that the user asked for it, so a launch picks the download up again.
 nonisolated final class GemmaDownload: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
     static let shared = GemmaDownload()
-    static let sessionIdentifier = "de.cofinpro.recorder.gemma"
+    static let sessionIdentifier = "de.timtody.feder.gemma"
     /// Set by `start`, cleared when the files are complete or the download is cancelled.
     static let wantedKey = "gemmaDownloadWanted"
 

@@ -50,7 +50,7 @@ struct LegalTextView: View {
                             Text(section.heading)
                                 .font(.headline)
                                 .accessibilityAddTraits(.isHeader)
-                            Text(section.body)
+                            Text(Self.linked(section.body))
                                 .font(.subheadline)
                                 .textSelection(.enabled)
                         }
@@ -64,6 +64,21 @@ struct LegalTextView: View {
         .navigationTitle(loaded?.title ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .task { loaded = await Self.read(document) }
+    }
+
+    /// The text with its web addresses and email addresses as links (the legal notice and the contact point to the
+    /// website and the email; the full address isn't in the app).
+    nonisolated static func linked(_ text: String) -> AttributedString {
+        var attributed = AttributedString(text)
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+            return attributed
+        }
+        for match in detector.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
+            guard let url = match.url, let range = Range(match.range, in: text),
+                  let found = attributed.range(of: String(text[range])) else { continue }
+            attributed[found].link = url
+        }
+        return attributed
     }
 
     /// Off the main actor: a bundle file read and a JSON decode.

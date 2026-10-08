@@ -10,7 +10,7 @@
         },
         {
           "heading": "Who Is Responsible",
-          "body": "Provider of Feder:\n[Provider name]\n[Street and number]\n[Postcode and city]\nEmail: [Email]\nPhone: [Phone]\n\n[Data protection officer: name and email, if one is appointed]\n\nThe provider processes no personal data through the app. If you use Feder at work to record other people, you are responsible for those recordings under data protection law (see “Recording Other People”)."
+          "body": "Feder is published by [First and last name] (timtody).\nEmail: [Email]\n\nThe full contact details are in the legal notice, in Feder's settings and at [Legal notice URL].\n\nWe process no personal data through the app. If you use Feder at work to record other people, you are responsible for those recordings under data protection law (see “Recording Other People”)."
         },
         {
           "heading": "What Feder Stores on Your iPhone",
@@ -62,7 +62,7 @@
         },
         {
           "heading": "Contact",
-          "body": "For questions about privacy, write to [Email] or to:\n[Provider name]\n[Street and number]\n[Postcode and city]"
+          "body": "For questions about privacy, write to [Email]."
         },
         {
           "heading": "Changes to This Policy",
@@ -80,7 +80,7 @@
         },
         {
           "heading": "Verantwortlich",
-          "body": "Anbieter von Feder:\n[Provider name]\n[Street and number]\n[Postcode and city]\nE-Mail: [Email]\nTelefon: [Phone]\n\n[Datenschutzbeauftragte(r): Name und E-Mail, falls benannt]\n\nDer Anbieter verarbeitet über die App keine personenbezogenen Daten. Wenn du Feder beruflich nutzt, um andere aufzunehmen, bist du für diese Aufnahmen datenschutzrechtlich verantwortlich (siehe „Andere Menschen aufnehmen“)."
+          "body": "Feder wird von [Vor- und Nachname] (timtody) veröffentlicht.\nE-Mail: [Email]\n\nDie vollständigen Kontaktdaten stehen im Impressum, in den Einstellungen von Feder und unter [Legal notice URL].\n\nWir verarbeiten über die App keine personenbezogenen Daten. Wenn du Feder beruflich nutzt, um andere aufzunehmen, bist du für diese Aufnahmen datenschutzrechtlich verantwortlich (siehe „Andere Menschen aufnehmen“)."
         },
         {
           "heading": "Was Feder auf deinem iPhone speichert",
@@ -132,7 +132,7 @@
         },
         {
           "heading": "Kontakt",
-          "body": "Fragen zum Datenschutz schickst du an [Email] oder an:\n[Provider name]\n[Street and number]\n[Postcode and city]"
+          "body": "Fragen zum Datenschutz schickst du an [Email]."
         },
         {
           "heading": "Änderungen",
@@ -148,27 +148,15 @@
       "sections": [
         {
           "heading": "Information According to § 5 DDG",
-          "body": "[Provider name]\n[Street and number]\n[Postcode and city]\nGermany"
+          "body": "[First and last name]\nc/o [Name of the address service]\n[Street and number]\n[Postcode and city]\nGermany"
         },
         {
           "heading": "Contact",
-          "body": "Email: [Email]\nPhone: [Phone]"
+          "body": "Email: [Email]\n[Phone or contact form: a second quick way to reach you]"
         },
         {
-          "heading": "Represented By",
-          "body": "[Managing directors]"
-        },
-        {
-          "heading": "Register Entry",
-          "body": "[Register court and number]"
-        },
-        {
-          "heading": "VAT ID",
-          "body": "VAT identification number according to § 27a of the German VAT Act (UStG): [VAT ID]"
-        },
-        {
-          "heading": "Consumer Dispute Resolution",
-          "body": "[We are neither willing nor obliged to take part in dispute resolution proceedings before a consumer arbitration board.]"
+          "heading": "Online",
+          "body": "This legal notice is also at [Legal notice URL]."
         },
         {
           "heading": "Open-Source Software and Models",
@@ -182,27 +170,15 @@
       "sections": [
         {
           "heading": "Angaben gemäß § 5 DDG",
-          "body": "[Provider name]\n[Street and number]\n[Postcode and city]\nDeutschland"
+          "body": "[Vor- und Nachname]\nc/o [Name des Impressum-Dienstes]\n[Straße und Hausnummer]\n[PLZ und Ort]\nDeutschland"
         },
         {
           "heading": "Kontakt",
-          "body": "E-Mail: [Email]\nTelefon: [Phone]"
+          "body": "E-Mail: [Email]\n[Telefon oder Kontaktformular: ein zweiter schneller Kontaktweg]"
         },
         {
-          "heading": "Vertreten durch",
-          "body": "[Managing directors]"
-        },
-        {
-          "heading": "Registereintrag",
-          "body": "[Register court and number]"
-        },
-        {
-          "heading": "Umsatzsteuer-ID",
-          "body": "Umsatzsteuer-Identifikationsnummer gemäß § 27a Umsatzsteuergesetz: [VAT ID]"
-        },
-        {
-          "heading": "Verbraucherstreitbeilegung",
-          "body": "[Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.]"
+          "heading": "Online",
+          "body": "Dieses Impressum findest du auch unter [Legal notice URL]."
         },
         {
           "heading": "Open-Source-Software und -Modelle",

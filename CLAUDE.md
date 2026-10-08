@@ -4,7 +4,7 @@ Feder is a local-only iPhone transcription app: SwiftUI, Swift 6, iOS 26+, built
 
 ## Hard rules
 
-- **Never change the bundle id (`de.cofinpro.recorder`) or `PRODUCT_NAME` (`Recorder`).** The user's real transcripts live on their iPhone under this identity. Only the display name (now "Feder"; it was "Scribe") may change.
+- **Never change the bundle id (`de.timtody.feder`) or `PRODUCT_NAME` (`Feder`).** The user's real transcripts live on their iPhone under this identity, and the App Store record is tied to it. (Changed once, on 2026-10-08, from `de.cofinpro.recorder` / `Recorder` before the first App Store submission, at the user's request: it publishes under timtody; the transcripts under the old identity were deliberately not moved.)
 - **Nothing leaves the phone.** Do not add network calls except the existing, user-initiated model downloads: Parakeet, Nemotron and Gemma via pinned Hugging Face revisions. No analytics and no cloud models.
 - **UI tests and the `-seedSamples` launch hooks are simulator only.** They must never touch an iPhone's store.
 - **A local git repo, no remote.** Commit after each step with a clear message, so steps can be reverted; still look before you overwrite or delete. `build/`, DerivedData and `*.xcresult` are ignored.
@@ -22,8 +22,8 @@ build/qa/build.sh          # build gate: Debug, generic iOS Simulator; prints ap
 - **Visual checks:** use the iPhone 17 iOS 27 simulator `69C35674-CE05-437A-B1F2-C37D41BE149B` (derived data `build/DerivedDataSwipe`). It matches the user's device and has many transcripts, so lists scroll and the tab bar minimizes.
 - **One `xcodebuild` per simulator at a time.** Parallel runs on the same simulator interrupt each other.
 - **Run long `xcodebuild test` runs in the background and poll the log.** A foreground command dies after 10 minutes. xcodebuild sometimes lingers after the last test has finished; kill it once the log shows the final suite line.
-- **Microphone for recording tests:** grant it first with `xcrun simctl privacy <udid> grant microphone de.cofinpro.recorder`.
-- **Responsiveness:** `build/qa/perf.sh <name>` builds for the iPhone 17 simulator, runs `ResponsivenessTests/testInteractionPathsTrace` twice and captures the app's `-interactionTrace` log (a press's main-thread turn and first frame); `build/qa/perf/profile.sh <name> [nobuild]` records a Time Profiler of that test and `tp4.py` aggregates it per press (symbolicated with `atos` against `Recorder.debug.dylib`). Numbers and method: README › Performance.
+- **Microphone for recording tests:** grant it first with `xcrun simctl privacy <udid> grant microphone de.timtody.feder`.
+- **Responsiveness:** `build/qa/perf.sh <name>` builds for the iPhone 17 simulator, runs `ResponsivenessTests/testInteractionPathsTrace` twice and captures the app's `-interactionTrace` log (a press's main-thread turn and first frame); `build/qa/perf/profile.sh <name> [nobuild]` records a Time Profiler of that test and `tp4.py` aggregates it per press (symbolicated with `atos` against `Feder.debug.dylib`). Numbers and method: README › Performance.
 - **Launching the app by hand:** `xcrun simctl launch` with the DEBUG hooks (`-seedSamples`, `-search <text>`, `-searchToken person:<name>,tag:<tag>`, `-openFirstTranscript`, `-autoRecord -autoStopAfter <s>`, `-fakePrepareSeconds <s>`, `-fakeWordChanges`, `-interactionTrace`, …; see README › Build). The hooks live in `MainView+LaunchArguments.swift`. In zsh, quote or `eval` multi-word arguments, because `$args` is not word-split.
 - **Animations:** `xcrun simctl io <udid> recordVideo --codec h264 --force <file>`. The recordings have a variable frame rate, so extract frames with `ffmpeg -fps_mode vfr`. Inspect screenshots and frames yourself before claiming something looks right.
 - **Scratch files** go under `build/qa/` (not committed anywhere) and get cleaned up afterwards.
