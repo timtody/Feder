@@ -34,8 +34,8 @@ final class OnboardingTests: ScribeUITestCase {
         XCTAssertTrue(app.staticTexts["Optional Improvements"].waitForExistence(timeout: 5), "then the optional downloads")
         let both = app.buttons["Download (4.2 GB)"]
         XCTAssertTrue(both.exists, "both on by default")
-        let parakeet = app.switches.matching(NSPredicate(format: "label BEGINSWITH 'More Accurate Transcripts'")).firstMatch
-        let gemma = app.switches.matching(NSPredicate(format: "label BEGINSWITH 'Titles and Summaries'")).firstMatch
+        let parakeet = app.switches.matching(NSPredicate(format: "label BEGINSWITH 'AI Model for More Accurate Transcripts'")).firstMatch
+        let gemma = app.switches.matching(NSPredicate(format: "label BEGINSWITH 'AI Model for Summaries and Automatic Titles'")).firstMatch
         XCTAssertTrue(parakeet.exists && gemma.exists, "a switch each for Parakeet and Gemma")
         shot("Optional Improvements", app)
         parakeet.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()   // its switch: Parakeet off

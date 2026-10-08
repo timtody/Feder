@@ -141,22 +141,32 @@
         }
       }
     },
-    "3.6 GB · not enough free storage": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "3,6 GB · nicht genug freier Speicher"
-          }
-        }
-      }
-    },
     "610 MB": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "610 MB"
+          }
+        }
+      }
+    },
+    "AI Model for More Accurate Transcripts": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KI-Modell für genauere Transkripte"
+          }
+        }
+      }
+    },
+    "AI Model for Summaries and Automatic Titles": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KI-Modell für Zusammenfassungen und automatische Titel"
           }
         }
       }
@@ -237,16 +247,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fügt diesen Tag zur Suche hinzu"
-          }
-        }
-      }
-    },
-    "After you stop, Parakeet transcribes the recording again with fewer mistakes, especially in German and other European languages.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nach dem Stoppen transkribiert Parakeet die Aufnahme noch einmal, mit weniger Fehlern, besonders auf Deutsch und in anderen europäischen Sprachen."
           }
         }
       }
@@ -559,7 +559,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laden (3,6 GB)"
+            "value": "Herunterladen (3,6 GB)"
           }
         }
       }
@@ -569,7 +569,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laden (4,2 GB)"
+            "value": "Herunterladen (4,2 GB)"
           }
         }
       }
@@ -579,7 +579,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Laden (610 MB)"
+            "value": "Herunterladen (610 MB)"
           }
         }
       }
@@ -774,6 +774,26 @@
         }
       }
     },
+    "Gemma by Google · 3.6 GB": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma von Google · 3,6 GB"
+          }
+        }
+      }
+    },
+    "Gemma by Google · 3.6 GB · not enough free storage": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma von Google · 3,6 GB · nicht genug freier Speicher"
+          }
+        }
+      }
+    },
     "Gemma could not be loaded. Download it again.": {
       "localizations": {
         "de": {
@@ -820,16 +840,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gemma · Wartet auf WLAN"
-          }
-        }
-      }
-    },
-    "Gemma, an AI model from Google, writes a title and a short summary for each transcript.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gemma, ein KI-Modell von Google, schreibt für jedes Transkript einen Titel und eine kurze Zusammenfassung."
           }
         }
       }
@@ -1074,16 +1084,6 @@
         }
       }
     },
-    "More Accurate Transcripts": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Genauere Transkripte"
-          }
-        }
-      }
-    },
     "NVIDIA Nemotron tells speakers apart on this iPhone after you stop, much more reliably than the standard model, also when people talk in quick succession. It downloads once (100 MB), by itself on Wi-Fi, together with the model for live speaker labels (45 MB). Until then the standard model is used.": {
       "localizations": {
         "de": {
@@ -1306,6 +1306,16 @@
     },
     "Parakeet": {
       "shouldTranslate": false
+    },
+    "Parakeet · 610 MB": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parakeet · 610 MB"
+          }
+        }
+      }
     },
     "Parakeet · Low Data Mode": {
       "localizations": {
@@ -2117,6 +2127,16 @@
         }
       }
     },
+    "Transcribes each recording again after you stop, with fewer mistakes, especially in German and other European languages.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkribiert jede Aufnahme nach dem Stoppen noch einmal, mit weniger Fehlern, besonders auf Deutsch und in anderen europäischen Sprachen."
+          }
+        }
+      }
+    },
     "Transcribing…": {
       "localizations": {
         "de": {
@@ -2293,6 +2313,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Willkommen bei Feder"
+          }
+        }
+      }
+    },
+    "Writes a title and a short summary for each transcript.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schreibt für jedes Transkript einen Titel und eine kurze Zusammenfassung."
           }
         }
       }

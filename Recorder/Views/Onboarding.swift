@@ -143,7 +143,9 @@ struct Onboarding: View {
     }
 }
 
-/// Optional Improvements: Parakeet and Gemma, clearly optional (Feder works without them), each with its switch, both on
+/// Optional Improvements: two AI models, named by what they do ("AI Model for More Accurate Transcripts", "AI Model for
+/// Summaries and Automatic Titles") with a one-line description and the model's name and size underneath (Parakeet,
+/// Gemma by Google): clearly optional (Feder works without them), each with its switch, both on
 /// by default since the page recommends them. Only what this iPhone can still get is listed: Parakeet unless it is
 /// there or already asked for, Gemma on 8 GB iPhones while it isn't downloaded. Gemma's free storage is checked when
 /// the page appears (it needs 4 GB): too little turns its switch off and says so, instead of failing after Download.
@@ -176,14 +178,15 @@ private struct ImprovementsPage: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
             if offersParakeet {
-                OptionRow(symbol: "text.badge.checkmark", title: "More Accurate Transcripts",
-                          text: "After you stop, Parakeet transcribes the recording again with fewer mistakes, especially in German and other European languages.",
-                          size: "610 MB", isOn: $wantsParakeet)
+                OptionRow(symbol: "text.badge.checkmark", title: "AI Model for More Accurate Transcripts",
+                          text: "Transcribes each recording again after you stop, with fewer mistakes, especially in German and other European languages.",
+                          size: "Parakeet · 610 MB", isOn: $wantsParakeet)
             }
             if offersGemma {
-                OptionRow(symbol: "text.alignleft", title: "Titles and Summaries",
-                          text: "Gemma, an AI model from Google, writes a title and a short summary for each transcript.",
-                          size: gemmaHasRoom ? "3.6 GB" : "3.6 GB · not enough free storage", isOn: $wantsGemma)
+                OptionRow(symbol: "text.alignleft", title: "AI Model for Summaries and Automatic Titles",
+                          text: "Writes a title and a short summary for each transcript.",
+                          size: gemmaHasRoom ? "Gemma by Google · 3.6 GB" : "Gemma by Google · 3.6 GB · not enough free storage",
+                          isOn: $wantsGemma)
                     .disabled(!gemmaHasRoom)
             }
         } footnote: {
@@ -314,6 +317,9 @@ private struct OnboardingLayout<Rows: View, Footnote: View, Buttons: View>: View
             .padding(.bottom, 8)
         }
         .toolbarTitleDisplayMode(.inline)
+        // Always shown, also on the first page without a back button: hidden there, the pushed page laid out under a
+        // bar that came in with its back button and slid down about 15 pt once the push had ended (seen frame by frame).
+        .toolbarVisibility(.visible, for: .navigationBar)
     }
 }
 
