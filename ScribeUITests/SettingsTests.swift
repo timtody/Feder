@@ -250,4 +250,42 @@ final class SettingsTests: ScribeUITestCase {
         app.buttons["Done"].tap()                          // a replay can be left without going through it
         XCTAssertTrue(welcome.waitForNonExistence(timeout: 5), "Done closes the replay")
     }
+
+    /// Settings › People: "Recognize People by Voice" first, on by default. The seeded people have voice profiles, so
+    /// turning it off asks first (Cancel keeps it on), then deletes them: turned on again, the people's voices are
+    /// unknown until they are named again.
+    @MainActor
+    func testVoiceRecognitionSwitch() throws {
+        let app = launch()
+        app.buttons["Settings"].firstMatch.tap()
+        let toggle = app.switches["Recognize People by Voice"].firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "the switch in Settings")
+        XCTAssertEqual(toggle.value as? String, "1", "on by default")
+        let people = app.buttons["People"].firstMatch
+        XCTAssertLessThan(toggle.frame.minY, people.frame.minY, "first, above People")
+        XCTAssertLessThan(people.frame.maxY, app.switches["Live Speaker Labels"].firstMatch.frame.minY, "the first group")
+        shot("People group", app)
+        let knob = toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5))   // the switch at the row's end
+
+        knob.tap()
+        let alert = app.alerts["Delete Voice Profiles?"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5), "voice profiles exist: it asks before deleting them")
+        shot("Delete voice profiles", app)
+        alert.buttons["Cancel"].tap()
+        XCTAssertEqual(toggle.value as? String, "1", "cancelled: still on")
+
+        knob.tap()
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        alert.buttons["Turn Off and Delete"].tap()
+        XCTAssertTrue(waitFor { (toggle.value as? String) == "0" }, "off")
+        XCTAssertTrue(app.staticTexts["Off: we keep no voice profiles and recognize no one. Speakers are still told apart."]
+                        .waitForExistence(timeout: 5))
+
+        knob.tap()                                         // on again: no question
+        XCTAssertTrue(waitFor { (toggle.value as? String) == "1" }, "on again")
+        people.tap()
+        let anna = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'voice not known yet'")).firstMatch
+        XCTAssertTrue(anna.waitForExistence(timeout: 5), "the profiles are gone: voices unknown until named again")
+        shot("People without voices", app)
+    }
 }

@@ -16,29 +16,37 @@ struct SettingsView: View {
     @AppStorage(AppServices.liveSpeakerLabelsKey) private var liveSpeakerLabels = true
     @AppStorage(PlaceLocator.saveLocationKey) private var saveLocation = true
     @State private var showsWelcome = false
+    @AppStorage(PeopleDirectory.recognitionKey) private var recognizesVoices = true
+    @State private var confirmsVoiceDeletion = false
     @State private var path = NavigationPath()          // untyped: People pushes Person values too
 
     var body: some View {
         NavigationStack(path: $path) {
             Form {
                 Section {
+                    Toggle("Recognize People by Voice", isOn: recognition)
                     NavigationLink(value: SettingsRoute.people) {
                         LabeledContent("People", value: peopleCount == 0 ? "" : "\(peopleCount)")
                     }
                     .accessibilityIdentifier("People")
                 } header: {
-                    Text("Settings")                       // the heading scrolls away with the form
-                        .font(.largeTitle.bold())
-                        .foregroundStyle(Color(uiColor: .label))   // section headers are grey otherwise
-                        .textCase(nil)
-                        // Where "Transcripts" sits (x 20 pt, the list's row text; same top): a section header is
-                        // inset further and placed lower than a list row.
-                        .padding(.leading, -11)
-                        .padding(.top, -5)
-                        .padding(.bottom, 8)
-                        .accessibilityAddTraits(.isHeader)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Settings")                   // the heading scrolls away with the form
+                            .font(.largeTitle.bold())
+                            .foregroundStyle(Color(uiColor: .label))   // section headers are grey otherwise
+                            .textCase(nil)
+                            // Where "Transcripts" sits (x 20 pt, the list's row text; same top): a section header is
+                            // inset further and placed lower than a list row.
+                            .padding(.leading, -11)
+                            .padding(.top, -5)
+                            .padding(.bottom, 8)
+                            .accessibilityAddTraits(.isHeader)
+                        Text("People")                     // the group's own header, as the others have
+                    }
                 } footer: {
-                    Text("The voices Feder knows. Named speakers are recognized in new recordings.")
+                    Text(recognizesVoices
+                         ? "Feder keeps a voice profile of each speaker, only on this iPhone, and recognizes people you've named in new recordings."
+                         : "Off: we keep no voice profiles and recognize no one. Speakers are still told apart.")
                 }
 
                 Section {
@@ -100,6 +108,15 @@ struct SettingsView: View {
                 case .acknowledgements: AcknowledgementsView()
                 }
             }
+            .alert("Delete Voice Profiles?", isPresented: $confirmsVoiceDeletion) {
+                Button("Turn Off and Delete", role: .destructive) {
+                    recognizesVoices = false
+                    Task { services.people.deleteAllVoiceProfiles() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Turning this off deletes the voice profiles of your people and of the speakers in your transcripts. Names stay. Turned on again, it works from the next recording.")
+            }
             .sheet(isPresented: $showsWelcome) {
                 Onboarding(pages: [.welcome, .beforeYouRecord], isReplay: true)
             }
@@ -113,6 +130,18 @@ struct SettingsView: View {
                 Task { await services.prepareLiveDiarizer() }
             }
         }
+    }
+
+    /// "Recognize People by Voice": on at once; off at once while no voice profile exists, otherwise only after the
+    /// confirmation, which deletes them (PeopleDirectory.deleteAllVoiceProfiles). The check fetches the store, so it
+    /// runs after the tap's frame.
+    private var recognition: Binding<Bool> {
+        Binding(get: { recognizesVoices }, set: { on in
+            guard !on else { recognizesVoices = true; return }
+            Task {
+                if services.people.hasVoiceProfiles() { confirmsVoiceDeletion = true } else { recognizesVoices = false }
+            }
+        })
     }
 
     /// "Feder 1.0 (12)": the About section's footer.

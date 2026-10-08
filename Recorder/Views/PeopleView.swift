@@ -10,6 +10,8 @@ struct PeopleView: View {
     @Query(sort: \Recording.createdAt, order: .reverse) private var recordings: [Recording]
     @State private var query = ""
     @State private var pendingDelete: Person?
+    /// "Recognize People by Voice" (Settings): off, nobody has a voice profile, so rows don't say "voice not known yet".
+    @AppStorage(PeopleDirectory.recognitionKey) private var recognizesVoices = true
 
     private var filtered: [Person] {
         let q = query.trimmingCharacters(in: .whitespaces)
@@ -42,7 +44,9 @@ struct PeopleView: View {
         .overlay {
             if people.isEmpty {
                 ContentUnavailableView("No People", systemImage: "person.2",
-                                       description: Text("Name a speaker in a transcript to add them here. Their voice is then recognized in new recordings."))
+                                       description: Text(recognizesVoices
+                                                         ? "Name a speaker in a transcript to add them here. Their voice is then recognized in new recordings."
+                                                         : "Name a speaker in a transcript to add them here."))
             } else if filtered.isEmpty {
                 ContentUnavailableView.search(text: query)
             }
@@ -65,8 +69,10 @@ struct PeopleView: View {
     }
 
     private func summary(_ person: Person, transcripts count: Int) -> String {
-        let transcripts = String(localized: "^[\(count) transcript](inflect: true)")
-        return person.fingerprint.isEmpty ? String(localized: "\(transcripts) · voice not known yet") : transcripts
+        // AttributedString applies the inflection ("1 transcript", "2 transcripts"); a String(localized:) of the same key
+        // showed the markup itself ("^[2 transcript](inflect: true)").
+        let transcripts = String(AttributedString(localized: "^[\(count) transcript](inflect: true)").characters)
+        return person.fingerprint.isEmpty && recognizesVoices ? String(localized: "\(transcripts) · voice not known yet") : transcripts
     }
 }
 

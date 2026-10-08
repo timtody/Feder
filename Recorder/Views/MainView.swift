@@ -130,9 +130,7 @@ struct MainView: View {
         var pages: [OnboardingPage] = []
         if !AppServices.modelDownloadsAllowed { pages.append(.welcome) }
         if !defaults.bool(forKey: Onboarding.recordingNoticeKey) { pages.append(.beforeYouRecord) }
-        let offersParakeet = services.downloadsParakeet && !services.parakeet.isReady && !services.parakeet.isWanted
-        let offersGemma = BetterSummaries.isSupported && services.betterSummaries.state == .notDownloaded
-        if offersParakeet || offersGemma, !defaults.bool(forKey: Onboarding.improvementsShownKey) {
+        if services.offersParakeet || services.offersGemma, !defaults.bool(forKey: Onboarding.improvementsShownKey) {
             pages.append(.improvements)
         }
         guard !pages.isEmpty else { return }

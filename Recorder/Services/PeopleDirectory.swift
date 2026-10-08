@@ -9,9 +9,19 @@ import Observation
 ///   (VoiceMatch). Recognition never adds samples: only names the user gave do, so a wrong match cannot drift a
 ///   fingerprint. Naming a person also recognizes them in older transcripts where their speaker is still unnamed.
 /// - Deleting a person removes its fingerprint and links; the names already in transcripts stay as plain text.
+/// - "Recognize People by Voice" (Settings › People, on by default) turns all of it off: no speaker's voice is computed
+///   or kept (SpeakerIdentifier), naming a speaker stores no sample, and nobody is recognized. Turning it off deletes
+///   every voice profile there is (`deleteAllVoiceProfiles`, after a confirmation); the names stay. Turned on again, it
+///   works from the next recording; the transcripts made meanwhile get no voices afterwards (they were made with it off).
 @MainActor @Observable
 final class PeopleDirectory {
     private let modelContext: ModelContext
+
+    /// UserDefaults key of "Recognize People by Voice"; absent means on.
+    nonisolated static let recognitionKey = "voiceRecognition"
+    nonisolated static var isRecognitionEnabled: Bool {
+        UserDefaults.standard.object(forKey: recognitionKey) as? Bool ?? true
+    }
 
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
@@ -28,7 +38,7 @@ final class PeopleDirectory {
         recording.speakerPeople[index] = nil
         if !name.isEmpty {
             let person = person(named: name) ?? insertPerson(named: name)
-            if let voice = recording.speakerVoices[index] {
+            if Self.isRecognitionEnabled, let voice = recording.speakerVoices[index] {
                 person.setSample(VoiceSample(recordingID: recording.id, speakerIndex: index, embedding: voice))
             }
             recording.speakerPeople[index] = person.id
@@ -45,7 +55,7 @@ final class PeopleDirectory {
     }
 
     private func recognize(_ recording: Recording, among people: [Person], save: Bool) {
-        guard !people.isEmpty else { return }
+        guard Self.isRecognitionEnabled, !people.isEmpty else { return }
         let unnamed = recording.speakerVoices.filter { recording.speakerNames[$0.key] == nil }
         guard !unnamed.isEmpty else { return }
         let byID = Dictionary(uniqueKeysWithValues: people.map { ($0.id, $0) })
@@ -128,11 +138,33 @@ final class PeopleDirectory {
         try? modelContext.save()
     }
 
+    /// Some voice profile is stored: a person's fingerprint or a transcript's speaker voices (Settings asks before
+    /// turning recognition off deletes them).
+    func hasVoiceProfiles() -> Bool {
+        allPeople().contains { !$0.samples.isEmpty } || allRecordings().contains { !$0.speakerVoices.isEmpty }
+    }
+
+    /// "Recognize People by Voice" turned off: every person's samples and fingerprint, and every transcript's speaker
+    /// voices, are deleted. People and the names in transcripts stay (a person without samples is listed and
+    /// searchable, never recognized). `voicesVersion` stays, so the voice migration (refreshVoices) doesn't compute
+    /// them again.
+    func deleteAllVoiceProfiles() {
+        for person in allPeople() where !person.samples.isEmpty || !person.fingerprint.isEmpty {
+            person.samples = []
+            person.fingerprint = []
+        }
+        for recording in allRecordings() where !recording.speakerVoices.isEmpty {
+            recording.speakerVoices = [:]
+        }
+        try? modelContext.save()
+    }
+
     // MARK: Private
 
     /// Recognition in every finished transcript with unnamed speakers that have a voice: the people are fetched once
     /// and everything is saved once (each save re-runs every list's @Query).
     func recognizeEverywhere() {
+        guard Self.isRecognitionEnabled else { return }
         let people = allPeople().filter { !$0.fingerprint.isEmpty }
         guard !people.isEmpty else { return }
         for recording in allRecordings() where recording.speakerStatus == .done

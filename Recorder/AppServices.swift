@@ -88,8 +88,9 @@ final class AppServices {
         let transcripts = (try? container.mainContext.fetchCount(FetchDescriptor<Recording>())) ?? 0
         // Decided once, on the first launch of this version: a new install stores false, so a recording made before
         // its Welcome page appeared doesn't make it look like an existing user at the next launch.
-        defaults.set(transcripts > 0 || NemotronDiarizer.isDownloaded || defaults.object(forKey: "gemmaOnboardingShown") != nil,
-                     forKey: welcomeShownKey)
+        let existing = transcripts > 0 || NemotronDiarizer.isDownloaded
+            || defaults.object(forKey: Onboarding.legacyGemmaShownKey) != nil
+        defaults.set(existing, forKey: welcomeShownKey)
     }
 
     /// The Welcome page's Continue: the speaker models may download from now on.
@@ -124,9 +125,11 @@ final class AppServices {
     /// pending speakers); Wi-Fi starts the downloads that wait for it.
     private func networkChanged(_ kind: NetworkPath.Kind) {
         betterSummaries.networkChanged(kind)
+        // Before the active check: Wi-Fi switched off in Control Center leaves the app inactive.
+        if downloadsParakeet, kind != .wifi { parakeet.networkChanged(kind) }
         guard Self.modelDownloadsAllowed, UIApplication.shared.applicationState == .active else { return }
         if downloadsNemotron { nemotron.networkChanged(kind, allowed: true) }
-        if downloadsParakeet, kind == .wifi { parakeet.resumeIfWanted() }
+        if downloadsParakeet, kind == .wifi { parakeet.networkChanged(kind) }
         guard kind != .offline else { return }
         Task { await identifier.prepareAndRetryPending() }
         Task { await prepareLiveDiarizer() }
@@ -202,13 +205,24 @@ final class AppServices {
     /// simulator never fetches the real model, also not when the Mac's network changes).
     private var downloadsNemotron: Bool { !usesFakes || fakesNemotronDownload }
 
-    /// Parakeet likewise: the simulator only with `-fakeParakeetDownload`. Also decides whether the onboarding offers it.
+    /// Parakeet likewise: the simulator only with `-fakeParakeetDownload`, and only on an iPhone that can transcribe
+    /// at all (not the iPhone 11 or SE 2, Onboarding.canTranscribe).
     var downloadsParakeet: Bool {
         #if DEBUG
-        !usesFakes || ParakeetModel.fakesDownload
+        (!usesFakes || ParakeetModel.fakesDownload) && Onboarding.canTranscribe
         #else
-        true
+        Onboarding.canTranscribe
         #endif
+    }
+
+    /// The onboarding's Optional Improvements offers Parakeet (MainView decides whether the page comes, the page lists it).
+    var offersParakeet: Bool { downloadsParakeet && !parakeet.isReady && !parakeet.isWanted }
+
+    /// …and Gemma: on an iPhone that runs it, while it is neither downloaded nor on its way, and not to someone who
+    /// already saw the Gemma-only page it replaced (October 2026) and declined.
+    var offersGemma: Bool {
+        BetterSummaries.isSupported && betterSummaries.state == .notDownloaded
+            && !UserDefaults.standard.bool(forKey: Onboarding.legacyGemmaShownKey)
     }
 
     /// Simulator QA: Nemotron's download is simulated (`-fakeNemotronDownload`).

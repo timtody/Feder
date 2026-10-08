@@ -23,6 +23,9 @@ final class ParakeetModel {
 
     private(set) var state: ModelDownloadState
     private let network: NetworkPath
+    /// The download the onboarding asked for (Wi-Fi only), so it can pause when Wi-Fi goes (`pauseOffWiFi`); a
+    /// download from Settings isn't kept here and goes on.
+    @ObservationIgnored private var automaticTask: Task<Void, Never>?
 
     init(network: NetworkPath) {
         self.network = network
@@ -41,13 +44,36 @@ final class ParakeetModel {
     func request() {
         guard state != .ready else { return }
         UserDefaults.standard.set(true, forKey: Self.wantedKey)
-        Task { await download(force: false) }
+        automaticTask = Task { await download(force: false) }
     }
 
-    /// Launch, every foreground and Wi-Fi arriving (AppServices): goes on with a requested download.
+    /// Launch and every foreground (AppServices): goes on with a requested download.
     func resumeIfWanted() {
         guard isWanted else { return }
-        Task { await download(force: false) }
+        automaticTask = Task { await download(force: false) }
+    }
+
+    /// NetworkPath changed. Wi-Fi: a requested download goes on, after a short wait so a network that just joined has
+    /// settled (as NemotronModel: a captive portal or DHCP still running would fail it at once). Anything else: a
+    /// requested download pauses. FluidAudio's session allows cellular and retries a dropped connection from the
+    /// partial file, so without this the rest of the 610 MB came over mobile data; cancelled, ModelHub keeps the
+    /// `.partial` files and the next Wi-Fi resumes from them.
+    func networkChanged(_ kind: NetworkPath.Kind) {
+        guard isWanted else { return }
+        guard kind == .wifi else {
+            if case .downloading = state { automaticTask?.cancel() }
+            return
+        }
+        switch state {
+        case .waitingForWiFi, .failed, .notDownloaded:
+            automaticTask = Task {
+                try? await Task.sleep(for: .seconds(2))
+                guard network.kind == .wifi else { return }
+                await download(force: false)
+            }
+        case .ready, .downloading:
+            break
+        }
     }
 
     /// `force == false`: Wi-Fi only (otherwise it waits, `.waitingForWiFi`); `force == true`: "Download Parakeet" in
@@ -72,8 +98,10 @@ final class ParakeetModel {
             UserDefaults.standard.set("parakeet", forKey: Self.engineKey)
             UserDefaults.standard.removeObject(forKey: Self.wantedKey)
         } catch {
-            // Off Wi-Fi now: wait for it (a requested download goes on by itself); on Wi-Fi it is a real failure.
-            state = network.kind == .wifi || !isWanted ? .failed(error.localizedDescription) : .waitingForWiFi
+            // Off Wi-Fi now, or paused because Wi-Fi went: wait for it (a requested download goes on by itself); on
+            // Wi-Fi it is a real failure.
+            let paused = error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled
+            state = isWanted && (paused || network.kind != .wifi) ? .waitingForWiFi : .failed(error.localizedDescription)
         }
     }
 

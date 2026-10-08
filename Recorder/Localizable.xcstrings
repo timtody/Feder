@@ -141,12 +141,12 @@
         }
       }
     },
-    "3.6 GB · needs 4 GB free": {
+    "3.6 GB · not enough free storage": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "3,6 GB · braucht 4 GB freien Speicher"
+            "value": "3,6 GB · nicht genug freier Speicher"
           }
         }
       }
@@ -504,6 +504,16 @@
         }
       }
     },
+    "Delete Voice Profiles?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stimmprofile löschen?"
+          }
+        }
+      }
+    },
     "Delete this transcript?": {
       "localizations": {
         "de": {
@@ -694,12 +704,22 @@
         }
       }
     },
-    "Feder keeps a voice profile of everyone it hears, only on this iPhone, and recognizes people you've named. Delete a person and their transcripts to forget their voice.": {
+    "Feder keeps a voice profile of each speaker, only on this iPhone, and recognizes people you've named in new recordings.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Feder legt von allen, die es hört, ein Stimmprofil an, das auf diesem iPhone bleibt, und erkennt so Personen wieder, die du benannt hast. Lösche eine Person und ihre Transkripte, damit ihre Stimme vergessen wird."
+            "value": "Feder legt für jeden Sprecher ein Stimmprofil an, das auf diesem iPhone bleibt, und erkennt Personen, die du benannt hast, in neuen Aufnahmen wieder."
+          }
+        }
+      }
+    },
+    "Feder keeps a voice profile of everyone it hears, only on this iPhone, and recognizes people you've named. This is optional: turn off Recognize People by Voice in Settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder legt von allen, die es hört, ein Stimmprofil an, das auf diesem iPhone bleibt, und erkennt so Personen wieder, die du benannt hast. Das ist optional: Schalte „Personen an der Stimme erkennen“ in den Einstellungen aus."
           }
         }
       }
@@ -714,22 +734,22 @@
         }
       }
     },
-    "Feder works without it. It runs on this iPhone and downloads once over Wi-Fi. You can add or remove it later in Settings.": {
+    "Feder works without it. It runs on this iPhone and downloads once over Wi-Fi. You can add it later in Settings.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Feder funktioniert auch ohne diese Erweiterung. Sie läuft auf diesem iPhone und wird einmalig über WLAN geladen. Du kannst sie später in den Einstellungen hinzufügen oder entfernen."
+            "value": "Feder funktioniert auch ohne diese Erweiterung. Sie läuft auf diesem iPhone und wird einmalig über WLAN geladen. Du kannst sie später in den Einstellungen hinzufügen."
           }
         }
       }
     },
-    "Feder works without these. They run on this iPhone and download once over Wi-Fi. You can add or remove them later in Settings.": {
+    "Feder works without these. They run on this iPhone and download once over Wi-Fi. You can add them later in Settings.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Feder funktioniert auch ohne diese Erweiterungen. Sie laufen auf diesem iPhone und werden einmalig über WLAN geladen. Du kannst sie später in den Einstellungen hinzufügen oder entfernen."
+            "value": "Feder funktioniert auch ohne diese Erweiterungen. Sie laufen auf diesem iPhone und werden einmalig über WLAN geladen. Du kannst sie später in den Einstellungen hinzufügen."
           }
         }
       }
@@ -1084,6 +1104,16 @@
         }
       }
     },
+    "Name a speaker in a transcript to add them here.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benenne einen Sprecher in einem Transkript, um ihn hier hinzuzufügen."
+          }
+        }
+      }
+    },
     "Name a speaker in a transcript to add them here. Their voice is then recognized in new recordings.": {
       "localizations": {
         "de": {
@@ -1230,6 +1260,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aus"
+          }
+        }
+      }
+    },
+    "Off: we keep no voice profiles and recognize no one. Speakers are still told apart.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus: Wir speichern keine Stimmprofile und erkennen niemanden wieder. Die Sprecher werden weiterhin unterschieden."
           }
         }
       }
@@ -1383,6 +1423,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Datenschutzerklärung"
+          }
+        }
+      }
+    },
+    "Recognize People by Voice": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personen an der Stimme erkennen"
           }
         }
       }
@@ -1897,6 +1947,26 @@
         }
       }
     },
+    "The download starts on Wi-Fi with Low Data Mode off.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Download startet im WLAN, wenn der Datensparmodus aus ist."
+          }
+        }
+      }
+    },
+    "The download starts when this iPhone is on Wi-Fi.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Download startet, sobald dieses iPhone mit einem WLAN verbunden ist."
+          }
+        }
+      }
+    },
     "The downloads start on Wi-Fi with Low Data Mode off.": {
       "localizations": {
         "de": {
@@ -1963,16 +2033,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Das Spracherkennungsmodell konnte nicht geladen werden. %@"
-          }
-        }
-      }
-    },
-    "The voices Feder knows. Named speakers are recognized in new recordings.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die Stimmen, die Feder kennt. Benannte Sprecher werden in neuen Aufnahmen erkannt."
           }
         }
       }
@@ -2123,6 +2183,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Erneut versuchen"
+          }
+        }
+      }
+    },
+    "Turn Off and Delete": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausschalten und löschen"
+          }
+        }
+      }
+    },
+    "Turning this off deletes the voice profiles of your people and of the speakers in your transcripts. Names stay. Turned on again, it works from the next recording.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim Ausschalten werden die Stimmprofile deiner Personen und der Sprecher in deinen Transkripten gelöscht. Die Namen bleiben. Wieder eingeschaltet, wirkt es ab der nächsten Aufnahme."
           }
         }
       }
@@ -2292,21 +2372,9 @@
     "^[%lld transcript](inflect: true)": {
       "localizations": {
         "de": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld Transkript"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld Transkripte"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld Transkript](inflect: true)"
           }
         }
       }

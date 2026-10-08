@@ -185,7 +185,7 @@ final class SpeakerIdentifier {
     /// right after them, with the new fingerprints (calibration: people enrolled in older transcripts named correctly in
     /// 94 % of new ones with migrated samples, 79 % with the old ones).
     func refreshVoices() async {
-        guard !migratingVoices else { return }               // still running from an earlier activation
+        guard !migratingVoices, PeopleDirectory.isRecognitionEnabled else { return }   // running, or recognition off
         migratingVoices = true
         defer { migratingVoices = false }
         let done = SpeakerStatus.done.rawValue
@@ -324,7 +324,11 @@ final class SpeakerIdentifier {
             let words = recording.words
             let labels = TranscriptAligner.finalSpeakers(words: words, turns: diarization.turns,
                                                          offset: recording.alignmentOffset)
-            let voices = try? await diarizer.voices(fileURL: url, windows: VoiceWindows.windows(words: words, speakers: labels))
+            // Recognition off (Settings › People): no voice is computed or kept, and nobody is recognized.
+            let recognizes = PeopleDirectory.isRecognitionEnabled
+            let voices = recognizes
+                ? try? await diarizer.voices(fileURL: url, windows: VoiceWindows.windows(words: words, speakers: labels))
+                : nil
             #if DEBUG
             print("[Scribe] queue: speakers \(id.uuidString.prefix(8)): voices after \(Self.ms(since: speakersStarted))")
             #endif
@@ -333,10 +337,13 @@ final class SpeakerIdentifier {
             recording.diarizer = diarization.diarizer            // pyannote's speakers are recognized more strictly
             recording.segments = Self.finalSegments(of: recording)   // current words: the vocabulary pass may have run
             recording.speakerVoices = (voices ?? [:]).mapValues(\.embedding)
-            recording.voicesVersion = voices == nil ? 0 : Self.voicesVersion    // failed: refreshVoices retries
+            // Failed: refreshVoices retries. Off: current, so turning recognition on later computes nothing for it.
+            recording.voicesVersion = voices == nil && recognizes ? 0 : Self.voicesVersion
             recording.speakerStatus = .done
             // 5. Known voices get their names, once the voice migration has refreshed people's samples.
-            if fingerprintsMigrated { people.recognize(recording, save: false) } else { awaitingRecognition.insert(id) }
+            if recognizes {
+                if fingerprintsMigrated { people.recognize(recording, save: false) } else { awaitingRecognition.insert(id) }
+            }
             track(id) { $0.finish(.speakers) }
         } catch {
             guard !isGone(recording) else { progress[id] = nil; return }

@@ -39,6 +39,8 @@ struct Onboarding: View {
     static let recordingNoticeKey = "recordingNoticeShown"
     /// UserDefaults: Optional Improvements was shown. (Until October 2026 a Gemma-only page, `gemmaOnboardingShown`.)
     static let improvementsShownKey = "improvementsOnboardingShown"
+    /// UserDefaults: the Gemma-only page it replaced was shown, so Gemma was offered once already.
+    static let legacyGemmaShownKey = "gemmaOnboardingShown"
 
     private var current: OnboardingPage? { path.last ?? pages.first }
 
@@ -111,7 +113,7 @@ struct Onboarding: View {
             // Every speaker's voice profile is kept with its transcript (SpeakerIdentifier), not only named ones, and
             // deleting a person leaves the profiles in their transcripts: said as it is.
             OnboardingRow(symbol: "person.crop.circle.badge.checkmark", title: "Voices Are Remembered",
-                          text: "Feder keeps a voice profile of everyone it hears, only on this iPhone, and recognizes people you've named. Delete a person and their transcripts to forget their voice.")
+                          text: "Feder keeps a voice profile of everyone it hears, only on this iPhone, and recognizes people you've named. This is optional: turn off Recognize People by Voice in Settings.")
             OnboardingRow(symbol: "checkmark.bubble", title: "Check What Matters",
                           text: "Transcripts, speaker names and summaries are made automatically and can contain mistakes.")
         } footnote: {
@@ -152,20 +154,23 @@ private struct ImprovementsPage: View {
     @State private var wantsParakeet = true
     @State private var wantsGemma = true
     @State private var freeBytes: Int64?
+    /// Parakeet's files and a margin, counted against free storage when it downloads too.
+    private static let parakeetBytes: Int64 = 650_000_000
 
-    private var offersParakeet: Bool {
-        services.downloadsParakeet && !services.parakeet.isReady && !services.parakeet.isWanted
+    private var offersParakeet: Bool { services.offersParakeet }
+    private var offersGemma: Bool { services.offersGemma }
+    private var gemmaHasRoom: Bool {
+        (freeBytes ?? .max) >= BetterSummaries.neededBytes + (getsParakeet ? Self.parakeetBytes : 0)
     }
-    private var offersGemma: Bool { BetterSummaries.isSupported && services.betterSummaries.state == .notDownloaded }
-    private var gemmaHasRoom: Bool { (freeBytes ?? .max) >= BetterSummaries.neededBytes }
     private var getsParakeet: Bool { offersParakeet && wantsParakeet }
     private var getsGemma: Bool { offersGemma && wantsGemma && gemmaHasRoom }
 
     var body: some View {
         OnboardingLayout(title: "Optional Improvements") {
+            // Parakeet can't be removed again in Settings (only Gemma can), so the copy says "add", not "remove".
             Text(offersParakeet && offersGemma
-                 ? "Feder works without these. They run on this iPhone and download once over Wi-Fi. You can add or remove them later in Settings."
-                 : "Feder works without it. It runs on this iPhone and downloads once over Wi-Fi. You can add or remove it later in Settings.")
+                 ? "Feder works without these. They run on this iPhone and download once over Wi-Fi. You can add them later in Settings."
+                 : "Feder works without it. It runs on this iPhone and downloads once over Wi-Fi. You can add it later in Settings.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -178,15 +183,19 @@ private struct ImprovementsPage: View {
             if offersGemma {
                 OptionRow(symbol: "text.alignleft", title: "Titles and Summaries",
                           text: "Gemma, an AI model from Google, writes a title and a short summary for each transcript.",
-                          size: gemmaHasRoom ? "3.6 GB" : "3.6 GB · needs 4 GB free", isOn: $wantsGemma)
+                          size: gemmaHasRoom ? "3.6 GB" : "3.6 GB · not enough free storage", isOn: $wantsGemma)
                     .disabled(!gemmaHasRoom)
             }
         } footnote: {
             if getsParakeet || getsGemma {
+                let both = getsParakeet && getsGemma
                 switch services.network.kind {
-                case .lowData: Text("The downloads start on Wi-Fi with Low Data Mode off.")
-                case .cellular, .offline: Text("The downloads start when this iPhone is on Wi-Fi.")
-                case .wifi, nil: EmptyView()
+                case .lowData:
+                    Text(both ? "The downloads start on Wi-Fi with Low Data Mode off." : "The download starts on Wi-Fi with Low Data Mode off.")
+                case .cellular, .offline:
+                    Text(both ? "The downloads start when this iPhone is on Wi-Fi." : "The download starts when this iPhone is on Wi-Fi.")
+                case .wifi, nil:
+                    EmptyView()
                 }
             }
         } buttons: {
@@ -199,10 +208,7 @@ private struct ImprovementsPage: View {
             Button("Not Now", action: onDone)
                 .controlSize(.large)
         }
-        .task {
-            freeBytes = await BetterSummaries.freeBytes()
-            if !gemmaHasRoom { wantsGemma = false }
-        }
+        .task { freeBytes = await BetterSummaries.freeBytes() }
     }
 
     /// The button names what it downloads, as the App Store does.
@@ -216,36 +222,45 @@ private struct ImprovementsPage: View {
     }
 }
 
-/// An optional download: a tinted symbol, the headline, what it does and its size, and its switch.
+/// An optional download as a switch: the row is the switch's label (a tinted symbol, the headline, what it does and its
+/// size), so VoiceOver reads it once as one switch. From xxxLarge text the switch goes under the text and the symbol
+/// away, as Settings rows do, so long German words keep their line (AnyLayout: a value, no main-actor closure).
 private struct OptionRow: View {
     let symbol: String
     let title: LocalizedStringKey
     let text: LocalizedStringKey
     let size: LocalizedStringKey
     @Binding var isOn: Bool
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var isLarge: Bool { typeSize >= .xxxLarge }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 18) {
-            Image(systemName: symbol)
-                .font(.title)
-                .foregroundStyle(.tint)
-                .frame(width: 40)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.headline)
-                Text(text)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(size)
-                    .font(.footnote)
-                    .foregroundStyle(.tertiary)
+        let layout = isLarge ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+                             : AnyLayout(HStackLayout(alignment: .center, spacing: 18))
+        layout {
+            if !isLarge {
+                Image(systemName: symbol)
+                    .font(.title)
+                    .foregroundStyle(.tint)
+                    .frame(width: 40)
+                    .accessibilityHidden(true)
             }
-            Toggle(isOn: $isOn) { Text(title) }
-                .labelsHidden()
+            Toggle(isOn: $isOn) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text(text)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(size)
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                }
+            }
         }
-        .accessibilityElement(children: .combine)
     }
 }
 
