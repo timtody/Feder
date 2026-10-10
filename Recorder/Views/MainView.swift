@@ -5,9 +5,12 @@ import UIKit
 /// The app's tabs, Apple Music's layout with Liquid Glass (iOS 26): Settings, Transcripts and Search (at the right end, where
 /// it stays when the bar minimizes) in the tab bar, and
 /// the record control as the tab bar's bottom accessory, where Music has its mini player. Scrolling down minimizes the
-/// bar to three items like Music's: the current tab, the accessory and Search on its own. SwiftUI draws a
-/// `Tab(role: .search)` apart as its own circle in both states, so Search is an ordinary tab while the bar is expanded
-/// and takes the search role only while it is minimized (`isBarMinimized`, from the accessory's placement).
+/// bar to three items like Music's: the current tab, the accessory and Search on its own. On iOS 27 a
+/// `Tab(role: .search)` sits in the expanded bar like any tab and becomes the circle when it minimizes, so its role is
+/// constant there. iOS 26 drew it apart as its own circle in both states, so there Search is an ordinary tab while the
+/// bar is expanded and takes the search role only while it is minimized (`isBarMinimized`, from the accessory's
+/// placement). On iOS 27 that switch replaced the Search tab (UITab ↔ UISearchTab, a new object each time) in the
+/// middle of the bar's own morph, and the magnifier sometimes dropped into its place from above as the bar unfolded.
 enum AppTab: Hashable {
     case transcripts, settings, search
 }
@@ -45,6 +48,12 @@ struct MainView: View {
     /// layout, and the accessory was first laid out as wide as without it, running under the circle for ~0.3 s
     /// before it snapped to its width (iPhone 17 simulator, iOS 27, frame by frame); every later collapse was fine.
     @State private var isBarMinimized = true
+
+    /// See the type's comment: constant on iOS 27, following the bar on iOS 26.
+    private var searchRole: TabRole? {
+        if #available(iOS 27, *) { return .search }
+        return isBarMinimized ? .search : nil
+    }
     /// The card: `open` while it is up; `closing` from the moment it is told to close until the cover's onDismiss,
     /// while it is still shrinking away. Its content stays until then (cleared in the same update that closed it, the
     /// card went blank and lost its zoom back), and a request to open it meanwhile waits in `pendingCard` (writing the
@@ -66,7 +75,7 @@ struct MainView: View {
             Tab("Transcripts", systemImage: "waveform", value: AppTab.transcripts) {
                 RecordingsListView(isSearch: false, searchState: searchState)
             }
-            Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: isBarMinimized ? .search : nil) {
+            Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: searchRole) {
                 RecordingsListView(isSearch: true, searchState: searchState)
             }
         }
