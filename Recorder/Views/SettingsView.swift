@@ -165,7 +165,7 @@ struct SettingsView: View {
                     Onboarding.improvementsShownKey, Onboarding.legacyGemmaShownKey] {
             defaults.removeObject(forKey: key)
         }
-        defaults.set(true, forKey: NameSpeakersTip.resetOnLaunchKey)
+        NameSpeakersTip.showAgain()
         resetPages = [.welcome, .beforeYouRecord, .voiceProfiles]
             + (services.offersParakeet || services.offersGemma ? [.improvements] : [])
     }

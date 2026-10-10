@@ -15,16 +15,17 @@ struct NameSpeakersTip: Tip {
 
     var image: Image? { Image(systemName: "person.crop.circle.badge.questionmark") }
 
+    /// TipKit remembers a tip by its id. Settings › About › Reset Onboarding (Debug builds) counts `generationKey` up,
+    /// so the tip is a new one that shows again at once: `Tips.resetDatastore()` only works before `Tips.configure`,
+    /// that is at the next launch, and the reset is meant to replay everything now.
+    var id: String {
+        let generation = UserDefaults.standard.integer(forKey: Self.generationKey)
+        return generation == 0 ? "NameSpeakersTip" : "NameSpeakersTip.\(generation)"
+    }
+
     /// Configures TipKit once at launch. DEBUG, simulator: UI tests (`-seedSamples`) see no tips unless `-showTips`
     /// (`-resetTips` forgets what was shown), so a popover doesn't cover what other tests tap.
     static func configure() {
-        #if DEBUG
-        // Settings › About › Reset Onboarding (Debug builds) asks for the tips to come back at the next launch.
-        if UserDefaults.standard.bool(forKey: resetOnLaunchKey) {
-            UserDefaults.standard.removeObject(forKey: resetOnLaunchKey)
-            try? Tips.resetDatastore()
-        }
-        #endif
         #if DEBUG && targetEnvironment(simulator)
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("-resetTips") { try? Tips.resetDatastore() }
@@ -33,6 +34,14 @@ struct NameSpeakersTip: Tip {
         try? Tips.configure([.displayFrequency(.immediate)])
     }
 
-    /// UserDefaults (Debug builds): reset the tips at the next launch.
-    static let resetOnLaunchKey = "debugResetTipsOnLaunch"
+    /// UserDefaults: which generation of the tip is current (see `id`; 0 until a Debug build's Reset Onboarding).
+    static let generationKey = "nameSpeakersTipGeneration"
+
+    #if DEBUG
+    /// Reset Onboarding: the tip shows again, on the next transcript with unnamed final speakers.
+    static func showAgain() {
+        let defaults = UserDefaults.standard
+        defaults.set(defaults.integer(forKey: generationKey) + 1, forKey: generationKey)
+    }
+    #endif
 }

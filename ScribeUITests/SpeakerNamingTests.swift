@@ -193,9 +193,33 @@ final class SpeakerNamingTests: ScribeUITestCase {
         let below = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Tap a speaker'")).firstMatch
         XCTAssertTrue(below.exists, "it says what to do")
         XCTAssertLessThan(header.frame.minY, tip.frame.minY, "under the first name, pointing at it")
+        // A popover takes the first tap outside it to close (TipKit's popover too): the tip goes, the next tap renames.
         header.tap()
-        XCTAssertTrue(app.textFields.firstMatch.waitForExistence(timeout: 5), "the rename sheet")
-        XCTAssertFalse(tip.exists, "the tip is gone once a name was tapped")
+        XCTAssertTrue(tip.waitForNonExistence(timeout: 5), "the tip is gone once the name was tapped")
+        let cancel = app.buttons["CancelRename"]
+        if !cancel.waitForExistence(timeout: 2) { header.tap() }
+        XCTAssertTrue(cancel.waitForExistence(timeout: 5), "the rename sheet")
+
+        // Debug builds: Settings › About › Reset Onboarding brings it back at once, without a relaunch.
+        cancel.tap()
+        XCTAssertTrue(cancel.waitForNonExistence(timeout: 5))
+        closeCard(app)
+        app.buttons["Settings"].firstMatch.tap()
+        let reset = app.buttons["Reset Onboarding"].firstMatch
+        for _ in 0..<4 where !reset.isHittable { app.swipeUp() }
+        reset.tap()
+        XCTAssertTrue(app.staticTexts["Welcome to Feder"].waitForExistence(timeout: 5))
+        app.buttons["Continue"].tap()
+        app.buttons["Continue"].tap()
+        app.buttons["No Thanks"].tap()
+        if app.buttons["Not Now"].waitForExistence(timeout: 3) { app.buttons["Not Now"].tap() }
+        XCTAssertTrue(app.staticTexts["Welcome to Feder"].waitForNonExistence(timeout: 5))
+        let transcripts = app.buttons["Transcripts"].firstMatch
+        for _ in 0..<4 where !transcripts.exists { app.swipeDown() }     // Settings scrolled: the bar minimized
+        transcripts.tap()
+        // The transcript just recorded (its speakers still unnamed), the newest row.
+        app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'New Transcript'")).firstMatch.tap()
+        XCTAssertTrue(tip.waitForExistence(timeout: 10), "the tip again after Reset Onboarding")
     }
 
     /// The name row's button is as wide as the name and its time (plus a little room), not the whole width: a tap on
