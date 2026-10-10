@@ -152,8 +152,9 @@ struct Onboarding: View {
 
 /// Recognize People by Voice: off by default (October 2026: voice profiles are biometric data, GDPR Art. 9, so they are
 /// opt-in). The page says what it does, that a profile identifies a person and needs the agreement of the people
-/// recorded, and that profiles never leave the iPhone; its switch is the setting itself (PeopleDirectory
-/// .recognitionKey), so turning it on here is the user's consent. Every speaker's profile would be kept with its
+/// recorded, and that profiles never leave the iPhone. Two large buttons decide it (PeopleDirectory.recognitionKey):
+/// "Recognize People by Voice" turns it on, which is the user's consent, and "No Thanks" leaves it off; both go on.
+/// (A switch with Continue made the choice easy to skip past.) Every speaker's profile would be kept with its
 /// transcript (SpeakerIdentifier), not only named ones: the copy says "each speaker".
 private struct VoiceProfilesPage: View {
     let onDone: () -> Void
@@ -167,15 +168,23 @@ private struct VoiceProfilesPage: View {
                           text: "A voice profile identifies a person. Turn this on only if the people you record agree.")
             OnboardingRow(symbol: "lock.fill", title: "Never Leaves This iPhone",
                           text: "Profiles stay on this iPhone and we never upload them. Turning it off in Settings deletes them.")
-            Toggle(isOn: $recognizesVoices) {
-                Text("Recognize People by Voice")
-                    .font(.headline)
-            }
-            .padding(.top, 4)
         } footnote: {
-            Text("Off unless you turn it on. You can change it any time in Settings.")
+            Text("You can change this any time in Settings.")
         } buttons: {
-            ProminentButton("Continue", action: onDone)
+            ProminentButton("Recognize People by Voice") {
+                recognizesVoices = true
+                onDone()
+            }
+            Button {
+                recognizesVoices = false
+                onDone()
+            } label: {
+                Text("No Thanks")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.glass)
+            .controlSize(.large)
         }
     }
 }

@@ -32,16 +32,13 @@ final class OnboardingTests: ScribeUITestCase {
         shot("Before You Record", app)
 
         app.buttons["Continue"].tap()
-        let voices = app.switches["Recognize People by Voice"]
-        XCTAssertTrue(voices.waitForExistence(timeout: 5), "then recognizing people by voice")
+        let recognize = app.buttons["Recognize People by Voice"]
+        XCTAssertTrue(recognize.waitForExistence(timeout: 5), "then recognizing people by voice")
+        XCTAssertTrue(app.buttons["No Thanks"].exists, "two large buttons decide it")
         XCTAssertTrue(app.staticTexts["Biometric Data"].exists, "it says voice profiles are biometric data")
         XCTAssertTrue(app.staticTexts["Never Leaves This iPhone"].exists)
-        XCTAssertEqual(voices.value as? String, "0", "off unless the user turns it on")
         shot("Voice profiles", app)
-        voices.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
-        XCTAssertEqual(voices.value as? String, "1", "turned on here: the setting itself")
-
-        app.buttons["Continue"].tap()
+        recognize.tap()
         XCTAssertTrue(app.staticTexts["Optional Improvements"].waitForExistence(timeout: 5), "then the optional downloads")
         let both = app.buttons["Download (4.2 GB)"]
         XCTAssertTrue(both.exists, "both on by default")

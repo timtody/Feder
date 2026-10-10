@@ -1264,6 +1264,16 @@
         }
       }
     },
+    "No Thanks": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lieber nicht"
+          }
+        }
+      }
+    },
     "No Transcripts": {
       "localizations": {
         "de": {
@@ -1320,16 +1330,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aus"
-          }
-        }
-      }
-    },
-    "Off unless you turn it on. You can change it any time in Settings.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aus, bis du es einschaltest. Du kannst es jederzeit in den Einstellungen ändern."
           }
         }
       }
@@ -2413,6 +2413,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gestern"
+          }
+        }
+      }
+    },
+    "You can change this any time in Settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du kannst das jederzeit in den Einstellungen ändern."
           }
         }
       }
