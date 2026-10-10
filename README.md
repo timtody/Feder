@@ -160,6 +160,7 @@ xcodebuild test -project Recorder.xcodeproj -scheme Recorder \
 xcrun xcresulttool export attachments --path build/ui.xcresult --output-path build/ui-attachments
 ```
 
+- `SpeakerNamingTests.testNameSpeakersTip` (`-showTips -resetTips -autoRecord -autoStopAfter 4`): after Stop the tip "Name the Speakers" appears under the first name row; tapping the name opens the rename sheet and ends the tip.
 - `SpeakerNamingTests.testNameRowHitArea`: taps a grid around the first two name rows (left, middle and right of the full width; every 6 pt of the row, 12 pt above the name, the name; the first, middle and last line of the text; 2 and 6 pt outside the row, only recorded) and attaches the map: every row point opens the rename sheet, no text point does.
 - `testRenameSheet`: the sheet opens with the keyboard and the current name selected (typing replaces it); typing filters the people; a typed name renames both turns of the speaker; choosing a known person renames both turns as that person; a person with a similar voice is listed right after the speaker's own; Use Default Name resets both turns.
 - `testLongPressMenusKeepTextSelection`: long-pressing a name row offers "Rename Speaker…" (the sheet for that speaker); long-pressing text shows the system's selection menu, and its Copy pastes into the tag field (opened with the toolbar's Add Tag).
