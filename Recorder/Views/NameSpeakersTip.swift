@@ -18,6 +18,13 @@ struct NameSpeakersTip: Tip {
     /// Configures TipKit once at launch. DEBUG, simulator: UI tests (`-seedSamples`) see no tips unless `-showTips`
     /// (`-resetTips` forgets what was shown), so a popover doesn't cover what other tests tap.
     static func configure() {
+        #if DEBUG
+        // Settings › About › Reset Onboarding (Debug builds) asks for the tips to come back at the next launch.
+        if UserDefaults.standard.bool(forKey: resetOnLaunchKey) {
+            UserDefaults.standard.removeObject(forKey: resetOnLaunchKey)
+            try? Tips.resetDatastore()
+        }
+        #endif
         #if DEBUG && targetEnvironment(simulator)
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("-resetTips") { try? Tips.resetDatastore() }
@@ -25,4 +32,7 @@ struct NameSpeakersTip: Tip {
         #endif
         try? Tips.configure([.displayFrequency(.immediate)])
     }
+
+    /// UserDefaults (Debug builds): reset the tips at the next launch.
+    static let resetOnLaunchKey = "debugResetTipsOnLaunch"
 }

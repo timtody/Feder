@@ -16,6 +16,9 @@ struct SettingsView: View {
     @AppStorage(AppServices.liveSpeakerLabelsKey) private var liveSpeakerLabels = true
     @AppStorage(PlaceLocator.saveLocationKey) private var saveLocation = true
     @State private var showsWelcome = false
+    #if DEBUG
+    @State private var resetPages: [OnboardingPage] = []
+    #endif
     @AppStorage(PeopleDirectory.recognitionKey) private var recognizesVoices = false
     @State private var confirmsVoiceDeletion = false
     @State private var path = NavigationPath()          // untyped: People pushes Person values too
@@ -87,6 +90,9 @@ struct SettingsView: View {
                     NavigationLink("Privacy Policy", value: SettingsRoute.privacy)
                     NavigationLink("Legal Notice", value: SettingsRoute.legalNotice)
                     NavigationLink("Acknowledgements", value: SettingsRoute.acknowledgements)
+                    #if DEBUG
+                    Button("Reset Onboarding") { resetOnboarding() }   // Debug builds only: no reinstall to see it again
+                    #endif
                 } header: {
                     Text("About")
                 } footer: {
@@ -121,6 +127,11 @@ struct SettingsView: View {
                 Onboarding(pages: [.welcome, .beforeYouRecord], isReplay: true)
             }
             #if DEBUG
+            .sheet(isPresented: Binding(get: { !resetPages.isEmpty }, set: { if !$0 { resetPages = [] } })) {
+                Onboarding(pages: resetPages)
+            }
+            #endif
+            #if DEBUG
             .task {                                    // QA hook: `-showPeople` opens Settings with People pushed
                 if ProcessInfo.processInfo.arguments.contains("-showPeople"), path.isEmpty { path.append(SettingsRoute.people) }
             }
@@ -143,6 +154,22 @@ struct SettingsView: View {
             }
         })
     }
+
+    #if DEBUG
+    /// Debug builds: forgets that the onboarding was seen and shows it at once as on a new install (Welcome, Before You
+    /// Record, the voice page, Optional Improvements when something can still be added); the tips come back at the next
+    /// launch (TipKit's store can only be reset before it is configured). Downloaded models and settings stay.
+    private func resetOnboarding() {
+        let defaults = UserDefaults.standard
+        for key in [AppServices.welcomeShownKey, Onboarding.recordingNoticeKey, Onboarding.voiceProfilesShownKey,
+                    Onboarding.improvementsShownKey, Onboarding.legacyGemmaShownKey] {
+            defaults.removeObject(forKey: key)
+        }
+        defaults.set(true, forKey: NameSpeakersTip.resetOnLaunchKey)
+        resetPages = [.welcome, .beforeYouRecord, .voiceProfiles]
+            + (services.offersParakeet || services.offersGemma ? [.improvements] : [])
+    }
+    #endif
 
     /// "Feder 1.0 (12)": the About section's footer.
     private static var version: String {

@@ -299,4 +299,19 @@ final class SettingsTests: ScribeUITestCase {
         XCTAssertEqual(toggle.value as? String, "0", "off by default")
         XCTAssertTrue(app.staticTexts["Off: we keep no voice profiles and recognize no one. Speakers are still told apart."].exists)
     }
+
+    /// Debug builds: Settings › About › Reset Onboarding shows the onboarding again from Welcome, as on a new install.
+    @MainActor
+    func testResetOnboarding() throws {
+        let app = launch()
+        app.buttons["Settings"].firstMatch.tap()
+        let reset = app.buttons["Reset Onboarding"].firstMatch
+        for _ in 0..<4 where !reset.isHittable { app.swipeUp() }
+        reset.tap()
+        XCTAssertTrue(app.staticTexts["Welcome to Feder"].waitForExistence(timeout: 5), "the onboarding from the start")
+        app.buttons["Continue"].tap()
+        XCTAssertTrue(app.staticTexts["Before You Record"].waitForExistence(timeout: 5))
+        app.buttons["Continue"].tap()
+        XCTAssertTrue(app.buttons["No Thanks"].waitForExistence(timeout: 5), "and the voice page")
+    }
 }

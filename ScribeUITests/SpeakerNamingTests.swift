@@ -197,4 +197,19 @@ final class SpeakerNamingTests: ScribeUITestCase {
         XCTAssertTrue(app.textFields.firstMatch.waitForExistence(timeout: 5), "the rename sheet")
         XCTAssertFalse(tip.exists, "the tip is gone once a name was tapped")
     }
+
+    /// The name row's button is as wide as the name and its time (plus a little room), not the whole width: a tap on
+    /// the name renames, a tap at the right of the row does nothing.
+    @MainActor
+    func testNameRowIsNarrow() throws {
+        let app = launch()
+        open("Project Kickoff", in: app)
+        let header = app.buttons["SpeakerHeader.0"]
+        let row = header.frame
+        let name = header.staticTexts.firstMatch.frame
+        XCTAssertLessThan(row.width, 220, "about the name and its time: \(row)")
+        XCTAssertGreaterThanOrEqual(row.height, 56, "still tall enough to hit")
+        XCTAssertTrue(tapOpensSheet(app, x: name.midX, y: name.midY), "the name renames")
+        XCTAssertFalse(tapOpensSheet(app, x: app.frame.maxX - 40, y: name.midY), "the right of the row does nothing")
+    }
 }

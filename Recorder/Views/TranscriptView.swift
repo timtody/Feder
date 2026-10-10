@@ -3,9 +3,10 @@ import TipKit
 
 /// The transcript card's transcript: each speaker turn opens with a name row (the speaker's name in its colour, grey while
 /// speakers are preliminary, and the turn's start time), followed by the turn's paragraphs.
-/// With `renameSpeaker`, the whole name row is a button at least 56 pt tall: full width, from the paragraph above (the
-/// gap above the name belongs to it) down to the text below. It shows a band behind the name while pressed and gives a
-/// light haptic. A tap, or "Rename Speaker…" in its long-press menu, calls `renameSpeaker`; while speakers are
+/// With `renameSpeaker`, the name row is a button at least 56 pt tall, from the paragraph above (the gap above the name
+/// belongs to it) down to the text below, and as wide as the name and its time plus 16 pt: it was the full width until
+/// October 2026, so a tap at the right edge renamed a speaker too, and the naming tip's arrow pointed at the middle of
+/// the screen instead of the name. It shows a band behind the name while pressed and gives a light haptic. A tap, or "Rename Speaker…" in its long-press menu, calls `renameSpeaker`; while speakers are
 /// preliminary a tap shows a short notice under the name instead (live labels are not the final speakers, so a name
 /// given now could land on someone else).
 /// The paragraphs keep the system's text selection (iOS 27: words and ranges, Copy, Look Up, Translate; iOS 26: the
@@ -44,9 +45,7 @@ struct TranscriptView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     if showsHeader, let speaker = segment.speakerIndex, let speakerName {
                         header(index: index, segment: segment.id, speaker: speaker, name: speakerName(speaker),
-                               start: segment.start)
-                            .popoverTip(index == 0 && showsNameTip && !preliminary ? NameSpeakersTip() : nil,
-                                        arrowEdge: .top)
+                               start: segment.start, showsTip: index == 0 && showsNameTip && !preliminary)
                             .zIndex(1)   // above the text's selection area, which reaches 16 pt above it on iOS 27
                         if preliminary, noticeRow == segment.id {
                             Label(preliminaryNotice, systemImage: "hourglass")
@@ -102,12 +101,14 @@ struct TranscriptView: View {
     }
 
     @ViewBuilder
-    private func header(index: Int, segment: UUID, speaker: Int, name: String, start: TimeInterval) -> some View {
+    private func header(index: Int, segment: UUID, speaker: Int, name: String, start: TimeInterval,
+                        showsTip: Bool) -> some View {
         let line = SpeakerNameLine(name: name, color: preliminary ? .secondary : SpeakerPalette.color(speaker),
-                                   start: start, matched: search?.speakers.contains(speaker) == true)
+                                   start: start, matched: search?.speakers.contains(speaker) == true, showsTip: showsTip)
             .padding(.top, TranscriptStyle.turnSpacing)
             .padding(.bottom, TranscriptStyle.nameToText)
-            .frame(maxWidth: .infinity, minHeight: TranscriptStyle.headerHeight, alignment: .bottomLeading)
+            .padding(.trailing, 16)                               // a little room after the time, not the whole width
+            .frame(minHeight: TranscriptStyle.headerHeight, alignment: .bottomLeading)
         if let renameSpeaker {
             Button {
                 headerTaps += 1
@@ -134,19 +135,22 @@ struct TranscriptView: View {
             .accessibilityHint(preliminary ? "Speakers are still being identified."
                                            : "Renames this speaker everywhere in this transcript.")
             .accessibilityIdentifier("SpeakerHeader.\(index)")
+            .frame(maxWidth: .infinity, alignment: .leading)      // the row keeps its place; only the button is narrow
         } else {
-            line
+            line.frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
 
 /// A speaker's name and the turn's start time. A name the search matched sits on a capsule of the speaker's colour
-/// (the name keeps its x position); while the row is pressed a band of that colour lies behind the whole line.
+/// (the name keeps its x position); while the row is pressed a band of that colour lies behind the line. The naming tip
+/// hangs on the name itself, so its arrow points at the name.
 private struct SpeakerNameLine: View {
     let name: String
     let color: Color
     let start: TimeInterval
     let matched: Bool
+    var showsTip = false
 
     @Environment(\.isSpeakerHeaderPressed) private var isPressed
 
@@ -159,12 +163,12 @@ private struct SpeakerNameLine: View {
                 .padding(.vertical, matched ? 2 : 0)
                 .background(matched ? color.opacity(0.16) : .clear, in: Capsule())
                 .padding(.leading, matched ? -7 : 0)
+                .popoverTip(showsTip ? NameSpeakersTip() : nil, arrowEdge: .top)
             Text(start.clockFormatted)
                 .font(.caption)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(color.opacity(isPressed ? 0.14 : 0))
