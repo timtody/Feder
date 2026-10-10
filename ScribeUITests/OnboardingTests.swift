@@ -152,6 +152,23 @@ final class OnboardingTests: ScribeUITestCase {
         XCTAssertTrue(line.waitForExistence(timeout: 15), "Wi-Fi arrived: it downloads without leaving the app")
     }
 
+    /// While a model for better transcripts is still to come (here Nemotron, waiting for Wi-Fi), the recording says its
+    /// quality is preliminary; with every model there it doesn't.
+    @MainActor
+    func testPreliminaryQualityWhileModelsDownload() throws {
+        let app = launch(["-fakeNemotronDownload", "-fakeNoWiFi", "-autoRecord"])
+        let line = app.staticTexts["PreliminaryQuality"]
+        XCTAssertTrue(line.waitForExistence(timeout: 10), "the speaker model is missing: preliminary")
+        XCTAssertTrue(line.label.hasPrefix("Preliminary quality"), line.label)
+        XCTAssertGreaterThan(line.frame.minY, app.frame.height * 0.6, "with the language, above the Stop")
+        shot("Preliminary quality", app)
+        app.terminate()
+
+        let ready = launch(["-autoRecord"])
+        XCTAssertTrue(ready.buttons["Stop"].waitForExistence(timeout: 10))
+        XCTAssertFalse(ready.staticTexts["PreliminaryQuality"].exists, "every model there: no note")
+    }
+
     /// Offline is "Offline", not "Waiting for Wi-Fi" (and not "Download Failed"); Settings has nothing to offer.
     @MainActor
     func testSpeakerModelOffline() throws {

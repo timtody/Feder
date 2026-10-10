@@ -1477,6 +1477,16 @@
         }
       }
     },
+    "Preliminary quality. It gets better once the models are downloaded.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorläufige Qualität. Sie wird besser, sobald die Modelle heruntergeladen sind."
+          }
+        }
+      }
+    },
     "Preparing Speech Recognition": {
       "localizations": {
         "de": {

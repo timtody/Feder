@@ -47,6 +47,8 @@ final class AppServices {
     private(set) var isLiveModelReady = false
     /// The live model isn't downloaded and waits for Wi-Fi (Settings › Speaker Identification offers it on cellular).
     private(set) var isLiveModelWaiting = false
+    /// The live model is being downloaded right now (a prepare that has to fetch it first).
+    private(set) var isLiveModelDownloading = false
     /// A prepare is running: a second call (a foreground or a network change meanwhile) neither starts another nor
     /// marks the model as waiting again.
     @ObservationIgnored private var isPreparingLiveModel = false
@@ -162,13 +164,15 @@ final class AppServices {
             return
         }
         guard !isPreparingLiveModel else { return }
-        if !force, !usesFakes, !LSEENDLiveDiarizer.isDownloaded, await network.current() != .wifi {
+        let downloaded = usesFakes || LSEENDLiveDiarizer.isDownloaded
+        if !force, !downloaded, await network.current() != .wifi {
             isLiveModelWaiting = true
             return
         }
         isLiveModelWaiting = false
         isPreparingLiveModel = true
-        defer { isPreparingLiveModel = false }
+        isLiveModelDownloading = !downloaded
+        defer { isPreparingLiveModel = false; isLiveModelDownloading = false }
         do {
             try await liveDiarizer.prepare()
             isLiveModelReady = true
@@ -229,6 +233,18 @@ final class AppServices {
         #else
         Onboarding.canTranscribe
         #endif
+    }
+
+    /// A model that makes transcripts better is still to come: the live speaker model, Nemotron (the final speakers)
+    /// and Parakeet when the user asked for it; not Gemma, which writes titles and summaries, not the transcript. The
+    /// recording card says meanwhile that the quality is preliminary (RecordView), so a first recording made while
+    /// they download doesn't pass for what Feder can do.
+    var awaitsTranscriptModels: Bool {
+        guard Self.modelDownloadsAllowed || usesFakes else { return false }
+        let liveLabels = Self.liveSpeakerLabelsEnabled && (isLiveModelWaiting || isLiveModelDownloading)
+        let speakers = downloadsNemotron && nemotron.state != .ready
+        let words = downloadsParakeet && parakeet.isWanted && !parakeet.isReady
+        return liveLabels || speakers || words
     }
 
     /// The onboarding's Optional Improvements offers Parakeet (MainView decides whether the page comes, the page lists it).

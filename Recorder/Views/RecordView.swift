@@ -30,6 +30,11 @@ struct RecordView: View {
     @State private var timerFrames = TimerFrames()
     @State private var stopPresses = 0        // haptic on the press itself
     @State private var showsPreparing = false // "Preparing…" only once preparing has taken a moment
+    @Environment(AppServices.self) private var services
+    /// Models for better transcripts are still downloading (AppServices.awaitsTranscriptModels): a line under the
+    /// language says this recording's quality is preliminary. It stays for the recording once shown: a download
+    /// finishing midway doesn't make the live labels better, and the line going away moved the timer and the Stop.
+    @State private var showsPreliminary = false
 
     /// The live text's, meter's and caption's fade-out at Stop; then the transcript's body fades in (TranscriptCard).
     /// 0.2 s, not 0.15: even if a frame or two are held up, the fade is still seen as one.
@@ -138,6 +143,9 @@ struct RecordView: View {
         // A failure after Stop (the turn had begun) crossfades to its screen instead of cutting to it.
         .animation(.easeOut(duration: 0.25), value: isFailed)
         .onAppear { InteractionTrace.shown("transcribe"); InteractionTrace.shown("reopen") }
+        .onChange(of: services.awaitsTranscriptModels, initial: true) { _, pending in
+            if pending { showsPreliminary = true }
+        }
         .sensoryFeedback(.impact(weight: .light), trigger: stopPresses)   // with the press, not with the state
         // The spinner comes only when preparing takes a noticeable time (the speech model's first load, a slow
         // permission prompt); normally the card opens straight onto the empty transcript.
@@ -259,6 +267,14 @@ struct RecordView: View {
                 Text(localeCaption)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if showsPreliminary {
+                    Text("Preliminary quality. It gets better once the models are downloaded.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                        .accessibilityIdentifier("PreliminaryQuality")
+                }
             }
             .opacity(opacity)
             // Melting: gone in the frame the melt's identical glass appears, not faded out over it.
@@ -383,8 +399,10 @@ struct RecordView: View {
 
 #if DEBUG
 #Preview {
-    RecordView(session: AppServices(container: PreviewData.container).makeRecordingSession(),
+    let services = AppServices(container: PreviewData.container)
+    RecordView(session: services.makeRecordingSession(),
                onClose: {},
                onRetry: {})
+        .environment(services)
 }
 #endif
