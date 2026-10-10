@@ -192,6 +192,13 @@ final class BetterSummaries {
         Task { [weak self, network] in self?.networkChanged(await network.current()) }
     }
 
+    /// Every foreground (AppServices.startModelDownloads): a download the user asked for that stopped with a failure
+    /// (the connection dropped too often, the app was replaced mid-transfer) starts again by itself.
+    func resumeIfWanted() {
+        guard Self.isSupported, GemmaDownload.isWanted, case .failed = state, !Self.usesFakeDownload else { return }
+        download()
+    }
+
     /// Free storage for the onboarding page's check, off the main actor (a file-system call).
     @concurrent
     nonisolated static func freeBytes() async -> Int64? {
@@ -205,6 +212,10 @@ final class BetterSummaries {
         case .progress(let bytes):
             downloadedFraction = min(1, Double(bytes) / Double(variant.downloadBytes))
             if case .downloading(let shown) = state, downloadedFraction - shown >= 0.005 {
+                states[variant] = .downloading(downloadedFraction)
+            } else if case .failed = state, GemmaDownload.isWanted {
+                // Bytes arrive again (a retry, or a launch restarted it after the old task's failure came in first):
+                // it is downloading, not failed.
                 states[variant] = .downloading(downloadedFraction)
             }
         case .finished:

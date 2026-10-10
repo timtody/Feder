@@ -201,21 +201,53 @@ nonisolated final class GemmaDownload: NSObject, URLSessionDownloadDelegate, @un
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
         guard let error, let name = task.taskDescription else { return }
-        enum Outcome { case ignore, retry(URLSessionDownloadTask), fail }
+        enum Outcome { case ignore, retry(URLSessionDownloadTask), later(TimeInterval), fail }
         let outcome: Outcome = lock.withLock {
             // A stale task (another one runs for this file) or one we cancelled: nothing to do.
             guard inFlight[name] == task.taskIdentifier || inFlight[name] == nil, Self.isWanted else { return .ignore }
             inFlight[name] = nil
             received[name] = nil
-            guard let data = (error as? URLError)?.downloadTaskResumeData, retries[name, default: 0] < 3 else { return .fail }
+            let attempt = retries[name, default: 0]
+            guard attempt < Self.retryDelays.count else { return .fail }
             retries[name, default: 0] += 1
-            resumeData[name] = data
-            return .retry(makeTask(name, in: session))
+            if let data = (error as? URLError)?.downloadTaskResumeData {
+                resumeData[name] = data
+                return .retry(makeTask(name, in: session))   // force-quit or a dropped connection: on from there
+            }
+            // A dropped connection without resume data ("Die Netzwerkverbindung wurde unterbrochen": Hugging Face's
+            // CDN doesn't always allow one), or the app replaced or killed mid-transfer: try again after a pause,
+            // longer each time, instead of stopping at "Download Failed" until the user taps Try Again.
+            return Self.isTransient(error) ? .later(Self.retryDelays[attempt]) : .fail
         }
         switch outcome {
         case .ignore: break
-        case .retry(let task): task.resume()       // force-quit or a dropped connection: on from where it stopped
+        case .retry(let task): task.resume()
+        case .later(let delay):
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + delay) { [self] in
+                let task: URLSessionDownloadTask? = lock.withLock {
+                    guard Self.isWanted, inFlight[name] == nil, !isInPlace(name) else { return nil }
+                    return makeTask(name, in: session)
+                }
+                task?.resume()
+            }
         case .fail: emit(.failed(error.localizedDescription))
+        }
+    }
+
+    /// Pauses before the automatic retries of a file in one run of the app (then it reports the failure; the next
+    /// foreground or launch starts again, BetterSummaries.resumeIfWanted).
+    private static let retryDelays: [TimeInterval] = [2, 10, 30, 60, 120, 300]
+
+    /// Errors that say the connection or the app's process went away, not that the file is wrong.
+    private static func isTransient(_ error: any Error) -> Bool {
+        guard let code = (error as? URLError)?.code else { return false }
+        switch code {
+        case .networkConnectionLost, .notConnectedToInternet, .timedOut, .cannotConnectToHost, .cannotFindHost,
+             .dnsLookupFailed, .dataNotAllowed, .internationalRoamingOff, .backgroundSessionWasDisconnected,
+             .secureConnectionFailed, .cancelled:
+            return true
+        default:
+            return false
         }
     }
 

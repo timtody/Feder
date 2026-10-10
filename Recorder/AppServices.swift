@@ -125,6 +125,7 @@ final class AppServices {
         }
         if downloadsNemotron { Task { await nemotron.download(force: false) } }
         if downloadsParakeet { parakeet.resumeIfWanted() }   // asked for in the onboarding, Wi-Fi only
+        betterSummaries.resumeIfWanted()                     // Gemma: a failed download the user asked for goes on
         Task { await prepareLiveDiarizer() }       // independent: neither waits for the other
         prewarmModels()                            // once per launch: Nemotron compiled before Stop
     }
