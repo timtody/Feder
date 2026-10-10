@@ -16,7 +16,7 @@ struct SettingsView: View {
     @AppStorage(AppServices.liveSpeakerLabelsKey) private var liveSpeakerLabels = true
     @AppStorage(PlaceLocator.saveLocationKey) private var saveLocation = true
     @State private var showsWelcome = false
-    @AppStorage(PeopleDirectory.recognitionKey) private var recognizesVoices = true
+    @AppStorage(PeopleDirectory.recognitionKey) private var recognizesVoices = false
     @State private var confirmsVoiceDeletion = false
     @State private var path = NavigationPath()          // untyped: People pushes Person values too
 

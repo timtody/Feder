@@ -72,6 +72,21 @@ final class AppServices {
         liveDiarizer = LSEENDLiveDiarizer()
         #endif
         people = PeopleDirectory(modelContext: container.mainContext)
+        // Recognition became opt-in (October 2026). Someone who already has voice profiles had it on: it stays on (and
+        // the onboarding's voice page still comes once, showing it on), so their profiles don't sit unused.
+        if UserDefaults.standard.object(forKey: PeopleDirectory.recognitionKey) == nil, people.hasVoiceProfiles() {
+            UserDefaults.standard.set(true, forKey: PeopleDirectory.recognitionKey)
+        }
+        #if DEBUG && targetEnvironment(simulator)
+        // UI tests: `-voiceRecognitionOn` stores it on (ScribeUITestCase's default, so the seeded people get voice
+        // profiles); `-resetVoiceRecognition` removes the stored value, as on a new install. Written, not passed as
+        // an argument value, so a test can still flip the switch.
+        if ProcessInfo.processInfo.arguments.contains("-resetVoiceRecognition") {
+            UserDefaults.standard.removeObject(forKey: PeopleDirectory.recognitionKey)
+        } else if ProcessInfo.processInfo.arguments.contains("-voiceRecognitionOn") {
+            UserDefaults.standard.set(true, forKey: PeopleDirectory.recognitionKey)
+        }
+        #endif
         identifier = SpeakerIdentifier(diarizer: diarizer, fileTranscriber: fileTranscriber, people: people,
                                        betterSummaries: betterSummaries, modelContext: container.mainContext)
         // Gemma downloaded or turned on: the transcripts are described again with it (newest first), wherever the user is.

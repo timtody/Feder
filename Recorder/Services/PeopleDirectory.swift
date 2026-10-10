@@ -9,7 +9,7 @@ import Observation
 ///   (VoiceMatch). Recognition never adds samples: only names the user gave do, so a wrong match cannot drift a
 ///   fingerprint. Naming a person also recognizes them in older transcripts where their speaker is still unnamed.
 /// - Deleting a person removes its fingerprint and links; the names already in transcripts stay as plain text.
-/// - "Recognize People by Voice" (Settings › People, on by default) turns all of it off: no speaker's voice is computed
+/// - "Recognize People by Voice" (Settings › People and the onboarding, off until the user turns it on) gates all of it: no speaker's voice is computed
 ///   or kept (SpeakerIdentifier), naming a speaker stores no sample, and nobody is recognized. Turning it off deletes
 ///   every voice profile there is (`deleteAllVoiceProfiles`, after a confirmation); the names stay. Turned on again, it
 ///   works from the next recording; the transcripts made meanwhile get no voices afterwards (they were made with it off).
@@ -17,10 +17,11 @@ import Observation
 final class PeopleDirectory {
     private let modelContext: ModelContext
 
-    /// UserDefaults key of "Recognize People by Voice"; absent means on.
+    /// UserDefaults key of "Recognize People by Voice"; absent means off (opt-in since October 2026: voice profiles are
+    /// biometric data; the onboarding asks, AppServices keeps it on for someone who already has profiles).
     nonisolated static let recognitionKey = "voiceRecognition"
     nonisolated static var isRecognitionEnabled: Bool {
-        UserDefaults.standard.object(forKey: recognitionKey) as? Bool ?? true
+        UserDefaults.standard.object(forKey: recognitionKey) as? Bool ?? false
     }
 
     init(modelContext: ModelContext) {

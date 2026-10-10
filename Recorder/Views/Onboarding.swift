@@ -10,6 +10,9 @@ enum OnboardingPage: Hashable {
     /// The notice every user gets once, existing users too: ask people before recording them (§ 201 StGB), voices
     /// you name are remembered on this iPhone, automatic results can contain mistakes; and the privacy policy.
     case beforeYouRecord
+    /// Recognizing people by voice: what it does, that voice profiles are biometric data and need consent, that they
+    /// never leave the iPhone; its switch is off until the user turns it on. Once for everyone.
+    case voiceProfiles
     /// The optional downloads, on one page, each with its switch: Parakeet (610 MB, more accurate transcripts after
     /// Stop) and Gemma (3.6 GB, titles and summaries; 8 GB iPhones only). Download / Not Now.
     case improvements
@@ -37,6 +40,8 @@ struct Onboarding: View {
 
     /// UserDefaults: Before You Record was confirmed (Continue).
     static let recordingNoticeKey = "recordingNoticeShown"
+    /// UserDefaults: the voice profiles page was shown.
+    static let voiceProfilesShownKey = "voiceProfilesOnboardingShown"
     /// UserDefaults: Optional Improvements was shown. (Until October 2026 a Gemma-only page, `gemmaOnboardingShown`.)
     static let improvementsShownKey = "improvementsOnboardingShown"
     /// UserDefaults: the Gemma-only page it replaced was shown, so Gemma was offered once already.
@@ -60,6 +65,7 @@ struct Onboarding: View {
             switch page {
             case .welcome: welcome
             case .beforeYouRecord: beforeYouRecord
+            case .voiceProfiles: voiceProfiles
             case .improvements: improvements
             }
         }
@@ -110,10 +116,6 @@ struct Onboarding: View {
         OnboardingLayout(title: "Before You Record") {
             OnboardingRow(symbol: "hand.raised", title: "Ask First",
                           text: "Tell people you're recording and get their OK. Recording a private conversation without consent is against the law in Germany and many other countries.")
-            // Every speaker's voice profile is kept with its transcript (SpeakerIdentifier), not only named ones, and
-            // deleting a person leaves the profiles in their transcripts: said as it is.
-            OnboardingRow(symbol: "person.crop.circle.badge.checkmark", title: "Voices Are Remembered",
-                          text: "Feder keeps a voice profile of everyone it hears, only on this iPhone, and recognizes people you've named. This is optional: turn off Recognize People by Voice in Settings.")
             OnboardingRow(symbol: "checkmark.bubble", title: "Check What Matters",
                           text: "Transcripts, speaker names and summaries are made automatically and can contain mistakes.")
         } footnote: {
@@ -125,6 +127,11 @@ struct Onboarding: View {
                 next(after: .beforeYouRecord)
             }
         }
+    }
+
+    private var voiceProfiles: some View {
+        VoiceProfilesPage(onDone: { next(after: .voiceProfiles) })
+            .onAppear { UserDefaults.standard.set(true, forKey: Self.voiceProfilesShownKey) }
     }
 
     private var improvements: some View {
@@ -140,6 +147,36 @@ struct Onboarding: View {
         #else
         SpeechTranscriber.isAvailable
         #endif
+    }
+}
+
+/// Recognize People by Voice: off by default (October 2026: voice profiles are biometric data, GDPR Art. 9, so they are
+/// opt-in). The page says what it does, that a profile identifies a person and needs the agreement of the people
+/// recorded, and that profiles never leave the iPhone; its switch is the setting itself (PeopleDirectory
+/// .recognitionKey), so turning it on here is the user's consent. Every speaker's profile would be kept with its
+/// transcript (SpeakerIdentifier), not only named ones: the copy says "each speaker".
+private struct VoiceProfilesPage: View {
+    let onDone: () -> Void
+    @AppStorage(PeopleDirectory.recognitionKey) private var recognizesVoices = false
+
+    var body: some View {
+        OnboardingLayout(title: "Recognize People by Voice") {
+            OnboardingRow(symbol: "person.crop.circle.badge.checkmark", title: "Know Who Is Speaking",
+                          text: "Feder can keep a voice profile of each speaker and recognize people you've named in later recordings.")
+            OnboardingRow(symbol: "hand.raised", title: "Biometric Data",
+                          text: "A voice profile identifies a person. Turn this on only if the people you record agree.")
+            OnboardingRow(symbol: "lock.fill", title: "Never Leaves This iPhone",
+                          text: "Profiles stay on this iPhone and we never upload them. Turning it off in Settings deletes them.")
+            Toggle(isOn: $recognizesVoices) {
+                Text("Recognize People by Voice")
+                    .font(.headline)
+            }
+            .padding(.top, 4)
+        } footnote: {
+            Text("Off unless you turn it on. You can change it any time in Settings.")
+        } buttons: {
+            ProminentButton("Continue", action: onDone)
+        }
     }
 }
 

@@ -151,6 +151,16 @@
         }
       }
     },
+    "A voice profile identifies a person. Turn this on only if the people you record agree.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Stimmprofil identifiziert eine Person. Schalte das nur ein, wenn die Personen, die du aufnimmst, einverstanden sind."
+          }
+        }
+      }
+    },
     "AI Model for More Accurate Transcripts": {
       "localizations": {
         "de": {
@@ -320,6 +330,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bevor du aufnimmst"
+          }
+        }
+      }
+    },
+    "Biometric Data": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Biometrische Daten"
           }
         }
       }
@@ -724,22 +744,22 @@
         }
       }
     },
+    "Feder can keep a voice profile of each speaker and recognize people you've named in later recordings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder kann von jedem Sprecher ein Stimmprofil anlegen und Personen, die du benannt hast, in späteren Aufnahmen wiedererkennen."
+          }
+        }
+      }
+    },
     "Feder keeps a voice profile of each speaker, only on this iPhone, and recognizes people you've named in new recordings.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Feder legt für jeden Sprecher ein Stimmprofil an, das auf diesem iPhone bleibt, und erkennt Personen, die du benannt hast, in neuen Aufnahmen wieder."
-          }
-        }
-      }
-    },
-    "Feder keeps a voice profile of everyone it hears, only on this iPhone, and recognizes people you've named. This is optional: turn off Recognize People by Voice in Settings.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Feder legt von allen, die es hört, ein Stimmprofil an, das auf diesem iPhone bleibt, und erkennt so Personen wieder, die du benannt hast. Das ist optional: Schalte „Personen an der Stimme erkennen“ in den Einstellungen aus."
           }
         }
       }
@@ -910,6 +930,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zum Live-Text"
+          }
+        }
+      }
+    },
+    "Know Who Is Speaking": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wissen, wer spricht"
           }
         }
       }
@@ -1184,6 +1214,16 @@
         }
       }
     },
+    "Never Leaves This iPhone": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verlässt nie dieses iPhone"
+          }
+        }
+      }
+    },
     "New Transcript %lld": {
       "localizations": {
         "de": {
@@ -1280,6 +1320,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aus"
+          }
+        }
+      }
+    },
+    "Off unless you turn it on. You can change it any time in Settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus, bis du es einschaltest. Du kannst es jederzeit in den Einstellungen ändern."
           }
         }
       }
@@ -1453,6 +1503,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Datenschutzerklärung"
+          }
+        }
+      }
+    },
+    "Profiles stay on this iPhone and we never upload them. Turning it off in Settings deletes them.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Profile bleiben auf diesem iPhone und wir laden sie nie hoch. Ausschalten in den Einstellungen löscht sie."
           }
         }
       }
@@ -2263,16 +2323,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vokabular"
-          }
-        }
-      }
-    },
-    "Voices Are Remembered": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stimmen werden gespeichert"
           }
         }
       }

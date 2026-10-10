@@ -130,6 +130,7 @@ struct MainView: View {
         var pages: [OnboardingPage] = []
         if !AppServices.modelDownloadsAllowed { pages.append(.welcome) }
         if !defaults.bool(forKey: Onboarding.recordingNoticeKey) { pages.append(.beforeYouRecord) }
+        if !defaults.bool(forKey: Onboarding.voiceProfilesShownKey) { pages.append(.voiceProfiles) }
         if services.offersParakeet || services.offersGemma, !defaults.bool(forKey: Onboarding.improvementsShownKey) {
             pages.append(.improvements)
         }

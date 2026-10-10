@@ -10,10 +10,11 @@ import XCTest
 /// many seconds.
 final class OnboardingTests: ScribeUITestCase {
     /// A new install: Welcome (with the download sizes; can't be swiped away), Before You Record (with the privacy
-    /// policy), then Optional Improvements with a switch each for Parakeet and Gemma; the button names what it loads.
+    /// policy), Recognize People by Voice (biometric data, off until turned on), then Optional Improvements with a switch each for Parakeet and Gemma; the button names what it loads.
     @MainActor
     func testNewInstallPages() throws {
-        let app = launch(["-welcomeShown", "NO", "-recordingNoticeShown", "NO", "-improvementsOnboardingShown", "NO",
+        let app = launch(["-welcomeShown", "NO", "-recordingNoticeShown", "NO", "-voiceProfilesOnboardingShown", "NO",
+                          "-resetVoiceRecognition", "-improvementsOnboardingShown", "NO",
                           "-fakeGemmaDownload", "-fakeParakeetDownload", "-gemmaOnboardingShown", "NO"])
         let welcome = app.staticTexts["Welcome to Feder"]
         XCTAssertTrue(welcome.waitForExistence(timeout: 5), "Welcome first")
@@ -29,6 +30,16 @@ final class OnboardingTests: ScribeUITestCase {
         XCTAssertTrue(app.staticTexts["Ask First"].exists)
         XCTAssertTrue(app.buttons["Privacy Policy"].exists, "the privacy policy is one tap away")
         shot("Before You Record", app)
+
+        app.buttons["Continue"].tap()
+        let voices = app.switches["Recognize People by Voice"]
+        XCTAssertTrue(voices.waitForExistence(timeout: 5), "then recognizing people by voice")
+        XCTAssertTrue(app.staticTexts["Biometric Data"].exists, "it says voice profiles are biometric data")
+        XCTAssertTrue(app.staticTexts["Never Leaves This iPhone"].exists)
+        XCTAssertEqual(voices.value as? String, "0", "off unless the user turns it on")
+        shot("Voice profiles", app)
+        voices.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        XCTAssertEqual(voices.value as? String, "1", "turned on here: the setting itself")
 
         app.buttons["Continue"].tap()
         XCTAssertTrue(app.staticTexts["Optional Improvements"].waitForExistence(timeout: 5), "then the optional downloads")

@@ -251,7 +251,7 @@ final class SettingsTests: ScribeUITestCase {
         XCTAssertTrue(welcome.waitForNonExistence(timeout: 5), "Done closes the replay")
     }
 
-    /// Settings › People: "Recognize People by Voice" first, on by default. The seeded people have voice profiles, so
+    /// Settings › People: "Recognize People by Voice" first (on here: -voiceRecognitionOn). The seeded people have voice profiles, so
     /// turning it off asks first (Cancel keeps it on), then deletes them: turned on again, the people's voices are
     /// unknown until they are named again.
     @MainActor
@@ -260,7 +260,7 @@ final class SettingsTests: ScribeUITestCase {
         app.buttons["Settings"].firstMatch.tap()
         let toggle = app.switches["Recognize People by Voice"].firstMatch
         XCTAssertTrue(toggle.waitForExistence(timeout: 5), "the switch in Settings")
-        XCTAssertEqual(toggle.value as? String, "1", "on by default")
+        XCTAssertEqual(toggle.value as? String, "1", "on (the tests run with it on, -voiceRecognitionOn)")
         let people = app.buttons["People"].firstMatch
         XCTAssertLessThan(toggle.frame.minY, people.frame.minY, "first, above People")
         XCTAssertLessThan(people.frame.maxY, app.switches["Live Speaker Labels"].firstMatch.frame.minY, "the first group")
@@ -287,5 +287,16 @@ final class SettingsTests: ScribeUITestCase {
         let anna = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'voice not known yet'")).firstMatch
         XCTAssertTrue(anna.waitForExistence(timeout: 5), "the profiles are gone: voices unknown until named again")
         shot("People without voices", app)
+    }
+
+    /// A new install has Recognize People by Voice off (voice profiles are biometric data: opt-in).
+    @MainActor
+    func testVoiceRecognitionOffByDefault() throws {
+        let app = launch(["-resetVoiceRecognition"])
+        app.buttons["Settings"].firstMatch.tap()
+        let toggle = app.switches["Recognize People by Voice"].firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertEqual(toggle.value as? String, "0", "off by default")
+        XCTAssertTrue(app.staticTexts["Off: we keep no voice profiles and recognize no one. Speakers are still told apart."].exists)
     }
 }

@@ -11,7 +11,7 @@ struct PeopleView: View {
     @State private var query = ""
     @State private var pendingDelete: Person?
     /// "Recognize People by Voice" (Settings): off, nobody has a voice profile, so rows don't say "voice not known yet".
-    @AppStorage(PeopleDirectory.recognitionKey) private var recognizesVoices = true
+    @AppStorage(PeopleDirectory.recognitionKey) private var recognizesVoices = false
 
     private var filtered: [Person] {
         let q = query.trimmingCharacters(in: .whitespaces)
