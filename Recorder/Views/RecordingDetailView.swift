@@ -40,6 +40,7 @@ struct RecordingDetailView: View {
     @State private var tagFocusRequest = 0           // each Add Tag press: focus the tag field (TagEditor)
     @State private var bodyShown: Bool
     @State private var hitGeometry = HitGeometry()
+    @State private var keepsStatusRow = false           // the status line was shown: its place stays (see body)
 
     init(recording: Recording, search: TranscriptSearchContext? = nil, fadesInBody: Bool = false, holdsBody: Bool = false,
          turning: Bool = false, onClose: @escaping () -> Void) {
@@ -78,19 +79,27 @@ struct RecordingDetailView: View {
                                            place: recording.placeName)
                             .opacity(turning ? 0 : 1)
                             .animation(nil, value: turning)
-                        // What is being done to the transcript right now, one line, until the last step ends.
+                        // What is being done to the transcript right now, one line, until the last step ends. Once
+                        // shown, its place stays while the card is open (an empty line): the line going away moved
+                        // the whole transcript up.
                         if statusText != nil {
                             PipelineStatusLine(recording: recording)
                                 .opacity(bodyShown ? 1 : 0)
                                 .transition(.opacity)
+                        } else if keepsStatusRow {
+                            Text(verbatim: " ")
+                                .font(.subheadline)
+                                .accessibilityHidden(true)
                         }
-                        // The automatic summary (TranscriptTitler), once there is one; while the model writes it, its
-                        // text as far as it goes, and before that a placeholder.
+                        // The automatic summary (TranscriptTitler), folded into one "Summary" row; the row is there
+                        // from the first frame whenever a summary is coming, so neither it nor its writing moves
+                        // the transcript.
                         if let summary = recording.summary, !summary.isEmpty {
-                            SummaryText(summary: summary, highlights: search?.highlights(in: summary) ?? [])
+                            SummaryDisclosure(recordingID: recording.id, summary: summary,
+                                              highlights: search?.highlights(in: summary) ?? [])
                                 .opacity(bodyShown ? 1 : 0)
-                        } else if case .running = services.identifier.progress[recording.id]?.state(of: .summary) {
-                            SummaryInProgress(recordingID: recording.id)   // reads the streamed text itself
+                        } else if summaryComing {
+                            SummaryDisclosure(recordingID: recording.id, summary: nil, highlights: [])
                                 .opacity(bodyShown ? 1 : 0)
                         }
                         // HIG › Generative AI: say that AI made it and can be wrong. For the whole transcript, not only
@@ -118,7 +127,6 @@ struct RecordingDetailView: View {
                             .transition(.opacity)
                     }
                 }
-                .animation(.snappy, value: statusText == nil)    // the line goes away softly after the last step
                 .animation(.snappy, value: showsNote)
                 .animation(.snappy, value: !recording.tags.isEmpty || editingTags)   // the tag line comes and goes
                 // No spacing above: the first name row brings its own (the space above a name is part of its target).
@@ -129,7 +137,6 @@ struct RecordingDetailView: View {
                                hitFrame: search == nil ? nil : { id, frame in hitGeometry.frames[id] = frame },
                                flashes: flashes,
                                showsNameTip: search == nil && recording.speakerNames.isEmpty)
-                    .animation(.snappy, value: segments)             // refined speakers re-split it: no jump
                     .opacity(bodyShown ? 1 : 0)
             }
             .coordinateSpace(.named(TranscriptView.contentSpace))
@@ -137,7 +144,6 @@ struct RecordingDetailView: View {
             .padding(.bottom, 24)
             .frame(maxWidth: TranscriptStyle.maxWidth)
             .frame(maxWidth: .infinity)
-            .animation(.snappy, value: recording.speakerStatusRaw)   // row collapse + paragraph -> speaker turns
         }
         .scrollDismissesKeyboard(.interactively)        // swiping the transcript ends (and saves) an edit
         // A ScrollViewReader, not a `scrollPosition` binding, for the search hits: the binding tracked the paragraph
@@ -168,6 +174,7 @@ struct RecordingDetailView: View {
         .task(id: search) { await showFirstHit() }
         .onAppear { InteractionTrace.shown("open") }
         .onChange(of: segments) { findHits() }             // the vocabulary pass or a new speaker count rewrote them
+        .onChange(of: statusText != nil, initial: true) { _, shown in if shown { keepsStatusRow = true } }
         .onChange(of: recording.speakerStatusRaw) {        // "Speakers: n" re-runs identification: numbers change
             if recording.speakerStatus != .done { renaming = nil }
         }
@@ -310,6 +317,13 @@ struct RecordingDetailView: View {
 
     /// With the hit navigator (opened from a search result), on every iPhone.
     private var combinesActions: Bool { !hits.isEmpty }
+
+    /// A summary is expected: the pipeline lists its step (from the moment the recording is queued, so the Summary row
+    /// is there from the card's first frame) and it hasn't failed.
+    private var summaryComing: Bool {
+        guard let state = services.identifier.progress[recording.id]?.state(of: .summary) else { return false }
+        return state != .failed
+    }
 
     // MARK: Search hits
 

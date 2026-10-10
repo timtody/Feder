@@ -63,6 +63,10 @@ struct TranscriptView: View {
                 .padding(.top, startsTurn ? (showsHeader ? 0 : TranscriptStyle.turnSpacing) : TranscriptStyle.paragraphSpacing)
             }
         }
+        // A pass after Stop (Parakeet's words, the final speakers, the vocabulary) swaps the words in place in one
+        // frame, whatever animation the change came with: animated, the re-split paragraphs crossfaded with the old
+        // ones and slid up from the bottom of the screen, once per pass. Only the changed words show (ChangeFlash).
+        .transaction(value: segments) { $0.animation = nil }
         .transcriptText()
         .sensoryFeedback(.impact(weight: .light), trigger: headerTaps)
         .task(id: noticeRow) {

@@ -289,7 +289,8 @@ final class SpeakerIdentifier {
                 let changes = WordChange.changes(from: recording.words, to: transcript.words, vocabulary: false)
                 recording.words = transcript.words
                 recording.alignmentOffset = transcript.alignmentOffset
-                recording.segments = TranscriptAligner.segments(words: transcript.words, turns: liveTurns)
+                recording.segments = TranscriptAligner.keepingIDsByOverlap(   // the same rows, new words: nothing flies in
+                    of: recording.segments, in: TranscriptAligner.segments(words: transcript.words, turns: liveTurns))
                 flash(changes, in: id)
             }
             recording.wordsRefined = true
@@ -335,7 +336,7 @@ final class SpeakerIdentifier {
             guard !isGone(recording) else { progress[id] = nil; return }
             recording.speakerTurns = diarization.turns
             recording.diarizer = diarization.diarizer            // pyannote's speakers are recognized more strictly
-            recording.segments = Self.finalSegments(of: recording)   // current words: the vocabulary pass may have run
+            recording.segments = Self.finalSegments(of: recording, keepingIDsOf: recording.segments)   // current words
             recording.speakerVoices = (voices ?? [:]).mapValues(\.embedding)
             // Failed: refreshVoices retries. Off: current, so turning recognition on later computes nothing for it.
             recording.voicesVersion = voices == nil && recognizes ? 0 : Self.voicesVersion

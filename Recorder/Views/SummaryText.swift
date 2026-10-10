@@ -1,65 +1,55 @@
 import SwiftUI
 
-/// The automatic summary under the date line: secondary text, at most three lines; a longer one shows "More" and the
-/// whole summary is the button that expands it (and collapses it again). Opened from a search, its hits are highlighted,
-/// so a transcript found only by its summary shows why. VoiceOver reads all of it either way.
-struct SummaryText: View {
-    let summary: String
+/// The automatic summary under the date line, folded away: one "Summary" row (the system's `DisclosureGroup`) that
+/// opens it. Until October 2026 the summary stood open (three lines and "More"), and while Gemma wrote it the header
+/// grew and shrank above the transcript (three shimmering lines, then the text line by line, then the final three
+/// lines), so the whole transcript moved four times in about 3 s (iPhone 17 simulator, frame by frame). The row is
+/// there from the first frame whenever a summary is coming (RecordingDetailView), keeps its height while it is
+/// written, and only a tap opens it: open, it shows the text as far as it is written (`SummaryInProgress`), then all
+/// of it. Opened from a search with hits in the summary, it starts open, so a transcript found only by its summary
+/// shows why. VoiceOver reads the summary as the row's value, also while it is folded.
+struct SummaryDisclosure: View {
+    let recordingID: UUID
+    /// The summary, nil while it is being written.
+    let summary: String?
     let highlights: [Range<String.Index>]
 
-    @State private var isExpanded = false
-    @State private var fullHeight: CGFloat = 0           // of the whole summary at this width
-    @State private var clippedHeight: CGFloat = 0        // of its first three lines
+    @State private var isExpanded: Bool
 
-    private static let lines = 3
-
-    private var isLong: Bool { fullHeight > clippedHeight + 1 }
-
-    var body: some View {
-        if isLong {
-            Button {
-                withAnimation(.snappy) { isExpanded.toggle() }
-            } label: {
-                content.contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Summary")
-            .accessibilityIdentifier("Summary")
-            .accessibilityValue(summary)
-            .accessibilityHint(isExpanded ? "Shows only its first lines." : "Shows all of it.")
-        } else {
-            content
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Summary")
-                .accessibilityIdentifier("Summary")
-                .accessibilityValue(summary)
-        }
+    init(recordingID: UUID, summary: String?, highlights: [Range<String.Index>]) {
+        self.recordingID = recordingID
+        self.summary = summary
+        self.highlights = highlights
+        _isExpanded = State(initialValue: !highlights.isEmpty)
     }
 
-    private var content: some View {
-        let text = SearchHighlight.text(summary, highlights)
-        return VStack(alignment: .leading, spacing: 2) {
-            text
-                .lineLimit(isExpanded ? nil : Self.lines)
-                .fixedSize(horizontal: false, vertical: true)
-                .foregroundStyle(.secondary)
-                .background(alignment: .topLeading) {      // invisible copies: is there more than three lines' worth?
-                    ZStack(alignment: .topLeading) {
-                        text.fixedSize(horizontal: false, vertical: true)
-                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
-                        text.lineLimit(Self.lines).fixedSize(horizontal: false, vertical: true)
-                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { clippedHeight = $0 }
-                    }
-                    .hidden()
-                    .accessibilityHidden(true)
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            Group {
+                if let summary {
+                    SearchHighlight.text(summary, highlights)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                } else {
+                    SummaryInProgress(recordingID: recordingID)
                 }
-            if isLong {
-                Text(isExpanded ? "Less" : "More")
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.tint)
             }
+            .padding(.top, 6)
+        } label: {
+            Group {
+                if summary == nil {
+                    ShimmerText(text: String(localized: "Summary"))      // being written: the row says so in place
+                } else {
+                    Text("Summary")
+                }
+            }
+            .fontWeight(.semibold)
+            .accessibilityLabel("Summary")
+            .accessibilityValue(summary ?? String(localized: "Being written"))
+            .accessibilityIdentifier("Summary")
         }
         .font(.subheadline)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

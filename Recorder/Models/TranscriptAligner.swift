@@ -41,10 +41,11 @@ nonisolated enum TranscriptAligner {
         speakers(words: words, turns: shifted(turns, by: offset), smoothing: false)
     }
 
-    /// `finalSpeakers` folded into paragraphs (see `segments` for `previous`).
+    /// `finalSpeakers` folded into paragraphs, keeping the ids of `previous` by time (`keepingIDsByOverlap`).
     static func finalSegments(words: [TranscriptWord], turns: [SpeakerTurn], offset: TimeInterval,
                               keepingIDsOf previous: [TranscriptSegment] = []) -> [TranscriptSegment] {
-        keepingIDs(of: previous, in: fold(words: words, speakers: finalSpeakers(words: words, turns: turns, offset: offset)))
+        keepingIDsByOverlap(of: previous,
+                            in: fold(words: words, speakers: finalSpeakers(words: words, turns: turns, offset: offset)))
     }
 
     /// `turns` with `offset` seconds added to their times.
@@ -71,6 +72,39 @@ nonisolated enum TranscriptAligner {
             if let id = idByStart[segment.start], used.insert(id).inserted { segment.id = id }
             return segment
         }
+    }
+
+    /// After Stop: segments take the ids of the `previous` segments they overlap (or start with), each id used once,
+    /// the largest overlaps first, so a paragraph a pass rewrites stays the same view. The passes after Stop
+    /// gave every paragraph a new id, and the card removed every row and inserted new ones: with the speakers' re-split
+    /// the whole text faded out and flew in again from the bottom. Exact starts (`keepingIDs`) don't survive Parakeet,
+    /// which re-times every word. A split keeps the id on its larger part; only real new paragraphs get a new one.
+    static func keepingIDsByOverlap(of previous: [TranscriptSegment],
+                                    in segments: [TranscriptSegment]) -> [TranscriptSegment] {
+        guard !previous.isEmpty, !segments.isEmpty else { return segments }
+        let old = previous.sorted { $0.start < $1.start }
+        // Every overlapping pair (old segments sorted by start, so each new one only looks at its neighbours), then
+        // the largest overlaps first: a split keeps the id on its larger part.
+        var pairs: [(new: Int, old: Int, overlap: TimeInterval)] = []
+        var first = 0
+        for (n, segment) in segments.enumerated() {
+            while first < old.count, old[first].end < segment.start { first += 1 }
+            var o = first
+            while o < old.count, old[o].start <= segment.end {
+                let overlap = min(old[o].end, segment.end) - max(old[o].start, segment.start)
+                if overlap > 0 || old[o].start == segment.start { pairs.append((n, o, max(overlap, 0))) }
+                o += 1
+            }
+        }
+        pairs.sort { $0.overlap > $1.overlap || ($0.overlap == $1.overlap && $0.new < $1.new) }
+        var result = segments
+        var takenNew = Set<Int>(), takenOld = Set<Int>()
+        for pair in pairs where !takenNew.contains(pair.new) && !takenOld.contains(pair.old) {
+            result[pair.new].id = old[pair.old].id
+            takenNew.insert(pair.new)
+            takenOld.insert(pair.old)
+        }
+        return result
     }
 
     static func overlap(_ word: TranscriptWord, _ turn: SpeakerTurn) -> TimeInterval {

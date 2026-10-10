@@ -334,6 +334,16 @@
         }
       }
     },
+    "Being written": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird geschrieben"
+          }
+        }
+      }
+    },
     "Biometric Data": {
       "localizations": {
         "de": {
