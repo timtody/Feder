@@ -1174,6 +1174,16 @@
         }
       }
     },
+    "Name the Speakers": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprecher benennen"
+          }
+        }
+      }
+    },
     "Names and terms the transcription often gets wrong.": {
       "localizations": {
         "de": {
@@ -2003,6 +2013,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tippe auf „Transkribieren“, um zu beginnen."
+          }
+        }
+      }
+    },
+    "Tap a speaker's name to change it everywhere in this transcript.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippe auf den Namen eines Sprechers, um ihn im ganzen Transkript zu ändern."
+          }
+        }
+      }
+    },
+    "Tap a speaker's name to change it. Feder then recognizes them by voice in later recordings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippe auf den Namen eines Sprechers, um ihn zu ändern. Feder erkennt die Person dann in späteren Aufnahmen an der Stimme."
           }
         }
       }

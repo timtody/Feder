@@ -127,7 +127,8 @@ struct RecordingDetailView: View {
                                renameSpeaker: { renaming = SpeakerRenameTarget(speaker: $0) },
                                search: search, currentHit: hits.indices.contains(hitIndex) ? hits[hitIndex] : nil,
                                hitFrame: search == nil ? nil : { id, frame in hitGeometry.frames[id] = frame },
-                               flashes: flashes)
+                               flashes: flashes,
+                               showsNameTip: search == nil && recording.speakerNames.isEmpty)
                     .animation(.snappy, value: segments)             // refined speakers re-split it: no jump
                     .opacity(bodyShown ? 1 : 0)
             }

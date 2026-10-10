@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 
 /// The transcript card's transcript: each speaker turn opens with a name row (the speaker's name in its colour, grey while
 /// speakers are preliminary, and the turn's start time), followed by the turn's paragraphs.
@@ -25,6 +26,8 @@ struct TranscriptView: View {
     /// The stretches of a paragraph whose words a pass just replaced (RecordingDetailView, from
     /// SpeakerIdentifier.recentChanges): shown with a tint that fades (ChangeFlash); nil: none.
     var flashes: ((TranscriptSegment) -> [ChangeFlash])? = nil
+    /// Shows NameSpeakersTip on the first name row (RecordingDetailView: final speakers, none named yet).
+    var showsNameTip = false
 
     /// The coordinate space of the scroll view's content the paragraph frames are in.
     nonisolated static let contentSpace = "TranscriptContent"
@@ -42,6 +45,8 @@ struct TranscriptView: View {
                     if showsHeader, let speaker = segment.speakerIndex, let speakerName {
                         header(index: index, segment: segment.id, speaker: speaker, name: speakerName(speaker),
                                start: segment.start)
+                            .popoverTip(index == 0 && showsNameTip && !preliminary ? NameSpeakersTip() : nil,
+                                        arrowEdge: .top)
                             .zIndex(1)   // above the text's selection area, which reaches 16 pt above it on iOS 27
                         if preliminary, noticeRow == segment.id {
                             Label(preliminaryNotice, systemImage: "hourglass")
@@ -110,6 +115,7 @@ struct TranscriptView: View {
                     withAnimation(.snappy) { noticeRow = segment }
                     AccessibilityNotification.Announcement(preliminaryNotice).post()
                 } else {
+                    NameSpeakersTip().invalidate(reason: .actionPerformed)   // they found it
                     renameSpeaker(speaker)
                 }
             } label: {
@@ -118,7 +124,10 @@ struct TranscriptView: View {
             .buttonStyle(SpeakerHeaderButtonStyle())
             .contextMenu {
                 if !preliminary {
-                    Button("Rename Speaker…", systemImage: "pencil") { renameSpeaker(speaker) }
+                    Button("Rename Speaker…", systemImage: "pencil") {
+                        NameSpeakersTip().invalidate(reason: .actionPerformed)
+                        renameSpeaker(speaker)
+                    }
                 }
             }
             .accessibilityLabel(name)

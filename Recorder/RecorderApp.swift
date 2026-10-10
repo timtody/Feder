@@ -9,6 +9,7 @@ struct RecorderApp: App {
     @State private var services: AppServices
 
     init() {
+        NameSpeakersTip.configure()
         do {
             let container = try ModelContainer(for: Recording.self, Person.self)
             _services = State(initialValue: AppServices(container: container))

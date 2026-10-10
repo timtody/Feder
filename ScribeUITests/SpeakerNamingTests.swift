@@ -177,5 +177,24 @@ final class SpeakerNamingTests: ScribeUITestCase {
         XCTAssertTrue(nameField(app).waitForNonExistence(timeout: 5))
         return true
     }
-}
 
+    /// The first transcript with final speakers, all still "Speaker N", shows a tip on the first name row that names
+    /// are tappable (TipKit; `-showTips -resetTips`, the other tests hide tips). Tapping the name opens the rename
+    /// sheet and ends the tip.
+    @MainActor
+    func testNameSpeakersTip() throws {
+        let app = launch(["-showTips", "-resetTips", "-autoRecord", "-autoStopAfter", "4"])
+        XCTAssertTrue(app.buttons["Delete Transcript"].waitForExistence(timeout: 25), "saved: the card shows the transcript")
+        let tip = app.staticTexts["Name the Speakers"]
+        XCTAssertTrue(tip.waitForExistence(timeout: 15), "the tip once the speakers are final")
+        sleep(1)                                            // its fade-in
+        shot("Name the speakers tip", app)
+        let header = app.buttons["SpeakerHeader.0"]
+        let below = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Tap a speaker'")).firstMatch
+        XCTAssertTrue(below.exists, "it says what to do")
+        XCTAssertLessThan(header.frame.minY, tip.frame.minY, "under the first name, pointing at it")
+        header.tap()
+        XCTAssertTrue(app.textFields.firstMatch.waitForExistence(timeout: 5), "the rename sheet")
+        XCTAssertFalse(tip.exists, "the tip is gone once a name was tapped")
+    }
+}
