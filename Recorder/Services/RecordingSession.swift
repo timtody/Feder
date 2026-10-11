@@ -74,7 +74,7 @@ final class RecordingSession: Identifiable {
     private let identifier: SpeakerIdentifier
     private let liveDiarizer: (any LiveDiarizer)?          // nil: live labels off, or the model isn't loaded yet
     private let calendar: CalendarContext?                 // nil: Name from Calendar is off
-    private var live = LiveTranscript()                   // words, provisional words, live labels -> `text`
+    private var live = LiveTranscript()                    // words, provisional words, live labels -> `text`
     private var liveTurns = LiveSpeakerTurns()             // the newest snapshot, also after recording (for saving)
     private var liveTask: Task<Void, Never>?
     private var placeTask: Task<RecordingPlace?, Never>?  // where the recording started, looked up in parallel

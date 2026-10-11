@@ -43,6 +43,9 @@ final class CalendarContext {
     @ObservationIgnored private var refreshing: Task<Void, Never>?
     /// A refresh asked for while one runs runs once more after it (a change during the read isn't lost).
     @ObservationIgnored private var again = false
+    /// When the last read ended: the launch's read usually ends just before the app becomes active, which needs no
+    /// second one.
+    @ObservationIgnored private var lastRead: ContinuousClock.Instant?
     @ObservationIgnored private var changeDebounce: Task<Void, Never>?
     @ObservationIgnored private var observers: [any NSObjectProtocol] = []
     @ObservationIgnored private let reader = CalendarReader()
@@ -146,6 +149,7 @@ final class CalendarContext {
                 #endif
             } while again
             refreshing = nil
+            lastRead = .now
         }
     }
 
@@ -164,7 +168,8 @@ final class CalendarContext {
     }
 
     /// The calendar changed (debounced: a sync delivers changes in bursts), the day or time zone changed, the app came
-    /// to the foreground (a suspended app may have missed changes; not while a read runs, which is current).
+    /// to the foreground (a suspended app may have missed changes; not while a read runs or one just ended, which is
+    /// current).
     private func observe() {
         let center = NotificationCenter.default
         observers = [
@@ -178,7 +183,8 @@ final class CalendarContext {
             center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil,
                                queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
-                    guard let self, self.refreshing == nil else { return }
+                    guard let self, self.refreshing == nil,
+                          self.lastRead.map({ .now - $0 > .seconds(2) }) ?? true else { return }
                     self.refresh()
                 }
             },

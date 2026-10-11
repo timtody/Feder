@@ -77,22 +77,23 @@ final class CalendarTests: ScribeUITestCase {
         XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "the card closes")
     }
 
-    /// A cold launch from outside the app (here `-autoRecord`, as Control Center or the Action Button) presses before the
-    /// calendar's first read has finished (`-fakeCalendarDelay 5`): the card shows "New Transcript N" while preparing
-    /// (`-fakePrepareSeconds 4.2`), and takes the event's name once the read has it, before recording starts.
+    /// A press from outside the app (the lock screen widget's `feder://record`, as Control Center, the Action Button or
+    /// Siri on a cold launch) that comes while the calendar's first read still runs (`-fakeCalendarDelay 45`, counted
+    /// from launch) finds no event: the card shows no event name while preparing (`-fakePrepareSeconds 44`), and takes
+    /// it once the read has it, before recording starts. Not `-autoRecord`: XCUITest's launch waited minutes for an app
+    /// that records from its first second to become idle, long past the read.
     @MainActor
     func testColdStartTakesTheEvent() throws {
-        let app = launch(["-calendarContext", "YES", "-fakeCalendarEvent", "Standup", "-fakeCalendarDelay", "5",
-                          "-fakePrepareSeconds", "4.2", "-fakeSilence", "-autoRecord"])
-        let early = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'New Transcript '"))
+        let app = launch(["-calendarContext", "YES", "-fakeCalendarEvent", "Standup", "-fakeCalendarDelay", "45",
+                          "-fakePrepareSeconds", "44", "-fakeSilence"])
+        app.open(URL(string: "feder://record")!)
         let named = app.staticTexts["Standup"]
         XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 10), "the card is up")
-        XCTAssertTrue(early.allElementsBoundByIndex.contains { $0.isHittable }, "pressed before the read: New Transcript N")
-        XCTAssertFalse(app.staticTexts["Listening…"].exists, "still preparing")
+        XCTAssertFalse(named.exists, "pressed during the read: not named after the event yet")
+        XCTAssertFalse(app.staticTexts["Listening…"].exists || app.buttons["Stop"].exists, "still preparing")
         shot("Preparing, before the read", app)
-        XCTAssertTrue(named.waitForExistence(timeout: 10), "the event's name once the read has it")
-        XCTAssertFalse(early.allElementsBoundByIndex.contains { $0.isHittable }, "New Transcript N is gone")
-        XCTAssertTrue(app.staticTexts["Listening…"].waitForExistence(timeout: 5), "then recording")
+        XCTAssertTrue(named.waitForExistence(timeout: 60), "the event's name once the read has it")
+        XCTAssertTrue(app.staticTexts["Listening…"].waitForExistence(timeout: 10), "then recording")
         XCTAssertTrue(named.exists, "the name stays while recording")
         shot("Recording, named after the event", app)
         app.buttons["Stop"].firstMatch.tap()                // -fakeSilence: nothing saved, the card closes
