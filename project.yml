@@ -75,6 +75,12 @@ targets:
         NSLocationWhenInUseUsageDescription: "Feder saves where a transcript was started, so you can see and search it later."
         UIBackgroundModes: [audio]
         NSSupportsLiveActivities: true                        # the recording's Live Activity (FederWidgets)
+        CFBundleDocumentTypes:                                # "Feder" in other apps' share sheets for audio: an import
+          - CFBundleTypeName: Audio
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.audio]
+        LSSupportsOpeningDocumentsInPlace: false              # a copy arrives in Documents/Inbox (deleted once imported)
         CFBundleURLTypes:                                     # feder://record: the lock screen widget starts a transcript
           - CFBundleURLName: de.timtody.feder
             CFBundleURLSchemes: [feder]

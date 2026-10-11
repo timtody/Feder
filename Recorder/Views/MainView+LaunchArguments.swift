@@ -1,4 +1,5 @@
 #if DEBUG
+import AVFoundation
 import SwiftUI
 import SwiftData
 
@@ -66,6 +67,13 @@ extension MainView {
                 }
             }
         }
+        if arguments.contains("-importTestAudio") {
+            // QA: as if a 12 s m4a (AAC, 44.1 kHz stereo: a format the recorder never writes) named "Interview Lena"
+            // came from another app's share sheet.
+            // After the list is up (the UI tests' launch waits for it).
+            do { try await Task.sleep(for: .seconds(2)) } catch { return }
+            if let url = await Self.makeTestAudio() { importAudio(from: url) }
+        }
         if let text = UserDefaults.standard.string(forKey: "openSpotlightResult") {
             // As if the first Spotlight result for `text` were tapped: once the launch's index sync has run (5 s).
             do { try await Task.sleep(for: .seconds(7)) } catch { return }
@@ -85,6 +93,30 @@ extension MainView {
         guard seconds > 0, let session = card.session else { return }
         do { try await Task.sleep(for: .seconds(max(0, seconds - (cycle > 0 ? cycle + 2 : 0)))) } catch { return }
         await session.stop()
+    }
+
+    /// A 12 s AAC file of a soft tone with pauses, in the app's temporary folder.
+    @concurrent
+    nonisolated static func makeTestAudio() async -> URL? {
+        let url = FileManager.default.temporaryDirectory.appending(path: "Interview Lena.m4a")
+        try? FileManager.default.removeItem(at: url)
+        let settings: [String: Any] = [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: 44_100,
+                                       AVNumberOfChannelsKey: 2, AVEncoderBitRateKey: 96_000]
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2),
+              let file = try? AVAudioFile(forWriting: url, settings: settings),
+              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 44_100) else { return nil }
+        for second in 0..<12 {
+            buffer.frameLength = 44_100
+            for channel in 0..<2 {
+                let samples = buffer.floatChannelData![channel]
+                for i in 0..<44_100 {
+                    let on = second % 3 != 2                     // a pause every third second
+                    samples[i] = on ? 0.2 * sin(2 * .pi * 220 * Float(i) / 44_100) : 0
+                }
+            }
+            try? file.write(from: buffer)
+        }
+        return url
     }
 }
 #endif

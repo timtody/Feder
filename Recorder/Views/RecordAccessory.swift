@@ -11,6 +11,10 @@ struct RecordAccessory: View {
     let session: RecordingSession?
     let start: () -> Void
     let open: () -> Void
+    /// The Import button: audio from Files becomes a transcript (MainView's file picker).
+    let importAudio: () -> Void
+    /// An import is being converted: the accessory says so instead of Transcribe.
+    var isImporting = false
     /// Reports whether the bar is minimized (the accessory inline), for MainView's Search tab.
     @Binding var isInline: Bool
 
@@ -27,7 +31,11 @@ struct RecordAccessory: View {
         Group {
             switch session?.state {
             case nil, .discarded:
-                idle
+                if isImporting {
+                    status(Text("Importing…"), busy: true)
+                } else {
+                    idle
+                }
             case .idle, .preparing, .downloadingSpeechModel:
                 status(Text("Preparing…"), busy: true)
             case .recording(let since):
@@ -39,7 +47,7 @@ struct RecordAccessory: View {
             }
         }
         .padding(.leading, inline ? 2 : 4)
-        .padding(.trailing, inline ? 12 : 14)
+        .padding(.trailing, inline ? 6 : 8)             // Import's own frame brings the rest of the margin
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
         .sensoryFeedback(trigger: presses) { _, _ in session == nil ? .impact(weight: .medium) : .impact(weight: .light) }
@@ -90,10 +98,28 @@ struct RecordAccessory: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Transcribe")                // what it says
             .accessibilityHint("Starts a new recording and its live transcript")
+            // At the end, as Music has its control there: the language of the next recording and Import. Minimized,
+            // Import stays (on the right, where Music keeps play) and the language goes.
             if !inline {
                 languageMenu(locale)
             }
+            importButton
         }
+    }
+
+    /// Audio from Files (or Voice Memos saved there) as a transcript: the system's file picker, then the steps after
+    /// Stop on the file (AudioImporter).
+    private var importButton: some View {
+        Button(action: importAudio) {
+            Image(systemName: "square.and.arrow.down")
+                .font(.system(size: inline ? 15 : 17, weight: .semibold))
+                .frame(minWidth: inline ? 36 : 40, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Import Audio")
+        .accessibilityHint("Transcribes an audio file from Files")
+        .accessibilityIdentifier("ImportAudio")
     }
 
     /// Nemotron's files are there and the model is being loaded and compiled (most of a minute): said like the

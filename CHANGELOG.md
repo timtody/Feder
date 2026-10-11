@@ -9,6 +9,8 @@ release carries a later version's features, its notes are the 1.0 text plus thos
 
 ### English
 
+- Import audio: tap the new import button next to the language, or share a recording from Voice Memos or Files to
+  Feder, and it becomes a transcript like your own recordings.
 - Listen to your recordings: play a transcript, follow along as the spoken word lights up, and tap any word to hear it.
 - Undo a correction: after you change a speaker, merge two speakers or edit the text, tap Undo, or shake your iPhone.
 - Give a single paragraph to another speaker: in Edit Text, each paragraph has its speaker above it to change.
@@ -16,6 +18,8 @@ release carries a later version's features, its notes are the 1.0 text plus thos
 
 ### Deutsch
 
+- Importiere Audio: Tippe auf die neue Import-Taste neben der Sprache oder teile eine Aufnahme aus Sprachmemos oder
+  Dateien mit Feder, und sie wird zu einem Transkript wie deine eigenen Aufnahmen.
 - Hör deine Aufnahmen an: Spiel ein Transkript ab, lies mit, während das gesprochene Wort aufleuchtet, und tippe auf
   ein Wort, um es zu hören.
 - Mach eine Korrektur rückgängig: Nachdem du einen Sprecher geändert, zwei zusammengeführt oder den Text bearbeitet

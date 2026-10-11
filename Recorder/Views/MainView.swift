@@ -67,6 +67,10 @@ struct MainView: View {
     @Namespace private var cardZoom
     /// The onboarding sheet's pages while it is up (see offerOnboarding); empty otherwise.
     @State private var onboardingPages: [OnboardingPage] = []
+    /// Import: the file picker is up; a file is being converted; what went wrong.
+    @State private var showsImporter = false
+    @State private var isImporting = false
+    @State private var importError: String?
 
     var body: some View {
         TabView(selection: tabSelection) {
@@ -87,6 +91,7 @@ struct MainView: View {
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory {
             RecordAccessory(session: card.session, start: startRecording, open: openRecorder,
+                            importAudio: { showsImporter = true }, isImporting: isImporting,
                             isInline: $isBarMinimized)
                 .cardSource(TranscriptCardContent.recorderSource)
         }
@@ -110,6 +115,15 @@ struct MainView: View {
         }
         .onOpenURL { url in
             if url.scheme == FederURL.scheme, url.host() == "record" { startRecording() }
+            if url.isFileURL { importAudio(from: url) }          // "Feder" in another app's share sheet
+        }
+        .fileImporter(isPresented: $showsImporter, allowedContentTypes: [.audio]) { result in
+            if case .success(let url) = result { importAudio(from: url) }
+        }
+        .alert("Can't Import", isPresented: Binding(get: { importError != nil }, set: { if !$0 { importError = nil } })) {
+            Button("OK", role: .cancel) { importError = nil }
+        } message: {
+            Text(importError ?? "")
         }
         // A transcript tapped in Spotlight (SpotlightIndex): its card, out of its row in the Transcripts list.
         .onContinueUserActivity(CSSearchableItemActionType) { activity in
@@ -292,6 +306,37 @@ struct MainView: View {
             card.turnedFromRecording = true
         } else if cardPhase != .open {
             present(CardRequest(transcript: recording, sourceID: TranscriptCardContent.recorderSource, showsList: true, deferred: true))
+        }
+    }
+
+    // MARK: Import
+
+    /// A file from the picker or another app's share sheet: converted off the main actor (AudioImporter), saved as a
+    /// transcript in the language chosen for the next recording, queued for the steps after Stop, and opened in the
+    /// card out of the accessory, where its status line says what is being done.
+    func importAudio(from url: URL) {
+        guard !isImporting else { return }
+        isImporting = true
+        Task {
+            defer { isImporting = false }
+            do {
+                let converted = try await AudioImporter.convert(url)
+                AudioImporter.removeInboxCopy(url)
+                let recording = Recording(name: converted.name, audioFileName: converted.fileName,
+                                          localeIdentifier: TranscriptionLanguage.current.identifier(.bcp47))
+                recording.createdAt = converted.created ?? .now
+                recording.duration = converted.duration
+                modelContext.insert(recording)
+                try? modelContext.save()
+                services.identifier.enqueue(recording)
+                tab = .transcripts
+                if cardPhase == .open { closeCard() }
+                present(CardRequest(transcript: recording, sourceID: TranscriptCardContent.recorderSource, showsList: true,
+                                    deferred: true))
+            } catch {
+                AudioImporter.removeInboxCopy(url)
+                importError = error.localizedDescription
+            }
         }
     }
 
