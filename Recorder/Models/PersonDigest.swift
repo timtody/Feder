@@ -17,8 +17,8 @@ nonisolated struct PersonTopic: Sendable, Hashable, Identifiable {
     var kind: Kind
     var name: String                 // the spelling shown: the one most of their transcripts use
     var count: Int
-    /// What a word's search looks for: its shortest form ("Licence" for "licences", the lemma "Lizenz" for
-    /// "Lizenzen"), since the search matches inside words and the plural would miss the singular.
+    /// What a word's search looks for: its shortest form, in the shown spelling's case ("licence" for "licences", the
+    /// lemma "Lizenz" for "Lizenzen"), since the search matches inside words and the plural would miss the singular.
     var query: String
     var id: String { "\(kind == .tag ? "tag" : "word"):\(SearchFolding.fold(name))" }
 }
@@ -287,9 +287,13 @@ nonisolated enum PersonDigest {
             var seen = Set<String>()
             for (position, term) in source.terms.enumerated() {
                 let key = merged(term.key)
-                guard !isName(key, names, source.names), seen.insert(key).inserted else { continue }
-                count(&words[key, default: Tally()], source, spelling: term.surface, base: term.base,
-                      order: index * 1_000 + position)
+                guard !isName(key, names, source.names) else { continue }
+                if seen.insert(key).inserted {
+                    count(&words[key, default: Tally()], source, spelling: term.surface, base: term.base,
+                          order: index * 1_000 + position)
+                } else if source.isTheirs, term.base.count < words[key]?.shortest?.count ?? .max {
+                    words[key]?.shortest = term.base       // "licences" in the Topics line, "Licence" in the title
+                }
             }
             var seenTags = Set<String>()
             for (position, tag) in source.tags.enumerated() {

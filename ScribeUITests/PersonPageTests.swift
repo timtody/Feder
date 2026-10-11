@@ -64,6 +64,18 @@ final class PersonPageTests: ScribeUITestCase {
         XCTAssertTrue(app.staticTexts["3 Transcripts"].exists)
         shot("Person topics", app)
 
+        // The large title collapses into the bar on scroll, as in Contacts.
+        let bar = app.navigationBars["Anna Schmidt"]
+        let large = bar.frame.height
+        app.swipeUp()
+        let end = Date.now.addingTimeInterval(3)
+        while Date.now < end, bar.frame.height > large - 20 { RunLoop.current.run(until: .now + 0.2) }
+        note("Navigation bar", "large \(large), scrolled \(bar.frame.height)")
+        shot("Person page scrolled", app)
+        XCTAssertLessThan(bar.frame.height, large - 20, "the title collapsed into the bar")
+        app.swipeDown()
+        XCTAssertTrue(travel.waitForExistence(timeout: 5) && travel.isHittable, "back at the top")
+
         travel.tap()
         let field = app.textFields["SearchField"]
         XCTAssertTrue(field.waitForExistence(timeout: 5), "the Search tab")
@@ -84,6 +96,15 @@ final class PersonPageTests: ScribeUITestCase {
         XCTAssertTrue(app.staticTexts["Licence Planning"].waitForExistence(timeout: 5)
                         && app.staticTexts["Budget Review"].exists, "her transcripts tagged finance")
         XCTAssertFalse(app.staticTexts["Project Kickoff"].exists)
+
+        // A plural searches its shortest form ("Licence" in a title), which finds the plural too.
+        app.buttons["Close"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Anna Schmidt"].waitForExistence(timeout: 5), "back on her page")
+        app.buttons["PersonTopic.licences"].tap()
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertEqual(field.value as? String, "licence", "the singular, which the search finds inside the plural")
+        XCTAssertTrue(app.staticTexts["Licence Planning"].waitForExistence(timeout: 5)
+                        && app.staticTexts["Budget Review"].exists, "both of her transcripts about licences")
     }
 
     /// "Go to Person" in a name row's long-press menu: the card shrinks away and Anna's page is pushed onto the
@@ -149,6 +170,11 @@ final class PersonPageTests: ScribeUITestCase {
         app.buttons["Transcripts"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Person Deleted"].waitForExistence(timeout: 5), "the page says so")
         shot("Person deleted", app)
+
+        // The selected tab tapped again pops its stack to the list, as in every iOS app.
+        app.buttons["Transcripts"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["Person Deleted"].waitForNonExistence(timeout: 5), "back to the list")
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 5), "the Transcripts list")
     }
 
     /// The page and the menu item in German.

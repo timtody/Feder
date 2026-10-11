@@ -215,7 +215,7 @@ struct PersonView: View {
         .background(.fill.tertiary, in: Capsule())
         .contentShape(Capsule())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(topic.kind == .tag ? "\(topic.name), Tag" : "\(topic.name), Topic")
+        .accessibilityLabel(topic.kind == .tag ? Text("\(topic.name), Tag") : Text("\(topic.name), Topic"))
         .accessibilityValue("^[\(topic.count) transcript](inflect: true)")
         .accessibilityHint("Searches your transcripts with \(name) for this topic.")
     }
