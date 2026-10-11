@@ -90,7 +90,8 @@ private struct LevelMeter: View {
 
 /// The newest words in one line, running from right to left: the newest at the right end, older ones moving left at
 /// each update and fading out at the left edge (each word keeps its id, so the system animates its move; a new one
-/// comes in from the right). "Listening…" before the first word, "Saving…" from Stop.
+/// comes in from the right). "Listening…" before the first word, "Saving…" from Stop; "Recording" while App Lock is on
+/// (the app then sends no words).
 private struct LiveWords: View {
     let state: RecordingActivityAttributes.ContentState
 
@@ -98,6 +99,8 @@ private struct LiveWords: View {
         Group {
             if state.isSaving {
                 Text("Saving…").frame(maxWidth: .infinity, alignment: .leading)
+            } else if state.hidesWords == true {
+                Text("Recording").frame(maxWidth: .infinity, alignment: .leading)
             } else if state.words.isEmpty {
                 Text("Listening…").frame(maxWidth: .infinity, alignment: .leading)
             } else {

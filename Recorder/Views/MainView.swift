@@ -142,12 +142,15 @@ struct MainView: View {
         }
         .onChange(of: card.session?.state) { _, state in
             guard let state else { return }
+            services.appLock.recordingChanged(state)        // a start while locked: Face ID once it records
             switch state {
             case .finished(let recording): finished(recording)
             case .discarded: finished(nil)
             default: break
             }
         }
+        // App Lock's window shows the recording's time, level and Stop while Feder is locked (AppLockView).
+        .onChange(of: card.session?.id, initial: true) { services.appLock.session = card.session }
         #if DEBUG
         .task { await applyLaunchArguments() }
         #endif

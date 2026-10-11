@@ -73,6 +73,7 @@ targets:
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSMicrophoneUsageDescription: "Feder uses the microphone to record and transcribe audio. Everything stays on this iPhone."
         NSLocationWhenInUseUsageDescription: "Feder saves where a transcript was started, so you can see and search it later."
+        NSFaceIDUsageDescription: "Feder uses Face ID to unlock your transcripts when App Lock is on."   # App Lock (AppLock)
         UIBackgroundModes: [audio]
         NSSupportsLiveActivities: true                        # the recording's Live Activity (FederWidgets)
         CFBundleDocumentTypes:                                # "Feder" in other apps' share sheets for audio: an import

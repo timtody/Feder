@@ -14,7 +14,11 @@ struct RecorderApp: App {
         RecordingLiveActivity.endLeftovers()
         do {
             let container = try ModelContainer(for: Recording.self, Person.self)
-            _services = State(initialValue: AppServices(container: container))
+            let services = AppServices(container: container)
+            _services = State(initialValue: services)
+            // App Lock: locked or not decided now and its window ready when the scene connects, so the first frame
+            // never shows a transcript (AppLock).
+            AppLockWindow.install(services.appLock)
             // Orphan sweep runs here, before any session can exist (never on scenePhase: a background recording may
             // be live). If the fetch fails, keep everything: an empty set would wipe every recording's audio.
             var descriptor = FetchDescriptor<Recording>()

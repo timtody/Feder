@@ -2,7 +2,7 @@ import ActivityKit
 import Foundation
 
 /// The recording's Live Activity (RecordingActivityAttributes; drawn by FederWidgets): started when the recording
-/// starts, with the newest words and the microphone's level at most once a second (`show`: the latest values wait for
+/// starts, with the newest words (none while App Lock is on) and the microphone's level at most once a second (`show`: the latest values wait for
 /// the next slot, so a busy stretch costs one update a second, a quiet one none), "Saving…" from Stop, ended once the
 /// transcript is saved or the recording dropped. Local only: started and updated by the app, no push token. Without
 /// Live Activities allowed (Settings › Feder) nothing happens.
@@ -25,7 +25,7 @@ enum RecordingLiveActivity {
     static func start(name: String, since: Date) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         end()
-        state = RecordingActivityAttributes.ContentState(since: since, isSaving: false)
+        state = RecordingActivityAttributes.ContentState(since: since, isSaving: false, hidesWords: AppLock.isEnabled)
         latestText = LiveText()
         do {
             current = try Activity.request(attributes: RecordingActivityAttributes(name: name),
@@ -74,7 +74,10 @@ enum RecordingLiveActivity {
     private static func send() {
         guard let activity = current else { return }
         lastUpdate = .now
-        if !state.isSaving { state.words = tail(of: latestText) }
+        // App Lock on (also turned on during the recording): no words leave the app for the Lock Screen, the Dynamic
+        // Island, the Apple Watch's Smart Stack or a Mac's menu bar.
+        state.hidesWords = AppLock.isEnabled
+        if !state.isSaving { state.words = AppLock.isEnabled ? [] : tail(of: latestText) }
         let id = activity.id, state = state
         self.state.level = 0
         Task { await update(id, state) }

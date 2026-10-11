@@ -65,7 +65,7 @@ final class RecordingControl {
 }
 
 /// The Live Activity while recording (lock screen, Dynamic Island): the time from `since`, the newest transcribed words
-/// (running from right to left), the microphone's level (the island's meter) and Stop; "Saving…" from Stop until the
+/// (running from right to left; none while App Lock is on), the microphone's level (the island's meter) and Stop; "Saving…" from Stop until the
 /// transcript is saved. The app updates it at most once a second (RecordingLiveActivity): iOS draws a Live Activity
 /// from these snapshots and animates between them, it has no live drawing of its own.
 nonisolated struct RecordingActivityAttributes: ActivityAttributes {
@@ -77,6 +77,9 @@ nonisolated struct RecordingActivityAttributes: ActivityAttributes {
         var words: [LiveWord] = []
         /// The microphone's level 0...1 at the last update.
         var level: Double = 0
+        /// App Lock is on: no words are sent, and "Recording" stands in their place. Optional, so the state of an
+        /// activity started by an earlier build still decodes (nil reads as false).
+        var hidesWords: Bool?
     }
 
     /// The transcript's name (kept for the system's own listings; the views don't show it).
