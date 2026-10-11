@@ -39,6 +39,11 @@ struct TranscriptView: View {
     /// transcript's speakers is a new speaker). Set with `edits`: each paragraph then has a chip above it instead of the
     /// turns' name rows, so one paragraph can go to another speaker (the name row's menu moves a whole turn).
     var speakerEdits: Binding<[UUID: Int]>? = nil
+    /// The word being played (a paragraph and the index of its word, counted as WordText splits it): highlighted.
+    var playing: (segment: UUID, token: Int)? = nil
+    /// A tap on a word (its paragraph and index as WordText splits it): RecordingDetailView plays from it. nil: the
+    /// paragraphs are plain text (no audio, editing).
+    var onWordTap: ((TranscriptSegment, Int) -> Void)? = nil
 
     enum SpeakerEdit {
         case assign(turnStartingAt: UUID, to: Int?)       // nil: a new speaker
@@ -167,11 +172,17 @@ struct TranscriptView: View {
     }
 
     /// The paragraph's text: with its search hits highlighted, or, right after a pass replaced some of its words, with
-    /// those flashing (not both: a card opened from a search shows the hits).
+    /// those flashing (not both: a card opened from a search shows the hits). With audio its words can be tapped and the
+    /// spoken one is highlighted (WordParagraph); not while words flash (a few seconds after a pass).
     @ViewBuilder
     private func paragraphText(_ segment: TranscriptSegment) -> some View {
         if search == nil, let flashes = flashes?(segment), !flashes.isEmpty {
             ChangeFlashText(text: segment.text, flashes: flashes)
+        } else if let onWordTap {
+            WordParagraph(text: segment.text, highlights: search?.highlights(in: segment.text) ?? [],
+                          playing: playing?.segment == segment.id ? playing?.token : nil,
+                          onTap: { onWordTap(segment, $0) })
+                .equatable()
         } else {
             SearchHighlight.text(segment.text, search?.highlights(in: segment.text) ?? [])
         }

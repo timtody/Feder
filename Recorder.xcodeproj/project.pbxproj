@@ -21,6 +21,7 @@
 		6A0E34B4405D331458A53253 /* SpeakerModelPrewarmTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C47DC3D3045444F493063CD3 /* SpeakerModelPrewarmTests.swift */; };
 		7FF5DF93DAAEA0226A35FC0B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FD12FF192478DE6E07D470C7 /* Assets.xcassets */; };
 		9264C88A983550F28C73F9D1 /* RecordingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41108F5D0A55780F5B359E97 /* RecordingIntents.swift */; };
+		95CEACAB0CEC68CDC1028D97 /* PlaybackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D04382C8ECD81DC76999E3C /* PlaybackTests.swift */; };
 		9842882BB124165D5F36A048 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 4BF152A52DD140039F8897C1 /* MLX */; };
 		ACE3A2F03E31206AE3CA1D0A /* TagEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6061ACE8B763190CD40341F /* TagEditorTests.swift */; };
 		B1FB85133BB65085CC0C8494 /* TranscriptionLanguageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3914E00B46027D3444C29616 /* TranscriptionLanguageTests.swift */; };
@@ -71,6 +72,7 @@
 		0960C3DA36C230C1F4975E37 /* GemmaDownloadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GemmaDownloadTests.swift; sourceTree = "<group>"; };
 		1D9844FE4177FE163F4856E7 /* ResponsivenessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponsivenessTests.swift; sourceTree = "<group>"; };
 		24639CFDE8DBBA9454DEA98F /* SpeakerCorrectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerCorrectionTests.swift; sourceTree = "<group>"; };
+		2D04382C8ECD81DC76999E3C /* PlaybackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackTests.swift; sourceTree = "<group>"; };
 		34990786B63747A3152C8DA7 /* SettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTests.swift; sourceTree = "<group>"; };
 		3914E00B46027D3444C29616 /* TranscriptionLanguageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionLanguageTests.swift; sourceTree = "<group>"; };
 		3CBB09BF835A7714BACE9828 /* EditTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTextTests.swift; sourceTree = "<group>"; };
@@ -159,6 +161,7 @@
 				F9888AE62014305DE6B7512B /* ExportTests.swift */,
 				0960C3DA36C230C1F4975E37 /* GemmaDownloadTests.swift */,
 				894E9486143AAD7D3710C41E /* OnboardingTests.swift */,
+				2D04382C8ECD81DC76999E3C /* PlaybackTests.swift */,
 				1D9844FE4177FE163F4856E7 /* ResponsivenessTests.swift */,
 				B5E5334822ED139DB77164FF /* ScribeUITestCase.swift */,
 				C7F19636A7502AD131706A5F /* SearchTests.swift */,
@@ -344,6 +347,7 @@
 				3DE7EA9DAFB6057C8FE49F91 /* ExportTests.swift in Sources */,
 				196D9B1D9C1FC93B2D97EAC5 /* GemmaDownloadTests.swift in Sources */,
 				B5552D6F520774D1A62A09A3 /* OnboardingTests.swift in Sources */,
+				95CEACAB0CEC68CDC1028D97 /* PlaybackTests.swift in Sources */,
 				02CD8C4FECB1072974082C3B /* ResponsivenessTests.swift in Sources */,
 				B739DD0671E8E7B2825F900A /* ScribeUITestCase.swift in Sources */,
 				C52AA21891D8870AA04AFDE1 /* SearchTests.swift in Sources */,

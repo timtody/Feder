@@ -9,12 +9,15 @@ release carries a later version's features, its notes are the 1.0 text plus thos
 
 ### English
 
+- Listen to your recordings: play a transcript, follow along as the spoken word lights up, and tap any word to hear it.
 - Undo a correction: after you change a speaker, merge two speakers or edit the text, tap Undo, or shake your iPhone.
 - Give a single paragraph to another speaker: in Edit Text, each paragraph has its speaker above it to change.
 - Naming a speaker from the tip takes one tap.
 
 ### Deutsch
 
+- Hör deine Aufnahmen an: Spiel ein Transkript ab, lies mit, während das gesprochene Wort aufleuchtet, und tippe auf
+  ein Wort, um es zu hören.
 - Mach eine Korrektur rückgängig: Nachdem du einen Sprecher geändert, zwei zusammengeführt oder den Text bearbeitet
   hast, tippe auf „Widerrufen“ oder schüttle dein iPhone.
 - Ordne einen einzelnen Absatz einem anderen Sprecher zu: Beim Bearbeiten steht über jedem Absatz sein Sprecher zum

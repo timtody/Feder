@@ -42,7 +42,8 @@ final class SpeakerIdentifier {
     @ObservationIgnored private var freshPasses: [BackgroundPass] = []   // finished recordings: before the sweep
     @ObservationIgnored private var sweepPasses: [BackgroundPass] = []   // older transcripts' titles, newest first
     @ObservationIgnored private var backgroundWorker: Task<Void, Never>?
-    @ObservationIgnored private var isRecording = false
+    /// A recording is being made (RecordingSession): the card's player is off meanwhile.
+    private(set) var isRecording = false
     @ObservationIgnored private var waitingForGemma: [(id: UUID, recording: Recording)] = []   // described when the recording ends
     @ObservationIgnored private var sweepWaiters: [CheckedContinuation<Void, Never>] = []   // sweeps waiting for Stop
     @ObservationIgnored private var migratingVoices = false        // refreshVoices() is running

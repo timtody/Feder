@@ -39,6 +39,8 @@ final class AppServices {
     let network = NetworkPath()                      // Wi-Fi, cellular, Low Data Mode or offline, watched
     let nemotron: NemotronModel                      // the Nemotron speaker model's download (Settings)
     let people: PeopleDirectory
+    /// Plays a transcript's audio (the card's player bar, a tapped word).
+    let player = TranscriptPlayer()
     let betterSummaries: BetterSummaries             // Gemma for titles and summaries (Settings)
     let usesFakes: Bool
     private let nemotronDiarizer: NemotronDiarizer
@@ -274,6 +276,7 @@ final class AppServices {
 
     /// A fresh session (fresh capture + transcriber) for every recording.
     func makeRecordingSession() -> RecordingSession {
+        player.stop()                                  // recording and playback never overlap (both on AudioHardware)
         #if DEBUG && targetEnvironment(simulator)
         let transcriber: any Transcriber = FakeTranscriber()
         #else
