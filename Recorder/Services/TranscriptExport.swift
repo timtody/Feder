@@ -86,9 +86,10 @@ nonisolated enum TranscriptExport {
         return cleaned.isEmpty ? "Transcript" : String(cleaned.prefix(100))
     }
 
-    /// "0:42", "1:02:03": the card's time format.
+    /// "0:42", "1:02:03": the card's time format, rounded as the card rounds (to the nearest second: down, a turn at
+    /// 3.6 s read 0:03 in the export and 0:04 in the card).
     static func clock(_ seconds: TimeInterval) -> String {
-        let total = max(0, Int(seconds.rounded(.down)))
+        let total = max(0, Int(seconds.rounded()))
         let (h, m, s) = (total / 3600, total / 60 % 60, total % 60)
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
     }

@@ -357,9 +357,12 @@ struct RecordingDetailView: View {
                     Button("WebVTT") { share(.vtt) }
                 }
             }
+            // The options keep the menu open (a menu closes after any item by default): set them, then pick a format.
             Section {
                 Toggle("Speaker Names", isOn: $exportNames)
+                    .menuActionDismissBehavior(.disabled)
                 Toggle("Timestamps", isOn: $exportTimestamps)
+                    .menuActionDismissBehavior(.disabled)
             }
         } label: {
             Label("Share Transcript", systemImage: "square.and.arrow.up")

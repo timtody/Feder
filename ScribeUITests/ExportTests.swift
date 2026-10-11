@@ -15,6 +15,13 @@ final class ExportTests: ScribeUITestCase {
         XCTAssertTrue(names.exists, "the speaker names option")
         XCTAssertTrue(app.buttons["Timestamps"].exists || app.switches["Timestamps"].exists, "the timestamps option")
         shot("Share menu", app)
+        // An option keeps the menu open: toggled, the formats are still there.
+        let timestamps = app.buttons["Timestamps"].exists ? app.buttons["Timestamps"] : app.switches["Timestamps"]
+        timestamps.tap()
+        XCTAssertTrue(app.buttons["PDF"].waitForExistence(timeout: 2), "the menu stays open after an option")
+        sleep(1)
+        XCTAssertTrue(app.buttons["PDF"].isHittable, "still open a moment later")
+        timestamps.tap()                                    // back to off, as the next tests expect
         app.buttons["PDF"].tap()
         let sheet = app.otherElements["ActivityListView"]
         XCTAssertTrue(sheet.waitForExistence(timeout: 10) || app.navigationBars["UIActivityContentView"].exists,
