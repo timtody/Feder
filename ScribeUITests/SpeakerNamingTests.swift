@@ -65,7 +65,9 @@ final class SpeakerNamingTests: ScribeUITestCase {
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "the name field is focused")
         dismissKeyboardTip(app)
         XCTAssertEqual(field.value as? String, "Anna Schmidt", "prefilled with the current name")
-        XCTAssertTrue(anna.exists && jonas.exists && lena.exists, "the known people are listed")
+        // Lena too, below them: other tests' people (linked by voice in their recordings) can push her row out of the
+        // half-height sheet, so she is looked for once typing filters the list (below).
+        XCTAssertTrue(anna.exists && jonas.exists, "the known people are listed")
         XCTAssertLessThan(anna.frame.minY, jonas.frame.minY, "the speaker's own person first")
         shot("Rename sheet", app)
 
@@ -85,6 +87,8 @@ final class SpeakerNamingTests: ScribeUITestCase {
         shot("Typed name saved", app)
 
         app.buttons["SpeakerHeader.1"].tap()
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.typeText("Le")                                                   // Lena's row, wherever the list puts it
         XCTAssertTrue(lena.waitForExistence(timeout: 5))
         lena.tap()
         XCTAssertTrue(field.waitForNonExistence(timeout: 5))
@@ -98,7 +102,9 @@ final class SpeakerNamingTests: ScribeUITestCase {
         XCTAssertTrue(maria.waitForExistence(timeout: 5))
         XCTAssertTrue(anna.label.contains("Similar voice"), anna.label)
         XCTAssertLessThan(maria.frame.minY, anna.frame.minY)
-        XCTAssertLessThan(anna.frame.minY, lena.frame.minY, "a similar voice before everyone else")
+        if lena.exists {                                    // not in the tree: further down the sheet, after Anna too
+            XCTAssertLessThan(anna.frame.minY, lena.frame.minY, "a similar voice before everyone else")
+        }
         shot("Similar voice first", app)
 
         app.buttons["UseDefaultName"].tap()

@@ -108,9 +108,10 @@ final class SpeakerCorrectionTests: ScribeUITestCase {
         XCTAssertTrue(undo.waitForExistence(timeout: 5))
         app.buttons["SpeakerHeader.1"].tap()                      // Jonas: rename him
         XCTAssertTrue(app.buttons["CancelRename"].waitForExistence(timeout: 5))
-        sleep(1)
-        app.typeText("Jonas W.")                                  // the field is focused with the name selected
-        app.buttons["SaveRename"].tap()
+        // Back to the default name, not a new one: a new person ("Jonas W.") outlived the samples' reseeding, linked by
+        // voice in other tests' recordings, and crowded testRenameSheet's list.
+        app.buttons["UseDefaultName"].tap()                       // saves and closes the sheet
+        XCTAssertTrue(app.buttons["CancelRename"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(undo.waitForNonExistence(timeout: 5), "the rename dropped the Undo")
 
         app.buttons["Edit Text"].tap()
