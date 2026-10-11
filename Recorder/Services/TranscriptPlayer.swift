@@ -45,7 +45,8 @@ final class TranscriptPlayer {
     /// A tapped word is the spoken one from the tap on, through the moment of audio played before it (the pre-roll),
     /// rather than the word before it (often in the paragraph above, which the transcript would scroll to).
     @ObservationIgnored private var pinned: Int?
-    /// Where the playhead was at a moment (a moment ahead: the audio is heard after the output's latency).
+    /// Where the playhead was at a moment (a moment ahead: the audio is heard after the output's latency); nil while
+    /// stopped and until the audio has started.
     @ObservationIgnored private var anchor: (time: TimeInterval, at: ContinuousClock.Instant)?
     /// Counts play, pause, seek and stop: the audio actor's answer to an older request is dropped.
     @ObservationIgnored private var request = 0
@@ -98,19 +99,24 @@ final class TranscriptPlayer {
         pinned = tapped
         isPlaying = true
         failed = false
-        anchor = (from, .now)
+        // The playhead holds at `from` until the audio has really started (setting up the player and the session takes
+        // a moment, longer than a tapped word's 0.1 s pre-roll): run from the tap, it ran ahead, let go of the tapped
+        // word and jumped back to the word before it.
+        anchor = nil
+        ticker?.cancel()
+        ticker = nil
         updateWord()
-        startTicking()
         setCommands(enabled: true)
         updateNowPlaying()
         let engine = engine
         Task {
             do {
                 let started = try await engine.play(url: url, at: from)
-                // The clock from when the audio really started (the hop and activating the session take a moment)
-                // plus the output's latency (Bluetooth: ~0.2 s), so the highlight is on the word being heard.
+                // The clock from when the audio really started plus the output's latency (Bluetooth: ~0.2 s), so the
+                // highlight is on the word being heard.
                 guard id == self.request, self.isPlaying else { return }
                 self.anchor = (started.time, .now + .seconds(started.latency))
+                self.startTicking()
             } catch PlaybackFailure.recording {
                 guard id == self.request else { return }
                 self.halt()                                    // a recording holds the session: nothing played

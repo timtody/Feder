@@ -72,7 +72,13 @@ extension MainView {
             // came from another app's share sheet.
             // After the list is up (the UI tests' launch waits for it).
             do { try await Task.sleep(for: .seconds(2)) } catch { return }
-            if let url = await Self.makeTestAudio() { importAudio(from: url) }
+            let first = await Self.makeTestAudio(named: "Interview Lena")
+            // `-importTwoFiles`: a second file, handed over while the first is converting ("Interview Max", sound on
+            // the right channel only, as from a second microphone): it waits its turn.
+            let second = arguments.contains("-importTwoFiles")
+                ? await Self.makeTestAudio(named: "Interview Max", channels: [1]) : nil
+            if let first { importAudio(from: first) }
+            if let second { importAudio(from: second) }
         }
         if let text = UserDefaults.standard.string(forKey: "openSpotlightResult") {
             // As if the first Spotlight result for `text` were tapped: once the launch's index sync has run (5 s).
@@ -97,8 +103,8 @@ extension MainView {
 
     /// A 12 s AAC file of a soft tone with pauses, in the app's temporary folder.
     @concurrent
-    nonisolated static func makeTestAudio() async -> URL? {
-        let url = FileManager.default.temporaryDirectory.appending(path: "Interview Lena.m4a")
+    nonisolated static func makeTestAudio(named name: String, channels voiced: Set<Int> = [0, 1]) async -> URL? {
+        let url = FileManager.default.temporaryDirectory.appending(path: "\(name).m4a")
         try? FileManager.default.removeItem(at: url)
         let settings: [String: Any] = [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: 44_100,
                                        AVNumberOfChannelsKey: 2, AVEncoderBitRateKey: 96_000]
@@ -110,7 +116,7 @@ extension MainView {
             for channel in 0..<2 {
                 let samples = buffer.floatChannelData![channel]
                 for i in 0..<44_100 {
-                    let on = second % 3 != 2                     // a pause every third second
+                    let on = second % 3 != 2 && voiced.contains(channel)   // a pause every third second
                     samples[i] = on ? 0.2 * sin(2 * .pi * 220 * Float(i) / 44_100) : 0
                 }
             }

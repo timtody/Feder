@@ -46,6 +46,11 @@ final class SpeakerIdentifier {
     private(set) var isRecording = false
     /// Transcripts whose vocabulary pass is running right now (corrections wait: canCorrectSpeakers).
     private(set) var vocabularyRunning: Set<UUID> = []
+    /// Transcripts in Edit Text right now: their vocabulary pass waits until Done or Cancel (it would write the words
+    /// under the drafts, and Done would then be refused or put the old spellings back).
+    private(set) var editingText: Set<UUID> = []
+    /// Passes asked for again while they were running (an Undo, the end of Edit Text): queued once more after it.
+    @ObservationIgnored private var passAgain: Set<UUID> = []
     @ObservationIgnored private var waitingForGemma: [(id: UUID, recording: Recording)] = []   // described when the recording ends
     @ObservationIgnored private var sweepWaiters: [CheckedContinuation<Void, Never>] = []   // sweeps waiting for Stop
     @ObservationIgnored private var migratingVoices = false        // refreshVoices() is running
@@ -255,8 +260,10 @@ final class SpeakerIdentifier {
     /// drops its result (refreshVoices(of:) compares `editCount`). Returns whether it undid anything.
     @discardableResult
     func undoLastCorrection(of recording: Recording) -> Bool {
+        // Not while its vocabulary pass runs: the pass would drop its result over the restored words, and the transcript
+        // would miss its Your Words terms (the Undo stays: it works once the pass is over, or goes if it wrote words).
         guard let undo = lastCorrection, undo.recordingID == recording.id, !isGone(recording),
-              recording.speakerStatus == .done else { return false }
+              recording.speakerStatus == .done, !vocabularyRunning.contains(recording.id) else { return false }
         lastCorrection = nil
         guard CorrectionState(recording) == undo.after else { return false }   // changed since: undoing would lose it
         let before = undo.before
@@ -275,6 +282,18 @@ final class SpeakerIdentifier {
         try? modelContext.save()
         if before.vocabularyPending { enqueueBackgroundPass(recording, fresh: true) }
         return true
+    }
+
+    /// Edit Text started on `recording` (RecordingDetailView): its vocabulary pass waits.
+    func beginEditingText(_ recording: Recording) {
+        editingText.insert(recording.id)
+    }
+
+    /// Edit Text ended (Done, Cancel, the card closed): a vocabulary pass that waited goes now.
+    func endEditingText(_ recording: Recording) {
+        guard editingText.remove(recording.id) != nil, !isGone(recording), recording.vocabularyPending,
+              recording.speakerStatus == .done else { return }
+        enqueueBackgroundPass(recording, fresh: true)
     }
 
     /// The index a new speaker gets: past every speaker the transcript knows (paragraphs, turns, names, links).
@@ -302,6 +321,10 @@ final class SpeakerIdentifier {
         if recording.speakerNames[into] == nil, let name = recording.speakerNames[from] {
             recording.speakerNames[into] = name
             recording.speakerPeople[into] = recording.speakerPeople[from]
+            // The person's voice sample from this transcript goes along: the compaction drops `from`'s, and the voice
+            // job only gives a linked speaker a sample when it had no voice (`into` has one), so a person named once
+            // lost their only sample and was never recognized again.
+            people.moveSamples(of: recording, from: from, to: into)
         }
         recording.speakerTurns = SpeakerCorrection.merging(recording.correctableTurns, from, into: into)
         recording.realignSegments()
@@ -523,6 +546,15 @@ final class SpeakerIdentifier {
             track(id) { $0.begin(.words) }
             let transcript = try? await fileTranscriber.transcribe(fileURL: url, locale: locale)
             guard !isGone(recording) else { progress[id] = nil; return }
+            // An import has no live words to fall back on: a pass that failed (offline while the language's speech
+            // model must download, a language it doesn't know) leaves it to Try Again, not an empty transcript marked
+            // done that says no speech was found and is never transcribed again.
+            if transcript == nil, recording.words.isEmpty {
+                recording.speakerStatus = .failed
+                try? modelContext.save()
+                progress[id] = nil
+                return
+            }
             if let transcript, !transcript.words.isEmpty {
                 let changes = WordChange.changes(from: recording.words, to: transcript.words, vocabulary: false)
                 let hadWords = !recording.words.isEmpty
@@ -631,9 +663,16 @@ final class SpeakerIdentifier {
     private func enqueueBackgroundPass(_ recording: Recording, fresh: Bool) {
         let id = recording.id
         if !backgroundQueued.insert(id).inserted {
-            // Already queued: only a sweep entry moves up ("Speakers: n" on an older transcript still waiting).
-            guard fresh, let index = sweepPasses.firstIndex(where: { $0.id == id }) else { return }
-            sweepPasses.remove(at: index)
+            if let index = sweepPasses.firstIndex(where: { $0.id == id }) {
+                // Queued: only a sweep entry moves up ("Speakers: n" on an older transcript still waiting).
+                guard fresh else { return }
+                sweepPasses.remove(at: index)
+            } else {
+                // Running right now (it stays in backgroundQueued until it is described): once more after it, from
+                // the transcript as it is then. Dropped here, an Undo's or Edit Text's pass was lost for good.
+                if !freshPasses.contains(where: { $0.id == id }) { passAgain.insert(id) }
+                return
+            }
         }
         let pass = BackgroundPass(id: id, recording: recording)
         if fresh { freshPasses.append(pass) } else { sweepPasses.append(pass) }
@@ -647,6 +686,9 @@ final class SpeakerIdentifier {
                 await applyVocabulary(to: pass.recording)
                 await describe(pass.recording)                // from the final words
                 backgroundQueued.remove(pass.id)
+                if passAgain.remove(pass.id) != nil, !isGone(pass.recording) {
+                    enqueueBackgroundPass(pass.recording, fresh: true)
+                }
             }
             backgroundWorker = nil                            // no suspension since the check: no pass can be missed
         }
@@ -677,7 +719,10 @@ final class SpeakerIdentifier {
     private func applyVocabulary(to recording: Recording) async {
         guard !isGone(recording) else { return }
         let id = recording.id
-        guard recording.vocabularyPending else { track(id) { $0.drop(.vocabulary) }; return }
+        guard recording.vocabularyPending, !editingText.contains(id) else {   // in Edit Text: when it ends
+            track(id) { $0.drop(.vocabulary) }
+            return
+        }
         track(id) { $0.begin(.vocabulary) }
         vocabularyRunning.insert(id)
         defer { vocabularyRunning.remove(id) }
@@ -685,7 +730,13 @@ final class SpeakerIdentifier {
         let improved = await fileTranscriber.applyVocabulary(to: words, fileURL: recording.audioURL,
                                                              locale: Locale(identifier: recording.localeIdentifier))
         guard !isGone(recording) else { progress[id] = nil; return }
-        if improved != words, recording.words == words {
+        guard recording.words == words else {
+            // Something else wrote the words meanwhile: the result is dropped, and the pass runs again on the new words.
+            passAgain.insert(id)
+            track(id) { $0.finish(.vocabulary) }
+            return
+        }
+        if improved != words {
             invalidateCorrection(of: [id])                    // the words change: an Undo would take them back
             recording.words = improved
             recording.segments = Self.finalSegments(of: recording, keepingIDsOf: recording.segments)

@@ -1,3 +1,4 @@
+import Accelerate
 import AVFoundation
 import Foundation
 
@@ -43,15 +44,21 @@ nonisolated enum AudioImporter {
         defer { if scoped { source.stopAccessingSecurityScopedResource() } }
         guard let input = try? AVAudioFile(forReading: source) else { throw ImportError.unreadable }
         guard input.length > 0 else { throw ImportError.empty }
-        guard let output = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: sampleRate, channels: 1, interleaved: true),
-              let converter = AVAudioConverter(from: input.processingFormat, to: output) else { throw ImportError.unreadable }
+        // Every channel mixed into one first: converting to mono, AVAudioConverter keeps only the first channel (a guest
+        // on the right channel of a two-microphone interview was lost), and its `downmix` doesn't mix files with
+        // discrete channels (a 4-channel WAV with speech in channel 4 came out silent; review, macOS harness).
+        let format = input.processingFormat                 // AVAudioFile: deinterleaved Float32
+        guard let mono = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: format.sampleRate, channels: 1,
+                                       interleaved: false),
+              let output = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: sampleRate, channels: 1, interleaved: true),
+              let converter = AVAudioConverter(from: mono, to: output) else { throw ImportError.unreadable }
         let fileName = AudioFileStore.newFileName()
         let url = AudioFileStore.url(for: fileName)
         do {
             let file = try AVAudioFile(forWriting: url, settings: output.settings, commonFormat: .pcmFormatInt16,
                                        interleaved: true)
             let chunk: AVAudioFrameCount = 32_768
-            let outCapacity = AVAudioFrameCount(Double(chunk) * sampleRate / input.processingFormat.sampleRate) + 1_024
+            let outCapacity = AVAudioFrameCount(Double(chunk) * sampleRate / format.sampleRate) + 1_024
             var finished = false
             while !finished {
                 guard let out = AVAudioPCMBuffer(pcmFormat: output, frameCapacity: outCapacity) else { break }
@@ -59,7 +66,8 @@ nonisolated enum AudioImporter {
                 let status = converter.convert(to: out, error: nil) { _, inputStatus in
                     // At the end before reading: AVAudioFile throws eofErr (-39) for a read past its last frame.
                     guard input.framePosition < input.length,
-                          let buffer = AVAudioPCMBuffer(pcmFormat: input.processingFormat, frameCapacity: chunk) else {
+                          let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: chunk),
+                          let mixed = AVAudioPCMBuffer(pcmFormat: mono, frameCapacity: chunk) else {
                         inputStatus.pointee = .endOfStream
                         return nil
                     }
@@ -74,8 +82,9 @@ nonisolated enum AudioImporter {
                         inputStatus.pointee = .endOfStream
                         return nil
                     }
+                    mix(buffer, into: mixed)
                     inputStatus.pointee = .haveData
-                    return buffer
+                    return mixed
                 }
                 if let readError { throw readError }
                 if out.frameLength > 0 { try file.write(from: out) }
@@ -93,6 +102,21 @@ nonisolated enum AudioImporter {
             AudioFileStore.delete(fileName: fileName)
             throw error is ImportError ? error : ImportError.unreadable
         }
+    }
+
+    /// The mean of `buffer`'s channels (deinterleaved Float32) into the mono `target`.
+    private static func mix(_ buffer: AVAudioPCMBuffer, into target: AVAudioPCMBuffer) {
+        target.frameLength = buffer.frameLength
+        guard let channels = buffer.floatChannelData, let out = target.floatChannelData?[0] else { return }
+        let count = Int(buffer.frameLength)
+        let total = Int(buffer.format.channelCount)
+        out.update(from: channels[0], count: count)
+        guard total > 1 else { return }
+        for channel in 1..<total {
+            vDSP_vadd(out, 1, channels[channel], 1, out, 1, vDSP_Length(count))
+        }
+        var scale = 1 / Float(total)
+        vDSP_vsmul(out, 1, &scale, out, 1, vDSP_Length(count))
     }
 
     /// When the audio was recorded: the file's creation-date metadata (Voice Memos' m4a has it), else the file's own

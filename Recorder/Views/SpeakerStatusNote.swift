@@ -23,7 +23,11 @@ struct SpeakerStatusNote: View {
     var body: some View {
         let preliminary = recording.speakerCount > 0     // live labels saved at Stop
         VStack(alignment: .leading, spacing: 8) {
-            if recording.speakerStatus == .failed {
+            if recording.speakerStatus == .failed, !recording.wordsRefined, recording.segments.isEmpty {
+                // An import whose words couldn't be written (SpeakerIdentifier.identify): no live words to show.
+                Label("Couldn't transcribe this recording. Its language may need a download: connect to the internet and try again.",
+                      systemImage: "exclamationmark.triangle")
+            } else if recording.speakerStatus == .failed {
                 Label(preliminary ? "Couldn't refine speakers. The labels shown are preliminary." : "Couldn't identify speakers.",
                       systemImage: "exclamationmark.triangle")
             } else {

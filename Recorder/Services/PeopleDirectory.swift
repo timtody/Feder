@@ -151,6 +151,19 @@ final class PeopleDirectory {
         linked.subtracting(recording.speakerPeople.values).forEach { removeIfUnused($0) }
     }
 
+    /// A merge gave `from`'s name and person to the unnamed `into`: the person's samples from this transcript move to
+    /// `into` (the voice job then replaces them with `into`'s new voice).
+    func moveSamples(of recording: Recording, from: Int, to into: Int) {
+        for person in allPeople() {
+            let moving = person.samples.filter { $0.recordingID == recording.id && $0.speakerIndex == from }
+            guard !moving.isEmpty else { continue }
+            person.removeSamples { $0.recordingID == recording.id && $0.speakerIndex == from }
+            for sample in moving {
+                person.setSample(VoiceSample(recordingID: recording.id, speakerIndex: into, embedding: sample.embedding))
+            }
+        }
+    }
+
     /// What a hand correction of `recording` can change in the people: their samples from this transcript, and the
     /// people linked to it (one left without samples and transcripts is removed). Undo puts it back (`restore`).
     struct Snapshot {

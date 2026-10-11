@@ -70,6 +70,8 @@ struct MainView: View {
     /// Import: the file picker is up; a file is being converted; what went wrong.
     @State private var showsImporter = false
     @State private var isImporting = false
+    /// Files to import after the one being converted (shared one after another, or several at once).
+    @State private var importQueue: [URL] = []
     @State private var importError: String?
 
     var body: some View {
@@ -313,30 +315,46 @@ struct MainView: View {
 
     /// A file from the picker or another app's share sheet: converted off the main actor (AudioImporter), saved as a
     /// transcript in the language chosen for the next recording, queued for the steps after Stop, and opened in the
-    /// card out of the accessory, where its status line says what is being done.
+    /// card out of the accessory, where its status line says what is being done. Files that come while one is being
+    /// converted wait their turn (dropped, a second file shared from Voice Memos was lost without a word, its Inbox copy
+    /// left behind); the card opens on the last one. A card in Edit Text stays open: the imports wait in the list, as
+    /// closing it would throw its drafts away.
     func importAudio(from url: URL) {
+        importQueue.append(url)
         guard !isImporting else { return }
         isImporting = true
         Task {
             defer { isImporting = false }
-            do {
-                let converted = try await AudioImporter.convert(url)
-                AudioImporter.removeInboxCopy(url)
-                let recording = Recording(name: converted.name, audioFileName: converted.fileName,
-                                          localeIdentifier: TranscriptionLanguage.current.identifier(.bcp47))
-                recording.createdAt = converted.created ?? .now
-                recording.duration = converted.duration
-                modelContext.insert(recording)
-                try? modelContext.save()
-                services.identifier.enqueue(recording)
-                tab = .transcripts
-                if cardPhase == .open { closeCard() }
-                present(CardRequest(transcript: recording, sourceID: TranscriptCardContent.recorderSource, showsList: true,
-                                    deferred: true))
-            } catch {
-                AudioImporter.removeInboxCopy(url)
-                importError = error.localizedDescription
+            var last: Recording?
+            var failure: String?
+            while !importQueue.isEmpty {
+                let url = importQueue.removeFirst()
+                do {
+                    let converted = try await AudioImporter.convert(url)
+                    AudioImporter.removeInboxCopy(url)
+                    let recording = Recording(name: converted.name, audioFileName: converted.fileName,
+                                              localeIdentifier: TranscriptionLanguage.current.identifier(.bcp47))
+                    recording.createdAt = converted.created ?? .now
+                    recording.duration = converted.duration
+                    modelContext.insert(recording)
+                    try? modelContext.save()
+                    services.identifier.enqueue(recording)
+                    last = recording
+                } catch {
+                    AudioImporter.removeInboxCopy(url)
+                    failure = error.localizedDescription
+                }
             }
+            if let failure {
+                importError = failure                         // the ones that worked are in the list
+                return
+            }
+            guard let last else { return }
+            tab = .transcripts
+            guard services.identifier.editingText.isEmpty else { return }
+            if cardPhase == .open { closeCard() }
+            present(CardRequest(transcript: last, sourceID: TranscriptCardContent.recorderSource, showsList: true,
+                                deferred: true))
         }
     }
 

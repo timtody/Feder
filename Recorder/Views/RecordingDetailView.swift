@@ -185,7 +185,8 @@ struct RecordingDetailView: View {
         .overlay(alignment: .bottom) {
             if let undoToast, services.identifier.lastCorrection?.id == undoToast,
                let kind = services.identifier.lastCorrection?.kind {
-                UndoToast(title: Self.undoTitle(kind), undo: undoCorrection)
+                UndoToast(title: Self.undoTitle(kind), undo: undoCorrection,
+                          isEnabled: !services.identifier.vocabularyRunning.contains(recording.id))
                     .padding(.bottom, 10)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
@@ -296,6 +297,7 @@ struct RecordingDetailView: View {
         }
         .onDisappear {
             if services.player.recordingID == recording.id { services.player.unload() } // the card closed
+            if isEditingText { services.identifier.endEditingText(recording) }           // its drafts are gone
             undoManager?.removeAllActions(withTarget: services.identifier)                // no shake-undo of an unseen card
             // Delete only once the card has closed: this view keeps re-reading the model while the card shrinks away,
             // and reading a deleted-and-saved (detached) @Model traps.
@@ -442,6 +444,7 @@ struct RecordingDetailView: View {
     private var addTagButton: some View {
         Button("Add Tag", systemImage: "tag") {
             InteractionTrace.begin("tag")
+            hitGeometry.userScrolled = .now                 // Listen's following waits: the user went there
             titleFocused = false
             editingTags = true
             tagFocusRequest += 1
@@ -490,7 +493,11 @@ struct RecordingDetailView: View {
     /// The name rows rename, except while the text is edited (then they are plain names).
     private var renameAction: ((Int) -> Void)? {
         guard !isEditingText else { return nil }
-        return { renaming = SpeakerRenameTarget(speaker: $0) }
+        // Undo goes when the sheet opens: shaken under it, it renumbered the speakers, and the sheet named the wrong one.
+        return {
+            withdrawUndo()
+            renaming = SpeakerRenameTarget(speaker: $0)
+        }
     }
 
     private var editTextButton: some View {
@@ -597,7 +604,7 @@ struct RecordingDetailView: View {
 
     /// Word paragraphs once the bar has come up (its animation), plain text again when Listen ends.
     fileprivate func showWords() async {
-        guard listening else {
+        guard listening, !isEditingText else {           // after Edit Text too: back a moment after Done or Cancel
             wordsShown = false
             return
         }
@@ -616,7 +623,9 @@ struct RecordingDetailView: View {
     /// stands in the paragraph (on screen either way). Not while the user scrolls, nor for a few seconds after: they
     /// are reading elsewhere.
     fileprivate func follow(_ place: PlaybackMap.Place?) {
-        guard let place, services.player.isPlaying, !hitGeometry.userScrolledRecently else { return }
+        // Nor while a field is being typed in (the title, a tag, Edit Text): scrolled away under the typing.
+        guard let place, services.player.isPlaying, !hitGeometry.userScrolledRecently, !isEditingText, !titleFocused,
+              !editingTags else { return }
         guard let frame = hitGeometry.frames[place.segment] else {
             withAnimation(.snappy) { scroller?.scrollTo(place.segment, anchor: .center) }   // not laid out yet
             return
@@ -628,14 +637,27 @@ struct RecordingDetailView: View {
         withAnimation(.snappy) { scroller?.scrollTo(place.segment, anchor: anchor) }
     }
 
+    /// Edit Text: the vocabulary pass waits until it ends (SpeakerIdentifier.beginEditingText), and Listen's playback
+    /// stops (the bar is hidden meanwhile, so the AirPods or the lock screen mustn't start it again unseen).
     fileprivate func editingChanged(_ editing: Bool) {
-        if editing, services.player.recordingID == recording.id { services.player.pause() }
+        if editing {
+            services.identifier.beginEditingText(recording)
+            if services.player.recordingID == recording.id { services.player.stop() }
+        } else {
+            services.identifier.endEditingText(recording)
+        }
     }
 
+    /// The user's own scrolling: following waits while it lasts and for 3 s after it ends (a slow drag or a held
+    /// finger lasts longer than 3 s).
     fileprivate func scrollPhaseChanged(_ phase: ScrollPhase) {
         switch phase {
-        case .tracking, .interacting, .decelerating: hitGeometry.userScrolled = .now
-        case .idle, .animating: break
+        case .tracking, .interacting, .decelerating:
+            hitGeometry.userScrolling = true
+            hitGeometry.userScrolled = .now
+        case .idle, .animating:
+            if hitGeometry.userScrolling { hitGeometry.userScrolled = .now }
+            hitGeometry.userScrolling = false
         @unknown default: break
         }
     }
@@ -700,6 +722,7 @@ struct RecordingDetailView: View {
             services.identifier.assign(recording.turnSegments(startingAt: id), to: speaker, in: recording)
             offerUndo()
         case .merge(let from, let into):
+            withdrawUndo()                                  // under the question, an Undo would renumber the two
             pendingMerge = SpeakerMerge(from: from, into: into)
         }
     }
@@ -739,6 +762,7 @@ struct RecordingDetailView: View {
     private func step(_ delta: Int) {
         guard !hits.isEmpty else { return }
         hitIndex = (hitIndex + delta + hits.count) % hits.count
+        hitGeometry.userScrolled = .now                     // Listen's following waits: the user went there
         withAnimation { reveal(hits[hitIndex]) }
     }
 
@@ -844,11 +868,13 @@ private final class PlaybackMapBox {
 private final class HitGeometry {
     var frames: [UUID: CGRect] = [:]
     var visible = CGRect.null
-    /// When the user last moved the transcript (dragging or its deceleration): following the spoken word waits.
+    /// When the user last moved the transcript (or went somewhere: a match, Add Tag): following the spoken word waits.
     var userScrolled: ContinuousClock.Instant?
+    /// The user's finger is on the transcript, or it is still gliding from it.
+    var userScrolling = false
 
     var userScrolledRecently: Bool {
-        userScrolled.map { ContinuousClock.now - $0 < .seconds(3) } ?? false
+        userScrolling || userScrolled.map { ContinuousClock.now - $0 < .seconds(3) } ?? false
     }
 }
 
@@ -866,6 +892,8 @@ private final class HitGeometry {
 private struct UndoToast: View {
     let title: String
     let undo: () -> Void
+    /// Not while the transcript's vocabulary pass runs (SpeakerIdentifier.undoLastCorrection waits for it).
+    var isEnabled = true
 
     var body: some View {
         HStack(spacing: 14) {
@@ -873,6 +901,7 @@ private struct UndoToast: View {
                 .font(.subheadline.weight(.medium))
             Button("Undo", action: undo)
                 .font(.subheadline.weight(.semibold))
+                .disabled(!isEnabled)
                 .accessibilityIdentifier("UndoCorrection")
         }
         .padding(.leading, 18)
@@ -952,7 +981,7 @@ private struct PlaybackFollowing: ViewModifier {
             .task(id: card.listening && card.hasAudio ? segments : nil) {
                 if card.listening, card.hasAudio { await card.refreshPlaybackMap(segments) }
             }
-            .task(id: card.listening) { await card.showWords() }
+            .task(id: card.listening && !card.isEditingText) { await card.showWords() }
             .onChange(of: card.playingPlace) { _, place in card.follow(place) }
             .onScrollPhaseChange { _, phase in card.scrollPhaseChanged(phase) }
             .onChange(of: card.isEditingText) { _, editing in card.editingChanged(editing) }

@@ -544,6 +544,16 @@
         }
       }
     },
+    "Couldn't transcribe this recording. Its language may need a download: connect to the internet and try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Aufnahme konnte nicht transkribiert werden. Ihre Sprache braucht vielleicht einen Download: Verbinde dich mit dem Internet und versuche es erneut."
+          }
+        }
+      }
+    },
     "Current match": {
       "localizations": {
         "de": {

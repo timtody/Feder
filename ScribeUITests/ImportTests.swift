@@ -30,7 +30,7 @@ final class ImportTests: ScribeUITestCase {
     }
 
     /// A file shared from another app (`-importTestAudio`: a 12 s AAC file, "Interview Lena") becomes a transcript:
-    /// the card opens on it, its words and speakers come in, and it has the player (its audio is kept).
+    /// the card opens on it, its words and speakers come in, and it can be listened to (its audio is kept).
     @MainActor
     func testImportedFileBecomesTranscript() throws {
         let app = launch(["-importTestAudio", "-fakeWordChanges", "-fakeDiarizeSeconds", "1"])
@@ -38,11 +38,31 @@ final class ImportTests: ScribeUITestCase {
         XCTAssertTrue(title.waitForExistence(timeout: 15), "the card on the imported transcript")
         XCTAssertEqual(title.value as? String, "Interview Lena", "named after the file")
         XCTAssertTrue(app.buttons["SpeakerHeader.0"].waitForExistence(timeout: 20), "its words and speakers")
-        XCTAssertTrue(app.buttons["PlayPause"].waitForExistence(timeout: 5), "and its audio")
+        XCTAssertTrue(app.buttons["Listen"].wait(for: \.isEnabled, toEqual: true, timeout: 5), "and its audio")
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS '0:12'")).firstMatch.exists,
                       "its length")
         shot("Imported", app)
         app.buttons["Delete Transcript"].tap()                   // the samples stay on top for the other tests
+        app.buttons["Delete"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
+    }
+
+    /// A second file shared while the first is converting waits its turn: both become transcripts, and the card opens
+    /// on the last one. (Dropped, the second was lost without a word.)
+    @MainActor
+    func testFileSharedDuringAnImportWaitsItsTurn() throws {
+        let app = launch(["-importTestAudio", "-importTwoFiles", "-fakeWordChanges", "-fakeDiarizeSeconds", "1"])
+        let title = app.textFields["Title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 20), "the card")
+        XCTAssertEqual(title.value as? String, "Interview Max", "on the last file")
+        app.buttons["Delete Transcript"].tap()                   // the samples stay on top for the other tests
+        app.buttons["Delete"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
+        let first = app.staticTexts["Interview Lena"].firstMatch
+        XCTAssertTrue(first.waitForExistence(timeout: 5), "the first file is a transcript too")
+        first.tap()
+        XCTAssertTrue(app.buttons["Delete Transcript"].waitForExistence(timeout: 5))
+        app.buttons["Delete Transcript"].tap()
         app.buttons["Delete"].firstMatch.tap()
         XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
     }
