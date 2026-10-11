@@ -63,6 +63,8 @@ struct MeltLayer: View {
                 Color.clear
                 symbol("square.and.arrow.up", at: Self.shareCentre, in: group, of: bar.group)
                 symbol("tag", at: Self.tagCentre, in: group, of: bar.group)
+                // Edit Text is disabled while the steps after Stop run, which they always do right after Stop.
+                symbol("pencil", at: Self.editCentre, in: group, of: bar.group, disabled: true)
                 symbol("person.2", at: Self.speakersCentre, in: group, of: bar.group)
                 symbol("trash", at: Self.deleteCentre, in: delete, of: bar.delete)
             }
@@ -91,28 +93,32 @@ struct MeltLayer: View {
     }
 
     /// A bar symbol at its measured place in its glass, scaled along while the glass is still the Stop.
-    private func symbol(_ name: String, at centre: CGPoint, in frame: CGRect, of final: CGRect) -> some View {
+    private func symbol(_ name: String, at centre: CGPoint, in frame: CGRect, of final: CGRect,
+                        disabled: Bool = false) -> some View {
         Image(systemName: name)
             .font(.system(size: 17, weight: .medium))      // the bar's symbols (regular was visibly thinner)
             .imageScale(.large)
-            .foregroundStyle(Color.primary)
+            .foregroundStyle(disabled ? Color(uiColor: .tertiaryLabel) : Color.primary)
             .position(x: frame.minX + centre.x * frame.width / final.width,
                       y: frame.minY + centre.y * frame.height / final.height)
     }
 
-    // The transcript's bar (Share, Add Tag, Speakers, flexible space, Delete), measured on iOS 27, iPhone 17
-    // (402 × 874 pt), from the system's glass views: Share, Add Tag and Speakers in one capsule (28, 798, 175 × 48;
-    // 116 wide before Add Tag), Delete a circle (326, 798, 48 × 48), 28 pt from the screen's edges and 42 pt above the
-    // safe area's bottom. The symbols' centres in their glass, from their image views (replicas there match the real
-    // bar to 0.02 pt). Another item in the bar's group changes these: measure again.
+    // The transcript's bar (Share, Add Tag, Edit Text, Speakers, flexible space, Delete), measured on iOS 27, iPhone 17
+    // (402 × 874 pt), from the system's glass views: Share, Add Tag, Edit Text and Speakers in one capsule (28, 798,
+    // 227.67 × 48; 175 wide before Edit Text, 116 before Add Tag), Delete a circle (326, 798, 48 × 48), 28 pt from the
+    // screen's edges and 42 pt above the safe area's bottom. The symbols' centres in their glass, from their image views
+    // (replicas there match the real bar to 0.02 pt). Edit Text's came from the buttons' frames instead (UI test): their
+    // centres matched Share's and Add Tag's image views exactly, and the capsule reaches 5 pt past the outer buttons.
+    // Another item in the bar's group changes these: measure again.
     private static let shareCentre = CGPoint(x: 25.33, y: 22.67)
     private static let tagCentre = CGPoint(x: 82.17, y: 25.0)
-    private static let speakersCentre = CGPoint(x: 144.33, y: 25.0)
+    private static let editCentre = CGPoint(x: 138.0, y: 24.0)
+    private static let speakersCentre = CGPoint(x: 197.0, y: 25.0)
     private static let deleteCentre = CGPoint(x: 23.83, y: 23.33)
 
     static func barItems(in safeArea: CGRect) -> (group: CGRect, delete: CGRect) {
         let y = safeArea.maxY - 42
-        return (CGRect(x: 28, y: y, width: 175, height: 48),
+        return (CGRect(x: 28, y: y, width: 227.67, height: 48),
                 CGRect(x: safeArea.maxX - 28 - 48, y: y, width: 48, height: 48))   // portrait only: safe x = screen x
     }
 

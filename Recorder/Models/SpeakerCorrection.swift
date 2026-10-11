@@ -63,3 +63,113 @@ extension Recording {
         return Array(segments[first...last])
     }
 }
+
+/// Hand corrections of the words (Edit Text): a paragraph's new text becomes words again. The words are the source of
+/// truth (the paragraphs are rebuilt from them and the speaker turns), so an edit lands in `Recording.words`: the
+/// tokens the user kept keep their times, new ones share the time between their kept neighbours.
+nonisolated enum TextCorrection {
+    struct Result: Sendable {
+        var words: [TranscriptWord]
+        /// Words typed in place of others ("Kofinpro" → "Cofinpro"): offered for Your Words.
+        var replacements: [String]
+    }
+
+    /// `old` (a paragraph's words) edited into `text`.
+    static func words(_ old: [TranscriptWord], editedTo text: String, start: TimeInterval, end: TimeInterval) -> Result {
+        let tokens = text.split(whereSeparator: \.isWhitespace).map(String.init)
+        let kept = lcs(old.map(\.text), tokens)                   // pairs (old index, new index), increasing
+        var out: [TranscriptWord] = []
+        var replacements: [String] = []
+        var oldNext = 0, newNext = 0
+        func fill(_ newRange: Range<Int>, from: TimeInterval, to: TimeInterval, replacing oldRange: Range<Int>) {
+            guard !newRange.isEmpty else { return }
+            let step = max(0, to - from) / Double(newRange.count)
+            for (k, i) in newRange.enumerated() {
+                out.append(TranscriptWord(text: tokens[i], start: from + step * Double(k), end: from + step * Double(k + 1)))
+            }
+            if !oldRange.isEmpty { replacements += newRange.map { tokens[$0] } }
+        }
+        for (o, n) in kept + [(old.count, tokens.count)] {
+            let from = out.last?.end ?? (oldNext < old.count ? old[oldNext].start : start)
+            let to = o < old.count ? old[o].start : max(from, old.last?.end ?? end)
+            fill(newNext..<n, from: from, to: to, replacing: oldNext..<o)
+            if o < old.count, n < tokens.count {
+                var word = old[o]
+                word.text = tokens[n]                               // same token; keeps its time
+                out.append(word)
+            }
+            oldNext = o + 1
+            newNext = n + 1
+        }
+        return Result(words: out, replacements: replacements)
+    }
+
+    /// The longest common subsequence of two token lists, as index pairs.
+    static func lcs(_ a: [String], _ b: [String]) -> [(Int, Int)] {
+        guard !a.isEmpty, !b.isEmpty else { return [] }
+        var table = [[Int]](repeating: [Int](repeating: 0, count: b.count + 1), count: a.count + 1)
+        for i in stride(from: a.count - 1, through: 0, by: -1) {
+            for j in stride(from: b.count - 1, through: 0, by: -1) {
+                table[i][j] = a[i] == b[j] ? table[i + 1][j + 1] + 1 : max(table[i + 1][j], table[i][j + 1])
+            }
+        }
+        var pairs: [(Int, Int)] = []
+        var i = 0, j = 0
+        while i < a.count, j < b.count {
+            if a[i] == b[j] { pairs.append((i, j)); i += 1; j += 1 }
+            else if table[i + 1][j] >= table[i][j + 1] { i += 1 } else { j += 1 }
+        }
+        return pairs
+    }
+
+    /// A replacement worth offering for Your Words: letters left after trimming punctuation, at least 3 of them.
+    static func vocabularyCandidates(_ replacements: [String], known: [String]) -> [String] {
+        var seen = Set(known.map { $0.lowercased() })
+        return replacements.compactMap { word in
+            let trimmed = word.trimmingCharacters(in: .punctuationCharacters.union(.symbols))
+            guard trimmed.count >= 3, trimmed.contains(where: \.isLetter), seen.insert(trimmed.lowercased()).inserted
+            else { return nil }
+            return trimmed
+        }
+    }
+}
+
+extension Recording {
+    /// The words of each paragraph: the paragraphs are folds of consecutive words, so a paragraph's words are those
+    /// from its start up to the next paragraph's start.
+    func wordRanges() -> [UUID: Range<Int>] {
+        let words = self.words
+        var ranges: [UUID: Range<Int>] = [:]
+        var index = 0
+        let segments = self.segments
+        for (s, segment) in segments.enumerated() {
+            let next = s + 1 < segments.count ? segments[s + 1].start : .infinity
+            while index < words.count, words[index].start < segment.start - 0.001 { index += 1 }
+            let first = index
+            while index < words.count, words[index].start < next - 0.001 { index += 1 }
+            ranges[segment.id] = first..<index
+        }
+        return ranges
+    }
+
+    /// Edit Text's Done: each changed paragraph's text into the words, then the paragraphs rebuilt (ids kept).
+    /// Returns the words typed in place of others (for Your Words).
+    func applyTextEdits(_ drafts: [UUID: String]) -> [String] {
+        let ranges = wordRanges()
+        var words = self.words
+        var replacements: [String] = []
+        // From the end, so the earlier ranges stay valid while later ones change length.
+        for segment in segments.reversed() {
+            guard let draft = drafts[segment.id], draft != segment.text, let range = ranges[segment.id] else { continue }
+            let result = TextCorrection.words(Array(words[range]), editedTo: draft, start: segment.start, end: segment.end)
+            words.replaceSubrange(range, with: result.words)
+            replacements = result.replacements + replacements
+        }
+        guard words != self.words else { return [] }
+        if speakerTurns.isEmpty { speakerTurns = correctableTurns }   // the paragraphs' speakers, kept through the rebuild
+        self.words = words
+        realignSegments()
+        editCount += 1
+        return replacements
+    }
+}

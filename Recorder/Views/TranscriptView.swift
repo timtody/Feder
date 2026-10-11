@@ -32,6 +32,9 @@ struct TranscriptView: View {
     /// Hand corrections from a name row's long-press menu (SpeakerCorrection): its turn to another speaker, or the
     /// speaker merged into another. nil: no such items (live labels, a transcript still being worked on).
     var correctSpeaker: ((SpeakerEdit) -> Void)? = nil
+    /// Edit Text: each paragraph is a text field writing into these drafts (by segment id; a paragraph not touched has
+    /// none). nil: the paragraphs are text with the system's selection.
+    var edits: Binding<[UUID: String]>? = nil
 
     enum SpeakerEdit {
         case assign(turnStartingAt: UUID, to: Int?)       // nil: a new speaker
@@ -87,7 +90,20 @@ struct TranscriptView: View {
         }
     }
 
+    @ViewBuilder
     private func paragraph(index: Int, segment: TranscriptSegment) -> some View {
+        if let edits {
+            // The same font and line spacing as the text, so nothing moves when editing starts.
+            TextField("", text: Binding(get: { edits.wrappedValue[segment.id] ?? segment.text },
+                                        set: { edits.wrappedValue[segment.id] = $0 }), axis: .vertical)
+                .accessibilityLabel(segment.speakerIndex.flatMap { speakerName?($0) } ?? String(localized: "Paragraph"))
+                .accessibilityIdentifier("ParagraphField.\(index)")
+        } else {
+            displayedParagraph(index: index, segment: segment)
+        }
+    }
+
+    private func displayedParagraph(index: Int, segment: TranscriptSegment) -> some View {
         paragraphText(segment)
             .textSelection(.enabled)
             .background {

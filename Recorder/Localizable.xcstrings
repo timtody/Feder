@@ -211,6 +211,16 @@
         }
       }
     },
+    "Add": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hinzufügen"
+          }
+        }
+      }
+    },
     "Add Tag": {
       "localizations": {
         "de": {
@@ -227,6 +237,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Wort oder Namen hinzufügen"
+          }
+        }
+      }
+    },
+    "Add to Your Words?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu „Deine Wörter“ hinzufügen?"
           }
         }
       }
@@ -380,6 +400,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Download abbrechen"
+          }
+        }
+      }
+    },
+    "Cancel Editing": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bearbeiten abbrechen"
           }
         }
       }
@@ -574,6 +604,16 @@
         }
       }
     },
+    "Done Editing": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bearbeiten beenden"
+          }
+        }
+      }
+    },
     "Download": {
       "localizations": {
         "de": {
@@ -744,6 +784,16 @@
         }
       }
     },
+    "Edit Text": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text bearbeiten"
+          }
+        }
+      }
+    },
     "Everything happens on this iPhone: recording, transcription, speakers and summaries. We never upload your recordings or transcripts.": {
       "localizations": {
         "de": {
@@ -790,6 +840,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Feder unterscheidet Stimmen und erkennt Personen wieder, die du schon benannt hast."
+          }
+        }
+      }
+    },
+    "Feder then expects %@ in your next transcripts.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder erwartet %@ dann in deinen nächsten Transkripten."
           }
         }
       }
@@ -1460,6 +1520,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "PDF"
+          }
+        }
+      }
+    },
+    "Paragraph": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Absatz"
           }
         }
       }

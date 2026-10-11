@@ -43,7 +43,11 @@ struct RecordingDetailView: View {
     @AppStorage(TranscriptExport.namesKey) private var exportNames = true
     @AppStorage(TranscriptExport.timestampsKey) private var exportTimestamps = false
     @State private var keepsStatusRow = false
-    @State private var pendingMerge: SpeakerMerge?           // the status line was shown: its place stays (see body)
+    @State private var pendingMerge: SpeakerMerge?
+    /// Edit Text: the paragraphs' drafts while editing (by segment id), nil otherwise.
+    @State private var textEdits: [UUID: String]?
+    /// Words typed in place of others, offered for Your Words after Done.
+    @State private var vocabularyOffer: [String]?           // the status line was shown: its place stays (see body)
 
     init(recording: Recording, search: TranscriptSearchContext? = nil, fadesInBody: Bool = false, holdsBody: Bool = false,
          turning: Bool = false, onClose: @escaping () -> Void) {
@@ -134,12 +138,12 @@ struct RecordingDetailView: View {
                 // No spacing above: the first name row brings its own (the space above a name is part of its target).
                 TranscriptView(segments: segments, speakerName: recording.speakerName(_:),
                                preliminary: recording.speakerStatus != .done, preliminaryNotice: preliminaryNotice,
-                               renameSpeaker: { renaming = SpeakerRenameTarget(speaker: $0) },
+                               renameSpeaker: renameAction,
                                search: search, currentHit: hits.indices.contains(hitIndex) ? hits[hitIndex] : nil,
                                hitFrame: search == nil ? nil : { id, frame in hitGeometry.frames[id] = frame },
-                               flashes: flashes,
-                               showsNameTip: search == nil && recording.speakerNames.isEmpty,
-                               correctSpeaker: speakerCorrection)
+                               flashes: isEditingText ? nil : flashes,
+                               showsNameTip: search == nil && recording.speakerNames.isEmpty && !isEditingText,
+                               correctSpeaker: speakerCorrection, edits: textEditsBinding)
                     .opacity(bodyShown ? 1 : 0)
             }
             .coordinateSpace(.named(TranscriptView.contentSpace))
@@ -190,6 +194,29 @@ struct RecordingDetailView: View {
         // Like Photos, Mail and Notes: the transcript's actions in the system's bottom toolbar (Liquid Glass), within
         // thumb reach, where the recording had its large Stop.
         .toolbar { bottomBar }
+        // The bottom bar sits under the keyboard while a paragraph is edited: Cancel and Done above the keyboard too,
+        // at the bar's ends (a lone item there is centred, over the text).
+        .toolbar {
+            if isEditingText {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Button(role: .cancel) { textEdits = nil; endEditing() }
+                        .accessibilityLabel("Cancel Editing")
+                    Spacer()
+                    Button(role: .confirm, action: finishEditingText)
+                        .accessibilityLabel("Done Editing")
+                }
+            }
+        }
+        .alert("Add to Your Words?", isPresented: Binding(get: { vocabularyOffer != nil },
+                                                          set: { if !$0 { vocabularyOffer = nil } })) {
+            Button("Add") {
+                Vocabulary.custom += vocabularyOffer ?? []
+                vocabularyOffer = nil
+            }
+            Button("Not Now", role: .cancel) { vocabularyOffer = nil }
+        } message: {
+            Text("Feder then expects \((vocabularyOffer ?? []).formatted(.list(type: .and))) in your next transcripts.")
+        }
         .toolbar(turning ? .hidden : .visible, for: .bottomBar)
         .task(id: holdsBody) {
             // Started when it is let go rather than with a `.delay`: with a delay the value is already set, and a part
@@ -232,19 +259,37 @@ struct RecordingDetailView: View {
 
     // MARK: Bottom toolbar
 
-    /// Share, Add Tag and Speakers on the left (one glass group), Delete on the right; opened from a search, the hits'
+    /// Share, Add Tag, Edit Text and Speakers on the left (one glass group), Delete on the right; opened from a search, the hits'
     /// "n of m" with previous/next between them (like Safari's Find on Page).
     @ToolbarContentBuilder
     private var bottomBar: some ToolbarContent {
+        if isEditingText {
+            ToolbarItem(placement: .bottomBar) {
+                Button(role: .cancel) { textEdits = nil; endEditing() }          // glass xmark
+                    .accessibilityLabel("Cancel Editing")
+            }
+            ToolbarSpacer(.flexible, placement: .bottomBar)
+            ToolbarItem(placement: .bottomBar) {
+                Button(role: .confirm, action: finishEditingText)                 // prominent glass checkmark
+                    .accessibilityLabel("Done Editing")
+            }
+        } else {
+            regularBar
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var regularBar: some ToolbarContent {
         if combinesActions {
             // With the hit navigator the bar would have seven items, which fit no iPhone: iOS moved Next Match (and
             // Previous Match) into an overflow menu on the iPhone 17, the iPhone Air and the iPhone 18 Pro Max alike
-            // (iOS 27 simulators). Share, Add Tag and Speakers share one menu instead, so the navigator and Delete stay
+            // (iOS 27 simulators). Share, Add Tag, Edit Text and Speakers share one menu instead, so the navigator and Delete stay
             // visible. (Before Add Tag, six items fit from 402 pt on.)
             ToolbarItem(placement: .bottomBar) {
                 Menu {
                     shareButton
                     addTagButton
+                    editTextButton
                     speakersPicker.pickerStyle(.menu)       // a submenu here
                 } label: {
                     Label("More", systemImage: "ellipsis")
@@ -253,6 +298,7 @@ struct RecordingDetailView: View {
         } else {
             ToolbarItem(placement: .bottomBar) { shareButton }
             ToolbarItem(placement: .bottomBar) { addTagButton }
+            ToolbarItem(placement: .bottomBar) { editTextButton }
             ToolbarItem(placement: .bottomBar) {
                 Menu {
                     speakersPicker
@@ -363,9 +409,50 @@ struct RecordingDetailView: View {
 
     private var hasSummary: Bool { recording.summary?.isEmpty == false }
 
+    // MARK: Edit Text
+
+    private var isEditingText: Bool { textEdits != nil }
+
+    private var textEditsBinding: Binding<[UUID: String]>? {
+        guard textEdits != nil else { return nil }
+        // Only while editing: a field resigning after Done or Cancel writes once more, which must not start it again.
+        return Binding(get: { textEdits ?? [:] }, set: { if textEdits != nil { textEdits = $0 } })
+    }
+
+    /// The name rows rename, except while the text is edited (then they are plain names).
+    private var renameAction: ((Int) -> Void)? {
+        guard !isEditingText else { return nil }
+        return { renaming = SpeakerRenameTarget(speaker: $0) }
+    }
+
+    private var editTextButton: some View {
+        Button("Edit Text", systemImage: "pencil") {
+            titleFocused = false
+            textEdits = [:]
+        }
+        .disabled(!services.identifier.canCorrectSpeakers(of: recording))
+    }
+
+    /// Done: the edited paragraphs into the words (Recording.applyTextEdits); words typed in place of others are
+    /// offered for Your Words, so the next transcripts get them right.
+    private func finishEditingText() {
+        guard let drafts = textEdits else { return }
+        textEdits = nil
+        endEditing()
+        guard !drafts.isEmpty, services.identifier.canCorrectSpeakers(of: recording) else { return }
+        let replacements = recording.applyTextEdits(drafts)
+        try? modelContext.save()
+        let candidates = TextCorrection.vocabularyCandidates(replacements, known: Vocabulary.custom)
+        if !candidates.isEmpty { vocabularyOffer = Array(candidates.prefix(5)) }
+    }
+
+    private func endEditing() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+
     /// The name rows' correction menus, once the speakers are final and nothing runs on the transcript.
     private var speakerCorrection: ((TranscriptView.SpeakerEdit) -> Void)? {
-        guard services.identifier.canCorrectSpeakers(of: recording) else { return nil }
+        guard !isEditingText, services.identifier.canCorrectSpeakers(of: recording) else { return nil }
         return { correctSpeaker($0) }
     }
 

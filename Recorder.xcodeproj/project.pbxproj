@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		02CD8C4FECB1072974082C3B /* ResponsivenessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D9844FE4177FE163F4856E7 /* ResponsivenessTests.swift */; };
+		0EBB87CDD9ACF8FF5846234A /* EditTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CBB09BF835A7714BACE9828 /* EditTextTests.swift */; };
 		196D9B1D9C1FC93B2D97EAC5 /* GemmaDownloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0960C3DA36C230C1F4975E37 /* GemmaDownloadTests.swift */; };
 		1C553266EE103103B03AF64B /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = 0F1CBAC905522385F14CAD16 /* Tokenizers */; };
 		2A56270AD1816BDD640A4854 /* SummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5864C5737E1A73204C68C61 /* SummaryTests.swift */; };
@@ -45,6 +46,7 @@
 		24639CFDE8DBBA9454DEA98F /* SpeakerCorrectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerCorrectionTests.swift; sourceTree = "<group>"; };
 		34990786B63747A3152C8DA7 /* SettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTests.swift; sourceTree = "<group>"; };
 		3914E00B46027D3444C29616 /* TranscriptionLanguageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionLanguageTests.swift; sourceTree = "<group>"; };
+		3CBB09BF835A7714BACE9828 /* EditTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTextTests.swift; sourceTree = "<group>"; };
 		3FE0FEEB768611208CA19668 /* SpeakerNamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerNamingTests.swift; sourceTree = "<group>"; };
 		5FD49FF381B0530C8297D2E4 /* TranscriptListTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptListTests.swift; sourceTree = "<group>"; };
 		894E9486143AAD7D3710C41E /* OnboardingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingTests.swift; sourceTree = "<group>"; };
@@ -112,6 +114,7 @@
 		450F05D8F32855007DA5CC69 /* ScribeUITests */ = {
 			isa = PBXGroup;
 			children = (
+				3CBB09BF835A7714BACE9828 /* EditTextTests.swift */,
 				F9888AE62014305DE6B7512B /* ExportTests.swift */,
 				0960C3DA36C230C1F4975E37 /* GemmaDownloadTests.swift */,
 				894E9486143AAD7D3710C41E /* OnboardingTests.swift */,
@@ -249,6 +252,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0EBB87CDD9ACF8FF5846234A /* EditTextTests.swift in Sources */,
 				3DE7EA9DAFB6057C8FE49F91 /* ExportTests.swift in Sources */,
 				196D9B1D9C1FC93B2D97EAC5 /* GemmaDownloadTests.swift in Sources */,
 				B5552D6F520774D1A62A09A3 /* OnboardingTests.swift in Sources */,
