@@ -74,34 +74,53 @@ nonisolated enum TextCorrection {
         var replacements: [String]
     }
 
-    /// `old` (a paragraph's words) edited into `text`.
+    /// `old` (a paragraph's words) edited into `text`. Kept tokens keep their times; new ones share the time between
+    /// their kept neighbours. Where there is none (a word typed right before or after a kept one, or at the paragraph's
+    /// start or end), they share that kept word's own time: zero-length words were placed by the nearest turn's
+    /// midpoint and could land with the neighbouring speaker.
     static func words(_ old: [TranscriptWord], editedTo text: String, start: TimeInterval, end: TimeInterval) -> Result {
         let tokens = text.split(whereSeparator: \.isWhitespace).map(String.init)
         let kept = lcs(old.map(\.text), tokens)                   // pairs (old index, new index), increasing
-        var out: [TranscriptWord] = []
+        var times = [(start: TimeInterval, end: TimeInterval)?](repeating: nil, count: tokens.count)
+        for (o, n) in kept { times[n] = (old[o].start, old[o].end) }
         var replacements: [String] = []
-        var oldNext = 0, newNext = 0
-        func fill(_ newRange: Range<Int>, from: TimeInterval, to: TimeInterval, replacing oldRange: Range<Int>) {
-            guard !newRange.isEmpty else { return }
-            let step = max(0, to - from) / Double(newRange.count)
-            for (k, i) in newRange.enumerated() {
-                out.append(TranscriptWord(text: tokens[i], start: from + step * Double(k), end: from + step * Double(k + 1)))
-            }
-            if !oldRange.isEmpty { replacements += newRange.map { tokens[$0] } }
-        }
+        var previous: (o: Int, n: Int)? = nil
         for (o, n) in kept + [(old.count, tokens.count)] {
-            let from = out.last?.end ?? (oldNext < old.count ? old[oldNext].start : start)
-            let to = o < old.count ? old[o].start : max(from, old.last?.end ?? end)
-            fill(newNext..<n, from: from, to: to, replacing: oldNext..<o)
-            if o < old.count, n < tokens.count {
-                var word = old[o]
-                word.text = tokens[n]                               // same token; keeps its time
-                out.append(word)
+            let fresh = (previous.map { $0.n + 1 } ?? 0)..<n
+            let replaced = (previous.map { $0.o + 1 } ?? 0) < o
+            if !fresh.isEmpty {
+                var from = previous.flatMap { times[$0.n]?.end } ?? (old.first?.start ?? start)
+                var to = o < old.count ? (times[n]?.start ?? old[o].start) : (old.last?.end ?? end)
+                let minimum = 0.02 * Double(fresh.count)
+                if to - from < minimum {
+                    if let previous, let word = times[previous.n] {
+                        // After a kept word: its time is shared, the kept word keeps the first part.
+                        let piece = max(word.end - word.start, minimum) / Double(fresh.count + 1)
+                        times[previous.n] = (word.start, word.start + piece)
+                        from = word.start + piece
+                        to = max(to, word.start + piece * Double(fresh.count + 1))
+                    } else if n < tokens.count, let word = times[n] {
+                        // Before the paragraph's first kept word: the kept word keeps the last part.
+                        let piece = max(word.end - word.start, minimum) / Double(fresh.count + 1)
+                        from = word.start
+                        to = word.start + piece * Double(fresh.count)
+                        times[n] = (to, max(word.end, to + piece))
+                    } else {
+                        to = from + minimum
+                    }
+                }
+                let step = (to - from) / Double(fresh.count)
+                for (k, index) in fresh.enumerated() {
+                    times[index] = (from + step * Double(k), from + step * Double(k + 1))
+                }
+                if replaced { replacements += fresh.map { tokens[$0] } }
             }
-            oldNext = o + 1
-            newNext = n + 1
+            previous = (o, n)
         }
-        return Result(words: out, replacements: replacements)
+        let words = tokens.indices.map { index in
+            TranscriptWord(text: tokens[index], start: times[index]?.start ?? start, end: times[index]?.end ?? end)
+        }
+        return Result(words: words, replacements: replacements)
     }
 
     /// The longest common subsequence of two token lists, as index pairs.
@@ -150,26 +169,5 @@ extension Recording {
             ranges[segment.id] = first..<index
         }
         return ranges
-    }
-
-    /// Edit Text's Done: each changed paragraph's text into the words, then the paragraphs rebuilt (ids kept).
-    /// Returns the words typed in place of others (for Your Words).
-    func applyTextEdits(_ drafts: [UUID: String]) -> [String] {
-        let ranges = wordRanges()
-        var words = self.words
-        var replacements: [String] = []
-        // From the end, so the earlier ranges stay valid while later ones change length.
-        for segment in segments.reversed() {
-            guard let draft = drafts[segment.id], draft != segment.text, let range = ranges[segment.id] else { continue }
-            let result = TextCorrection.words(Array(words[range]), editedTo: draft, start: segment.start, end: segment.end)
-            words.replaceSubrange(range, with: result.words)
-            replacements = result.replacements + replacements
-        }
-        guard words != self.words else { return [] }
-        if speakerTurns.isEmpty { speakerTurns = correctableTurns }   // the paragraphs' speakers, kept through the rebuild
-        self.words = words
-        realignSegments()
-        editCount += 1
-        return replacements
     }
 }

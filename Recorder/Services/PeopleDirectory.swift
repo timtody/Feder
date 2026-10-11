@@ -28,6 +28,10 @@ final class PeopleDirectory {
         self.modelContext = modelContext
     }
 
+    /// Told when names, links or voices of transcripts change here (nil: possibly all): SpeakerIdentifier drops the
+    /// Undo of a correction in them.
+    @ObservationIgnored var onTranscriptsChanged: ((Set<UUID>?) -> Void)?
+
     /// The user named (or cleared) speaker `index` in `recording`.
     func name(_ rawName: String, speaker index: Int, in recording: Recording) {
         let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -35,6 +39,7 @@ final class PeopleDirectory {
         for person in allPeople() {                           // this speaker's earlier sample, wherever it went
             person.removeSamples { $0.recordingID == recording.id && $0.speakerIndex == index }
         }
+        onTranscriptsChanged?([recording.id])
         recording.setSpeakerName(name, for: index)
         recording.speakerPeople[index] = nil
         if !name.isEmpty {
@@ -66,6 +71,7 @@ final class PeopleDirectory {
         for (index, id) in VoiceMatch.assign(voices: unnamed, fingerprints: fingerprints,
                                              threshold: VoiceMatch.threshold(for: recording.diarizer)) {
             guard let person = byID[id] else { continue }
+            onTranscriptsChanged?([recording.id])
             recording.setSpeakerName(person.name, for: index)
             recording.speakerPeople[index] = id
         }
@@ -115,11 +121,12 @@ final class PeopleDirectory {
 
     /// Diarization ran again (new speaker numbers): drop this transcript's links and samples, keep the people.
     func resetSpeakers(of recording: Recording) {
+        onTranscriptsChanged?([recording.id])
         let linked = Set(recording.speakerPeople.values)
         for person in allPeople() { person.removeSamples { $0.recordingID == recording.id } }
         recording.speakerPeople = [:]
         recording.speakerVoices = [:]
-        linked.forEach(removeIfUnused)
+        linked.forEach { removeIfUnused($0) }
         try? modelContext.save()
     }
 
@@ -141,7 +148,7 @@ final class PeopleDirectory {
             person.removeSamples { _ in true }
             for sample in kept + moved { person.setSample(sample) }
         }
-        linked.subtracting(recording.speakerPeople.values).forEach(removeIfUnused)
+        linked.subtracting(recording.speakerPeople.values).forEach { removeIfUnused($0) }
     }
 
     /// What a hand correction of `recording` can change in the people: their samples from this transcript, and the
@@ -165,22 +172,40 @@ final class PeopleDirectory {
         })
     }
 
-    /// Undo of a hand correction: this transcript's samples are those of `snapshot` again, and a person the correction
-    /// removed comes back with its id (the transcript's links point to it).
-    func restore(_ snapshot: Snapshot, of recording: Recording) {
-        var people = Dictionary(uniqueKeysWithValues: allPeople().map { ($0.id, $0) })
-        for person in people.values { person.removeSamples { $0.recordingID == recording.id } }
+    /// Undo of a hand correction: this transcript's samples are those of `snapshot` again (none without
+    /// `withSamples`: recognition was turned off meanwhile and the profiles deleted on purpose), and a person the
+    /// correction removed comes back with its id; if someone of that name exists by now, the link goes to them
+    /// instead. People left with neither samples nor transcripts by the restore go. Returns the transcript's links
+    /// (speaker → person) as they are to be set, with such a person's id replaced.
+    func restore(_ snapshot: Snapshot, of recording: Recording, withSamples: Bool) -> [Int: UUID] {
+        let everyone = allPeople()
+        var people = Dictionary(uniqueKeysWithValues: everyone.map { ($0.id, $0) })
+        let touched = Set(everyone.filter { person in
+            person.samples.contains { $0.recordingID == recording.id }
+        }.map(\.id)).union(recording.speakerPeople.values)
+        for person in everyone { person.removeSamples { $0.recordingID == recording.id } }
+        var replaced: [UUID: UUID] = [:]
         for entry in snapshot.entries {
-            let person = people[entry.id] ?? {
-                let person = Person(name: entry.name)
+            let person: Person
+            if let existing = people[entry.id] {
+                person = existing
+            } else if let named = everyone.first(where: { $0.name.caseInsensitiveCompare(entry.name) == .orderedSame }) {
+                person = named
+                replaced[entry.id] = named.id
+            } else {
+                person = Person(name: entry.name)
                 person.id = entry.id
                 person.createdAt = entry.createdAt
                 modelContext.insert(person)
                 people[entry.id] = person
-                return person
-            }()
-            for sample in entry.samples { person.setSample(sample) }
+            }
+            if withSamples {
+                for sample in entry.samples { person.setSample(sample) }
+            }
         }
+        let links = recording.speakerPeople.mapValues { replaced[$0] ?? $0 }
+        for id in touched where !links.values.contains(id) { removeIfUnused(id, ignoring: recording.id) }
+        return links
     }
 
     /// Before a transcript is deleted: its samples go, people left with neither samples nor transcripts go too.
@@ -188,10 +213,14 @@ final class PeopleDirectory {
         let linked = Set(recording.speakerPeople.values)
         for person in allPeople() { person.removeSamples { $0.recordingID == recording.id } }
         recording.speakerPeople = [:]
-        linked.forEach(removeIfUnused)
+        linked.forEach { removeIfUnused($0) }
     }
 
     func delete(_ person: Person) {
+        let affected = allRecordings().filter { recording in
+            recording.speakerPeople.values.contains(person.id) || person.samples.contains { $0.recordingID == recording.id }
+        }
+        onTranscriptsChanged?(Set(affected.map(\.id)))
         for recording in allRecordings() where recording.speakerPeople.values.contains(person.id) {
             recording.speakerPeople = recording.speakerPeople.filter { $0.value != person.id }
         }
@@ -210,6 +239,7 @@ final class PeopleDirectory {
     /// searchable, never recognized). `voicesVersion` stays, so the voice migration (refreshVoices) doesn't compute
     /// them again.
     func deleteAllVoiceProfiles() {
+        onTranscriptsChanged?(nil)
         for person in allPeople() where !person.samples.isEmpty || !person.fingerprint.isEmpty {
             person.samples = []
             person.fingerprint = []
@@ -246,9 +276,10 @@ final class PeopleDirectory {
     }
 
     /// A person nobody refers to any more and without a voice sample is just a stale name: remove it.
-    private func removeIfUnused(_ id: UUID) {
+    private func removeIfUnused(_ id: UUID, ignoring recordingID: UUID? = nil) {
         guard let person = allPeople().first(where: { $0.id == id }), person.samples.isEmpty,
-              !allRecordings().contains(where: { $0.speakerPeople.values.contains(id) }) else { return }
+              !allRecordings().contains(where: { $0.id != recordingID && $0.speakerPeople.values.contains(id) })
+        else { return }
         modelContext.delete(person)
     }
 

@@ -146,6 +146,14 @@ struct RecordingDetailView: View {
                 // No spacing above: the first name row brings its own (the space above a name is part of its target).
                 transcript(segments)
                     .opacity(bodyShown ? 1 : 0)
+                // An imported file in which the transcriber found no words (a recording without any is discarded
+                // at Stop instead); while its steps run the status line says what is being done.
+                if segments.isEmpty, statusText == nil, recording.wordsRefined {
+                    Text("No speech was found in this recording.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, TranscriptStyle.turnSpacing)
+                }
             }
             .coordinateSpace(.named(TranscriptView.contentSpace))
             .padding(.horizontal, TranscriptStyle.margin)
@@ -170,10 +178,15 @@ struct RecordingDetailView: View {
             }
         }
         .animation(.snappy, value: undoToast)
-        .task(id: undoToast) {
-            guard undoToast != nil else { return }
+        // The 6 s count once "Add to Your Words?" (after an edit) is answered: behind the alert the toast can't be tapped.
+        .task(id: UndoTimer(toast: undoToast, alert: vocabularyOffer != nil)) {
+            guard undoToast != nil, vocabularyOffer == nil else { return }
             do { try await Task.sleep(for: .seconds(6)) } catch { return }
             undoToast = nil
+        }
+        // The correction's Undo went (the transcript changed in another way, or another correction replaced it).
+        .onChange(of: services.identifier.lastCorrection?.id) { _, id in
+            if id == nil || services.identifier.lastCorrection?.recordingID != recording.id { withdrawUndo() }
         }
         .safeAreaBar(edge: .bottom) {
             // While the toolbar is hidden under the melt's replicas: a stand-in of its height (52 pt, the inset the bar
@@ -272,6 +285,7 @@ struct RecordingDetailView: View {
         }
         .onDisappear {
             if services.player.recordingID == recording.id { services.player.stop() }   // the card closed
+            undoManager?.removeAllActions(withTarget: services.identifier)                // no shake-undo of an unseen card
             // Delete only once the card has closed: this view keeps re-reading the model while the card shrinks away,
             // and reading a deleted-and-saved (detached) @Model traps.
             guard deleteOnDisappear, !recording.isDeleted else { return }
@@ -459,6 +473,8 @@ struct RecordingDetailView: View {
     private var editTextButton: some View {
         Button("Edit Text", systemImage: "pencil") {
             titleFocused = false
+            // No Undo while editing: it would change the paragraphs under the open drafts (keyed by their ids).
+            withdrawUndo()
             speakerEdits = [:]
             textEdits = [:]
         }
@@ -476,9 +492,9 @@ struct RecordingDetailView: View {
         speakerEdits = [:]
         endEditing()
         guard !drafts.isEmpty || !speakers.isEmpty else { return }
-        let replacements = services.identifier.applyEdits(text: drafts, speakers: speakers, in: recording)
-        offerUndo()
-        let candidates = TextCorrection.vocabularyCandidates(replacements, known: Vocabulary.custom)
+        let result = services.identifier.applyEdits(text: drafts, speakers: speakers, in: recording)
+        if result.changed { offerUndo() }                  // a Done that changed nothing offers no older Undo
+        let candidates = TextCorrection.vocabularyCandidates(result.replacements, known: Vocabulary.custom)
         if !candidates.isEmpty { vocabularyOffer = Array(candidates.prefix(5)) }
     }
 
@@ -554,13 +570,14 @@ struct RecordingDetailView: View {
     // MARK: Undo
 
     /// After a correction of this transcript: the Undo toast for a few seconds, and Undo for shaking the iPhone (the
-    /// system's shake-to-undo, through the window's UndoManager) until the next correction.
+    /// system's shake-to-undo, through the window's UndoManager) until the next correction, Edit Text, the card closing,
+    /// or the correction's Undo going (SpeakerIdentifier.lastCorrection: the transcript changed in another way).
     private func offerUndo() {
         guard let correction = services.identifier.lastCorrection, correction.recordingID == recording.id else { return }
         undoToast = correction.id
         let identifier = services.identifier
         let recording = recording
-        undoManager?.removeAllActions()
+        undoManager?.removeAllActions(withTarget: identifier)
         undoManager?.registerUndo(withTarget: identifier) { identifier in
             MainActor.assumeIsolated { identifier.undoLastCorrection(of: recording) }
         }
@@ -568,9 +585,14 @@ struct RecordingDetailView: View {
     }
 
     private func undoCorrection() {
-        undoToast = nil
-        undoManager?.removeAllActions()
+        withdrawUndo()
         services.identifier.undoLastCorrection(of: recording)
+    }
+
+    /// The toast and the shake action go (the correction itself stays until something replaces it).
+    fileprivate func withdrawUndo() {
+        undoToast = nil
+        undoManager?.removeAllActions(withTarget: services.identifier)
     }
 
     /// What the toast says was done, and the shake alert's "Undo …".
@@ -820,4 +842,9 @@ private struct PlaybackFollowing: ViewModifier {
             .onChange(of: card.playingWord?.segment) { _, segment in card.follow(segment) }
             .onChange(of: card.isEditingText) { _, editing in card.editingChanged(editing) }
     }
+}
+
+private struct UndoTimer: Equatable {
+    var toast: UUID?
+    var alert: Bool
 }

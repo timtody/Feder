@@ -374,6 +374,16 @@
         }
       }
     },
+    "Can't Import": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import nicht möglich"
+          }
+        }
+      }
+    },
     "Can't Record": {
       "localizations": {
         "de": {
@@ -1034,6 +1044,26 @@
         }
       }
     },
+    "Import Audio": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio importieren"
+          }
+        }
+      }
+    },
+    "Importing…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird importiert …"
+          }
+        }
+      }
+    },
     "Jump to Live": {
       "localizations": {
         "de": {
@@ -1454,6 +1484,16 @@
         }
       }
     },
+    "No speech was found in this recording.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In dieser Aufnahme wurde keine Sprache gefunden."
+          }
+        }
+      }
+    },
     "Not Available on This Device": {
       "localizations": {
         "de": {
@@ -1490,6 +1530,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nicht geladen"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
           }
         }
       }
@@ -2527,6 +2577,26 @@
         }
       }
     },
+    "This file can't be read as audio.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Datei lässt sich nicht als Audio lesen."
+          }
+        }
+      }
+    },
+    "This file has no audio.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Datei enthält kein Audio."
+          }
+        }
+      }
+    },
     "This recording's audio can't be played.": {
       "localizations": {
         "de": {
@@ -2613,6 +2683,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Live mitschreiben"
+          }
+        }
+      }
+    },
+    "Transcribes an audio file from Files": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkribiert eine Audiodatei aus „Dateien“"
           }
         }
       }

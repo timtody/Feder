@@ -97,6 +97,52 @@ final class SpeakerCorrectionTests: ScribeUITestCase {
                       "undone: \(names(app))")
     }
 
+    /// A rename after a correction drops its Undo (undoing would throw the rename away); a Done in Edit Text that
+    /// changes nothing offers no Undo.
+    @MainActor
+    func testRenameDropsUndoAndNoOpDoneOffersNone() throws {
+        let app = launch()
+        open("Project Kickoff", in: app)
+        menu(app, header: 1, "Assign This Part To", "Anna Schmidt")
+        let undo = app.buttons["UndoCorrection"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 5))
+        app.buttons["SpeakerHeader.1"].tap()                      // Jonas: rename him
+        XCTAssertTrue(app.buttons["CancelRename"].waitForExistence(timeout: 5))
+        sleep(1)
+        app.typeText("Jonas W.")                                  // the field is focused with the name selected
+        app.buttons["SaveRename"].tap()
+        XCTAssertTrue(undo.waitForNonExistence(timeout: 5), "the rename dropped the Undo")
+
+        app.buttons["Edit Text"].tap()
+        let done = app.buttons.matching(NSPredicate(format: "label == 'Done Editing'")).allElementsBoundByIndex
+            .filter(\.isHittable).min { $0.frame.minY < $1.frame.minY } ?? app.buttons["Done Editing"].firstMatch
+        done.tap()
+        sleep(1)
+        XCTAssertFalse(undo.exists, "a Done that changed nothing offers no Undo")
+    }
+
+    /// A word added at the end of a paragraph stays with that paragraph's speaker (it used to get no time and go to
+    /// the next speaker).
+    @MainActor
+    func testAppendedWordStaysWithItsSpeaker() throws {
+        let app = launch()
+        open("Project Kickoff", in: app)
+        app.buttons["Edit Text"].tap()
+        let field = app.textFields["ParagraphField.0"].exists ? app.textFields["ParagraphField.0"]
+                                                              : app.textViews["ParagraphField.0"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.88)).tap()
+        sleep(1)
+        field.typeText(" Danke.")
+        let done = app.buttons.matching(NSPredicate(format: "label == 'Done Editing'")).allElementsBoundByIndex
+            .filter(\.isHittable).min { $0.frame.minY < $1.frame.minY } ?? app.buttons["Done Editing"].firstMatch
+        done.tap()
+        let first = app.staticTexts["Paragraph.0"]
+        XCTAssertTrue(waitFor { (first.label as String).hasSuffix("Danke.") }, "the word ends Anna's paragraph: \(first.label)")
+        XCTAssertFalse(app.staticTexts["Paragraph.1"].label.hasPrefix("Danke"), "and doesn't start Jonas's")
+        XCTAssertEqual(names(app), ["Anna Schmidt", "Jonas Weber", "Anna Schmidt", "Jonas Weber"])
+    }
+
     @MainActor
     private func waitFor(_ condition: () -> Bool, timeout: TimeInterval = 5) -> Bool {
         let end = Date.now.addingTimeInterval(timeout)
