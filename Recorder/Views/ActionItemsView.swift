@@ -141,6 +141,7 @@ struct ActionItemsDisclosure: View {
             if adding.contains(item.id) {
                 ProgressView()
                     .frame(width: 44, height: 44)
+                    .onAppear { InteractionTrace.shown("reminders") }
             } else {
                 Menu {
                     Button("Add to Reminders", systemImage: "checklist") { addToReminders([item.id]) }

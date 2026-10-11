@@ -10,8 +10,8 @@ import Observation
 /// 5. recognition of known people (PeopleDirectory), then `.done`: the user sees the speakers.
 /// Then, in the background and on its own queue, the vocabulary pass (FileTranscriber.applyVocabulary): its words are
 /// aligned with the stored turns again, so speaker numbers, names and links stay; then the automatic title and summary
-/// (TranscriptTitler) and the action items (ActionItemExtractor). Re-runs everything still `.pending` / `.processing` / vocabulary-pending / without a summary on
-/// launch and when the app returns to the foreground.
+/// (TranscriptTitler) and the action items (ActionItemExtractor). Re-runs everything still `.pending` / `.processing` /
+/// vocabulary-pending / without a summary or action items on launch and when the app returns to the foreground.
 /// Two one-time sweeps over older transcripts run behind that work: new voices (`refreshVoices`) and titles and
 /// summaries. A stopped recording's own steps always go first (the sweeps wait for at most the transcript they are on),
 /// and while a recording is being made (`setRecording`) the sweeps start nothing new.

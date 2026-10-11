@@ -86,7 +86,7 @@ final class ActionItemsTests: ScribeUITestCase {
     @MainActor
     func testAddToReminders() throws {
         XCUIApplication().resetAuthorizationStatus(for: .reminders)
-        let app = launch()
+        let app = launch(["-interactionTrace"])          // the press timings, for `log stream`
         _ = openBudgetItems(app)
         choose("Add to Reminders", forItem: 0, app)
         XCTAssertTrue(answerRemindersAlert("Allow"), "iOS asks for Reminders")
@@ -136,7 +136,7 @@ final class ActionItemsTests: ScribeUITestCase {
     /// process and asks for no permission); Cancel leaves the item, Add marks it "In Calendar".
     @MainActor
     func testAddToCalendarOpensEditor() throws {
-        let app = launch()
+        let app = launch(["-interactionTrace"])
         _ = openBudgetItems(app)
         choose("Add to Calendar", forItem: 0, app)
         let back = app.buttons["Minimize"]
