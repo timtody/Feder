@@ -14,3 +14,41 @@ final class SystemIntegrationTests: ScribeUITestCase {
         XCTAssertTrue(app.staticTexts["Budget Review"].exists, "back in the Transcripts list")
     }
 }
+
+/// Starting and stopping from outside the app: the lock screen widget's link and the recording's Live Activity.
+final class RecordingFromOutsideTests: ScribeUITestCase {
+    /// feder://record (the lock screen widget) starts a transcript: the card comes up recording.
+    @MainActor
+    func testRecordLinkStartsATranscript() throws {
+        let app = launch()
+        app.open(URL(string: "feder://record")!)
+        XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout: 10), "recording, with the large Stop")
+        app.buttons["Stop"].firstMatch.tap()
+    }
+
+    /// While recording in the background, the Live Activity is in the Dynamic Island; expanded, its Stop stops the
+    /// recording (StopRecordingIntent, in the app) and the transcript is saved.
+    @MainActor
+    func testLiveActivityStop() throws {
+        let app = launch(["-autoRecord"])
+        if !app.buttons["Stop"].waitForExistence(timeout: 20) { print("APP-TREE", app.debugDescription) }
+        XCTAssertTrue(app.buttons["Stop"].exists, "recording")
+        sleep(3)
+        XCUIDevice.shared.press(.home)
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        XCTAssertTrue(springboard.wait(for: .runningForeground, timeout: 5))
+        sleep(2)
+        // The Dynamic Island at the top centre (its time's label changes every second, so it isn't looked up by its
+        // text: a found element can't be resolved again a second later). A long press expands the Live Activity.
+        shot("Dynamic Island", springboard)
+        springboard.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: springboard.frame.midX, dy: 24))
+            .press(forDuration: 1.0)                         // expands it
+        // The island speaks the simulator's language (German here), not the app's launch argument.
+        let stop = springboard.buttons.matching(NSPredicate(format: "label IN {'Stop', 'Stoppen'}")).firstMatch
+        XCTAssertTrue(stop.waitForExistence(timeout: 5), "Stop in the expanded island")
+        shot("Dynamic Island expanded", springboard)
+        stop.tap()
+        app.activate()
+        XCTAssertTrue(app.buttons["Delete Transcript"].waitForExistence(timeout: 15), "stopped and saved: the transcript")
+    }
+}

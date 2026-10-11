@@ -1504,6 +1504,16 @@
         }
       }
     },
+    "Opens Feder and starts a new transcript.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffnet Feder und startet ein neues Transkript."
+          }
+        }
+      }
+    },
     "Optional Improvements": {
       "localizations": {
         "de": {
@@ -2077,6 +2087,16 @@
         }
       }
     },
+    "Start Transcribing": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkription starten"
+          }
+        }
+      }
+    },
     "Starts a new recording and its live transcript": {
       "localizations": {
         "de": {
@@ -2093,6 +2113,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stoppen"
+          }
+        }
+      }
+    },
+    "Stop Transcribing": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkription beenden"
+          }
+        }
+      }
+    },
+    "Stops the recording and saves the transcript.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beendet die Aufnahme und sichert das Transkript."
           }
         }
       }

@@ -100,6 +100,17 @@ struct MainView: View {
             Onboarding(pages: onboardingPages)
         }
         .task { await offerOnboarding() }
+        // Start and stop from outside the app: the Control Center control, the Action Button, Siri, Shortcuts
+        // (RecordingIntents) and the lock screen widget's link. A start asked for while the app was launching waits
+        // in RecordingControl until here.
+        .task {
+            RecordingControl.shared.start = { startRecording() }
+            RecordingControl.shared.stop = { await card.session?.stop() }
+            if RecordingControl.shared.takePendingStart() { startRecording() }
+        }
+        .onOpenURL { url in
+            if url.scheme == FederURL.scheme, url.host() == "record" { startRecording() }
+        }
         // A transcript tapped in Spotlight (SpotlightIndex): its card, out of its row in the Transcripts list.
         .onContinueUserActivity(CSSearchableItemActionType) { activity in
             guard let id = SpotlightIndex.recordingID(from: activity) else { return }

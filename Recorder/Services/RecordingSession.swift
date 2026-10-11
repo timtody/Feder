@@ -36,6 +36,13 @@ final class RecordingSession: Identifiable {
             case .preparing, .downloadingSpeechModel, .recording, .finishing: identifier.setRecording(true)
             case .idle, .finished, .discarded, .failed: identifier.setRecording(false)
             }
+            // The Live Activity on the lock screen and in the Dynamic Island (RecordingLiveActivity).
+            switch state {
+            case .recording(let since): RecordingLiveActivity.start(name: transcriptName, since: since)
+            case .finishing: RecordingLiveActivity.saving()
+            case .finished, .discarded, .failed: RecordingLiveActivity.end()
+            case .idle, .preparing, .downloadingSpeechModel: break
+            }
         }
     }
     private(set) var text = LiveText()                     // what the live screen shows (LiveTranscript)

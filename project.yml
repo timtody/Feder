@@ -32,6 +32,8 @@ settings:
     SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY: YES
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     STRING_CATALOG_GENERATE_SYMBOLS: YES
+    MARKETING_VERSION: "1.0"                                  # the app and its widget extension must match
+    CURRENT_PROJECT_VERSION: "1"
   configs:
     debug:
       SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
@@ -46,7 +48,9 @@ targets:
         type: syncedFolder                   # Xcode 16+ synchronized group: new files need no regeneration
         excludes:
           - "Info.plist"
+      - path: Shared                         # with FederWidgets: the intents and the Live Activity's attributes
     dependencies:
+      - target: FederWidgets                 # embedded: Live Activity, Control Center control, lock screen widget
       - package: FluidAudio
         product: FluidAudio
       - package: MLXSwiftLM
@@ -68,6 +72,10 @@ targets:
         NSMicrophoneUsageDescription: "Feder uses the microphone to record and transcribe audio. Everything stays on this iPhone."
         NSLocationWhenInUseUsageDescription: "Feder saves where a transcript was started, so you can see and search it later."
         UIBackgroundModes: [audio]
+        NSSupportsLiveActivities: true                        # the recording's Live Activity (FederWidgets)
+        CFBundleURLTypes:                                     # feder://record: the lock screen widget starts a transcript
+          - CFBundleURLName: de.timtody.feder
+            CFBundleURLSchemes: [feder]
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
@@ -77,8 +85,6 @@ targets:
         PRODUCT_NAME: Feder
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "1"
         TARGETED_DEVICE_FAMILY: "1"                           # iPhone only
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
@@ -86,6 +92,35 @@ targets:
         SUPPORTS_MACCATALYST: NO
         CODE_SIGN_STYLE: Automatic                            # signing lives at target level (xcodegen injects CODE_SIGN_IDENTITY here)
         DEVELOPMENT_TEAM: GL55J24MCR                          # signing team for device builds
+        CODE_SIGN_IDENTITY: "Apple Development"
+        "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": ""
+        "CODE_SIGNING_REQUIRED[sdk=iphonesimulator*]": NO
+        "CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]": NO
+
+  FederWidgets:                              # widget extension: Live Activity, Control Center control, lock screen widget
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: FederWidgets
+        excludes:
+          - "Info.plist"
+      - path: Shared
+    info:
+      path: FederWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Feder
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.timtody.feder.widgets
+        PRODUCT_NAME: FederWidgets
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: YES
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: GL55J24MCR
         CODE_SIGN_IDENTITY: "Apple Development"
         "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": ""
         "CODE_SIGNING_REQUIRED[sdk=iphonesimulator*]": NO

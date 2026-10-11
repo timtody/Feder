@@ -11,6 +11,7 @@ struct RecorderApp: App {
 
     init() {
         NameSpeakersTip.configure()
+        RecordingLiveActivity.endLeftovers()
         do {
             let container = try ModelContainer(for: Recording.self, Person.self)
             _services = State(initialValue: AppServices(container: container))

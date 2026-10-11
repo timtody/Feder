@@ -18,6 +18,17 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>de.timtody.feder</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>feder</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
@@ -26,6 +37,8 @@
 	<string>Feder saves where a transcript was started, so you can see and search it later.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Feder uses the microphone to record and transcribe audio. Everything stays on this iPhone.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

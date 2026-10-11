@@ -13,7 +13,7 @@ Feder is a local-only iPhone transcription app: SwiftUI, Swift 6, iOS 26+, built
 ## Build & test
 
 ```sh
-xcodegen generate          # after editing project.yml, or adding/removing files in ScribeUITests/ (Recorder/ is a synced folder)
+xcodegen generate          # after editing project.yml, or adding/removing files in ScribeUITests/, Shared/ or FederWidgets/ (Recorder/ is a synced folder)
 build/qa/build.sh          # build gate: Debug, generic iOS Simulator; prints app errors/warnings + BUILD SUCCEEDED/FAILED
 ```
 

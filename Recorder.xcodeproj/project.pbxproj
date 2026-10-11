@@ -11,12 +11,15 @@
 		0EBB87CDD9ACF8FF5846234A /* EditTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CBB09BF835A7714BACE9828 /* EditTextTests.swift */; };
 		196D9B1D9C1FC93B2D97EAC5 /* GemmaDownloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0960C3DA36C230C1F4975E37 /* GemmaDownloadTests.swift */; };
 		1C553266EE103103B03AF64B /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = 0F1CBAC905522385F14CAD16 /* Tokenizers */; };
+		26902B2E5A15EA4460A65C3F /* FederWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 45D8858EA3F31BD74E1BFE98 /* FederWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2A56270AD1816BDD640A4854 /* SummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5864C5737E1A73204C68C61 /* SummaryTests.swift */; };
 		379E55B6F6D2FC5C25580291 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 8B6605A6E71DAC28C11A6736 /* MLXLLM */; };
 		38E6DDDC36DD05C2AAD1F2E0 /* SystemIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2FEA08FE163F0FEAAC15066 /* SystemIntegrationTests.swift */; };
 		3DE7EA9DAFB6057C8FE49F91 /* ExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9888AE62014305DE6B7512B /* ExportTests.swift */; };
+		5653329E9AF22B5416BE6958 /* RecordingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41108F5D0A55780F5B359E97 /* RecordingIntents.swift */; };
 		5DA165C65B82BD2FDCC77184 /* TranscriptListTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD49FF381B0530C8297D2E4 /* TranscriptListTests.swift */; };
 		6A0E34B4405D331458A53253 /* SpeakerModelPrewarmTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C47DC3D3045444F493063CD3 /* SpeakerModelPrewarmTests.swift */; };
+		9264C88A983550F28C73F9D1 /* RecordingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41108F5D0A55780F5B359E97 /* RecordingIntents.swift */; };
 		9842882BB124165D5F36A048 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 4BF152A52DD140039F8897C1 /* MLX */; };
 		ACE3A2F03E31206AE3CA1D0A /* TagEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6061ACE8B763190CD40341F /* TagEditorTests.swift */; };
 		B1FB85133BB65085CC0C8494 /* TranscriptionLanguageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3914E00B46027D3444C29616 /* TranscriptionLanguageTests.swift */; };
@@ -24,13 +27,22 @@
 		B739DD0671E8E7B2825F900A /* ScribeUITestCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E5334822ED139DB77164FF /* ScribeUITestCase.swift */; };
 		BD3F585F5DF9E3B245ACC980 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 5369E989FEB69AFA9F06EF50 /* MLXLMCommon */; };
 		C52AA21891D8870AA04AFDE1 /* SearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F19636A7502AD131706A5F /* SearchTests.swift */; };
+		CBD772DADF0086EDEB0FF0C5 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 69D646AF45C91B8E21B6CD14 /* Localizable.xcstrings */; };
 		DEB13780364793E430D76278 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = C99D4D671ADAEAD1CC8310D5 /* FluidAudio */; };
 		E1032F5173E6FFC4C1C6878F /* SettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34990786B63747A3152C8DA7 /* SettingsTests.swift */; };
 		EB3C3FFDA4851C15F84E8FE6 /* SpeakerNamingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FE0FEEB768611208CA19668 /* SpeakerNamingTests.swift */; };
 		FB77DCB14E2979B37EB6C510 /* SpeakerCorrectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24639CFDE8DBBA9454DEA98F /* SpeakerCorrectionTests.swift */; };
+		FEBC842971B62A00CF16A79A /* FederWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0118C12D431B788B233588 /* FederWidgets.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		77A8371110B193196D9DC16B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0A0CE171AC5E092A15594BE4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9B9416E23B9D55BC29FBE6AB;
+			remoteInfo = FederWidgets;
+		};
 		A610705B6A19DEB1CAFB2383 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0A0CE171AC5E092A15594BE4 /* Project object */;
@@ -40,6 +52,20 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		948324CA57C850A66C83446F /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				26902B2E5A15EA4460A65C3F /* FederWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		0960C3DA36C230C1F4975E37 /* GemmaDownloadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GemmaDownloadTests.swift; sourceTree = "<group>"; };
 		1D9844FE4177FE163F4856E7 /* ResponsivenessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponsivenessTests.swift; sourceTree = "<group>"; };
@@ -48,8 +74,12 @@
 		3914E00B46027D3444C29616 /* TranscriptionLanguageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionLanguageTests.swift; sourceTree = "<group>"; };
 		3CBB09BF835A7714BACE9828 /* EditTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTextTests.swift; sourceTree = "<group>"; };
 		3FE0FEEB768611208CA19668 /* SpeakerNamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerNamingTests.swift; sourceTree = "<group>"; };
+		41108F5D0A55780F5B359E97 /* RecordingIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingIntents.swift; sourceTree = "<group>"; };
+		45D8858EA3F31BD74E1BFE98 /* FederWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = FederWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		5FD49FF381B0530C8297D2E4 /* TranscriptListTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptListTests.swift; sourceTree = "<group>"; };
+		69D646AF45C91B8E21B6CD14 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		894E9486143AAD7D3710C41E /* OnboardingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingTests.swift; sourceTree = "<group>"; };
+		9A0118C12D431B788B233588 /* FederWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FederWidgets.swift; sourceTree = "<group>"; };
 		B5E5334822ED139DB77164FF /* ScribeUITestCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScribeUITestCase.swift; sourceTree = "<group>"; };
 		C2FEA08FE163F0FEAAC15066 /* SystemIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemIntegrationTests.swift; sourceTree = "<group>"; };
 		C47DC3D3045444F493063CD3 /* SpeakerModelPrewarmTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerModelPrewarmTests.swift; sourceTree = "<group>"; };
@@ -105,10 +135,19 @@
 		1BB18CB6A8EB247476338388 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				45D8858EA3F31BD74E1BFE98 /* FederWidgets.appex */,
 				E198C3CAE095A97FBBB1C7B1 /* Recorder.app */,
 				F5D6225DCDC7ED2BB6F5DB88 /* ScribeUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		411E1B89317A036FAEE6D422 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				41108F5D0A55780F5B359E97 /* RecordingIntents.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 		450F05D8F32855007DA5CC69 /* ScribeUITests */ = {
@@ -134,11 +173,22 @@
 			path = ScribeUITests;
 			sourceTree = "<group>";
 		};
+		65741B38170EA90D35AE5BAB /* FederWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				9A0118C12D431B788B233588 /* FederWidgets.swift */,
+				69D646AF45C91B8E21B6CD14 /* Localizable.xcstrings */,
+			);
+			path = FederWidgets;
+			sourceTree = "<group>";
+		};
 		B83D9A4B5CE5CDB0352BE90B = {
 			isa = PBXGroup;
 			children = (
+				65741B38170EA90D35AE5BAB /* FederWidgets */,
 				C04E4651EFDBD721DCF3BA71 /* Recorder */,
 				450F05D8F32855007DA5CC69 /* ScribeUITests */,
+				411E1B89317A036FAEE6D422 /* Shared */,
 				1BB18CB6A8EB247476338388 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -171,10 +221,12 @@
 				7CE1C16FDD3ABA4031C744E6 /* Sources */,
 				5EFC55EAC51212CD670FE768 /* Resources */,
 				C1AF2B984D1CD72E07E63557 /* Frameworks */,
+				948324CA57C850A66C83446F /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				5B224F5640DEC37840C39FE4 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				C04E4651EFDBD721DCF3BA71 /* Recorder */,
@@ -190,6 +242,24 @@
 			productName = Recorder;
 			productReference = E198C3CAE095A97FBBB1C7B1 /* Recorder.app */;
 			productType = "com.apple.product-type.application";
+		};
+		9B9416E23B9D55BC29FBE6AB /* FederWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3B096EFAF9D46F4ABDCD2A38 /* Build configuration list for PBXNativeTarget "FederWidgets" */;
+			buildPhases = (
+				F38B3BEB5992AFDE7D0D7017 /* Sources */,
+				11141A7063C161A12F5D409B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FederWidgets;
+			packageProductDependencies = (
+			);
+			productName = FederWidgets;
+			productReference = 45D8858EA3F31BD74E1BFE98 /* FederWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -209,6 +279,10 @@
 						DevelopmentTeam = GL55J24MCR;
 						ProvisioningStyle = Automatic;
 					};
+					9B9416E23B9D55BC29FBE6AB = {
+						DevelopmentTeam = GL55J24MCR;
+						ProvisioningStyle = Automatic;
+					};
 				};
 			};
 			buildConfigurationList = 8C5779071D8F05378EAB5A5A /* Build configuration list for PBXProject "Recorder" */;
@@ -216,6 +290,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
+				de,
 				en,
 			);
 			mainGroup = B83D9A4B5CE5CDB0352BE90B;
@@ -232,12 +307,21 @@
 			projectRoot = "";
 			targets = (
 				47DDEF6E8826A43CEB926026 /* Recorder */,
+				9B9416E23B9D55BC29FBE6AB /* FederWidgets */,
 				17EFC8BEB6A2D7BF44A2916D /* ScribeUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		11141A7063C161A12F5D409B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CBD772DADF0086EDEB0FF0C5 /* Localizable.xcstrings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5EFC55EAC51212CD670FE768 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -275,12 +359,27 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5653329E9AF22B5416BE6958 /* RecordingIntents.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F38B3BEB5992AFDE7D0D7017 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FEBC842971B62A00CF16A79A /* FederWidgets.swift in Sources */,
+				9264C88A983550F28C73F9D1 /* RecordingIntents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		5B224F5640DEC37840C39FE4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9B9416E23B9D55BC29FBE6AB /* FederWidgets */;
+			targetProxy = 77A8371110B193196D9DC16B /* PBXContainerItemProxy */;
+		};
 		840860C5A900B0D192F8D185 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 47DDEF6E8826A43CEB926026 /* Recorder */;
@@ -300,7 +399,6 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GL55J24MCR;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -311,7 +409,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = de.timtody.feder;
 				PRODUCT_NAME = Feder;
 				SDKROOT = iphoneos;
@@ -331,7 +428,6 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GL55J24MCR;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -342,7 +438,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = de.timtody.feder;
 				PRODUCT_NAME = Feder;
 				SDKROOT = iphoneos;
@@ -407,6 +502,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -420,6 +516,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -470,6 +567,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -489,6 +587,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -505,6 +604,56 @@
 				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
+		};
+		C2F6D9F9745FF1189A4FFC8B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				"CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]" = NO;
+				"CODE_SIGNING_REQUIRED[sdk=iphonesimulator*]" = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = GL55J24MCR;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FederWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = de.timtody.feder.widgets;
+				PRODUCT_NAME = FederWidgets;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		CA3EAEE3F586BC0DF0519050 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				"CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]" = NO;
+				"CODE_SIGNING_REQUIRED[sdk=iphonesimulator*]" = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = GL55J24MCR;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FederWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = de.timtody.feder.widgets;
+				PRODUCT_NAME = FederWidgets;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
 		};
 		EEFF980D093C21907954C409 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -531,6 +680,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		3B096EFAF9D46F4ABDCD2A38 /* Build configuration list for PBXNativeTarget "FederWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C2F6D9F9745FF1189A4FFC8B /* Debug */,
+				CA3EAEE3F586BC0DF0519050 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		3E1A4418A130D7607EC6C2AE /* Build configuration list for PBXNativeTarget "Recorder" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
