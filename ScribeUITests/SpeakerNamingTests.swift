@@ -193,12 +193,11 @@ final class SpeakerNamingTests: ScribeUITestCase {
         let below = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Tap a speaker'")).firstMatch
         XCTAssertTrue(below.exists, "it says what to do")
         XCTAssertLessThan(header.frame.minY, tip.frame.minY, "under the first name, pointing at it")
-        // A popover takes the first tap outside it to close (TipKit's popover too): the tip goes, the next tap renames.
+        // One tap: the tip lets taps through to the page (tipBackgroundInteraction), so the name renames at once.
         header.tap()
-        XCTAssertTrue(tip.waitForNonExistence(timeout: 5), "the tip is gone once the name was tapped")
         let cancel = app.buttons["CancelRename"]
-        if !cancel.waitForExistence(timeout: 2) { header.tap() }
-        XCTAssertTrue(cancel.waitForExistence(timeout: 5), "the rename sheet")
+        XCTAssertTrue(cancel.waitForExistence(timeout: 5), "the rename sheet on the first tap")
+        XCTAssertTrue(tip.waitForNonExistence(timeout: 5), "and the tip is gone")
 
         // Debug builds: Settings › About › Reset Onboarding brings it back at once, without a relaunch.
         cancel.tap()

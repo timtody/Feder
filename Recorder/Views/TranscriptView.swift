@@ -213,6 +213,9 @@ private struct SpeakerNameLine: View {
                 .background(matched ? color.opacity(0.16) : .clear, in: Capsule())
                 .padding(.leading, matched ? -7 : 0)
                 .popoverTip(showsTip ? NameSpeakersTip() : nil, arrowEdge: .top)
+                // The page behind the tip stays live (iOS 26): the first tap on the name renames at once. Without it
+                // the popover took that tap to close itself, and naming took two taps the first time.
+                .tipBackgroundInteraction(.enabled)
             Text(start.clockFormatted)
                 .font(.caption)
                 .monospacedDigit()
