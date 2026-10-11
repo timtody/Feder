@@ -14,7 +14,7 @@
         },
         {
           "heading": "What Feder Stores on Your iPhone",
-          "body": "Feder keeps everything it creates in its own storage on your iPhone:\n• the audio of your recordings,\n• transcripts, titles and summaries,\n• speaker names, people and their voice profiles,\n• tags and the words you add to your vocabulary,\n• where a recording was made (coordinates and place name), if you allow it,\n• your settings.\n\nTranscription, speaker identification, titles and summaries run on your iPhone. None of this data is sent to us or to anyone else. It leaves your iPhone only when you share a transcript yourself, for example with the share sheet, and as part of your iPhone’s backups (see “Backups”)."
+          "body": "Feder keeps everything it creates in its own storage on your iPhone:\n• the audio of your recordings,\n• transcripts, titles and summaries,\n• speaker names, people and their voice profiles,\n• tags and the words you add to your vocabulary,\n• where a recording was made (coordinates and place name), if you allow it,\n• the name of the calendar event a recording was started in and the names of its invitees, if you turn on Name from Calendar,\n• your settings.\n\nTranscription, speaker identification, titles and summaries run on your iPhone. None of this data is sent to us or to anyone else. It leaves your iPhone only when you share a transcript yourself, for example with the share sheet, and as part of your iPhone’s backups (see “Backups”)."
         },
         {
           "heading": "Microphone",
@@ -27,6 +27,10 @@
         {
           "heading": "Location",
           "body": "Location is optional. If you allow it, Feder determines once per recording where you are: when the recording starts, or, for your first recording, when you stop it (that is when iOS asks for location access). To turn the coordinates into a place name such as “Mitte, Berlin”, Feder sends them to Apple (Apple Maps). Apple receives the coordinates and the usual connection data, such as your IP address, and processes them under its own privacy policy.\n\nThe coordinates and the place name are stored only with the transcript on your iPhone.\n\nYou can turn this off with the Save Location switch in Feder’s Settings, or deny location access in the iOS Settings app under Apps › Feder. If you turn Save Location off before you stop a recording, we save no place for it. Recording works the same without it."
+        },
+        {
+          "heading": "Calendar",
+          "body": "Naming transcripts from your calendar is off unless you turn on Name from Calendar, in the onboarding or in Feder's settings. Only then does Feder ask iOS for access to your calendars. It reads the events of today and tomorrow on your iPhone and keeps them only in its memory; it never changes or deletes an event. When you start a transcript during an event, the transcript gets the event's name, and Feder keeps the event's name and the names of its invitees with the transcript, to offer them when you name the speakers. It keeps no e-mail addresses, no other details of the event and no other events, and it never sends any of this anywhere.\n\nThe invitees' names are personal data of other people, from your own calendar. They stay with the transcript on your iPhone until you delete it.\n\nYou can turn this off with the Name from Calendar switch in Feder's Settings, or deny calendar access in the iOS Settings app under Apps › Feder › Calendars. Transcripts keep the names they already have. Recording works the same without it."
         },
         {
           "heading": "iPhone Search, Lock Screen and Sharing",
@@ -58,7 +62,7 @@
         },
         {
           "heading": "How Long Data Is Kept",
-          "body": "Everything stays on your iPhone until you delete it:\n• Delete a transcript to remove its audio, text, summary, place and voice profiles.\n• Delete a person to stop Feder recognizing them; delete the transcripts they speak in to remove their voice profiles completely.\n• Delete Gemma in Feder’s Settings to remove the summary model.\n• Delete the app to remove all of Feder’s data and models from your iPhone.\n\nCopies in your backups are kept for as long as those backups are."
+          "body": "Everything stays on your iPhone until you delete it:\n• Delete a transcript to remove its audio, text, summary, place, the names from your calendar and its voice profiles.\n• Delete a person to stop Feder recognizing them; delete the transcripts they speak in to remove their voice profiles completely.\n• Delete Gemma in Feder’s Settings to remove the summary model.\n• Delete the app to remove all of Feder’s data and models from your iPhone.\n\nCopies in your backups are kept for as long as those backups are."
         },
         {
           "heading": "Your Rights",
@@ -88,7 +92,7 @@
         },
         {
           "heading": "Was Feder auf deinem iPhone speichert",
-          "body": "Feder bewahrt alles, was es erstellt, in seinem eigenen Speicher auf deinem iPhone auf:\n• den Ton deiner Aufnahmen,\n• Transkripte, Titel und Zusammenfassungen,\n• Sprechernamen, Personen und ihre Stimmprofile,\n• Tags und die Wörter, die du deinem Vokabular hinzufügst,\n• wo eine Aufnahme entstand (Koordinaten und Ortsname), wenn du es erlaubst,\n• deine Einstellungen.\n\nTranskription, Sprechererkennung, Titel und Zusammenfassungen laufen auf deinem iPhone. Nichts davon wird an uns oder an andere gesendet. Die Daten verlassen dein iPhone nur, wenn du selbst ein Transkript teilst, zum Beispiel über „Teilen“, und als Teil der Backups deines iPhone (siehe „Backups“)."
+          "body": "Feder bewahrt alles, was es erstellt, in seinem eigenen Speicher auf deinem iPhone auf:\n• den Ton deiner Aufnahmen,\n• Transkripte, Titel und Zusammenfassungen,\n• Sprechernamen, Personen und ihre Stimmprofile,\n• Tags und die Wörter, die du deinem Vokabular hinzufügst,\n• wo eine Aufnahme entstand (Koordinaten und Ortsname), wenn du es erlaubst,\n• den Namen des Kalenderereignisses, in dem eine Aufnahme gestartet wurde, und die Namen seiner Eingeladenen, wenn du „Nach Kalender benennen“ einschaltest,\n• deine Einstellungen.\n\nTranskription, Sprechererkennung, Titel und Zusammenfassungen laufen auf deinem iPhone. Nichts davon wird an uns oder an andere gesendet. Die Daten verlassen dein iPhone nur, wenn du selbst ein Transkript teilst, zum Beispiel über „Teilen“, und als Teil der Backups deines iPhone (siehe „Backups“)."
         },
         {
           "heading": "Mikrofon",
@@ -101,6 +105,10 @@
         {
           "heading": "Standort",
           "body": "Der Standort ist freiwillig. Wenn du ihn erlaubst, ermittelt Feder einmal pro Aufnahme, wo du bist: zu Beginn der Aufnahme, bei deiner ersten Aufnahme beim Stoppen (dann fragt iOS nach dem Standortzugriff). Um aus den Koordinaten einen Ortsnamen wie „Mitte, Berlin“ zu machen, sendet Feder sie an Apple (Apple Karten). Apple erhält die Koordinaten und die üblichen Verbindungsdaten, etwa deine IP-Adresse, und verarbeitet sie nach seiner eigenen Datenschutzrichtlinie.\n\nKoordinaten und Ortsname werden nur mit dem Transkript auf deinem iPhone gespeichert.\n\nDu kannst das mit dem Schalter „Ort speichern“ in den Einstellungen von Feder ausschalten oder den Standortzugriff in der App „Einstellungen“ von iOS unter „Apps“ › „Feder“ verweigern. Schaltest du „Ort speichern“ aus, bevor du eine Aufnahme stoppst, speichern wir für sie keinen Ort. Aufnehmen funktioniert ohne Standort genauso."
+        },
+        {
+          "heading": "Kalender",
+          "body": "Das Benennen nach deinem Kalender ist aus, bis du „Nach Kalender benennen“ einschaltest, im Onboarding oder in den Einstellungen von Feder. Erst dann fragt Feder iOS nach dem Zugriff auf deine Kalender. Feder liest die Ereignisse von heute und morgen auf deinem iPhone und behält sie nur im Arbeitsspeicher; es ändert oder löscht nie ein Ereignis. Startest du ein Transkript während eines Ereignisses, bekommt das Transkript dessen Namen, und Feder speichert den Namen des Ereignisses und die Namen seiner Eingeladenen mit dem Transkript, um sie dir beim Benennen der Sprecher vorzuschlagen. Feder speichert keine E-Mail-Adressen, keine weiteren Angaben zum Ereignis und keine anderen Ereignisse und sendet nichts davon irgendwohin.\n\nDie Namen der Eingeladenen sind personenbezogene Daten anderer Menschen aus deinem eigenen Kalender. Sie bleiben mit dem Transkript auf deinem iPhone, bis du es löschst.\n\nDu kannst das mit dem Schalter „Nach Kalender benennen“ in den Einstellungen von Feder ausschalten oder den Kalenderzugriff in der App „Einstellungen“ von iOS unter „Apps“ › „Feder“ › „Kalender“ verweigern. Transkripte behalten die Namen, die sie schon haben. Aufnehmen funktioniert ohne Kalender genauso."
         },
         {
           "heading": "iPhone-Suche, Sperrbildschirm und Teilen",
@@ -132,7 +140,7 @@
         },
         {
           "heading": "Wie lange Daten gespeichert werden",
-          "body": "Alles bleibt auf deinem iPhone, bis du es löschst:\n• Lösche ein Transkript, um seinen Ton, Text, seine Zusammenfassung, seinen Ort und seine Stimmprofile zu entfernen.\n• Lösche eine Person, damit Feder sie nicht mehr erkennt; lösche die Transkripte, in denen sie spricht, um ihre Stimmprofile ganz zu entfernen.\n• Lösche Gemma in den Einstellungen von Feder, um das Zusammenfassungsmodell zu entfernen.\n• Lösche die App, um alle Daten und Modelle von Feder von deinem iPhone zu entfernen.\n\nKopien in deinen Backups bleiben so lange erhalten wie diese Backups."
+          "body": "Alles bleibt auf deinem iPhone, bis du es löschst:\n• Lösche ein Transkript, um seinen Ton, Text, seine Zusammenfassung, seinen Ort, die Namen aus deinem Kalender und seine Stimmprofile zu entfernen.\n• Lösche eine Person, damit Feder sie nicht mehr erkennt; lösche die Transkripte, in denen sie spricht, um ihre Stimmprofile ganz zu entfernen.\n• Lösche Gemma in den Einstellungen von Feder, um das Zusammenfassungsmodell zu entfernen.\n• Lösche die App, um alle Daten und Modelle von Feder von deinem iPhone zu entfernen.\n\nKopien in deinen Backups bleiben so lange erhalten wie diese Backups."
         },
         {
           "heading": "Deine Rechte",

@@ -208,6 +208,9 @@ Recording starts only when the user taps Transcribe, after the system microphone
 LOCATION (optional)
 iOS asks for location at the first Stop, not over the live recording. If allowed, the recording's location (for the first recording, where it was stopped; later ones, where they started) is reverse-geocoded with MapKit to show a place name. A Save Location switch in Settings turns it off; denying it changes nothing else.
 
+CALENDAR (optional)
+Off until the user turns on "Name from Calendar" (an onboarding page with "Name from Calendar" and "No Thanks", or a switch in Settings > Recording). Only that tap asks for full calendar access. Feder then reads today's and tomorrow's events on the device, in memory only, and never changes or deletes an event: a transcript started during an event gets its title, and the event's invitees' names are offered when naming speakers. Only the title and those names are stored with the transcript; nothing is sent anywhere. Denied, recording works the same (5.1.1(iv)), and the switch offers the Settings app.
+
 AI
 Titles and summaries are generated on the device by Gemma 4 E2B (Apache-2.0), running with MLX. Nothing is sent to a third-party AI service.
 
