@@ -1,8 +1,9 @@
 import XCTest
+import notify
 
-/// App Lock (AppLock, AppLockView, Settings › App Lock). The simulator has no passcode, so Face ID is faked:
+/// App Lock (AppLock, AppLockView, Settings › App Lock). Face ID is faked, so cancels and failures can be told apart:
 /// `-fakeAuthentication success|failure|cancel,…` answers each request in turn after 0.3 s (the last answer repeats),
-/// and the switch reads "Require Face ID" as on the iPhone 17. `-appLockOn` starts with App Lock on (locking
+/// and the switch reads "Require Face ID" as on the iPhone 17 (`testRealFaceIDUnlocks` runs the real one). `-appLockOn` starts with App Lock on (locking
 /// Immediately); every other test launches with it off (ScribeUITestCase).
 final class AppLockTests: ScribeUITestCase {
     /// Off by default with the "Off: …" footer. Turning it on asks for Face ID first: a failure springs the switch back,
@@ -137,31 +138,35 @@ final class AppLockTests: ScribeUITestCase {
             .press(forDuration: 0.05, thenDragTo: springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)),
                    withVelocity: .slow, thenHoldForDuration: 1.5)
         sleep(1)
-        shot("App switcher", springboard)
+        // The screen itself: resolving SpringBoard for its screenshot timed out in the switcher.
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "App switcher"
+        attachment.lifetime = .keepAlways
+        add(attachment)
         app.activate()
         XCTAssertTrue(app.textFields["Title"].waitForExistence(timeout: 10), "unlocked again: the card")
     }
 
-    /// With a grace period (4 s here; Settings offers 1, 5 and 15 minutes), a short trip away doesn't lock; a longer
+    /// With a grace period (10 s here; Settings offers 1, 5 and 15 minutes), a short trip away doesn't lock; a longer
     /// one does.
     @MainActor
     func testGracePeriod() throws {
-        let app = launch(["-appLockOn", "-appLockGrace", "4", "-fakeAuthentication", "success,cancel"],
+        let app = launch(["-appLockOn", "-appLockGrace", "10", "-fakeAuthentication", "success,cancel"],
                          waitsForList: false)
         let kickoff = app.staticTexts["Project Kickoff"]
         XCTAssertTrue(kickoff.waitForExistence(timeout: 15), "unlocked at launch")
         XCUIDevice.shared.press(.home)
         sleep(1)
         app.activate()
-        XCTAssertTrue(kickoff.waitForExistence(timeout: 5), "back within 4 s: not locked")
+        XCTAssertTrue(kickoff.waitForExistence(timeout: 5), "back within 10 s: not locked")
         sleep(2)                                            // the prompt would have come by now
         XCTAssertFalse(app.buttons["Unlock"].exists)
         XCTAssertTrue(isOnScreen(transcribe(app), app))
 
         XCUIDevice.shared.press(.home)
-        sleep(6)
+        sleep(12)
         app.activate()
-        XCTAssertTrue(app.buttons["Unlock"].waitForExistence(timeout: 10), "back after 6 s: locked")
+        XCTAssertTrue(app.buttons["Unlock"].waitForExistence(timeout: 10), "back after 12 s: locked")
         XCTAssertFalse(kickoff.exists)
     }
 
@@ -225,6 +230,33 @@ final class AppLockTests: ScribeUITestCase {
         app.buttons["Delete"].firstMatch.tap()
         XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
     }
+
+    /// LocalAuthentication itself, without `-fakeAuthentication`: the iOS 27 simulator has Face ID (Features › Face ID
+    /// in the Simulator's menu, which posts the same notifications as here). Enrolled, the launch shows the Face ID
+    /// sheet over the lock; a matching face unlocks Feder.
+    @MainActor
+    func testRealFaceIDUnlocks() throws {
+        #if targetEnvironment(simulator)
+        notify_set_state(enrollmentToken(), 1)
+        notify_post("com.apple.BiometricKit.enrollmentChanged")
+        #endif
+        let app = launch(["-appLockOn"], waitsForList: false)
+        sleep(4)                                            // the Face ID sheet is up (SpringBoard's, not in the tree)
+        shot("Face ID", app)
+        XCTAssertFalse(app.staticTexts["Project Kickoff"].exists, "locked")
+        #if targetEnvironment(simulator)
+        notify_post("com.apple.BiometricKit_Sim.pearl.match")
+        #endif
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 10), "a matching face unlocks")
+    }
+
+    #if targetEnvironment(simulator)
+    private func enrollmentToken() -> Int32 {
+        var token: Int32 = 0
+        notify_register_check("com.apple.BiometricKit.enrollmentChanged", &token)
+        return token
+    }
+    #endif
 
     // MARK: Helpers
 

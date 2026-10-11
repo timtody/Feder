@@ -125,7 +125,10 @@ final class AppLock {
         retriedAfterInterruption = false
         guard isCovered else { return }                 // App Lock was off when Feder was left
         if !isLocked, let leftAt, ContinuousClock.now - leftAt >= Self.grace { isLocked = true }
-        if isLocked { promptDue = true }
+        if isLocked {
+            promptDue = true
+            showsPrompt = false                         // a prompt interrupted by leaving set it meanwhile
+        }
         Task { await refreshMethod() }                  // a passcode removed meanwhile
     }
 
@@ -141,7 +144,12 @@ final class AppLock {
             try? await Task.sleep(for: .milliseconds(300))
             guard isLocked, !isAuthenticating else { return }
             guard UIApplication.shared.applicationState == .active else { promptDue = true; return }
-            if isRecordingStarting { waitsForRecording = true; return }
+            if isRecordingStarting {
+                // Unlock meanwhile, should preparing take long (a speech model's first download).
+                waitsForRecording = true
+                showsPrompt = true
+                return
+            }
             await authenticate()
         }
     }
@@ -294,8 +302,9 @@ final class AppLock {
     /// `-appLockOn` stores App Lock on (locking Immediately), `-resetAppLock` removes it and the grace period (as on a
     /// new install); written, not passed as an argument value, so a test can still flip the switch.
     /// `-appLockGrace <seconds>` (the argument domain) sets any grace period. `-fakeAuthentication
-    /// success|failure|cancel[,…]`: the answers, 0.3 s each, instead of Face ID (the simulator has no passcode, so
-    /// without it the switch is disabled).
+    /// success|failure|cancel[,…]`: the answers, 0.3 s each, instead of LocalAuthentication, whose sheets a test can't
+    /// answer predictably (the iOS 27 simulator has real ones: Face ID once enrolled in Features › Face ID, otherwise a
+    /// passcode sheet).
     private func applyTestHooks() {
         let arguments = ProcessInfo.processInfo.arguments
         let defaults = UserDefaults.standard
