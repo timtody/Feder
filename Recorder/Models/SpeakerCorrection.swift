@@ -157,10 +157,13 @@ extension Recording {
     /// The words of each paragraph: the paragraphs are folds of consecutive words, so a paragraph's words are those
     /// from its start up to the next paragraph's start.
     func wordRanges() -> [UUID: Range<Int>] {
-        let words = self.words
+        Self.wordRanges(words: words, segments: segments)
+    }
+
+    /// `wordRanges()` of words and paragraphs already read (off the main actor too).
+    nonisolated static func wordRanges(words: [TranscriptWord], segments: [TranscriptSegment]) -> [UUID: Range<Int>] {
         var ranges: [UUID: Range<Int>] = [:]
         var index = 0
-        let segments = self.segments
         for (s, segment) in segments.enumerated() {
             let next = s + 1 < segments.count ? segments[s + 1].start : .infinity
             while index < words.count, words[index].start < segment.start - 0.001 { index += 1 }

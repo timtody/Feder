@@ -65,7 +65,8 @@ nonisolated protocol AudioCapture: AnyObject, Sendable {
     /// keeps running until shutDown().
     func seal() -> TimeInterval
     /// Removes the tap, stops the engine and deactivates the session, in that order (Apple: stop the IO before
-    /// deactivating), off the main actor. Safe to call when not started.
+    /// deactivating), off the main actor. Safe to call when not started, and more than once: only the first call after
+    /// activateSession() deactivates the session, and start() afterwards throws.
     func shutDown() async
 }
 

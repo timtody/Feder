@@ -101,6 +101,8 @@ final class AppServices {
                                        betterSummaries: betterSummaries, modelContext: container.mainContext)
         // Gemma downloaded or turned on: the transcripts are described again with it (newest first), wherever the user is.
         betterSummaries.onBecameActive = { [identifier] in Task { await identifier.prepareAndRetryPending() } }
+        // No playback while a recording is being made (one audio session): also from the lock screen or the AirPods.
+        player.mayPlay = { [identifier] in !identifier.isRecording }
         network.onChange { [weak self] kind in self?.networkChanged(kind) }
     }
 

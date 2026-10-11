@@ -14,6 +14,13 @@ actor AudioHardware {
     static let shared = AudioHardware()
 }
 
+/// Who has the audio session: a recording's capture, from activating it until it has shut down. Playback starts
+/// nothing meanwhile (PlaybackEngine): switching the session to playback would silently end the recording's input.
+@AudioHardware
+enum AudioSessionUse {
+    static var recording = false
+}
+
 /// AVAudioEngine input tap -> AVAudioConverter (mic format -> analyzer format) -> AVAudioFile + AsyncStream<AnalyzerInput>,
 /// plus (live speaker labels) a second persistent converter -> mono Float32 at LiveAudio.sampleRate -> AsyncStream<[Float]>.
 @AudioHardware
@@ -21,10 +28,15 @@ final class MicrophoneCapture: nonisolated AudioCapture {
     private let engine = AVAudioEngine()
     /// Everything the tap thread touches; the main actor seals it at Stop (seal), this actor replaces and drops it.
     nonisolated private let tap = Mutex<CaptureTap?>(nil)
+    /// From activateSession until shutDown: only the first shutDown deactivates the session, so a second one (Cancel
+    /// shuts down at once, start() again when it notices) leaves a player's session that started meanwhile alone.
+    private var holdsSession = false
 
     nonisolated init() {}
 
     func activateSession() throws {
+        holdsSession = true
+        AudioSessionUse.recording = true
         let session = AVAudioSession.sharedInstance()
         do {
             // No .allowBluetoothHFP: always record with the iPhone's own microphone. A Bluetooth headset mic (AirPods)
@@ -42,6 +54,8 @@ final class MicrophoneCapture: nonisolated AudioCapture {
 
     func start(writingTo fileURL: URL, analyzerFormat: AVAudioFormat, liveSamples: AsyncStream<[Float]>.Continuation?,
                levels: AsyncStream<Float>.Continuation?) throws -> AsyncStream<AnalyzerInput> {
+        // Shut down already (Cancel while the analyzer was being prepared): no engine on a session let go of.
+        guard holdsSession else { throw RecorderError.audioEngineFailed("cancelled") }
         let input = engine.inputNode
         let inputFormat = input.outputFormat(forBus: 0)
         #if DEBUG
@@ -113,6 +127,9 @@ final class MicrophoneCapture: nonisolated AudioCapture {
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         tap.withLock { $0 = nil }
+        guard holdsSession else { return }
+        holdsSession = false
+        AudioSessionUse.recording = false
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 

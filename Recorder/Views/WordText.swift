@@ -7,25 +7,29 @@ import SwiftUI
 /// (`WordFrames`); a tap's location then names the word. The search's highlights are kept (each word styled with its
 /// share of them). Words are the paragraph's text split at spaces: the paragraphs are their words joined by single
 /// spaces (TranscriptAligner.fold), so a token is a word unless a word's own text has a space in it (the caller maps
-/// tokens to words with that in mind).
+/// tokens to words with that in mind, and highlights all of a word's tokens).
+///
+/// The spoken word is drawn by the renderer, not marked in the `Text`: while the audio plays, `playing` is read here
+/// (the player's word, a few times a second), so only the visible paragraphs' bodies follow it, the card's doesn't, and
+/// the words' `Text` (`WordRuns`, equal unless the text or the search changed) is neither built nor laid out again.
 struct WordParagraph: View, Equatable {
     let text: String
     var highlights: [Range<String.Index>] = []
-    /// The token being spoken, nil: none.
-    var playing: Int?
+    /// The tokens being spoken in this paragraph (read in `body`), nil or empty: none.
+    let playing: () -> Range<Int>?
     let onTap: (Int) -> Void
 
     @State private var frames = WordFrames()
 
-    /// Without the tap closure (a new one at every update of the transcript): while the audio plays, the transcript
-    /// updates a few times a second, and only the paragraph whose spoken word changed is built again.
+    /// Without the closures (new ones at every update of the transcript).
     static func == (a: WordParagraph, b: WordParagraph) -> Bool {
-        a.text == b.text && a.highlights == b.highlights && a.playing == b.playing
+        a.text == b.text && a.highlights == b.highlights
     }
 
     var body: some View {
-        WordText.make(text, highlights: highlights, playing: playing)
-            .textRenderer(WordRenderer(frames: frames))
+        WordRuns(text: text, highlights: highlights)
+            .equatable()
+            .textRenderer(WordRenderer(frames: frames, playing: playing()))
             // Simultaneous: the paragraph's text selection (a long press) keeps working.
             .simultaneousGesture(SpatialTapGesture().onEnded { value in
                 if let token = frames.token(at: value.location) { onTap(token) }
@@ -33,11 +37,19 @@ struct WordParagraph: View, Equatable {
     }
 }
 
+/// The paragraph's words as one `Text` of runs (WordText.make).
+private struct WordRuns: View, Equatable {
+    let text: String
+    let highlights: [Range<String.Index>]
+
+    var body: some View {
+        WordText.make(text, highlights: highlights)
+    }
+}
+
 nonisolated struct WordToken: TextAttribute {
     var index: Int
 }
-
-nonisolated struct PlayingWord: TextAttribute {}
 
 /// The frames of a paragraph's words as last drawn, by token index (written while drawing, read on a tap).
 nonisolated final class WordFrames: Sendable {
@@ -61,6 +73,7 @@ nonisolated final class WordFrames: Sendable {
 /// Draws the paragraph as usual, a tint behind the spoken word, and notes where each word went.
 nonisolated struct WordRenderer: TextRenderer {
     let frames: WordFrames
+    let playing: Range<Int>?
 
     func draw(layout: Text.Layout, in context: inout GraphicsContext) {
         var found: [Int: CGRect] = [:]
@@ -69,10 +82,10 @@ nonisolated struct WordRenderer: TextRenderer {
                 let rect = run.typographicBounds.rect
                 if let token = run[WordToken.self] {
                     found[token.index] = found[token.index].map { $0.union(rect) } ?? rect
-                }
-                if run[PlayingWord.self] != nil {
-                    context.fill(Path(roundedRect: rect.insetBy(dx: -3, dy: -1), cornerRadius: 5),
-                                 with: .color(.accentColor.opacity(0.22)))
+                    if playing?.contains(token.index) == true {
+                        context.fill(Path(roundedRect: rect.insetBy(dx: -3, dy: -1), cornerRadius: 5),
+                                     with: .color(.accentColor.opacity(0.22)))
+                    }
                 }
                 context.draw(run)
             }
@@ -82,10 +95,9 @@ nonisolated struct WordRenderer: TextRenderer {
 }
 
 enum WordText {
-    /// The paragraph as one `Text` of word runs (each with its `WordToken`), the search's highlights per word, the
-    /// spoken word marked `PlayingWord`.
-    static func make(_ text: String, highlights: [Range<String.Index>], playing: Int?) -> Text {
-        var result = Text(verbatim: "")
+    /// The paragraph as one `Text` of word runs (each with its `WordToken`), the search's highlights per word.
+    static func make(_ text: String, highlights: [Range<String.Index>]) -> Text {
+        var runs: [Text] = []
         var index = 0
         var cursor = text.startIndex
         while cursor < text.endIndex {
@@ -102,15 +114,28 @@ enum WordText {
                     word.index(word.startIndex, offsetBy: text.distance(from: range.lowerBound, to: hit.lowerBound))
                         ..< word.index(word.startIndex, offsetBy: text.distance(from: range.lowerBound, to: hit.upperBound))
                 }
-                var run = SearchHighlight.text(word, shifted).customAttribute(WordToken(index: index))
-                if index == playing { run = run.customAttribute(PlayingWord()) }
-                result = Text("\(result)\(run)")
+                runs.append(SearchHighlight.text(word, shifted).customAttribute(WordToken(index: index)))
                 index += 1
             }
             guard end < text.endIndex else { break }
-            result = Text("\(result)\(Text(verbatim: " "))")
+            runs.append(Text(verbatim: " "))
             cursor = text.index(after: end)
         }
-        return result
+        return joined(runs[...])
+    }
+
+    /// The runs as one `Text`, joined as a balanced tree: each interpolation nests the `Text`s in it, and joined one
+    /// after the other a paragraph of about 140 words nested deep enough to overflow the main thread's stack on the
+    /// iPhone while it was resolved (review: 2N levels for N words; balanced, log2(2N): 3000 words were fine at 1 MB). A
+    /// single interpolation of all runs doesn't work either: its formatting failed ("Overflow occurred") and drew
+    /// nothing.
+    private static func joined(_ runs: ArraySlice<Text>) -> Text {
+        switch runs.count {
+        case 0: return Text(verbatim: "")
+        case 1: return runs[runs.startIndex]
+        default:
+            let middle = runs.startIndex + runs.count / 2
+            return Text("\(joined(runs[..<middle]))\(joined(runs[middle...]))")
+        }
     }
 }

@@ -94,6 +94,7 @@ final class RecordingSession: Identifiable {
             state = .failed(.microphoneDenied)
             return
         }
+        guard state != .discarded else { return }             // cancelled while the permission was asked
         do {
             try await capture.activateSession()              // audio session first, then the analyzer (Apple's order)
             #if DEBUG
@@ -142,10 +143,15 @@ final class RecordingSession: Identifiable {
 
     /// "Cancel" on the preparing / downloading overlays, i.e. before anything was captured. The cover dismisses via
     /// `.discarded`; `start()` re-checks the state after each await and releases whatever it had started. A speech
-    /// model download already in flight keeps going in the system, so the next attempt finds the asset installed.
+    /// model download already in flight keeps going in the system, so the next attempt finds the asset installed. The
+    /// audio session is let go of at once, not when start() notices (the download can take minutes): until then
+    /// nothing could play (AudioSessionUse), and a transcript played meanwhile would be cut off by the late shutdown.
     func cancel() {
         switch state {
-        case .idle, .preparing, .downloadingSpeechModel: state = .discarded
+        case .idle, .preparing, .downloadingSpeechModel:
+            state = .discarded
+            let capture = capture
+            Task { await capture.shutDown() }
         case .recording, .finishing, .finished, .discarded, .failed: break
         }
     }

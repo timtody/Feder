@@ -39,8 +39,9 @@ struct TranscriptView: View {
     /// transcript's speakers is a new speaker). Set with `edits`: each paragraph then has a chip above it instead of the
     /// turns' name rows, so one paragraph can go to another speaker (the name row's menu moves a whole turn).
     var speakerEdits: Binding<[UUID: Int]>? = nil
-    /// The word being played (a paragraph and the index of its word, counted as WordText splits it): highlighted.
-    var playing: (segment: UUID, token: Int)? = nil
+    /// The word being played in a paragraph (the indices of its tokens, counted as WordText splits it), highlighted;
+    /// read by the paragraphs themselves (WordParagraph), so the spoken word moving doesn't build the transcript again.
+    var playing: ((UUID) -> Range<Int>?)? = nil
     /// A tap on a word (its paragraph and index as WordText splits it): RecordingDetailView plays from it. nil: the
     /// paragraphs are plain text (no audio, editing).
     var onWordTap: ((TranscriptSegment, Int) -> Void)? = nil
@@ -180,8 +181,7 @@ struct TranscriptView: View {
             ChangeFlashText(text: segment.text, flashes: flashes)
         } else if let onWordTap {
             WordParagraph(text: segment.text, highlights: search?.highlights(in: segment.text) ?? [],
-                          playing: playing?.segment == segment.id ? playing?.token : nil,
-                          onTap: { onWordTap(segment, $0) })
+                          playing: { [playing] in playing?(segment.id) }, onTap: { onWordTap(segment, $0) })
                 .equatable()
         } else {
             SearchHighlight.text(segment.text, search?.highlights(in: segment.text) ?? [])

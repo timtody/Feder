@@ -1,7 +1,8 @@
 import XCTest
 
-/// The card's player (TranscriptPlayer, PlayerBar) and tapping a word to hear it (WordParagraph). A transcript recorded
-/// on the simulator has its audio file (the seeded samples have none, so they show no player).
+/// Listen: the card's player (TranscriptPlayer, PlayerBar) and tapping a word to hear it (WordParagraph), from the
+/// toolbar's headphones until the bar's close button. A transcript recorded on the simulator has its audio file (the
+/// seeded samples have none: Listen is greyed out there).
 final class PlaybackTests: ScribeUITestCase {
     @MainActor
     private func seconds(_ label: String) -> Int {
@@ -15,7 +16,11 @@ final class PlaybackTests: ScribeUITestCase {
         let app = launch(["-autoRecord", "-autoStopAfter", "12"])
         XCTAssertTrue(app.buttons["Delete Transcript"].waitForExistence(timeout: 30), "saved: the transcript")
         let play = app.buttons["PlayPause"]
-        XCTAssertTrue(play.waitForExistence(timeout: 10), "the player bar")
+        let listen = app.buttons["Listen"]
+        XCTAssertTrue(listen.wait(for: \.isEnabled, toEqual: true, timeout: 10), "Listen, with the audio there")
+        XCTAssertFalse(play.exists, "no player until Listen")
+        listen.tap()
+        XCTAssertTrue(play.waitForExistence(timeout: 5), "Listen shows the player bar")
         let time = app.staticTexts["PlaybackTime"]
         XCTAssertEqual(time.label, "0:00")
         play.tap()
@@ -36,7 +41,23 @@ final class PlaybackTests: ScribeUITestCase {
         XCTAssertGreaterThanOrEqual(seconds(time.label), 4, "jumped to the tapped word: \(time.label)")
         XCTAssertEqual(play.label, "Pause", "and plays")
         shot("Tapped word", app)
+
+        // The slider to the end while playing: it stops there (it used to start again from 0:00).
+        let slider = app.sliders["Playback Position"]
+        slider.adjust(toNormalizedSliderPosition: 1)
+        XCTAssertTrue(play.wait(for: \.label, toEqual: "Play", timeout: 3), "stopped at the end")
+        sleep(1)
+        XCTAssertGreaterThanOrEqual(seconds(time.label), 11, "at the end, not from the start: \(time.label)")
+        // Play at the end: from the beginning again.
         play.tap()
+        XCTAssertTrue(time.wait(for: \.label, toEqual: "0:01", timeout: 4), "again from the start: \(time.label)")
+        play.tap()
+
+        // The bar's close button ends Listen: the bar goes, a tap on a word plays nothing.
+        app.buttons["ClosePlayer"].tap()
+        XCTAssertTrue(play.waitForNonExistence(timeout: 3), "the bar is gone")
+        last.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5)).tap()
+        XCTAssertFalse(play.waitForExistence(timeout: 1), "and stays gone")
 
         // Deleted again: each recorded test transcript is newer than the samples and pushes Budget Review down the
         // list the other tests open it from.

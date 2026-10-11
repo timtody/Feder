@@ -52,9 +52,22 @@ struct RecordingDetailView: View {
     /// The Undo toast for the last correction, until it times out (shake to undo works on).
     @State private var undoToast: UUID?
     /// The recording's audio file is there (the player bar and tapping a word to hear it).
-    @State private var hasAudio = false
-    /// Words ↔ paragraphs for the playback highlight and taps (rebuilt when the paragraphs change).
-    @State private var playbackMap = PlaybackMap()
+    @State fileprivate var hasAudio = false
+    /// Words ↔ paragraphs for the playback highlight and taps (rebuilt off the main actor when the paragraphs change).
+    /// In a box: the paragraphs read it in their own bodies (WordParagraph's `playing`), and a @State of this view read
+    /// there through a closure gave its value from when the closure was made (the empty map from before Listen built
+    /// it: nothing was highlighted).
+    @State private var playback = PlaybackMapBox()
+    /// Listen (the toolbar's headphones): the player bar is shown, the spoken word highlighted and a tapped word
+    /// played, until the bar's close button. Off, the card is as without audio: the paragraphs are plain text with the
+    /// system's selection (a tap selects nothing and plays nothing), and the card opens without drawing its paragraphs
+    /// word by word (iPhone 17 simulator, an 8-minute transcript: first frame 293 ms with word paragraphs, 243 ms
+    /// without).
+    @State fileprivate var listening = false
+    /// Listen's paragraphs are word paragraphs, from a moment after Listen (once the bar is up): drawn word by word,
+    /// the visible paragraphs held the press's turn 45–86 ms (iPhone 17 simulator, an 8-minute transcript); the bar
+    /// alone answers in its frame.
+    @State fileprivate var wordsShown = false
     @Environment(\.undoManager) private var undoManager
 
     init(recording: Recording, search: TranscriptSearchContext? = nil, fadesInBody: Bool = false, holdsBody: Bool = false,
@@ -198,10 +211,11 @@ struct RecordingDetailView: View {
                     .frame(height: 52)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
-            } else if hasAudio, !isEditingText {
-                // The player above the bottom toolbar, once the body is there (it fades in with it after Stop).
-                PlayerBar(player: services.player, recording: recording, isDisabled: services.identifier.isRecording)
-                    .opacity(bodyShown ? 1 : 0)
+            } else if listening, hasAudio, !isEditingText {
+                // Listen: the player above the bottom toolbar; its close button ends Listen.
+                PlayerBar(player: services.player, recording: recording, isDisabled: services.identifier.isRecording,
+                          onClose: endListening)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .onScrollGeometryChange(for: CGRect.self, of: { geometry in   // what is visible between the band and the bar
@@ -213,11 +227,8 @@ struct RecordingDetailView: View {
         .cardCloseButton(hint: "Back to the transcripts", action: onClose)
         .task(id: search) { await showFirstHit() }
         .onAppear { InteractionTrace.shown("open") }
-        .onChange(of: segments) {                          // the vocabulary pass or a new speaker count rewrote them
-            findHits()
-            refreshPlaybackMap()
-        }
-        .modifier(PlaybackFollowing(card: self))
+        .onChange(of: segments) { findHits() }              // the vocabulary pass or a new speaker count rewrote them
+        .modifier(PlaybackFollowing(card: self, segments: segments))
         .onChange(of: statusText != nil, initial: true) { _, shown in if shown { keepsStatusRow = true } }
         .onChange(of: recording.speakerStatusRaw) {        // "Speakers: n" re-runs identification: numbers change
             if recording.speakerStatus != .done { renaming = nil }
@@ -284,7 +295,7 @@ struct RecordingDetailView: View {
             Text("The speaker names you entered will be reset.")
         }
         .onDisappear {
-            if services.player.recordingID == recording.id { services.player.stop() }   // the card closed
+            if services.player.recordingID == recording.id { services.player.unload() } // the card closed
             undoManager?.removeAllActions(withTarget: services.identifier)                // no shake-undo of an unseen card
             // Delete only once the card has closed: this view keeps re-reading the model while the card shrinks away,
             // and reading a deleted-and-saved (detached) @Model traps.
@@ -333,6 +344,7 @@ struct RecordingDetailView: View {
                     addTagButton
                     editTextButton
                     speakersPicker.pickerStyle(.menu)       // a submenu here
+                    listenButton
                 } label: {
                     Label("More", systemImage: "ellipsis")
                 }
@@ -348,6 +360,7 @@ struct RecordingDetailView: View {
                     Label("Speakers", systemImage: "person.2")
                 }
             }
+            ToolbarItem(placement: .bottomBar) { listenButton }
         }
         ToolbarSpacer(.flexible, placement: .bottomBar)
         if !hits.isEmpty {
@@ -449,6 +462,16 @@ struct RecordingDetailView: View {
         .disabled(services.identifier.inFlight.contains(recording.id))
     }
 
+    /// Listen: shows the player bar (pressed again, or the bar's close button: ends it). Last in the group, so the
+    /// other buttons stay where they were; greyed out without the recording's audio (the samples have none).
+    private var listenButton: some View {
+        Button(listening ? "Stop Listening" : "Listen", systemImage: "headphones") {
+            if listening { endListening() } else { startListening() }
+        }
+        .disabled(!hasAudio)
+        .accessibilityIdentifier("Listen")
+    }
+
     /// With the hit navigator (opened from a search result), on every iPhone.
     private var combinesActions: Bool { !hits.isEmpty }
 
@@ -508,58 +531,113 @@ struct RecordingDetailView: View {
     /// checker).
     private func transcript(_ segments: [TranscriptSegment]) -> TranscriptView {
         let currentHit: UUID? = hits.indices.contains(hitIndex) ? hits[hitIndex] : nil
-        // The paragraphs' frames: for revealing a search hit, and the spoken paragraph while the audio plays.
-        let tracksFrames = search != nil || services.player.recordingID == recording.id
+        // The paragraphs' frames: for revealing a search hit, and the spoken word while the audio plays (from the
+        // first layout: the paragraphs on the first screen are laid out once).
+        let tracksFrames = search != nil || hasAudio
         let hitFrame: ((UUID, CGRect) -> Void)? = tracksFrames ? { id, frame in hitGeometry.frames[id] = frame } : nil
         let changes: ((TranscriptSegment) -> [ChangeFlash])? = isEditingText ? nil : flashes
         let showsTip = search == nil && recording.speakerNames.isEmpty && !isEditingText
         let speakerEdits: Binding<[UUID: Int]>? = isEditingText ? $speakerEdits : nil
-        let onWordTap: ((TranscriptSegment, Int) -> Void)? = hasAudio && !isEditingText ? { playWord($0, $1) } : nil
+        let words = listening && wordsShown && hasAudio && !isEditingText
+        let onWordTap: ((TranscriptSegment, Int) -> Void)? = words ? { playWord($0, $1) } : nil
+        let playing: ((UUID) -> Range<Int>?)? = words ? { playingTokens(in: $0) } : nil
         return TranscriptView(segments: segments, speakerName: recording.speakerName(_:),
                               preliminary: recording.speakerStatus != .done, preliminaryNotice: preliminaryNotice,
                               renameSpeaker: renameAction, search: search, currentHit: currentHit, hitFrame: hitFrame,
                               flashes: changes, showsNameTip: showsTip, correctSpeaker: speakerCorrection,
-                              edits: textEditsBinding, speakerEdits: speakerEdits, playing: playingWord,
+                              edits: textEditsBinding, speakerEdits: speakerEdits, playing: playing,
                               onWordTap: onWordTap)
     }
 
     // MARK: Playback
 
-    /// The spoken word, as the transcript marks it: its paragraph and its place there.
-    fileprivate var playingWord: (segment: UUID, token: Int)? {
+    /// The spoken word's place in the transcript (its paragraph, its tokens there), nil when none or not this one's.
+    fileprivate var playingPlace: PlaybackMap.Place? {
         guard services.player.recordingID == recording.id, let word = services.player.word else { return nil }
-        return playbackMap.place(of: word)
+        return playback.map.place(of: word)
     }
 
-    /// A tapped word: playback from it (a moment before, so its start isn't clipped).
+    /// A paragraph's spoken tokens: read by the paragraph (WordParagraph), so only the paragraphs follow the word.
+    private func playingTokens(in segment: UUID) -> Range<Int>? {
+        guard let place = playingPlace, place.segment == segment else { return nil }
+        return place.tokens
+    }
+
+    /// A tapped word: playback from it (a moment before, so its start isn't clipped), highlighted from the tap on.
     private func playWord(_ segment: TranscriptSegment, _ token: Int) {
-        guard !services.identifier.isRecording, let start = playbackMap.start(of: token, in: segment.id) else { return }
-        if services.player.recordingID != recording.id { services.player.load(recording) }
-        services.player.play(from: max(0, start - 0.1))
+        guard !services.identifier.isRecording, let word = playback.map.word(at: token, in: segment.id) else { return }
+        let player = services.player
+        if player.recordingID != recording.id { player.load(recording, words: playback.map.words) }
+        player.play(from: max(0, player.audioTime(ofWordAt: word.start) - 0.1), word: word.index)
     }
 
     fileprivate func checkAudio() async {
         hasAudio = await Self.fileExists(recording.audioURL)
-        guard hasAudio else { return }
-        // Loaded here, not on the first tap: loading reads the words (a SwiftData decode), which a press mustn't wait for.
-        if services.player.recordingID != recording.id { services.player.load(recording) }
-        refreshPlaybackMap()
     }
 
-    fileprivate func follow(_ segment: UUID?) {
-        guard let segment, services.player.isPlaying else { return }
-        withAnimation(.snappy) { reveal(segment) }
+    /// The word map for the paragraphs, built off the main actor once Listen starts; the player gets the same words
+    /// (loaded here, not on the first tap: reading the words is a SwiftData decode, which a press mustn't wait for).
+    fileprivate func refreshPlaybackMap(_ segments: [TranscriptSegment]) async {
+        let words = recording.words
+        let map = await PlaybackMap.build(words: words, segments: segments)
+        guard !Task.isCancelled else { return }
+        playback.map = map
+        let player = services.player
+        if player.recordingID == recording.id {
+            player.setWords(words, offset: recording.alignmentOffset)
+        } else {
+            player.load(recording, words: words)
+        }
+    }
+
+    private func startListening() {
+        InteractionTrace.begin("listen")
+        withAnimation(.snappy) { listening = true }
+    }
+
+    /// Word paragraphs once the bar has come up (its animation), plain text again when Listen ends.
+    fileprivate func showWords() async {
+        guard listening else {
+            wordsShown = false
+            return
+        }
+        guard (try? await Task.sleep(for: .milliseconds(350))) != nil else { return }
+        wordsShown = true
+    }
+
+    /// The bar's close button (or Listen again): playback stops, Now Playing goes, the paragraphs are plain text again.
+    private func endListening() {
+        if services.player.recordingID == recording.id { services.player.unload() }
+        withAnimation(.snappy) { listening = false }
+    }
+
+    /// Keeps the spoken word on screen while playing: when its line has left the visible part, a paragraph that fits
+    /// is centred (like a search hit), a taller one scrolled so the word's line stands as far down the screen as it
+    /// stands in the paragraph (on screen either way). Not while the user scrolls, nor for a few seconds after: they
+    /// are reading elsewhere.
+    fileprivate func follow(_ place: PlaybackMap.Place?) {
+        guard let place, services.player.isPlaying, !hitGeometry.userScrolledRecently else { return }
+        guard let frame = hitGeometry.frames[place.segment] else {
+            withAnimation(.snappy) { scroller?.scrollTo(place.segment, anchor: .center) }   // not laid out yet
+            return
+        }
+        let visible = hitGeometry.visible.insetBy(dx: 0, dy: 24)    // a line's margin: the estimate is per line
+        let line = frame.minY + place.fraction * frame.height
+        guard !visible.isNull, !(visible.minY...visible.maxY).contains(line) else { return }
+        let anchor = frame.height <= visible.height ? UnitPoint.center : UnitPoint(x: 0.5, y: place.fraction)
+        withAnimation(.snappy) { scroller?.scrollTo(place.segment, anchor: anchor) }
     }
 
     fileprivate func editingChanged(_ editing: Bool) {
         if editing, services.player.recordingID == recording.id { services.player.pause() }
     }
 
-    private func refreshPlaybackMap() {
-        guard hasAudio else { return }
-        let words = recording.words
-        playbackMap = PlaybackMap(words: words, segments: recording.segments, ranges: recording.wordRanges())
-        if services.player.recordingID == recording.id { services.player.setWords(words) }
+    fileprivate func scrollPhaseChanged(_ phase: ScrollPhase) {
+        switch phase {
+        case .tracking, .interacting, .decelerating: hitGeometry.userScrolled = .now
+        case .idle, .animating: break
+        @unknown default: break
+        }
     }
 
     @concurrent
@@ -759,9 +837,19 @@ struct RecordingDetailView: View {
 
 /// Where the hit paragraphs are (in the content's coordinates) and what the scroll view shows of it, read when a hit is
 /// revealed. Not view state: it changes with every layout and scroll, and nothing is drawn from it.
+private final class PlaybackMapBox {
+    var map = PlaybackMap()
+}
+
 private final class HitGeometry {
     var frames: [UUID: CGRect] = [:]
     var visible = CGRect.null
+    /// When the user last moved the transcript (dragging or its deceleration): following the spoken word waits.
+    var userScrolled: ContinuousClock.Instant?
+
+    var userScrolledRecently: Bool {
+        userScrolled.map { ContinuousClock.now - $0 < .seconds(3) } ?? false
+    }
 }
 
 #if DEBUG
@@ -794,52 +882,79 @@ private struct UndoToast: View {
     }
 }
 
-/// Which paragraph and which of its words (as WordText splits a paragraph: at spaces) each word of the transcript is,
+/// Which paragraph and which of its tokens (as WordText splits a paragraph: at spaces) each word of the transcript is,
 /// both ways: the playing word's place for the highlight, a tapped word's start time to play from.
-struct PlaybackMap {
-    private var placeOfWord: [(segment: UUID, token: Int)] = []
+nonisolated struct PlaybackMap: Sendable {
+    struct Place: Equatable, Sendable {
+        var segment: UUID
+        /// The word's tokens in its paragraph: more than one when its text has a space in it (a term of Your Words).
+        var tokens: Range<Int>
+        /// How far into the paragraph the word is (its first token of all its tokens), as an estimate of its line.
+        var fraction: Double
+    }
+
+    /// The words the map was built from (the player loads the same).
+    private(set) var words: [TranscriptWord] = []
+    private var placeOfWord: [Place?] = []
     private var wordsOfSegment: [UUID: [Int]] = [:]        // token index → word index
-    private var starts: [TimeInterval] = []
 
     init() {}
 
-    init(words: [TranscriptWord], segments: [TranscriptSegment], ranges: [UUID: Range<Int>]) {
-        starts = words.map(\.start)
-        placeOfWord = Array(repeating: (UUID(), 0), count: words.count)
+    @concurrent
+    static func build(words: [TranscriptWord], segments: [TranscriptSegment]) async -> PlaybackMap {
+        PlaybackMap(words: words, segments: segments)
+    }
+
+    init(words: [TranscriptWord], segments: [TranscriptSegment]) {
+        self.words = words
+        placeOfWord = Array(repeating: nil, count: words.count)
+        let ranges = Recording.wordRanges(words: words, segments: segments)
         for segment in segments {
             guard let range = ranges[segment.id] else { continue }
             var tokens: [Int] = []
             for index in range {
                 // A word whose text has a space in it is more than one token: each of them plays the word.
                 let pieces = max(1, words[index].text.split(separator: " ").count)
-                placeOfWord[index] = (segment.id, tokens.count)
+                placeOfWord[index] = Place(segment: segment.id, tokens: tokens.count..<tokens.count + pieces, fraction: 0)
                 tokens += Array(repeating: index, count: pieces)
+            }
+            for index in range {
+                if let first = placeOfWord[index]?.tokens.lowerBound {
+                    placeOfWord[index]?.fraction = Double(first) / Double(max(1, tokens.count))
+                }
             }
             wordsOfSegment[segment.id] = tokens
         }
     }
 
-    func place(of word: Int) -> (segment: UUID, token: Int)? {
+    func place(of word: Int) -> Place? {
         placeOfWord.indices.contains(word) ? placeOfWord[word] : nil
     }
 
-    func start(of token: Int, in segment: UUID) -> TimeInterval? {
+    /// The word a tapped token is: its index and start time (the words' own time).
+    func word(at token: Int, in segment: UUID) -> (index: Int, start: TimeInterval)? {
         guard let tokens = wordsOfSegment[segment], tokens.indices.contains(token) else { return nil }
-        return starts[tokens[token]]
+        return (tokens[token], words[tokens[token]].start)
     }
 }
 
 /// The card's playback upkeep, out of its `body` (one modifier chain was too long for the type checker): whether the
-/// recording's audio is there, the word map, the spoken paragraph kept on screen, and a pause when editing starts.
+/// recording's audio is there, the word map while listening, the spoken word kept on screen, and a pause when editing
+/// starts.
 private struct PlaybackFollowing: ViewModifier {
     let card: RecordingDetailView
+    let segments: [TranscriptSegment]
 
     func body(content: Content) -> some View {
         content
             .task(id: card.recording.id) { await card.checkAudio() }
-            // While playing, the spoken paragraph is kept on screen: scrolled to the centre when it isn't wholly
-            // visible (like a search hit), so reading along never runs off the screen; one on screen is left be.
-            .onChange(of: card.playingWord?.segment) { _, segment in card.follow(segment) }
+            // Built when Listen starts, not when the card opens: off, nothing of it is needed.
+            .task(id: card.listening && card.hasAudio ? segments : nil) {
+                if card.listening, card.hasAudio { await card.refreshPlaybackMap(segments) }
+            }
+            .task(id: card.listening) { await card.showWords() }
+            .onChange(of: card.playingPlace) { _, place in card.follow(place) }
+            .onScrollPhaseChange { _, phase in card.scrollPhaseChanged(phase) }
             .onChange(of: card.isEditingText) { _, editing in card.editingChanged(editing) }
     }
 }
