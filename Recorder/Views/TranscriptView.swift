@@ -29,9 +29,20 @@ struct TranscriptView: View {
     var flashes: ((TranscriptSegment) -> [ChangeFlash])? = nil
     /// Shows NameSpeakersTip on the first name row (RecordingDetailView: final speakers, none named yet).
     var showsNameTip = false
+    /// Hand corrections from a name row's long-press menu (SpeakerCorrection): its turn to another speaker, or the
+    /// speaker merged into another. nil: no such items (live labels, a transcript still being worked on).
+    var correctSpeaker: ((SpeakerEdit) -> Void)? = nil
+
+    enum SpeakerEdit {
+        case assign(turnStartingAt: UUID, to: Int?)       // nil: a new speaker
+        case merge(Int, into: Int)
+    }
 
     /// The coordinate space of the scroll view's content the paragraph frames are in.
     nonisolated static let contentSpace = "TranscriptContent"
+
+    /// The speakers in the transcript, in index order (the correction menus' choices).
+    private var speakers: [Int] { Array(Set(segments.compactMap(\.speakerIndex))).sorted() }
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var noticeRow: UUID?            // the name row showing the preliminary notice
@@ -132,6 +143,24 @@ struct TranscriptView: View {
                     Button("Rename Speaker…", systemImage: "pencil") {
                         NameSpeakersTip().invalidate(reason: .actionPerformed)
                         renameSpeaker(speaker)
+                    }
+                    if let correctSpeaker {
+                        let others = speakers.filter { $0 != speaker }
+                        Menu("Assign This Part To", systemImage: "person.crop.circle.badge.checkmark") {
+                            ForEach(others, id: \.self) { other in
+                                Button(speakerName?(other) ?? "") { correctSpeaker(.assign(turnStartingAt: segment, to: other)) }
+                            }
+                            Button("New Speaker", systemImage: "plus") {
+                                correctSpeaker(.assign(turnStartingAt: segment, to: nil))
+                            }
+                        }
+                        if !others.isEmpty {
+                            Menu("Merge Into", systemImage: "arrow.triangle.merge") {
+                                ForEach(others, id: \.self) { other in
+                                    Button(speakerName?(other) ?? "") { correctSpeaker(.merge(speaker, into: other)) }
+                                }
+                            }
+                        }
                     }
                 }
             }

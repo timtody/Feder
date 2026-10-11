@@ -123,6 +123,27 @@ final class PeopleDirectory {
         try? modelContext.save()
     }
 
+    /// A hand correction renumbered the speakers of `recording` (SpeakerIdentifier.apply): names, links, voices and
+    /// this transcript's voice samples follow `mapping` (old → new); those of speakers that are gone go, and a person
+    /// left with neither samples nor transcripts goes too. Two old speakers never map to one new one (a merge moves the
+    /// turns first; the merged-away speaker is then unused).
+    func renumberSpeakers(of recording: Recording, _ mapping: [Int: Int]) {
+        let linked = Set(recording.speakerPeople.values)
+        recording.speakerNames = SpeakerCorrection.remapped(recording.speakerNames, mapping)
+        recording.speakerPeople = SpeakerCorrection.remapped(recording.speakerPeople, mapping)
+        recording.speakerVoices = SpeakerCorrection.remapped(recording.speakerVoices, mapping)
+        for person in allPeople() where person.samples.contains(where: { $0.recordingID == recording.id }) {
+            let kept = person.samples.filter { $0.recordingID != recording.id }
+            let moved = person.samples.compactMap { sample -> VoiceSample? in
+                guard sample.recordingID == recording.id, let index = mapping[sample.speakerIndex] else { return nil }
+                return VoiceSample(recordingID: recording.id, speakerIndex: index, embedding: sample.embedding)
+            }
+            person.removeSamples { _ in true }
+            for sample in kept + moved { person.setSample(sample) }
+        }
+        linked.subtracting(recording.speakerPeople.values).forEach(removeIfUnused)
+    }
+
     /// Before a transcript is deleted: its samples go, people left with neither samples nor transcripts go too.
     func forget(_ recording: Recording) {
         let linked = Set(recording.speakerPeople.values)

@@ -284,6 +284,16 @@
         }
       }
     },
+    "Assign This Part To": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diesen Abschnitt zuordnen"
+          }
+        }
+      }
+    },
     "Automatic": {
       "localizations": {
         "de": {
@@ -744,6 +754,16 @@
         }
       }
     },
+    "Everything they said is then one speaker's.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alles Gesagte gehört dann zu einem Sprecher."
+          }
+        }
+      }
+    },
     "Feder can keep a voice profile of each speaker and recognize people you've named in later recordings.": {
       "localizations": {
         "de": {
@@ -1084,6 +1104,36 @@
         }
       }
     },
+    "Merge": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zusammenführen"
+          }
+        }
+      }
+    },
+    "Merge %@ into %@?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ mit %2$@ zusammenführen?"
+          }
+        }
+      }
+    },
+    "Merge Into": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zusammenführen mit"
+          }
+        }
+      }
+    },
     "Microphone Access Off": {
       "localizations": {
         "de": {
@@ -1240,6 +1290,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Verlässt nie dieses iPhone"
+          }
+        }
+      }
+    },
+    "New Speaker": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neuer Sprecher"
           }
         }
       }

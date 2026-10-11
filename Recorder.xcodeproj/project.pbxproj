@@ -26,6 +26,7 @@
 		DEB13780364793E430D76278 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = C99D4D671ADAEAD1CC8310D5 /* FluidAudio */; };
 		E1032F5173E6FFC4C1C6878F /* SettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34990786B63747A3152C8DA7 /* SettingsTests.swift */; };
 		EB3C3FFDA4851C15F84E8FE6 /* SpeakerNamingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FE0FEEB768611208CA19668 /* SpeakerNamingTests.swift */; };
+		FB77DCB14E2979B37EB6C510 /* SpeakerCorrectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24639CFDE8DBBA9454DEA98F /* SpeakerCorrectionTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -41,6 +42,7 @@
 /* Begin PBXFileReference section */
 		0960C3DA36C230C1F4975E37 /* GemmaDownloadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GemmaDownloadTests.swift; sourceTree = "<group>"; };
 		1D9844FE4177FE163F4856E7 /* ResponsivenessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponsivenessTests.swift; sourceTree = "<group>"; };
+		24639CFDE8DBBA9454DEA98F /* SpeakerCorrectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerCorrectionTests.swift; sourceTree = "<group>"; };
 		34990786B63747A3152C8DA7 /* SettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTests.swift; sourceTree = "<group>"; };
 		3914E00B46027D3444C29616 /* TranscriptionLanguageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionLanguageTests.swift; sourceTree = "<group>"; };
 		3FE0FEEB768611208CA19668 /* SpeakerNamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerNamingTests.swift; sourceTree = "<group>"; };
@@ -117,6 +119,7 @@
 				B5E5334822ED139DB77164FF /* ScribeUITestCase.swift */,
 				C7F19636A7502AD131706A5F /* SearchTests.swift */,
 				34990786B63747A3152C8DA7 /* SettingsTests.swift */,
+				24639CFDE8DBBA9454DEA98F /* SpeakerCorrectionTests.swift */,
 				C47DC3D3045444F493063CD3 /* SpeakerModelPrewarmTests.swift */,
 				3FE0FEEB768611208CA19668 /* SpeakerNamingTests.swift */,
 				F5864C5737E1A73204C68C61 /* SummaryTests.swift */,
@@ -253,6 +256,7 @@
 				B739DD0671E8E7B2825F900A /* ScribeUITestCase.swift in Sources */,
 				C52AA21891D8870AA04AFDE1 /* SearchTests.swift in Sources */,
 				E1032F5173E6FFC4C1C6878F /* SettingsTests.swift in Sources */,
+				FB77DCB14E2979B37EB6C510 /* SpeakerCorrectionTests.swift in Sources */,
 				6A0E34B4405D331458A53253 /* SpeakerModelPrewarmTests.swift in Sources */,
 				EB3C3FFDA4851C15F84E8FE6 /* SpeakerNamingTests.swift in Sources */,
 				2A56270AD1816BDD640A4854 /* SummaryTests.swift in Sources */,

@@ -42,7 +42,8 @@ struct RecordingDetailView: View {
     @State private var hitGeometry = HitGeometry()
     @AppStorage(TranscriptExport.namesKey) private var exportNames = true
     @AppStorage(TranscriptExport.timestampsKey) private var exportTimestamps = false
-    @State private var keepsStatusRow = false           // the status line was shown: its place stays (see body)
+    @State private var keepsStatusRow = false
+    @State private var pendingMerge: SpeakerMerge?           // the status line was shown: its place stays (see body)
 
     init(recording: Recording, search: TranscriptSearchContext? = nil, fadesInBody: Bool = false, holdsBody: Bool = false,
          turning: Bool = false, onClose: @escaping () -> Void) {
@@ -137,7 +138,8 @@ struct RecordingDetailView: View {
                                search: search, currentHit: hits.indices.contains(hitIndex) ? hits[hitIndex] : nil,
                                hitFrame: search == nil ? nil : { id, frame in hitGeometry.frames[id] = frame },
                                flashes: flashes,
-                               showsNameTip: search == nil && recording.speakerNames.isEmpty)
+                               showsNameTip: search == nil && recording.speakerNames.isEmpty,
+                               correctSpeaker: speakerCorrection)
                     .opacity(bodyShown ? 1 : 0)
             }
             .coordinateSpace(.named(TranscriptView.contentSpace))
@@ -195,6 +197,15 @@ struct RecordingDetailView: View {
             // a transcript inserted after the live text was gone still fades in rather than appearing with its view.
             guard !holdsBody, !bodyShown else { return }
             withAnimation(.easeOut(duration: 0.25)) { bodyShown = true }
+        }
+        .confirmationDialog(pendingMerge.map { String(localized: "Merge \(recording.speakerName($0.from)) into \(recording.speakerName($0.into))?") } ?? "",
+                            isPresented: Binding(get: { pendingMerge != nil }, set: { if !$0 { pendingMerge = nil } }),
+                            titleVisibility: .visible) {
+            Button("Merge") {
+                if let merge = pendingMerge { services.identifier.merge(merge.from, into: merge.into, in: recording) }
+            }
+        } message: {
+            Text("Everything they said is then one speaker's.")
         }
         .confirmationDialog("Identify speakers again?", isPresented: Binding(
             get: { pendingSpeakerCount != nil }, set: { if !$0 { pendingSpeakerCount = nil } }
@@ -351,6 +362,28 @@ struct RecordingDetailView: View {
     private var combinesActions: Bool { !hits.isEmpty }
 
     private var hasSummary: Bool { recording.summary?.isEmpty == false }
+
+    /// The name rows' correction menus, once the speakers are final and nothing runs on the transcript.
+    private var speakerCorrection: ((TranscriptView.SpeakerEdit) -> Void)? {
+        guard services.identifier.canCorrectSpeakers(of: recording) else { return nil }
+        return { correctSpeaker($0) }
+    }
+
+    /// A name row's correction: a turn to another speaker at once; a merge asks first (it can't be undone, and the
+    /// merged speaker's name goes).
+    private func correctSpeaker(_ edit: TranscriptView.SpeakerEdit) {
+        switch edit {
+        case .assign(let id, let speaker):
+            services.identifier.assign(recording.turnSegments(startingAt: id), to: speaker, in: recording)
+        case .merge(let from, let into):
+            pendingMerge = SpeakerMerge(from: from, into: into)
+        }
+    }
+
+    private struct SpeakerMerge: Equatable {
+        var from: Int
+        var into: Int
+    }
 
     // MARK: Search hits
 

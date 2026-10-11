@@ -175,6 +175,63 @@ final class SpeakerIdentifier {
         enqueue(recording)
     }
 
+    // MARK: Hand corrections (SpeakerCorrection)
+
+    /// Whether the speakers of `recording` can be corrected by hand now: final, and nothing running on it.
+    func canCorrectSpeakers(of recording: Recording) -> Bool {
+        !isGone(recording) && recording.speakerStatus == .done && !inFlight.contains(recording.id)
+    }
+
+    /// The paragraphs `segments` (one stretch of the transcript) go to `speaker`, or to a new speaker (nil): the name
+    /// row's "Assign to", and Edit Text's speaker chip.
+    func assign(_ segments: [TranscriptSegment], to speaker: Int?, in recording: Recording) {
+        guard canCorrectSpeakers(of: recording), let first = segments.first, let last = segments.last else { return }
+        let target = speaker ?? recording.speakerCount
+        let offset = recording.alignmentOffset
+        apply(SpeakerCorrection.assigning(recording.correctableTurns, start: first.start - offset,
+                                          end: last.end - offset, to: target), to: recording)
+    }
+
+    /// Everything `from` said becomes `into`'s: the name row's "Merge Into". `into` keeps its name; an unnamed `into`
+    /// takes `from`'s name and person.
+    func merge(_ from: Int, into: Int, in recording: Recording) {
+        guard canCorrectSpeakers(of: recording), from != into else { return }
+        if recording.speakerNames[into] == nil, let name = recording.speakerNames[from] {
+            recording.speakerNames[into] = name
+            recording.speakerPeople[into] = recording.speakerPeople[from]
+        }
+        apply(SpeakerCorrection.merging(recording.correctableTurns, from, into: into), to: recording)
+    }
+
+    /// New turns: the segments are rebuilt from them, the speaker numbers close their gaps (names, people, voices and
+    /// voice samples follow), and the voices are computed again from the corrected labels (with recognition on; they
+    /// are what naming a speaker stores as a sample).
+    private func apply(_ turns: [SpeakerTurn], to recording: Recording) {
+        recording.speakerTurns = turns
+        recording.realignSegments()
+        let mapping = SpeakerCorrection.compaction(used: Set(recording.segments.compactMap(\.speakerIndex)))
+        if mapping.contains(where: { $0.key != $0.value }) || Set(turns.map(\.speakerIndex)).count != mapping.count {
+            recording.speakerTurns = turns.compactMap { turn in
+                mapping[turn.speakerIndex].map { SpeakerTurn(speakerIndex: $0, start: turn.start, end: turn.end) }
+            }
+            recording.segments = recording.segments.map { segment in
+                var segment = segment
+                segment.speakerIndex = segment.speakerIndex.flatMap { mapping[$0] }
+                return segment
+            }
+            people.renumberSpeakers(of: recording, mapping)
+        }
+        recording.editCount += 1
+        let recognizes = PeopleDirectory.isRecognitionEnabled
+        if recognizes { recording.voicesVersion = 0 }
+        try? modelContext.save()
+        guard recognizes else { return }
+        enqueueJob(for: recording) {
+            guard await self.prepareModel() else { return }
+            await self.refreshVoices(of: recording)
+        }
+    }
+
     /// One-time migration at launch (after prepareAndRetryPending): finished transcripts whose voices predate
     /// `voicesVersion` get voices from the labels they show, their people's samples are replaced (PeopleDirectory
     /// .replaceVoices), and recognition runs again everywhere. A transcript that fails keeps its old voices until the

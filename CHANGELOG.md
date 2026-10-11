@@ -11,6 +11,8 @@ Each version has an English and a German list.
   names and timestamps.
 - Find your transcripts in the iPhone's search: type a word from a conversation on the Home Screen and open it straight
   from the result.
+- Fix who said what: touch and hold a speaker's name to give that part to another speaker or to a new one, or to merge
+  two speakers who are the same person.
 
 ### Deutsch
 
@@ -18,6 +20,8 @@ Each version has an English and a German list.
   Sprechernamen und Zeitangaben.
 - Finde deine Transkripte in der iPhone-Suche: Tippe auf dem Home-Bildschirm ein Wort aus einem Gespräch und öffne es
   direkt aus dem Treffer.
+- Korrigiere, wer was gesagt hat: Halte den Namen eines Sprechers gedrückt, um den Abschnitt einem anderen oder einem
+  neuen Sprecher zuzuordnen oder zwei Sprecher zusammenzuführen, die dieselbe Person sind.
 
 ## 1.0
 
