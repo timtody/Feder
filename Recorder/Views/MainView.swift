@@ -314,7 +314,8 @@ struct MainView: View {
     // MARK: Import
 
     /// A file from the picker or another app's share sheet: converted off the main actor (AudioImporter), saved as a
-    /// transcript in the language chosen for the next recording, queued for the steps after Stop, and opened in the
+    /// transcript in the language it is spoken in (LanguageProbe; the one chosen for the next recording when that
+    /// can't be told), queued for the steps after Stop, and opened in the
     /// card out of the accessory, where its status line says what is being done. Files that come while one is being
     /// converted wait their turn (dropped, a second file shared from Voice Memos was lost without a word, its Inbox copy
     /// left behind); the card opens on the last one. A card in Edit Text stays open: the imports wait in the list, as
@@ -332,8 +333,13 @@ struct MainView: View {
                 do {
                     let converted = try await AudioImporter.convert(url)
                     AudioImporter.removeInboxCopy(url)
+                    // The file's own language, not just the accessory's (LanguageProbe: a second or two, off the main
+                    // actor, while the accessory says "Importing…").
+                    let locale = await LanguageProbe.language(of: AudioFileStore.url(for: converted.fileName),
+                                                              duration: converted.duration,
+                                                              chosen: TranscriptionLanguage.current)
                     let recording = Recording(name: converted.name, audioFileName: converted.fileName,
-                                              localeIdentifier: TranscriptionLanguage.current.identifier(.bcp47))
+                                              localeIdentifier: locale.identifier(.bcp47))
                     recording.createdAt = converted.created ?? .now
                     recording.duration = converted.duration
                     modelContext.insert(recording)

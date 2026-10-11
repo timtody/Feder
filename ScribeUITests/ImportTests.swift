@@ -25,8 +25,12 @@ final class ImportTests: ScribeUITestCase {
         importButton.tap()
         XCTAssertTrue(waitFor({ !importButton.isHittable }, timeout: 10), "the file picker covers the app")
         shot("File picker", app)
-        app.swipeDown(velocity: .fast)
-        XCTAssertTrue(waitFor({ importButton.isHittable }, timeout: 10), "and goes again")
+        // A swipe down closes it; one fast swipe sometimes didn't take while the sheet was still settling (full suite).
+        for _ in 0..<3 where !importButton.isHittable {
+            app.swipeDown(velocity: .fast)
+            _ = waitFor({ importButton.isHittable }, timeout: 4)
+        }
+        XCTAssertTrue(importButton.isHittable, "and goes again")
     }
 
     /// A file shared from another app (`-importTestAudio`: a 12 s AAC file, "Interview Lena") becomes a transcript:
