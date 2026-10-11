@@ -262,8 +262,9 @@ final class RecordingSession: Identifiable {
         }
     }
 
-    /// At most one snapshot per 0.5 s of audio arrives (the diarizer rate-limits, bufferingNewest(1) absorbs bursts),
-    /// so each one re-labels the transcript right away (incrementally: LiveSpeakers, SteadyLabels).
+    /// At most one snapshot per model step arrives (0.5 s of audio for LS-EEND, 0.48 s for Sortformer; the diarizer
+    /// publishes once per step, bufferingNewest(1) absorbs bursts), so each one re-labels the transcript right away
+    /// (incrementally: LiveSpeakers, SteadyLabels).
     private func apply(_ snapshot: LiveSpeakerTurns) {
         liveTurns = snapshot
         guard case .recording = state else { return }         // stop() builds the saved segments itself

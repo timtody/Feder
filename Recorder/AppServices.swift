@@ -52,7 +52,8 @@ final class AppServices {
     let container: ModelContainer
     let identifier: SpeakerIdentifier
     /// The live diarizer and the model it runs; Debug builds replace both when another model is chosen
-    /// (`liveLabelsModelChanged`, which counts `liveDiarizerGeneration` up, so a prepare of a replaced one is ignored).
+    /// (`liveLabelsModelChanged`, which counts `liveDiarizerGeneration` up, so a prepare of a replaced one changes no
+    /// state).
     @ObservationIgnored private var liveDiarizer: any LiveDiarizer
     private(set) var liveModel: LiveLabelsModel
     @ObservationIgnored private var liveDiarizerGeneration = 0
@@ -72,9 +73,14 @@ final class AppServices {
     private(set) var isLiveModelWaiting = false
     /// The live model is being downloaded right now (a prepare that has to fetch it first).
     private(set) var isLiveModelDownloading = false
-    /// A prepare is running: a second call (a foreground or a network change meanwhile) neither starts another nor
-    /// marks the model as waiting again.
-    @ObservationIgnored private var isPreparingLiveModel = false
+    /// The generation whose prepare is running: a second call for it (a foreground or a network change meanwhile)
+    /// neither starts another nor marks the model as waiting again. Per generation, so a model chosen while the
+    /// previous one still downloads or loads starts preparing at once instead of after it.
+    @ObservationIgnored private var preparingGeneration: Int?
+    /// The running prepare's call into the diarizer, cancelled when the diarizer is replaced: Sortformer's download
+    /// stops there (its `.partial` files stay for a later choice) and the model isn't loaded. A load already under way
+    /// finishes and is released with the diarizer; LS-EEND's 45 MB prepare isn't cancellable and just runs out.
+    @ObservationIgnored private var livePrepare: Task<Void, any Error>?
 
     init(container: ModelContainer) {
         self.container = container
@@ -150,7 +156,8 @@ final class AppServices {
 
     /// Launch, every return to the foreground, the Welcome page and a connection coming back: the speaker models.
     /// pyannote (21 MB, needed for any speakers and for recognizing people) on any connection, through the identifier's
-    /// pending sweep; the live model (45 MB) and Nemotron (100 MB) on Wi-Fi only. Nothing before the Welcome page.
+    /// pending sweep; the live model (LS-EEND 45 MB; Sortformer 246 MB when a Debug build chose it) and Nemotron
+    /// (100 MB) on Wi-Fi only. Nothing before the Welcome page.
     func startModelDownloads() {
         guard Self.modelDownloadsAllowed else { return }
         Task {
@@ -185,9 +192,9 @@ final class AppServices {
         Task { await prepareLiveDiarizer() }
     }
 
-    /// Launch, every return to the foreground, and switching the toggle on: downloads (once, ~45 MB) and loads the live
-    /// model in the background. Failures (typically offline) are silent: recordings have no live labels until a later
-    /// call succeeds.
+    /// Launch, every return to the foreground, and switching the toggle on: downloads (once; LS-EEND ~45 MB, a Debug
+    /// build's Sortformer 246 MB) and loads the chosen live model in the background. Failures (typically offline) are
+    /// silent: recordings have no live labels until a later call succeeds.
     /// A model already on the phone is only loaded (any connection, or none); a missing one downloads on Wi-Fi only,
     /// or anywhere with `force` ("Download Now Using Cellular").
     func prepareLiveDiarizer(force: Bool = false) async {
@@ -195,26 +202,30 @@ final class AppServices {
             isLiveModelWaiting = false              // switched off (or ready): nothing waits
             return
         }
-        guard !isPreparingLiveModel else { return }
         // Debug builds can replace the diarizer while this waits (liveLabelsModelChanged).
         let model = liveModel, diarizer = liveDiarizer, generation = liveDiarizerGeneration
+        guard preparingGeneration != generation else { return }
         let downloaded = usesFakes || model.isDownloaded
         if !force, !downloaded, await network.current() != .wifi {
-            if generation == liveDiarizerGeneration { isLiveModelWaiting = true }
+            // Not when a forced call started downloading meanwhile.
+            if generation == liveDiarizerGeneration, preparingGeneration != generation { isLiveModelWaiting = true }
             return
         }
-        guard generation == liveDiarizerGeneration else { return }   // replaced meanwhile; its own prepare runs
+        // Replaced meanwhile (its own prepare runs), or another call for this one got past the network check first.
+        guard generation == liveDiarizerGeneration, preparingGeneration != generation else { return }
         isLiveModelWaiting = false
-        isPreparingLiveModel = true
+        preparingGeneration = generation
         isLiveModelDownloading = !downloaded
+        let preparing = Task { try await diarizer.prepare() }
+        livePrepare = preparing
         let prepared: Bool
-        do { try await diarizer.prepare(); prepared = true } catch { prepared = false }
-        isPreparingLiveModel = false
+        do { try await preparing.value; prepared = true } catch { prepared = false }
+        // Replaced while it ran: nothing here is about it any more. The new model's prepare started on its own and
+        // decides for itself whether to wait for Wi-Fi; this call's `force` was agreed for the old model's size only.
+        guard generation == liveDiarizerGeneration else { return }
+        preparingGeneration = nil
+        livePrepare = nil
         isLiveModelDownloading = false
-        guard generation == liveDiarizerGeneration else {   // replaced while this loaded: its prepare was skipped
-            await prepareLiveDiarizer(force: force)
-            return
-        }
         isLiveModelReady = prepared
         isLiveModelWaiting = !prepared && !model.isDownloaded && network.kind != .wifi
     }
@@ -222,15 +233,21 @@ final class AppServices {
     #if DEBUG
     /// Settings › About chose another live-labels model (Debug builds): the next recording uses it once it is loaded.
     /// The previous diarizer is released, so only one model stays in memory (a recording still using it keeps it until
-    /// it ends; then its worker finishes).
+    /// it ends; then its worker finishes). A prepare of the previous one still running is cancelled (`livePrepare`) and
+    /// doesn't hold up the new one, which waits for Wi-Fi if it is missing, even if "Download Now Using Cellular" was
+    /// tapped for the previous one: that agreed to the previous model's size.
     func liveLabelsModelChanged() {
         let model = Self.liveLabelsModel
         guard model != liveModel else { return }
+        livePrepare?.cancel()
+        livePrepare = nil
+        preparingGeneration = nil
         liveModel = model
         liveDiarizer = Self.makeLiveDiarizer(model)
         liveDiarizerGeneration += 1
         isLiveModelReady = false
         isLiveModelWaiting = false
+        isLiveModelDownloading = false
         Task { await prepareLiveDiarizer() }
     }
     #endif

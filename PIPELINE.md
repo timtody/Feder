@@ -59,7 +59,7 @@ The status line under the date names the running step: *Transcribing… → Refi
 |---|---|---|
 | Capture | `AVAudioEngine` on the `AudioHardware` actor; one tap writes the WAV *and* yields buffers to the analyzer *and* converts to the live model's rate (8 kHz for LS-EEND; 16 kHz for Sortformer, a Debug-build choice), all with the same frame positions | file time == transcript time == diarizer time; never on the main thread (the card opens straight onto the empty transcript) |
 | ASR | `SpeechAnalyzer` + `SpeechTranscriber`, volatile results on, `audioTimeRange` on | provisional text arrives as one run; finals every ~15 s of speech |
-| Diarization | LS-EEND snapshots at most every 0.5 s, exclusive turns, speaker indices by first appearance | measured against Sortformer/pyannote-streaming: best latency; Sortformer, re-measured on real voices in October 2026, is far more accurate and is compared on the iPhone behind a Debug switch (README › Live latency notes) |
+| Diarization | LS-EEND snapshots at most every 0.5 s, exclusive turns, speaker indices by first appearance | measured against Sortformer/pyannote-streaming: best latency; Sortformer, re-measured on real voices in October 2026, is more accurate (about 7 points of words with noise, 12 clean) and is compared on the iPhone behind a Debug switch (README › Live latency notes) |
 | Labelling | every word (provisional too) gets the turn under its midpoint; one-word islands between two agreeing neighbours are smoothed | labelling only finals left a new speaker's first words under the old one for seconds |
 | Stability | `SteadyLabels`: a name shows once its label has held 0.5 s; the hold carries over when a provisional word is finalized; words after a final's end are kept, not dropped | names shown/hidden/shown again 372–624 → 4–17 times in a replay of 40 synthetic conversations |
 
@@ -146,7 +146,7 @@ From a review of an "optimal pipeline" proposal (October 2026), kept where they 
 | **Gemma without repeating the task after the transcript** | continued writing the transcript ("Anna Schmidt: …") | `localReminder` |
 | **Island smoothing on final labels** | erased real one-word turns: 2.43 → 2.22 % wrong words without it (turns ≤ 3 words: 15.3 → 10.5 %) | smoothing on live labels only |
 | **Labelling only finalized words live** | a new speaker's first words under the previous speaker for seconds | provisional words labelled too |
-| **Sortformer / streaming pyannote live** | slower to the right speaker than LS-EEND (first look) | LS-EEND; Sortformer re-measured in October 2026 on real voices (93.9 against 76.1 % of words right as first shown, new speakers p90 3.2 against 14.6 s) and back behind a Debug switch |
+| **Sortformer / streaming pyannote live** | slower to the right speaker than LS-EEND (first look) | LS-EEND; Sortformer re-measured in October 2026 on real voices, confirming the earlier 82-85 % for LS-EEND: words right when first labelled 93.0 against 86.3 % with noise (93.9 against 81.9 % clean), new speakers p90 3.0 against 10.0 s clean; back behind a Debug switch |
 | **A pipeline step row with checkmarks and times** | read as a progress panel inside a document | one Mail-style status line |
 | **`apple.intelligence` glyph in front of the summary placeholder** | redundant with the status line | dropped |
 | **`scrollPosition` binding for search hits** | tracked the paragraph near the anchor and kept it in place when the content changed | `ScrollViewReader` |
