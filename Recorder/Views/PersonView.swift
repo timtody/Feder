@@ -136,18 +136,19 @@ struct PersonView: View {
         }
     }
 
-    /// What they said there: two lines, also while it is read (a placeholder), so the rows don't grow when it comes.
+    /// What they said there, at most two lines; while it is read, a placeholder of two lines, so the rows don't grow
+    /// when it comes (the longest turn's excerpt is up to 120 characters: nearly always two lines).
     @ViewBuilder
     private func quoteLine(_ quote: PersonQuote??) -> some View {
         switch quote {
         case .none:
             Text(verbatim: Self.placeholder)
-                .modifier(QuoteStyle())
+                .modifier(QuoteStyle(reservesSpace: true))
                 .redacted(reason: .placeholder)
                 .accessibilityHidden(true)
         case .some(.some(let quote)):
             Text(verbatim: quote.text)
-                .modifier(QuoteStyle())
+                .modifier(QuoteStyle(reservesSpace: false))
         case .some(.none):
             EmptyView()
         }
@@ -156,11 +157,13 @@ struct PersonView: View {
     private static let placeholder = String(repeating: "Placeholder words ", count: 9)
 
     private struct QuoteStyle: ViewModifier {
+        let reservesSpace: Bool
+
         func body(content: Content) -> some View {
             content
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-                .lineLimit(2, reservesSpace: true)
+                .lineLimit(2, reservesSpace: reservesSpace)
                 .padding(.top, 2)
         }
     }

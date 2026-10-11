@@ -72,12 +72,14 @@ final class PersonPageModel {
         var missing: [PersonDigest.TermSource] = []
         var topicKeys: [UUID: Int] = [:]
         for recording in live {
-            let text = Self.topicText(recording)
+            let source = Self.termSource(recording)
             var hasher = Hasher()
-            hasher.combine(text)
+            hasher.combine(source.topics)
+            hasher.combine(source.summary)
+            hasher.combine(source.title)
             let key = hasher.finalize()
             topicKeys[recording.id] = key
-            if Self.termCache[recording.id]?.key != key { missing.append(.init(id: recording.id, text: text)) }
+            if Self.termCache[recording.id]?.key != key { missing.append(source) }
             sources.append((recording.id, ids.contains(recording.id), recording.tags,
                             PersonDigest.nameWords(recording.speakerNames.values)))
         }
@@ -123,15 +125,10 @@ final class PersonPageModel {
 
     /// A transcript's topic text: Gemma's Topics line, else (described before it was kept) its summary, and its title
     /// unless it is still a name the app gave it.
-    static func topicText(_ recording: Recording) -> String {
-        var parts: [String] = []
-        if !recording.topics.isEmpty {
-            parts.append(recording.topics.joined(separator: "; "))
-        } else if let summary = recording.summary, !summary.isEmpty {
-            parts.append(summary)
-        }
-        if !TranscriptTitler.isDefaultName(recording.name) { parts.append(recording.name) }
-        return parts.joined(separator: ". ")
+    static func termSource(_ recording: Recording) -> PersonDigest.TermSource {
+        PersonDigest.TermSource(id: recording.id, topics: recording.topics,
+                                summary: recording.topics.isEmpty ? recording.summary : nil,
+                                title: TranscriptTitler.isDefaultName(recording.name) ? nil : recording.name)
     }
 }
 

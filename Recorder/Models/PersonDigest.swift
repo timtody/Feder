@@ -35,7 +35,9 @@ nonisolated struct PersonTopic: Sendable, Hashable, Identifiable {
 /// kept, since NLTagger calls some nouns names (measured on macOS 27: "Lizenzbudget" at the start of a topic line was a
 /// PersonalName), but the words of people's and speakers' names are dropped. Short, numeric and generic words go (a
 /// small English and German stoplist), and a plural NLTagger has no lemma for ("licences", genitive "Lizenzbudgets",
-/// German "-en"/"-n") is merged into its singular when both occur. A word or tag is recurring when it is in at least
+/// German "-en"/"-n") is merged into its singular when both occur. Where the system has no word classes for the
+/// language (the simulator; possibly a language on an iPhone), the words of the Topics line and the title stand in,
+/// function words dropped (`fallbackTerms`). A word or tag is recurring when it is in at least
 /// two of the person's transcripts; with ten or more other transcripts it must also be at least 1.5 times as frequent
 /// among theirs as among the others (lift: nouns every conversation has drop out), ranked by `a · log2(1 + lift)`.
 /// Small archives make lift meaningless, so there it is the count. Starting values, to be tuned on real archives.
@@ -55,10 +57,25 @@ nonisolated enum PersonDigest {
         var segments: [SearchDocument.Segment]
     }
 
-    /// One transcript's topic text, read on the main actor.
-    struct TermSource: Sendable {
+    /// One transcript's topic text, read on the main actor: Gemma's Topics line, else (described before it was kept)
+    /// its summary, and its title unless it is still a name the app gave it.
+    struct TermSource: Sendable, Hashable {
         var id: UUID
-        var text: String
+        var topics: [String] = []
+        var summary: String?
+        var title: String?
+
+        /// What the tagger reads.
+        var text: String {
+            let main = topics.isEmpty ? summary ?? "" : topics.joined(separator: "; ")
+            return [main, title ?? ""].filter { !$0.isEmpty }.joined(separator: ". ")
+        }
+
+        /// What the fallback without a tagger reads: noun phrases only (the Topics line's items, the title), not a
+        /// summary's sentences, whose verbs and adjectives it couldn't tell from nouns.
+        var phrases: String {
+            (topics + [title ?? ""]).filter { !$0.isEmpty }.joined(separator: "; ")
+        }
     }
 
     /// One finished transcript, as the ranking sees it.
@@ -108,28 +125,43 @@ nonisolated enum PersonDigest {
 
     // MARK: Topic words
 
-    /// The nouns and names of `text` (see the type's comment), each key once, in order.
+    /// The nouns and names of a topic text (see the type's comment), each key once, in order.
     static func terms(in text: String) -> [Term] {
-        terms(in: [text])[0]
+        terms(in: [TermSource(id: UUID(), summary: text)])[0]
     }
 
-    /// The terms of each text, with one tagger for all of them (it is not Sendable, so it lives in this call). The
+    /// The terms of each source, with one tagger for all of them (it is not Sendable, so it lives in this call). The
     /// tagger tells each text's language itself, also a three-word topic line (macOS 27). 500 short English and German
-    /// texts: 0.17 s on an M5 Mac (-O); a tagger per text took 1.6 s, and an NLLanguageRecognizer per text to set the
+    /// texts: 0.14 s on an M5 Mac (-O); a tagger per text took 1.6 s, and an NLLanguageRecognizer per text to set the
     /// language explicitly about 1 s.
-    static func terms(in texts: [String]) -> [[Term]] {
+    /// Where the system has no word classes for the text's language (the iOS 27 simulator offers only the Language,
+    /// Script and TokenType schemes, so every word was "OtherWord"; an iPhone could lack a language's model too, and the
+    /// app downloads nothing for it), `fallbackTerms` reads the noun phrases instead.
+    static func terms(in sources: [TermSource]) -> [[Term]] {
         let tagger = NLTagger(tagSchemes: [.nameTypeOrLexicalClass, .lemma])
-        return texts.map { text in
-            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { return [] }
-            tagger.string = trimmed
-            let whole = trimmed.startIndex..<trimmed.endIndex
+        let tokenizer = NLTokenizer(unit: .word)
+        var classified: [NLLanguage: Bool] = [:]
+        func hasWordClasses(_ language: NLLanguage) -> Bool {
+            if let known = classified[language] { return known }
+            let has = NLTagger.availableTagSchemes(for: .word, language: language).contains(.nameTypeOrLexicalClass)
+            classified[language] = has
+            return has
+        }
+        return sources.map { source in
+            let text = source.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { return [] }
+            tagger.string = text
+            let language = tagger.dominantLanguage
+            guard hasWordClasses(language ?? .english) else {
+                return fallbackTerms(source.phrases, german: language == .german, tokenizer: tokenizer)
+            }
+            let whole = text.startIndex..<text.endIndex
             var result: [Term] = []
             var seen = Set<String>()
             tagger.enumerateTags(in: whole, unit: .word, scheme: .nameTypeOrLexicalClass,
                                  options: [.omitWhitespace, .omitPunctuation, .joinNames]) { tag, range in
                 guard let tag, keptTags.contains(tag) else { return true }
-                let surface = String(trimmed[range])
+                let surface = String(text[range])
                 var base = surface
                 if tag == .noun, let lemma = tagger.tag(at: range.lowerBound, unit: .word, scheme: .lemma).0?.rawValue,
                    !lemma.isEmpty {
@@ -145,18 +177,54 @@ nonisolated enum PersonDigest {
         }
     }
 
+    /// Without word classes: the words of the noun phrases (the Topics line's items and the title) that are not
+    /// function words, and in German only capitalized ones (German nouns are). No lemmas: the plural merge still joins
+    /// "licence" and "licences".
+    static func fallbackTerms(_ phrases: String, german: Bool, tokenizer: NLTokenizer) -> [Term] {
+        tokenizer.string = phrases
+        var result: [Term] = []
+        var seen = Set<String>()
+        tokenizer.enumerateTokens(in: phrases.startIndex..<phrases.endIndex) { range, _ in
+            let surface = String(phrases[range])
+            let key = SearchFolding.fold(surface)
+            guard !german || surface.first?.isUppercase == true, isTopicWord(key), !functionWords.contains(key),
+                  seen.insert(key).inserted else { return true }
+            result.append(Term(key: key, surface: surface, base: surface))
+            return true
+        }
+        return result
+    }
+
     @concurrent static func termsInBackground(_ sources: [TermSource]) async -> [(id: UUID, terms: [Term])] {
-        Array(zip(sources.map(\.id), terms(in: sources.map(\.text))))
+        Array(zip(sources.map(\.id), terms(in: sources)))
     }
 
     private static let keptTags: Set<NLTag> = [.noun, .placeName, .organizationName, .personalName]
+
+    /// English and German words of three or more letters that are no topic: articles, pronouns, prepositions,
+    /// conjunctions, auxiliaries and common adjectives (folded). Only for the fallback without word classes.
+    static let functionWords: Set<String> = [
+        "the", "and", "for", "with", "from", "into", "onto", "about", "over", "under", "after", "before", "until",
+        "this", "that", "these", "those", "their", "they", "them", "his", "her", "its", "our", "your", "you",
+        "are", "was", "were", "been", "being", "has", "have", "had", "does", "did", "will", "would", "should",
+        "could", "can", "may", "might", "must", "not", "but", "nor", "yet", "also", "just", "only", "very", "more",
+        "most", "less", "all", "any", "some", "each", "other", "new", "old", "next", "last", "first", "second",
+        "via", "per", "between", "within", "without", "against", "during", "through", "how", "what", "when", "where",
+        "who", "why", "which",
+        "der", "die", "das", "den", "dem", "des", "ein", "eine", "einer", "eines", "einem", "einen", "und", "oder",
+        "aber", "mit", "von", "fur", "auf", "aus", "bei", "nach", "zum", "zur", "uber", "unter", "vor", "gegen",
+        "ohne", "durch", "zwischen", "wahrend", "bis", "seit", "ist", "sind", "war", "waren", "wird", "werden",
+        "wurde", "hat", "haben", "hatte", "nicht", "kein", "keine", "sich", "sie", "wir", "ihr", "ihre", "auch",
+        "noch", "nur", "dass", "wie", "als", "neue", "neuer", "neues", "neuen", "erste", "ersten", "nachste",
+        "nachsten", "weitere", "weiteren", "allgemeine", "allgemeines",
+    ]
 
     static func isTopicWord(_ key: String) -> Bool {
         key.count >= 3 && !key.allSatisfy(\.isNumber) && !stopwords.contains(key)
     }
 
     /// Generic words a conversation's topics are full of, folded (English and German): weekdays, months, time words,
-    /// and what every meeting has (people, questions, points).
+    /// what every meeting has (people, questions, points) and generic title words.
     static let stopwords: Set<String> = [
         "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
         "montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag", "sonntag",
@@ -173,6 +241,8 @@ nonisolated enum PersonDigest {
         "besprechung", "besprechungen", "gesprach", "gesprache", "diskussion", "telefonat",
         "topic", "topics", "question", "questions", "point", "points", "summary", "title",
         "thema", "themen", "frage", "fragen", "punkt", "punkte", "zusammenfassung", "titel",
+        // Generic title words ("Budget Review", "Hiring Plan", "Status Update").
+        "plan", "plans", "review", "reviews", "update", "updates", "status", "overview", "uberblick",
     ]
 
     // MARK: Ranking
