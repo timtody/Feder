@@ -1,5 +1,4 @@
 import Foundation
-import NaturalLanguage
 
 /// What writes titles and summaries: Gemma 4 E2B (`LocalLanguageModel`), or on the simulator a stand-in
 /// (`FakeTextWriter`, DEBUG). Sendable: the requests are awaited from the main actor.
@@ -9,7 +8,7 @@ nonisolated protocol TextWriter: AnyObject, Sendable {
     func unload() async
 }
 
-/// A short title and a short summary of a finished transcript, written on device in the transcript's language by
+/// A short title and a short summary of a finished transcript, written on device in the app's language by
 /// Gemma 4 E2B (`LocalLanguageModel`, downloaded once: BetterSummaries). Without Gemma there are no automatic titles
 /// and summaries: Apple's Foundation Models model wrote them until October 2026 and its results were too weak
 /// (wordy, meta-style summaries: "Anna Schmidt führt ein Gespräch mit …"; see README › Automatic titles). Runs in the
@@ -23,7 +22,10 @@ final class TranscriptTitler {
     nonisolated static let version = 2
     /// Recording.summaryVersion once Gemma has described a transcript (it answered or failed for good). Not after
     /// RetryLater.
-    nonisolated static let localVersion = 100
+    /// 101 (October 2026): summaries are written in the app's language, with German instructions on a German iPhone
+    /// (before: in the transcript's detected language, with English instructions, and German users got English
+    /// summaries); the sweep writes the older ones again.
+    nonisolated static let localVersion = 101
     /// Tokens of a request that are not transcript: ~270 of instructions, at most 400 answered (measured with
     /// `tokenCount`), plus room for the speaker names' share and the chat template.
     nonisolated static let reservedTokens = 1_300
@@ -56,13 +58,16 @@ final class TranscriptTitler {
     /// so the card can show it growing.
     func describe(paragraphs: [String], locale recordingLocale: Locale, writer: any TextWriter,
                   partial: (@Sendable (String) -> Void)? = nil) async throws -> Description? {
-        let locale = Self.textLocale(Self.withoutNames(paragraphs)) ?? recordingLocale
+        // The app's language, not the transcript's: the summary is read in the app, next to its German or English
+        // labels (an English recording on a German iPhone gets a German summary).
+        let locale = Self.appLocale
         return try await describe(paragraphs, locale: locale, writer: writer,
                                   limit: Self.chunkCharacters(contextSize: LocalLanguageModel.contextTokens), partial: partial)
     }
 
     private func describe(_ paragraphs: [String], locale: Locale, writer: any TextWriter, limit: Int,
                           partial: (@Sendable (String) -> Void)?) async throws -> Description? {
+        let german = Self.isGerman(locale)
         let language = Self.languageName(locale)
         var parts = Self.chunks(paragraphs, limit: limit)
         guard !parts.isEmpty else { return nil }
@@ -71,22 +76,25 @@ final class TranscriptTitler {
         while parts.count > 1 {
             var summaries: [String] = []
             for part in parts {
-                if let summary = try await summarize(part, language: language, fromSummaries: fromSummaries,
-                                                     writer: writer) {
+                if let summary = try await summarize(part, language: language, german: german,
+                                                     fromSummaries: fromSummaries, writer: writer) {
                     summaries.append(summary)
                 }
             }
-            let next = Self.chunks(summaries.enumerated().map { "Part \($0.offset + 1): \($0.element)" },
+            let next = Self.chunks(summaries.enumerated().map { "\(german ? "Teil" : "Part") \($0.offset + 1): \($0.element)" },
                                    limit: limit)
             guard !next.isEmpty, next.count < parts.count else { return nil }   // nothing came back, or no progress
             parts = next
             fromSummaries = true
         }
-        let prompt = (fromSummaries ? "Summaries of the consecutive parts of one long conversation:\n" : "Transcript:\n")
-            + parts[0]
-        let instructions = Self.localTitleInstructions(language: language, locale: locale, fromSummaries: fromSummaries)
+        let heading = german
+            ? (fromSummaries ? "Zusammenfassungen der aufeinanderfolgenden Teile eines langen Gesprächs:\n" : "Transkript:\n")
+            : (fromSummaries ? "Summaries of the consecutive parts of one long conversation:\n" : "Transcript:\n")
+        let prompt = heading + parts[0]
+        let instructions = german ? Self.germanTitleInstructions(fromSummaries: fromSummaries)
+                                  : Self.localTitleInstructions(language: language, locale: locale, fromSummaries: fromSummaries)
         // The task again after the transcript: without it Gemma went on with the transcript ("Anna Schmidt: …").
-        let request = prompt + "\n\n" + Self.localReminder
+        let request = prompt + "\n\n" + (german ? Self.germanReminder : Self.localReminder)
         let text = try await Self.local {
             try await writer.respond(instructions: instructions, prompt: request, maxTokens: 400, temperature: 0) { text in
                 if let summary = Self.partialSummary(in: text) { partial?(summary) }
@@ -107,11 +115,15 @@ final class TranscriptTitler {
     }
 
     /// A part's summary as plain text.
-    private func summarize(_ text: String, language: String, fromSummaries: Bool, writer: any TextWriter) async throws -> String? {
-        let prompt = (fromSummaries ? "Summaries of consecutive parts of one long conversation:\n" : "Part of a transcript:\n")
-            + text
+    private func summarize(_ text: String, language: String, german: Bool, fromSummaries: Bool,
+                           writer: any TextWriter) async throws -> String? {
+        let heading = german
+            ? (fromSummaries ? "Zusammenfassungen aufeinanderfolgender Teile eines langen Gesprächs:\n" : "Teil eines Transkripts:\n")
+            : (fromSummaries ? "Summaries of consecutive parts of one long conversation:\n" : "Part of a transcript:\n")
+        let prompt = heading + text
+        let instructions = german ? Self.germanPartInstructions : Self.partInstructions(language: language)
         let answer = try await Self.local {
-            try await writer.respond(instructions: Self.partInstructions(language: language), prompt: prompt,
+            try await writer.respond(instructions: instructions, prompt: prompt,
                                      maxTokens: 400, temperature: 0, partial: nil)
         }
         let summary = Self.plainSentences(answer)
@@ -142,11 +154,6 @@ final class TranscriptTitler {
     nonisolated static func paragraph(_ text: String, speaker: String?) -> String {
         guard let speaker else { return text }
         return "\(speaker): \(text)"
-    }
-
-    /// The paragraphs without their "Name: " prefixes (language detection should not read names).
-    nonisolated static func withoutNames(_ paragraphs: [String]) -> [String] {
-        paragraphs.map { $0.replacing(/^[^:\n]{1,40}:\s/, with: "") }
     }
 
     /// Names the app gives a transcript itself; only these are replaced by an automatic title. The name is stored in the
@@ -227,15 +234,13 @@ final class TranscriptTitler {
             .joined(separator: " ")
     }
 
-    /// The language the transcript is actually in, when NaturalLanguage is sure (the recording's locale is the phone's
-    /// language, and the simulator's fake transcriber speaks English on a German Mac).
-    nonisolated static func textLocale(_ paragraphs: [String]) -> Locale? {
-        let recognizer = NLLanguageRecognizer()
-        recognizer.processString(String(paragraphs.joined(separator: " ").prefix(2_000)))
-        guard let (language, confidence) = recognizer.languageHypotheses(withMaximum: 1).first, confidence > 0.8
-        else { return nil }
-        return Locale(identifier: language.rawValue)
+    /// The app's language for the summaries: German when the app runs in German (the iPhone's language), English
+    /// otherwise.
+    nonisolated static var appLocale: Locale {
+        Locale(identifier: Bundle.main.preferredLocalizations.first == "de" ? "de" : "en")
     }
+
+    nonisolated static func isGerman(_ locale: Locale) -> Bool { locale.language.languageCode?.identifier == "de" }
 
     nonisolated static func languageName(_ locale: Locale) -> String {
         let code = locale.language.languageCode?.identifier ?? "en"
@@ -270,6 +275,46 @@ final class TranscriptTitler {
 
     nonisolated static let localReminder = "End of the text. Now answer with exactly three lines, \"Topics: …\", " +
         "\"Summary: …\" and \"Title: …\", following the instructions."
+
+    /// The same instructions in German, for a German iPhone: with English instructions and "in German" the small model
+    /// still answered in English when the transcript was English or mixed, and English instructions pull it towards
+    /// English phrasing even for German transcripts. The labels stay parseable ("Titel", "Zusammenfassung").
+    nonisolated static func germanTitleInstructions(fromSummaries: Bool) -> String {
+        let source = fromSummaries
+            ? "Du bekommst Zusammenfassungen der aufeinanderfolgenden Teile eines langen Gesprächs; fasse das ganze " +
+              "Gespräch zusammen."
+            : "Das Transkript stammt aus einer Spracherkennung und kann falsch verstandene Wörter enthalten. Jede Zeile " +
+              "beginnt mit dem Namen der sprechenden Person und einem Doppelpunkt („Sprecher 2“, solange der Name " +
+              "unbekannt ist)."
+        return """
+        Du schreibst eine Zusammenfassung und einen Titel eines aufgenommenen Gesprächs für die Person, die es \
+        aufgenommen hat, auf Deutsch, auch wenn das Gespräch in einer anderen Sprache geführt wurde.
+        Antworte mit genau drei Zeilen und sonst nichts:
+        Themen: alle Themen des Gesprächs, durch Semikolons getrennt
+        Zusammenfassung: zwei oder drei kurze Sätze (jeweils unter 30 Wörtern), die alle Themen abdecken
+        Titel: 2 bis 6 Wörter
+
+        Zusammenfassung: der konkrete Inhalt jedes Themas: Ergebnisse und Entscheidungen, Termine, Zahlen und Namen, \
+        und wer welche Aufgabe übernimmt. Dritte Person, Aktiv. Schreib die Fakten selbst; beschreib nie das Gespräch \
+        („fasst zusammen“, „es wird besprochen“, „im Gespräch geht es um“). Nenn Personen beim Namen. Eine Person \
+        ohne Namen („Sprecher 3“) ist „ein Teilnehmer“; schreib nie „Sprecher“ mit einer Nummer.
+        Titel: das konkrete Thema wie eine Dokumentüberschrift, zum Beispiel „Kreditprojekt: Testphase und Abnahme“. \
+        Beginne nie mit „Zusammenfassung“, „Überblick“, „Meeting“, „Besprechung“ oder „Gespräch“.
+        Verwende nur, was im Text steht: erfinde nie Namen, Zahlen, Termine oder Entscheidungen. \(source)
+        """
+    }
+
+    nonisolated static let germanReminder = "Ende des Textes. Antworte jetzt mit genau drei Zeilen, „Themen: …“, " +
+        "„Zusammenfassung: …“ und „Titel: …“, auf Deutsch und nach den Anweisungen."
+
+    nonisolated static let germanPartInstructions = """
+        Du fasst einen Teil eines langen aufgenommenen Gesprächs auf Deutsch zusammen, in höchstens drei Sätzen \
+        Fließtext (ein Absatz, kein Markdown, keine Listen). Nenn jedes Thema dieses Teils mit seinen wichtigsten \
+        Fakten und Entscheidungen, in der Reihenfolge, in der sie vorkommen, und wer was gesagt oder entschieden hat, \
+        wo der Text Personen nennt (nie „Sprecher 1“ oder ähnlich). Verwende nur, was im Text steht: erfinde nie \
+        Namen, Zahlen, Orte, Termine oder Details. Das Transkript stammt aus einer Spracherkennung und kann falsch \
+        verstandene Wörter enthalten. Jede Zeile beginnt mit dem Namen der sprechenden Person und einem Doppelpunkt.
+        """
 
     nonisolated static func partInstructions(language: String) -> String {
         """
