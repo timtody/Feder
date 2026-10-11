@@ -21,17 +21,22 @@ final class RecordingFromOutsideTests: ScribeUITestCase {
     /// feder://record (the lock screen widget) starts a transcript: the card comes up recording.
     @MainActor
     func testRecordLinkStartsATranscript() throws {
-        let app = launch()
+        // -fakeSilence: nothing is transcribed, so Stop saves nothing (each saved test recording is newer than the
+        // samples and pushes Budget Review further down the list other tests open it from).
+        let app = launch(["-fakeSilence"])
         app.open(URL(string: "feder://record")!)
         XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout: 10), "recording, with the large Stop")
         app.buttons["Stop"].firstMatch.tap()
     }
 
     /// While recording in the background, the Live Activity is in the Dynamic Island; expanded, its Stop stops the
-    /// recording (StopRecordingIntent, in the app) and the transcript is saved.
+    /// recording (StopRecordingIntent, in the app): back in the app the accessory says Transcribe again.
     @MainActor
     func testLiveActivityStop() throws {
-        let app = launch(["-autoRecord"])
+        // An instance iOS started without the test's arguments (a Live Activity's intent after a test that stopped
+        // while recording) would otherwise be what the launch finds: German, not recording.
+        XCUIApplication().terminate()
+        let app = launch(["-autoRecord", "-fakeSilence"])            // nothing saved, see above
         if !app.buttons["Stop"].waitForExistence(timeout: 20) { print("APP-TREE", app.debugDescription) }
         XCTAssertTrue(app.buttons["Stop"].exists, "recording")
         sleep(3)
@@ -50,6 +55,6 @@ final class RecordingFromOutsideTests: ScribeUITestCase {
         shot("Dynamic Island expanded", springboard)
         stop.tap()
         app.activate()
-        XCTAssertTrue(app.buttons["Delete Transcript"].waitForExistence(timeout: 15), "stopped and saved: the transcript")
+        XCTAssertTrue(transcribe(app).waitForExistence(timeout: 15), "stopped: Transcribe again")
     }
 }

@@ -19,6 +19,7 @@
 		5653329E9AF22B5416BE6958 /* RecordingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41108F5D0A55780F5B359E97 /* RecordingIntents.swift */; };
 		5DA165C65B82BD2FDCC77184 /* TranscriptListTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD49FF381B0530C8297D2E4 /* TranscriptListTests.swift */; };
 		6A0E34B4405D331458A53253 /* SpeakerModelPrewarmTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C47DC3D3045444F493063CD3 /* SpeakerModelPrewarmTests.swift */; };
+		7FF5DF93DAAEA0226A35FC0B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FD12FF192478DE6E07D470C7 /* Assets.xcassets */; };
 		9264C88A983550F28C73F9D1 /* RecordingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41108F5D0A55780F5B359E97 /* RecordingIntents.swift */; };
 		9842882BB124165D5F36A048 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 4BF152A52DD140039F8897C1 /* MLX */; };
 		ACE3A2F03E31206AE3CA1D0A /* TagEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6061ACE8B763190CD40341F /* TagEditorTests.swift */; };
@@ -89,6 +90,7 @@
 		F5864C5737E1A73204C68C61 /* SummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryTests.swift; sourceTree = "<group>"; };
 		F5D6225DCDC7ED2BB6F5DB88 /* ScribeUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ScribeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F9888AE62014305DE6B7512B /* ExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportTests.swift; sourceTree = "<group>"; };
+		FD12FF192478DE6E07D470C7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -176,6 +178,7 @@
 		65741B38170EA90D35AE5BAB /* FederWidgets */ = {
 			isa = PBXGroup;
 			children = (
+				FD12FF192478DE6E07D470C7 /* Assets.xcassets */,
 				9A0118C12D431B788B233588 /* FederWidgets.swift */,
 				69D646AF45C91B8E21B6CD14 /* Localizable.xcstrings */,
 			);
@@ -318,6 +321,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7FF5DF93DAAEA0226A35FC0B /* Assets.xcassets in Resources */,
 				CBD772DADF0086EDEB0FF0C5 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

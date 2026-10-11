@@ -269,7 +269,10 @@ final class RecordingSession: Identifiable {
         // above it) just before the card turned into the transcript. The saved transcript shows the final words.
         guard state != .finishing else { return }
         let changed = live.text != text
-        if changed { text = live.text }
+        if changed {
+            text = live.text
+            RecordingLiveActivity.show(text: text, level: level)
+        }
         LiveTrace.published(changed: changed, words: live.words.count, paragraphs: text.segments.count)
         guard refresh == nil, let due = live.nextChange else { return }
         refresh = Task { [weak self] in
@@ -289,6 +292,7 @@ final class RecordingSession: Identifiable {
                 guard let self else { return }
                 let next = max(input, level * 0.7)
                 level = next < 0.02 ? 0 : next        // settle at exactly 0, so silence stops redrawing the meter
+                RecordingLiveActivity.show(text: nil, level: level)
             }
             self?.level = 0                                   // the stream ends with the recording (capture.seal())
         }

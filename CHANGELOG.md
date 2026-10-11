@@ -7,8 +7,9 @@ Each version has an English and a German list.
 
 ### English
 
-- Recording now shows on the Lock Screen and in the Dynamic Island, with the running time and a Stop button.
-- Start a transcript from anywhere: from Control Center, with the Action Button, by asking Siri ("Transcribe with
+- Recording now shows on the Lock Screen and in the Dynamic Island: the sound level, the running time, the newest words
+  and a Stop button.
+- Start a transcript from anywhere: from Control Center (look for the feather), with the Action Button, by asking Siri ("Transcribe with
   Feder"), from Shortcuts, or with the new Lock Screen widget.
 - Titles and summaries are written in your iPhone's language. Existing ones are written again once.
 - Share a transcript as a PDF, a Word document, Markdown or subtitles (SRT, WebVTT), or as text, with or without speaker
@@ -22,9 +23,9 @@ Each version has an English and a German list.
 
 ### Deutsch
 
-- Eine laufende Aufnahme erscheint jetzt auf dem Sperrbildschirm und in der Dynamic Island, mit der Laufzeit und einer
-  Stopp-Taste.
-- Starte ein Transkript von überall: im Kontrollzentrum, mit der Aktionstaste, über Siri („Mit Feder transkribieren“),
+- Eine laufende Aufnahme erscheint jetzt auf dem Sperrbildschirm und in der Dynamic Island: mit Pegel, Laufzeit, den
+  neuesten Wörtern und einer Stopp-Taste.
+- Starte ein Transkript von überall: im Kontrollzentrum (mit der Feder), mit der Aktionstaste, über Siri („Mit Feder transkribieren“),
   in Kurzbefehlen oder mit dem neuen Widget für den Sperrbildschirm.
 - Titel und Zusammenfassungen entstehen in der Sprache deines iPhones. Bestehende werden einmal neu geschrieben.
 - Teile ein Transkript als PDF, Word-Dokument, Markdown oder Untertitel (SRT, WebVTT) oder als Text, mit oder ohne

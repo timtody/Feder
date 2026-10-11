@@ -1,107 +1,117 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "Feder" : {
-      "shouldTranslate" : false
+  "sourceLanguage": "en",
+  "strings": {
+    "Feder": {
+      "shouldTranslate": false
     },
-    "Opens Feder and starts a new transcript." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Öffnet Feder und startet ein neues Transkript."
+    "Listening…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hört zu …"
           }
         }
       }
     },
-    "Recording" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aufnahme"
+    "Opens Feder and starts a new transcript.": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffnet Feder und startet ein neues Transkript."
           }
         }
       }
     },
-    "Saving…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wird gesichert …"
+    "Recording": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme"
           }
         }
       }
     },
-    "Start Transcribing" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transkription starten"
+    "Saving…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird gesichert …"
           }
         }
       }
     },
-    "Starts a new transcript in Feder." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Startet ein neues Transkript in Feder."
+    "Start Transcribing": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkription starten"
           }
         }
       }
     },
-    "Stop" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stoppen"
+    "Starts a new transcript in Feder.": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Startet ein neues Transkript in Feder."
           }
         }
       }
     },
-    "Stop Transcribing" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transkription beenden"
+    "Stop": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stoppen"
           }
         }
       }
     },
-    "Stops the recording and saves the transcript." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Beendet die Aufnahme und sichert das Transkript."
+    "Stop Transcribing": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkription beenden"
           }
         }
       }
     },
-    "Transcribe" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transkribieren"
+    "Stops the recording and saves the transcript.": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beendet die Aufnahme und sichert das Transkript."
+          }
+        }
+      }
+    },
+    "Transcribe": {
+      "extractionState": "stale",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkribieren"
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

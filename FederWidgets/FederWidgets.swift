@@ -17,46 +17,43 @@ struct FederWidgets: WidgetBundle {
 
 // MARK: Live Activity
 
-/// While recording, like Voice Memos': a red dot, the transcript's name, the running time and Stop. From Stop until
-/// the transcript is saved: "Saving…" and no Stop.
+/// While recording: the microphone's level, the running time, the newest words and Stop; from Stop until the
+/// transcript is saved "Saving…" and no Stop. No title: the activity is the recording itself, and the words say more.
+/// Laid out symmetrically: the level and the time on the left, Stop on the right, both centred on one line; the words
+/// under them across the whole width.
 struct RecordingLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: RecordingActivityAttributes.self) { context in
-            LockScreenRecording(name: context.attributes.name, state: context.state)
+            LockScreenRecording(state: context.state)
                 .padding(16)
                 .activityBackgroundTint(nil)
         } dynamicIsland: { context in
             DynamicIsland {
-                // The dot in the leading corner and the name under the island in the middle: in the leading region
-                // the timer's region squeezed it to "New Tran…".
                 DynamicIslandExpandedRegion(.leading) {
-                    RecordingDot().padding(.leading, 8).padding(.top, 6)
-                }
-                DynamicIslandExpandedRegion(.center) {
-                    Text(context.attributes.name)
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        LevelMeter(level: context.state.level, isSaving: context.state.isSaving)
+                        RecordingTime(state: context.state).font(.title3.weight(.semibold))
+                    }
+                    .padding(.leading, 6)
+                    .frame(maxHeight: .infinity)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    RecordingTime(state: context.state)
-                        .font(.title3.weight(.semibold))
-                        .padding(.trailing, 4)
-                }
-                DynamicIslandExpandedRegion(.bottom) {
-                    if context.state.isSaving {
-                        Text("Saving…").font(.subheadline).foregroundStyle(.secondary)
-                    } else {
-                        StopButton(wide: true)
+                    if !context.state.isSaving {
+                        StopButton().padding(.trailing, 6).frame(maxHeight: .infinity)
                     }
                 }
+                DynamicIslandExpandedRegion(.bottom) {
+                    LiveWords(state: context.state)
+                        .padding(.horizontal, 6)
+                }
             } compactLeading: {
-                RecordingDot()
+                LevelMeter(level: context.state.level, isSaving: context.state.isSaving)
             } compactTrailing: {
                 RecordingTime(state: context.state)
                     .font(.caption.weight(.semibold))
                     .frame(maxWidth: 52)
             } minimal: {
-                RecordingDot()
+                LevelMeter(level: context.state.level, isSaving: context.state.isSaving)
             }
             .keylineTint(.red)
         }
@@ -64,34 +61,54 @@ struct RecordingLiveActivityWidget: Widget {
 }
 
 private struct LockScreenRecording: View {
-    let name: String
     let state: RecordingActivityAttributes.ContentState
 
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Label {
-                    Text(name).lineLimit(1)
-                } icon: {
-                    RecordingDot()
-                }
-                .font(.subheadline.weight(.semibold))
-                if state.isSaving {
-                    Text("Saving…").font(.title2.weight(.semibold)).foregroundStyle(.secondary)
-                } else {
-                    RecordingTime(state: state).font(.title2.weight(.semibold))
-                }
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                LevelMeter(level: state.level, isSaving: state.isSaving)
+                    .font(.title3)
+                RecordingTime(state: state)
+                    .font(.title2.weight(.semibold))
+                Spacer(minLength: 0)
+                if !state.isSaving { StopButton() }
             }
-            Spacer(minLength: 0)
-            if !state.isSaving { StopButton(wide: false) }
+            LiveWords(state: state)
         }
     }
 }
 
-private struct RecordingDot: View {
+/// The level as the waveform symbol filled up to it (`variableValue`), red while recording.
+private struct LevelMeter: View {
+    let level: Double
+    let isSaving: Bool
+
     var body: some View {
-        Circle().fill(.red).frame(width: 10, height: 10)
-            .accessibilityLabel("Recording")
+        Image(systemName: "waveform", variableValue: isSaving ? 0 : min(1, 0.15 + level * 1.2))
+            .foregroundStyle(.red)
+            .symbolEffect(.variableColor.iterative.dimInactiveLayers, options: .repeating, isActive: !isSaving && level > 0.05)
+            .accessibilityLabel(isSaving ? "Saving…" : "Recording")
+    }
+}
+
+/// The newest words, two lines, or "Saving…" / "Listening…" when there are none.
+private struct LiveWords: View {
+    let state: RecordingActivityAttributes.ContentState
+
+    var body: some View {
+        Group {
+            if state.isSaving {
+                Text("Saving…")
+            } else if state.text.isEmpty {
+                Text("Listening…")
+            } else {
+                Text(state.text)
+            }
+        }
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+        .lineLimit(2, reservesSpace: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -102,25 +119,20 @@ private struct RecordingTime: View {
     var body: some View {
         Text(timerInterval: state.since...Date.distantFuture, countsDown: false)
             .monospacedDigit()
-            .multilineTextAlignment(.trailing)
     }
 }
 
 private struct StopButton: View {
-    let wide: Bool
-
     var body: some View {
         Button(intent: StopRecordingIntent()) {
-            if wide {
-                Label("Stop", systemImage: "stop.fill").frame(maxWidth: .infinity)
-            } else {
-                Image(systemName: "stop.fill").font(.title2)
-                    .accessibilityLabel("Stop")
-            }
+            Image(systemName: "stop.fill")
+                .font(.title3)
+                .frame(width: 26, height: 26)
+                .accessibilityLabel("Stop")
         }
         .tint(.red)
         .buttonStyle(.borderedProminent)
-        .buttonBorderShape(wide ? .capsule : .circle)
+        .buttonBorderShape(.circle)
     }
 }
 
@@ -130,8 +142,9 @@ private struct StopButton: View {
 struct TranscribeControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "de.timtody.feder.transcribe") {
+            // Feder's feather (a custom symbol from the app icon), not a waveform: that is Voice Memos' control.
             ControlWidgetButton(action: StartRecordingIntent()) {
-                Label("Transcribe", systemImage: "waveform")
+                Label("Transcribe", image: "feather")
             }
         }
         .displayName("Transcribe")
@@ -162,17 +175,17 @@ private struct TranscribeWidgetView: View {
         case .accessoryCircular:
             ZStack {
                 AccessoryWidgetBackground()
-                Image(systemName: "waveform").font(.title2.weight(.semibold))
+                Image("feather").font(.title2.weight(.semibold))
             }
             .accessibilityLabel("Transcribe")
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 2) {
-                Label("Transcribe", systemImage: "waveform").font(.headline)
+                Label("Transcribe", image: "feather").font(.headline)
                 Text("Feder").font(.caption).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         default:
-            Label("Transcribe", systemImage: "waveform")
+            Label("Transcribe", image: "feather")
         }
     }
 }

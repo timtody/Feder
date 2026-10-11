@@ -2,32 +2,19 @@ import ActivityKit
 import Foundation
 
 /// The recording's Live Activity (RecordingActivityAttributes; drawn by FederWidgets): started when the recording
-/// starts, "Saving…" from Stop, ended once the transcript is saved or the recording dropped. Local only: started and
-/// updated by the app, no push token. Without Live Activities allowed (Settings › Feder) nothing happens.
+/// starts, with the newest words and the microphone's level at most once a second (`show`: the latest values wait for
+/// the next slot, so a busy stretch costs one update a second, a quiet one none), "Saving…" from Stop, ended once the
+/// transcript is saved or the recording dropped. Local only: started and updated by the app, no push token. Without
+/// Live Activities allowed (Settings › Feder) nothing happens.
 enum RecordingLiveActivity {
     private static var current: Activity<RecordingActivityAttributes>?
-
-    static func start(name: String, since: Date) {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            #if DEBUG
-            NSLog("[Scribe] live activity: not enabled")
-            #endif
-            return
-        }
-        end()
-        let content = ActivityContent(state: RecordingActivityAttributes.ContentState(since: since, isSaving: false),
-                                      staleDate: nil)
-        do {
-            current = try Activity.request(attributes: RecordingActivityAttributes(name: name), content: content)
-            #if DEBUG
-            NSLog("[Scribe] live activity: started %@", current?.id ?? "-")
-            #endif
-        } catch {
-            #if DEBUG
-            NSLog("[Scribe] live activity: %@", String(describing: error))
-            #endif
-        }
-    }
+    private static var state = RecordingActivityAttributes.ContentState(since: .now, isSaving: false)
+    private static var lastUpdate = Date.distantPast
+    private static var pending: Task<Void, Never>?
+    /// The live text as of the last `show`; its tail is taken only when an update is sent.
+    private static var latestText = LiveText()
+    /// Seconds between two updates.
+    private static let interval: TimeInterval = 1
 
     /// At launch: no recording runs yet, so a Live Activity still up belongs to a process that ended while recording
     /// (force-quit, a crash, a new build): it would show a running time and a Stop that does nothing.
@@ -35,25 +22,74 @@ enum RecordingLiveActivity {
         Task { await endAll() }
     }
 
-    @concurrent
-    nonisolated private static func endAll() async {
-        for activity in Activity<RecordingActivityAttributes>.activities {
-            await activity.end(nil, dismissalPolicy: .immediate)
+    static func start(name: String, since: Date) {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        end()
+        state = RecordingActivityAttributes.ContentState(since: since, isSaving: false)
+        latestText = LiveText()
+        do {
+            current = try Activity.request(attributes: RecordingActivityAttributes(name: name),
+                                           content: ActivityContent(state: state, staleDate: nil))
+            lastUpdate = .now
+        } catch {
+            #if DEBUG
+            print("[Scribe] live activity: \(error)")
+            #endif
+        }
+    }
+
+    /// The newest words (nil: unchanged) and the level while recording; sent at most once a second. Called for every
+    /// level reading: cheap until a slot is due.
+    static func show(text: LiveText?, level: Float) {
+        guard current != nil, !state.isSaving else { return }
+        if let text { latestText = text }
+        state.level = max(state.level, Double(level))        // the loudest since the last update (reset in send)
+        guard pending == nil else { return }
+        let wait = max(0, interval - Date.now.timeIntervalSince(lastUpdate))
+        pending = Task {
+            try? await Task.sleep(for: .seconds(wait))
+            pending = nil
+            send()
         }
     }
 
     static func saving() {
-        guard let activity = current else { return }
-        let id = activity.id
-        let state = RecordingActivityAttributes.ContentState(since: activity.content.state.since, isSaving: true)
-        Task { await update(id, state) }
+        guard current != nil else { return }
+        pending?.cancel()
+        pending = nil
+        state.isSaving = true
+        state.level = 0
+        send()
     }
 
     static func end() {
+        pending?.cancel()
+        pending = nil
         guard let activity = current else { return }
         current = nil
         let id = activity.id
         Task { await end(id) }
+    }
+
+    private static func send() {
+        guard let activity = current else { return }
+        lastUpdate = .now
+        if !state.isSaving { state.text = tail(of: latestText) }
+        let id = activity.id, state = state
+        self.state.level = 0
+        Task { await update(id, state) }
+    }
+
+    /// The last words of the live text, about two lines of the lock screen's width, cut at a word ("…" in front).
+    nonisolated static func tail(of text: LiveText, characters: Int = 110) -> String {
+        let words = text.segments.map(\.text) + text.provisional.map(\.word.text)
+        var tail = ""
+        for word in words.reversed() {
+            let next = tail.isEmpty ? word : word + " " + tail
+            guard next.count <= characters else { return "…" + tail }
+            tail = next
+        }
+        return tail
     }
 
     // By id, off the main actor: an Activity isn't Sendable, so it is looked up where it is used.
@@ -66,5 +102,12 @@ enum RecordingLiveActivity {
     @concurrent
     nonisolated private static func end(_ id: String) async {
         await Activity<RecordingActivityAttributes>.activities.first { $0.id == id }?.end(nil, dismissalPolicy: .immediate)
+    }
+
+    @concurrent
+    nonisolated private static func endAll() async {
+        for activity in Activity<RecordingActivityAttributes>.activities {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
     }
 }
