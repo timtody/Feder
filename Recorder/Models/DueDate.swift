@@ -12,13 +12,14 @@ import Foundation
 /// recording's day (the same weekday: a week later, as the detector does); (c) anything else relative ("tomorrow",
 /// "übermorgen", "in 3 days") keeps its whole-day distance from today, counted from the recording's day with calendar
 /// days (not 86,400 s, because of daylight saving time). What it misses ("next week", "nächste Woche", "end of the
-/// month", "Ende Oktober", "in zwei Wochen", a bare "14.10.") is covered by own rules, English and German.
+/// month", "Ende Oktober", "in zwei Wochen", a bare "14.10.", "on the 14th", "end of day") is covered by own rules,
+/// English and German.
 /// A time counts only when one was said ("15:00", "17 Uhr", "3 pm", "noon", "tonight"); otherwise it is a day.
 /// Unresolved ("before the workshop", "asap"): nil, and the card shows the phrase as said.
 nonisolated enum DueDate {
     static func resolve(_ phrase: String, recordedAt: Date,
                         calendar: Calendar = .current) -> (date: Date, hasTime: Bool)? {
-        let text = phrase.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"'„“”‚‘’«».")))
+        let text = phrase.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"'„“”‚‘’«»")))
         guard !text.isEmpty else { return nil }
         let day = calendar.startOfDay(for: recordedAt)
         let folded = fold(text)
@@ -27,7 +28,8 @@ nonisolated enum DueDate {
             found = (noon(date, calendar), false)
         } else if let detected = detected(text, day: day, calendar: calendar) {
             found = detected
-        } else if let date = counted(folded, day: day, calendar: calendar) ?? bareDate(folded, day: day, calendar: calendar) {
+        } else if let date = counted(folded, day: day, calendar: calendar) ?? bareDate(folded, day: day, calendar: calendar)
+                    ?? dayOfMonth(folded, day: day, calendar: calendar) {
             found = (noon(date, calendar), false)
         } else {
             found = nil
@@ -78,13 +80,15 @@ nonisolated enum DueDate {
     // MARK: Own rules (what the detector misses), English and German
 
     /// "this week", "Ende der Woche" (the first Friday on or after the recording), "next week", "nächste Woche" (a week
-    /// later), "end of the month", "Monatsende", "Ende nächsten Monats", "Ende Oktober" (that month's last day).
+    /// later), "end of day", "Feierabend" (the recording's day), "end of the month", "Monatsende", "Ende nächsten
+    /// Monats", "Ende Oktober" (that month's last day).
     private static func weekOrMonth(_ text: String, day: Date, calendar: Calendar) -> Date? {
         let friday = calendar.date(byAdding: .day, value: (6 - calendar.component(.weekday, from: day) + 7) % 7, to: day)
         if text.contains(/\b(next week|nachste[nrs]? woche|kommende[nrs]? woche)\b/) {
             return friday.flatMap { calendar.date(byAdding: .day, value: 7, to: $0) }
         }
         if text.contains(/\b(this week|end of (the|this) week|diese[nrs]? woche|ende der woche)\b/) { return friday }
+        if text.contains(/\b(end of (the )?day|end of business|eod|cob|feierabend|heute noch)\b/) { return day }
         if text.contains(/\b(end of next month|(ende|zum ende) (des )?nachsten monats)\b/) {
             return calendar.date(byAdding: .month, value: 1, to: day).flatMap { lastDay(of: $0, calendar) }
         }
@@ -113,7 +117,7 @@ nonisolated enum DueDate {
 
     /// A bare "14.10." or "14.10.2026" (the detector wants "am 14.10." or the year).
     private static func bareDate(_ text: String, day: Date, calendar: Calendar) -> Date? {
-        guard let match = text.firstMatch(of: /\b(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})?/),
+        guard let match = text.firstMatch(of: /(?:^|[^\d.])(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})?/),
               let dayNumber = Int(match.1), let month = Int(match.2), (1...31).contains(dayNumber),
               (1...12).contains(month) else { return nil }
         var parts = DateComponents(month: month, day: dayNumber)
@@ -125,6 +129,22 @@ nonisolated enum DueDate {
         }
         guard let date = calendar.date(from: parts), calendar.component(.day, from: date) == dayNumber else { return nil }
         return date
+    }
+
+    /// "on the 14th", "bis zum 14.": that day of the recording's month, or of the next month when it has passed.
+    private static func dayOfMonth(_ text: String, day: Date, calendar: Calendar) -> Date? {
+        let match = text.firstMatch(of: /\b(?:on|by|until|till|before) the (\d{1,2})(?:st|nd|rd|th)\b/)?.1
+            ?? text.firstMatch(of: /\b(?:am|bis zum|zum|bis) (\d{1,2})\.(?:[^\d]|$)/)?.1
+        guard let match, let number = Int(match), (1...31).contains(number) else { return nil }
+        for months in 0...1 {
+            guard let month = calendar.date(byAdding: .month, value: months, to: day) else { continue }
+            var parts = calendar.dateComponents([.year, .month], from: month)
+            parts.day = number
+            if let date = calendar.date(from: parts), calendar.component(.day, from: date) == number, date >= day {
+                return date
+            }
+        }
+        return nil
     }
 
     // MARK: Reading the matched text
@@ -179,12 +199,14 @@ nonisolated enum DueDate {
 
     /// A day and a month: "14.10", "10/14", "14 October", "October 14th", "25. November".
     private static func namesDayAndMonth(_ text: String) -> Bool {
-        if text.contains(/\b\d{1,2}\s*[.\/-]\s*\d{1,2}\b/) { return true }
+        // Not `\b`: Swift's default word boundaries are Unicode's, where "14.10.2026" is one word.
+        if text.contains(/(?:^|[^\d])\d{1,2}\s*[.\/-]\s*\d{1,2}(?:[^\d]|$)/) { return true }
         return text.contains(where: \.isNumber) && words(text).contains { monthNumber(String($0)) != nil }
     }
 
     private static func namesYear(_ text: String) -> Bool {
-        text.contains(/\b(19|20)\d{2}\b/) || text.contains(/\b\d{1,2}[.\/]\d{1,2}[.\/]\d{2}\b/)
+        text.contains(/(?:^|[^\d])(?:19|20)\d{2}(?:[^\d]|$)/)
+            || text.contains(/(?:^|[^\d])\d{1,2}[.\/]\d{1,2}[.\/]\d{2}(?:[^\d]|$)/)
     }
 
     /// A time of day was said: digits with a colon, "Uhr", "am"/"pm" after a number, noon, tonight.

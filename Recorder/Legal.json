@@ -14,7 +14,7 @@
         },
         {
           "heading": "What Feder Stores on Your iPhone",
-          "body": "Feder keeps everything it creates in its own storage on your iPhone:\n• the audio of your recordings,\n• transcripts, titles and summaries,\n• speaker names, people and their voice profiles,\n• tags and the words you add to your vocabulary,\n• where a recording was made (coordinates and place name), if you allow it,\n• your settings.\n\nTranscription, speaker identification, titles and summaries run on your iPhone. None of this data is sent to us or to anyone else. It leaves your iPhone only when you share a transcript yourself, for example with the share sheet, and as part of your iPhone’s backups (see “Backups”)."
+          "body": "Feder keeps everything it creates in its own storage on your iPhone:\n• the audio of your recordings,\n• transcripts, titles, summaries and action items,\n• speaker names, people and their voice profiles,\n• tags and the words you add to your vocabulary,\n• where a recording was made (coordinates and place name), if you allow it,\n• your settings.\n\nTranscription, speaker identification, titles, summaries and action items run on your iPhone. None of this data is sent to us or to anyone else. It leaves your iPhone only when you share a transcript yourself, for example with the share sheet, when you add an action item to Reminders or Calendar (see “Reminders and Calendar”), and as part of your iPhone’s backups (see “Backups”)."
         },
         {
           "heading": "Microphone",
@@ -33,6 +33,10 @@
           "body": "iPhone Search is off unless you turn on Show in iPhone Search, in the onboarding or in Feder's settings. Then Feder adds the titles, summaries, tags, speaker names and text of your transcripts to the iPhone's own search index (Spotlight). The index is kept on your iPhone, can be read only while it is unlocked, and is not offered to Apple's public search. Turning the setting off deletes it. What you type into the iPhone's search is handled by iOS, which can send it to Apple for suggestions; you can turn that off in the iPhone's settings under Search.\n\nWhile you record, the recording's name and running time show on the Lock Screen and in the Dynamic Island. iOS draws them on your iPhone, and they disappear when the recording is saved.\n\nWhen you share a transcript (as text, PDF, Word document, Markdown or subtitles), it goes where you send it, through the iPhone's share sheet."
         },
         {
+          "heading": "Reminders and Calendar",
+          "body": "Feder adds an action item to Reminders or Calendar only when you tap Add to Reminders or Add to Calendar. For a reminder, Feder writes the task, who does it, the due date, the transcript’s title and date and a link back to the transcript into Reminders. For an event, Feder shows Apple’s own New Event screen, filled in the same way, where you check the event and add it yourself.\n\nWhat you add becomes part of Apple’s Reminders and Calendar: it syncs with iCloud or your other accounts as you have set up these apps, and their providers process it under their own privacy policies.\n\nTo add reminders, iOS asks you once to allow Feder full access to Reminders (iOS offers no access that can only add). Feder only adds the items you choose and reads none of your reminders. Calendar needs no access, because you add the event in Apple’s screen. You can turn off Reminders access at any time in the iOS Settings app under Apps › Feder."
+        },
+        {
           "heading": "Model Downloads From Hugging Face",
           "body": "Feder downloads its models once from Hugging Face (huggingface.co). After that they run on your iPhone:\n• Speaker model (about 21 MB): downloads after you have passed the Welcome screen, on any network.\n• Live speaker-label model (about 45 MB) and improved speaker model (about 100 MB): start downloading automatically on Wi-Fi (if Wi-Fi drops during a download, the rest may come over mobile data), or over mobile data when you tap Download Now Using Cellular. The live model downloads only while Live Speaker Labels is on.\n• Titles and summaries (Gemma, about 3.6 GB): only when you ask for it, over Wi-Fi, in the background.\n• Parakeet transcription (about 610 MB): only when you ask for it.\n\nFor a download, your iPhone connects to Hugging Face’s servers and the content delivery servers they use. They receive your IP address, the file requested and the usual technical connection data. We send no account, no identifier, no recordings and no usage data.\n\nHugging Face, Inc. is based in the USA. It processes this connection data on its own responsibility, under its privacy policy: huggingface.co/privacy"
         },
@@ -46,7 +50,7 @@
         },
         {
           "heading": "Titles, Summaries and Mistakes",
-          "body": "On iPhones with 8 GB of memory or more, Feder can write titles and summaries with Gemma, an AI model that runs on your iPhone. Your transcript is not sent anywhere for this.\n\nTranscripts, speaker names, titles and summaries are created automatically and can contain mistakes. Check important details against the recording or the transcript."
+          "body": "On iPhones with 8 GB of memory or more, Feder can write titles and summaries and find action items with Gemma, an AI model that runs on your iPhone. Your transcript is not sent anywhere for this.\n\nTranscripts, speaker names, titles, summaries and action items are created automatically and can contain mistakes. Check important details against the recording or the transcript."
         },
         {
           "heading": "Recording Other People",
@@ -58,7 +62,7 @@
         },
         {
           "heading": "How Long Data Is Kept",
-          "body": "Everything stays on your iPhone until you delete it:\n• Delete a transcript to remove its audio, text, summary, place and voice profiles.\n• Delete a person to stop Feder recognizing them; delete the transcripts they speak in to remove their voice profiles completely.\n• Delete Gemma in Feder’s Settings to remove the summary model.\n• Delete the app to remove all of Feder’s data and models from your iPhone.\n\nCopies in your backups are kept for as long as those backups are."
+          "body": "Everything stays on your iPhone until you delete it:\n• Delete a transcript to remove its audio, text, summary, action items, place and voice profiles. What you added to Reminders or Calendar stays there until you delete it in those apps.\n• Delete a person to stop Feder recognizing them; delete the transcripts they speak in to remove their voice profiles completely.\n• Delete Gemma in Feder’s Settings to remove the summary model.\n• Delete the app to remove all of Feder’s data and models from your iPhone.\n\nCopies in your backups are kept for as long as those backups are."
         },
         {
           "heading": "Your Rights",
@@ -88,7 +92,7 @@
         },
         {
           "heading": "Was Feder auf deinem iPhone speichert",
-          "body": "Feder bewahrt alles, was es erstellt, in seinem eigenen Speicher auf deinem iPhone auf:\n• den Ton deiner Aufnahmen,\n• Transkripte, Titel und Zusammenfassungen,\n• Sprechernamen, Personen und ihre Stimmprofile,\n• Tags und die Wörter, die du deinem Vokabular hinzufügst,\n• wo eine Aufnahme entstand (Koordinaten und Ortsname), wenn du es erlaubst,\n• deine Einstellungen.\n\nTranskription, Sprechererkennung, Titel und Zusammenfassungen laufen auf deinem iPhone. Nichts davon wird an uns oder an andere gesendet. Die Daten verlassen dein iPhone nur, wenn du selbst ein Transkript teilst, zum Beispiel über „Teilen“, und als Teil der Backups deines iPhone (siehe „Backups“)."
+          "body": "Feder bewahrt alles, was es erstellt, in seinem eigenen Speicher auf deinem iPhone auf:\n• den Ton deiner Aufnahmen,\n• Transkripte, Titel, Zusammenfassungen und Aufgaben,\n• Sprechernamen, Personen und ihre Stimmprofile,\n• Tags und die Wörter, die du deinem Vokabular hinzufügst,\n• wo eine Aufnahme entstand (Koordinaten und Ortsname), wenn du es erlaubst,\n• deine Einstellungen.\n\nTranskription, Sprechererkennung, Titel, Zusammenfassungen und Aufgaben laufen auf deinem iPhone. Nichts davon wird an uns oder an andere gesendet. Die Daten verlassen dein iPhone nur, wenn du selbst ein Transkript teilst, zum Beispiel über „Teilen“, wenn du eine Aufgabe zu Erinnerungen oder zum Kalender hinzufügst (siehe „Erinnerungen und Kalender“), und als Teil der Backups deines iPhone (siehe „Backups“)."
         },
         {
           "heading": "Mikrofon",
@@ -107,6 +111,10 @@
           "body": "Die iPhone-Suche ist aus, bis du „In der iPhone-Suche zeigen“ einschaltest, im Onboarding oder in den Einstellungen von Feder. Dann fügt Feder Titel, Zusammenfassungen, Tags, Sprechernamen und Text deiner Transkripte dem Suchindex deines iPhone hinzu (Spotlight). Der Index liegt auf deinem iPhone, ist nur lesbar, solange es entsperrt ist, und wird nicht für Apples öffentliche Suche angeboten. Schaltest du die Einstellung aus, wird er gelöscht. Was du in die iPhone-Suche tippst, verarbeitet iOS; es kann deine Eingabe für Vorschläge an Apple senden. Das kannst du in den Einstellungen des iPhone unter „Suche“ ausschalten.\n\nWährend du aufnimmst, erscheinen Name und Laufzeit der Aufnahme auf dem Sperrbildschirm und in der Dynamic Island. iOS zeigt sie auf deinem iPhone an, und sie verschwinden, sobald die Aufnahme gesichert ist.\n\nWenn du ein Transkript teilst (als Text, PDF, Word-Dokument, Markdown oder Untertitel), geht es über das Teilen-Menü des iPhone dorthin, wohin du es schickst."
         },
         {
+          "heading": "Erinnerungen und Kalender",
+          "body": "Feder fügt eine Aufgabe nur dann zu Erinnerungen oder zum Kalender hinzu, wenn du auf „Zu Erinnerungen hinzufügen“ oder „Zum Kalender hinzufügen“ tippst. Für eine Erinnerung schreibt Feder die Aufgabe, wer sie erledigt, die Frist, Titel und Datum des Transkripts und einen Link zurück zum Transkript in Erinnerungen. Für ein Ereignis zeigt Feder Apples eigenes Fenster „Neues Ereignis“, genauso ausgefüllt, in dem du das Ereignis prüfst und selbst hinzufügst.\n\nWas du hinzufügst, wird Teil von Apples Erinnerungen und Kalender: Es wird mit iCloud oder deinen anderen Accounts synchronisiert, so wie du diese Apps eingerichtet hast, und deren Anbieter verarbeiten es nach ihren eigenen Datenschutzerklärungen.\n\nZum Hinzufügen von Erinnerungen fragt iOS dich einmal, ob Feder vollen Zugriff auf Erinnerungen erhalten darf (iOS bietet keinen Zugriff, der nur hinzufügen kann). Feder fügt nur die Aufgaben hinzu, die du auswählst, und liest keine deiner Erinnerungen. Der Kalender braucht keinen Zugriff, weil du das Ereignis in Apples Fenster hinzufügst. Du kannst den Zugriff auf Erinnerungen jederzeit in der App „Einstellungen“ von iOS unter „Apps“ › „Feder“ ausschalten."
+        },
+        {
           "heading": "Modelle von Hugging Face",
           "body": "Feder lädt seine Modelle einmalig von Hugging Face (huggingface.co). Danach laufen sie auf deinem iPhone:\n• Sprechermodell (etwa 21 MB): wird geladen, sobald du den Willkommensbildschirm hinter dir hast, über jedes Netz.\n• Modell für Sprecher während der Aufnahme (etwa 45 MB) und genaueres Sprechermodell (etwa 100 MB): werden automatisch im WLAN geladen (bricht das WLAN während des Downloads ab, kann der Rest über das mobile Netz kommen), über das mobile Netz sonst nur, wenn du den Download selbst startest. Das Modell für die Aufnahme wird nur geladen, solange „Sprecher live anzeigen“ eingeschaltet ist.\n• Titel und Zusammenfassungen (Gemma, etwa 3,6 GB): nur wenn du es möchtest, über WLAN, im Hintergrund.\n• Parakeet-Transkription (etwa 610 MB): nur wenn du es möchtest.\n\nFür einen Download verbindet sich dein iPhone mit den Servern von Hugging Face und den Auslieferungsservern, die Hugging Face nutzt. Sie erhalten deine IP-Adresse, die angefragte Datei und die üblichen technischen Verbindungsdaten. Wir senden kein Konto, keine Kennung, keine Aufnahmen und keine Nutzungsdaten.\n\nHugging Face, Inc. hat seinen Sitz in den USA. Das Unternehmen verarbeitet diese Verbindungsdaten in eigener Verantwortung nach seiner Datenschutzrichtlinie: huggingface.co/privacy"
         },
@@ -120,7 +128,7 @@
         },
         {
           "heading": "Titel, Zusammenfassungen und Fehler",
-          "body": "Auf iPhones mit mindestens 8 GB Arbeitsspeicher kann Feder Titel und Zusammenfassungen mit Gemma schreiben, einem KI-Modell, das auf deinem iPhone läuft. Dein Transkript wird dafür nirgendwohin gesendet.\n\nTranskripte, Sprechernamen, Titel und Zusammenfassungen entstehen automatisch und können Fehler enthalten. Prüfe wichtige Details anhand der Aufnahme oder des Transkripts."
+          "body": "Auf iPhones mit mindestens 8 GB Arbeitsspeicher kann Feder mit Gemma Titel und Zusammenfassungen schreiben und Aufgaben finden, einem KI-Modell, das auf deinem iPhone läuft. Dein Transkript wird dafür nirgendwohin gesendet.\n\nTranskripte, Sprechernamen, Titel, Zusammenfassungen und Aufgaben entstehen automatisch und können Fehler enthalten. Prüfe wichtige Details anhand der Aufnahme oder des Transkripts."
         },
         {
           "heading": "Andere Menschen aufnehmen",
@@ -132,7 +140,7 @@
         },
         {
           "heading": "Wie lange Daten gespeichert werden",
-          "body": "Alles bleibt auf deinem iPhone, bis du es löschst:\n• Lösche ein Transkript, um seinen Ton, Text, seine Zusammenfassung, seinen Ort und seine Stimmprofile zu entfernen.\n• Lösche eine Person, damit Feder sie nicht mehr erkennt; lösche die Transkripte, in denen sie spricht, um ihre Stimmprofile ganz zu entfernen.\n• Lösche Gemma in den Einstellungen von Feder, um das Zusammenfassungsmodell zu entfernen.\n• Lösche die App, um alle Daten und Modelle von Feder von deinem iPhone zu entfernen.\n\nKopien in deinen Backups bleiben so lange erhalten wie diese Backups."
+          "body": "Alles bleibt auf deinem iPhone, bis du es löschst:\n• Lösche ein Transkript, um seinen Ton, Text, seine Zusammenfassung, seine Aufgaben, seinen Ort und seine Stimmprofile zu entfernen. Was du zu Erinnerungen oder zum Kalender hinzugefügt hast, bleibt dort, bis du es in diesen Apps löschst.\n• Lösche eine Person, damit Feder sie nicht mehr erkennt; lösche die Transkripte, in denen sie spricht, um ihre Stimmprofile ganz zu entfernen.\n• Lösche Gemma in den Einstellungen von Feder, um das Zusammenfassungsmodell zu entfernen.\n• Lösche die App, um alle Daten und Modelle von Feder von deinem iPhone zu entfernen.\n\nKopien in deinen Backups bleiben so lange erhalten wie diese Backups."
         },
         {
           "heading": "Deine Rechte",
