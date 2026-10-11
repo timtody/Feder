@@ -103,13 +103,22 @@ final class ActionItemExtractor {
         return empty.contains(value.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))) ? nil : value
     }
 
-    /// Nobody named: a speaker number or a stand-in for one is no owner.
+    /// Nobody named: a speaker number or a stand-in for one is no owner. A speaker number next to a name goes, the name
+    /// stays: Gemma wrote "Speaker 3 und Marco" and "Speaker 3 zusammen mit Marco vom Betrieb" in the bench although
+    /// the instructions forbid it, and the card would show the number.
     nonisolated static func cleanOwner(_ raw: String) -> String? {
-        guard let owner = cleanValue(raw)?.trimmingCharacters(in: CharacterSet(charactersIn: ".")) else { return nil }
-        if owner.wholeMatch(of: /(?i)(speaker|sprecher|sprecherin)\s*\d+/) != nil { return nil }
+        guard var owner = cleanValue(raw)?.trimmingCharacters(in: CharacterSet(charactersIn: ".")) else { return nil }
+        owner = owner.replacing(/(?i)\b(speaker|sprecher|sprecherin)\s*\d+\b/, with: "")
+        // What joined the number to the name: "and", "und", "with", "mit", "zusammen mit", "together with", "&", ",".
+        let joiners = /(?i)^(?:\s|,|&|\/|\+|and\b|und\b|or\b|oder\b|together with\b|zusammen mit\b|with\b|mit\b)+/
+        owner = owner.replacing(joiners, with: "")
+        while let last = owner.firstMatch(of: /(?i)(?:\s|,|&|\/|\+|\band|\bund|\bor|\boder|\bwith|\bmit)+$/) {
+            guard !last.output.isEmpty else { break }
+            owner.removeSubrange(last.range)
+        }
         let standIns: Set<String> = ["a participant", "participant", "ein teilnehmer", "eine teilnehmerin",
                                      "teilnehmer", "someone", "jemand"]
-        return standIns.contains(owner.lowercased()) ? nil : owner
+        return owner.isEmpty || standIns.contains(owner.lowercased()) ? nil : owner
     }
 
     /// The task as a short instruction: quotes and a trailing period gone, the first letter capitalized; nil unless it
