@@ -51,6 +51,9 @@ struct RecordingDetailView: View {
     @State private var vocabularyOffer: [String]?
     /// The Undo toast for the last correction, until it times out (shake to undo works on).
     @State private var undoToast: UUID?
+    /// The correction whose Undo is on offer here (toast or shake), until withdrawn: shake comes back after the
+    /// vocabulary pass only for it.
+    @State private var offeredUndo: UUID?
     /// The recording's audio file is there (the player bar and tapping a word to hear it).
     @State fileprivate var hasAudio = false
     /// Words ↔ paragraphs for the playback highlight and taps (rebuilt off the main actor when the paragraphs change).
@@ -181,27 +184,7 @@ struct RecordingDetailView: View {
         // (pixel track on the iPhone 17 simulator; testRecordAccessoryFlow measured 4-23 pt).
         // The soft edge under the bottom toolbar, as in Notes and Mail (and as the live view has under its Stop).
         .scrollEdgeEffectStyle(.soft, for: .bottom)
-        // The last correction's Undo, above the bottom toolbar for a few seconds (like Mail's Undo after a delete).
-        .overlay(alignment: .bottom) {
-            if let undoToast, services.identifier.lastCorrection?.id == undoToast,
-               let kind = services.identifier.lastCorrection?.kind {
-                UndoToast(title: Self.undoTitle(kind), undo: undoCorrection,
-                          isEnabled: !services.identifier.vocabularyRunning.contains(recording.id))
-                    .padding(.bottom, 10)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
-        .animation(.snappy, value: undoToast)
-        // The 6 s count once "Add to Your Words?" (after an edit) is answered: behind the alert the toast can't be tapped.
-        .task(id: UndoTimer(toast: undoToast, alert: vocabularyOffer != nil)) {
-            guard undoToast != nil, vocabularyOffer == nil else { return }
-            do { try await Task.sleep(for: .seconds(6)) } catch { return }
-            undoToast = nil
-        }
-        // The correction's Undo went (the transcript changed in another way, or another correction replaced it).
-        .onChange(of: services.identifier.lastCorrection?.id) { _, id in
-            if id == nil || services.identifier.lastCorrection?.recordingID != recording.id { withdrawUndo() }
-        }
+        .modifier(undoOffer)
         .safeAreaBar(edge: .bottom) {
             // While the toolbar is hidden under the melt's replicas: a stand-in of its height (52 pt, the inset the bar
             // adds), so the soft edge is already there and doesn't switch on at once when the real bar takes over.
@@ -675,6 +658,23 @@ struct RecordingDetailView: View {
     private func offerUndo() {
         guard let correction = services.identifier.lastCorrection, correction.recordingID == recording.id else { return }
         undoToast = correction.id
+        offeredUndo = correction.id
+        registerShakeUndo(correction)
+    }
+
+    /// The Undo toast and its upkeep, with what the card reads for it (out of `body`: the type checker gave up on one
+    /// modifier chain; values rather than the card itself, so the card's own body reads its state).
+    private var undoOffer: UndoOffer {
+        let correction = services.identifier.lastCorrection
+        let shown = undoToast.flatMap { toast in correction.flatMap { $0.id == toast ? $0.kind : nil } }
+        return UndoOffer(toast: undoToast, shownKind: shown, correctionID: correction?.id,
+                         correctionHere: correction?.recordingID == recording.id,
+                         passRunning: services.identifier.vocabularyRunning.contains(recording.id),
+                         alert: vocabularyOffer != nil, undo: undoCorrection, timedOut: { undoToast = nil },
+                         withdraw: withdrawUndo, passChanged: vocabularyPassChanged)
+    }
+
+    private func registerShakeUndo(_ correction: SpeakerIdentifier.UndoableCorrection) {
         let identifier = services.identifier
         let recording = recording
         undoManager?.removeAllActions(withTarget: identifier)
@@ -682,6 +682,19 @@ struct RecordingDetailView: View {
             MainActor.assumeIsolated { identifier.undoLastCorrection(of: recording) }
         }
         undoManager?.setActionName(Self.undoTitle(correction.kind))
+    }
+
+    /// While the transcript's vocabulary pass runs, Undo waits (SpeakerIdentifier.undoLastCorrection refuses): the
+    /// shake action goes, since UndoManager drops an action once it has run, refused or not (a shake meanwhile used the
+    /// Undo up), and comes back when the pass is over and the correction is still the one on offer (it ends it if the
+    /// pass wrote words).
+    private func vocabularyPassChanged(_ running: Bool) {
+        if running {
+            undoManager?.removeAllActions(withTarget: services.identifier)
+        } else if let correction = services.identifier.lastCorrection, correction.id == offeredUndo,
+                  correction.recordingID == recording.id {
+            registerShakeUndo(correction)
+        }
     }
 
     private func undoCorrection() {
@@ -692,11 +705,12 @@ struct RecordingDetailView: View {
     /// The toast and the shake action go (the correction itself stays until something replaces it).
     fileprivate func withdrawUndo() {
         undoToast = nil
+        offeredUndo = nil
         undoManager?.removeAllActions(withTarget: services.identifier)
     }
 
     /// What the toast says was done, and the shake alert's "Undo …".
-    private static func undoTitle(_ kind: SpeakerIdentifier.UndoableCorrection.Kind) -> String {
+    fileprivate static func undoTitle(_ kind: SpeakerIdentifier.UndoableCorrection.Kind) -> String {
         switch kind {
         case .assign: String(localized: "Speaker Changed")
         case .merge: String(localized: "Speakers Merged")
@@ -988,7 +1002,46 @@ private struct PlaybackFollowing: ViewModifier {
     }
 }
 
+/// The last correction's Undo, above the bottom toolbar for a few seconds (like Mail's Undo after a delete): the toast,
+/// its 6 s (counted once "Add to Your Words?" after an edit is answered, behind which it can't be tapped, and once the
+/// vocabulary pass is over, meanwhile it is greyed: Undo waits for it), and the Undo going when the correction does
+/// (the transcript changed in another way, or another correction replaced it).
+private struct UndoOffer: ViewModifier {
+    let toast: UUID?
+    let shownKind: SpeakerIdentifier.UndoableCorrection.Kind?
+    let correctionID: UUID?
+    let correctionHere: Bool
+    let passRunning: Bool
+    let alert: Bool
+    let undo: () -> Void
+    let timedOut: () -> Void
+    let withdraw: () -> Void
+    let passChanged: (Bool) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: .bottom) {
+                if let shownKind {
+                    UndoToast(title: RecordingDetailView.undoTitle(shownKind), undo: undo, isEnabled: !passRunning)
+                        .padding(.bottom, 10)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.snappy, value: toast)
+            .task(id: UndoTimer(toast: toast, alert: alert, waits: passRunning)) {
+                guard toast != nil, !alert, !passRunning else { return }
+                do { try await Task.sleep(for: .seconds(6)) } catch { return }
+                timedOut()
+            }
+            .onChange(of: correctionID) { _, id in
+                if id == nil || !correctionHere { withdraw() }
+            }
+            .onChange(of: passRunning) { _, running in passChanged(running) }
+    }
+}
+
 private struct UndoTimer: Equatable {
     var toast: UUID?
     var alert: Bool
+    var waits: Bool
 }
