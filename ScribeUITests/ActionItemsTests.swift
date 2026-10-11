@@ -194,7 +194,8 @@ final class ActionItemsTests: ScribeUITestCase {
 
     /// After Stop the pipeline finds the action items (`-fakeGemma`: two canned items, one due "by Friday"): the status
     /// line says "Finding action items…", then the Action Items row stands where its place was held, so the transcript
-    /// doesn't move; the first item's date is the Friday after today. The recording is deleted again.
+    /// doesn't move; the first item's date is the Friday after today; Add All to Reminders adds both. The recording is
+    /// deleted again.
     @MainActor
     func testPipelineFindsActionItems() throws {
         XCUIApplication().terminate()
@@ -230,6 +231,16 @@ final class ActionItemsTests: ScribeUITestCase {
         XCTAssertTrue(first.label.contains("Fri") && first.label.contains("\(day)"),
                       "due the Friday after today (\(friday)): \(first.label)")
         shot("Pipeline items open", app)
+
+        // Add All: both in one go (iOS asks first when no earlier test was allowed access).
+        app.buttons["AddAllToReminders"].tap()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        if springboard.alerts.firstMatch.waitForExistence(timeout: 5) { XCTAssertTrue(answerRemindersAlert(allow: true)) }
+        XCTAssertTrue(waitFor({ self.item(1, app).label.contains("In Reminders") }, timeout: 10),
+                      "both added: \(item(1, app).label)")
+        XCTAssertTrue(item(0, app).label.contains("In Reminders"), item(0, app).label)
+        XCTAssertFalse(app.buttons["AddAllToReminders"].exists, "nothing left to add")
+        shot("All added to Reminders", app)
 
         app.buttons["Delete Transcript"].tap()                   // the samples stay on top for the other tests
         app.buttons["Delete"].firstMatch.tap()
