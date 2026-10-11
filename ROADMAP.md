@@ -85,4 +85,6 @@ Voice Memos' share sheet, and Sortformer on the iPhone (see Done in 1.2, item 1)
 ## Suggested next
 
 Sortformer as the default once the iPhone check holds (item 1 above), then #7 (bookmarks while recording) and #13 (app
-lock): both small, and both fit the recording and privacy promise.
+lock): both small, and both fit the recording and privacy promise. A small follow-up to Import: "Transcribe Again in…"
+for a transcript, since an import's language is detected (three windows vote) and a recording that mixes languages can
+still come out in the wrong one; today its words are written once.
