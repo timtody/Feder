@@ -79,28 +79,27 @@ struct RecordingDetailView: View {
                                            place: recording.placeName)
                             .opacity(turning ? 0 : 1)
                             .animation(nil, value: turning)
-                        // What is being done to the transcript right now, one line, until the last step ends. Once
-                        // shown, its place stays while the card is open (an empty line): the line going away moved
-                        // the whole transcript up.
-                        if statusText != nil {
-                            PipelineStatusLine(recording: recording)
-                                .opacity(bodyShown ? 1 : 0)
-                                .transition(.opacity)
-                        } else if keepsStatusRow {
-                            Text(verbatim: " ")
-                                .font(.subheadline)
-                                .accessibilityHidden(true)
-                        }
-                        // The automatic summary (TranscriptTitler), folded into one "Summary" row; the row is there
-                        // from the first frame whenever a summary is coming, so neither it nor its writing moves
-                        // the transcript.
-                        if let summary = recording.summary, !summary.isEmpty {
-                            SummaryDisclosure(recordingID: recording.id, summary: summary,
-                                              highlights: search?.highlights(in: summary) ?? [])
-                                .opacity(bodyShown ? 1 : 0)
-                        } else if summaryComing {
-                            SummaryDisclosure(recordingID: recording.id, summary: nil, highlights: [])
-                                .opacity(bodyShown ? 1 : 0)
+                        // One line under the date: what is being done to the transcript right now while the
+                        // pipeline runs ("Writing summary…" too), then in the same place the automatic summary
+                        // (TranscriptTitler), folded into a "Summary" row. Two lines at once (the status and the
+                        // summary row, both shimmering) read as two things going on. Once shown, the place stays
+                        // while the card is open, an empty line when there is no summary: a line going away moved
+                        // the whole transcript up. The status line and the empty line stand on a hidden folded
+                        // Summary row, so all three are as tall as it (the row is ~4 pt taller than the line; the swap
+                        // moved the transcript), and the status crossfades into the summary where it stands.
+                        if statusText != nil || hasSummary || keepsStatusRow {
+                            ZStack(alignment: .leading) {
+                                if statusText != nil || (keepsStatusRow && !hasSummary) {
+                                    SummaryDisclosure.standIn
+                                }
+                                if statusText != nil {
+                                    PipelineStatusLine(recording: recording)
+                                } else if let summary = recording.summary, !summary.isEmpty {
+                                    SummaryDisclosure(summary: summary, highlights: search?.highlights(in: summary) ?? [])
+                                }
+                            }
+                            .animation(.easeInOut(duration: 0.25), value: statusText == nil)
+                            .opacity(bodyShown ? 1 : 0)
                         }
                         // HIG › Generative AI: say that AI made it and can be wrong. For the whole transcript, not only
                         // the summary: the words, the speakers and the names recognized by voice are all generated (a
@@ -318,12 +317,7 @@ struct RecordingDetailView: View {
     /// With the hit navigator (opened from a search result), on every iPhone.
     private var combinesActions: Bool { !hits.isEmpty }
 
-    /// A summary is expected: the pipeline lists its step (from the moment the recording is queued, so the Summary row
-    /// is there from the card's first frame) and it hasn't failed.
-    private var summaryComing: Bool {
-        guard let state = services.identifier.progress[recording.id]?.state(of: .summary) else { return false }
-        return state != .failed
-    }
+    private var hasSummary: Bool { recording.summary?.isEmpty == false }
 
     // MARK: Search hits
 

@@ -30,8 +30,6 @@ final class SpeakerIdentifier {
     var isPreparingSpeakerModel = false
     /// Words a pass just replaced, per transcript, for a few seconds (the card flashes them).
     private(set) var recentChanges: [UUID: [WordChange]] = [:]
-    /// The summary as the model writes it, per transcript, until it is saved.
-    private(set) var partialSummaries: [UUID: String] = [:]
 
     private let diarizer: any SpeakerDiarizer
     private let fileTranscriber: any FileTranscriber
@@ -465,17 +463,9 @@ final class SpeakerIdentifier {
         }
         track(id) { $0.begin(.summary) }
         defer {
-            partialSummaries[id] = nil
             if case .running = progress[id]?.state(of: .summary) {   // not now: waiting for Stop, or given up
                 let waits = waitingForGemma.contains { $0.id == id }
                 track(id) { waits ? $0.expect(.summary, again: true) : $0.drop(.summary) }
-            }
-        }
-        // Each piece hops to the main actor; one arriving after the summary was saved (or given up) is dropped.
-        let partial: @Sendable (String) -> Void = { text in
-            Task { @MainActor in
-                guard case .running = self.progress[id]?.state(of: .summary) else { return }
-                self.partialSummaries[id] = text.isEmpty ? nil : text   // "": a new attempt, the shimmer again
             }
         }
         let locale = Locale(identifier: recording.localeIdentifier)
@@ -492,7 +482,7 @@ final class SpeakerIdentifier {
         do {
             let titler = titler
             description = try await betterSummaries.run { model in
-                try await titler.describe(paragraphs: paragraphs, locale: locale, writer: model, partial: partial)
+                try await titler.describe(paragraphs: paragraphs, locale: locale, writer: model)
             }
         } catch {
             // RetryLater: not marked described, tried again later; stopped because a recording started: again right
