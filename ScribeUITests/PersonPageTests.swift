@@ -106,7 +106,7 @@ final class PersonPageTests: ScribeUITestCase {
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'The travel overrun'")).firstMatch
                         .waitForExistence(timeout: 10), "with what she said")
         shot("Go to Person", app)
-        note("Back button", page.buttons.allElementsBoundByIndex.map(\.label).joined(separator: ", "))
+        XCTAssertEqual(page.buttons.firstMatch.label, "Transcripts", "Back goes to the Transcripts list")
 
         // From a card opened on her page: back to that page, nothing pushed on top.
         app.staticTexts["Budget Review"].tap()

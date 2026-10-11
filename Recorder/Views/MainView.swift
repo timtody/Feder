@@ -287,9 +287,13 @@ struct MainView: View {
     /// the person's page is pushed onto the tab under it. Opened from that person's own page (its rows' source ids
     /// name the person), closing the card is the way back to it.
     func openPerson(_ id: UUID) {
-        guard cardPhase == .open else { pushPerson(id); return }
-        if !(card.sourceID.hasPrefix("person.") && card.sourceID.contains(id.uuidString)) { pendingPerson = id }
-        closeCard()
+        switch cardPhase {
+        case .closed: pushPerson(id)
+        case .closing: pendingPerson = id
+        case .open:
+            if !(card.sourceID.hasPrefix("person.") && card.sourceID.contains(id.uuidString)) { pendingPerson = id }
+            closeCard()
+        }
     }
 
     private func pushPerson(_ id: UUID) {
