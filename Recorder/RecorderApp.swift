@@ -7,6 +7,7 @@ struct RecorderApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var services: AppServices
+    @State private var spotlightSynced = false
 
     init() {
         NameSpeakersTip.configure()
@@ -30,6 +31,12 @@ struct RecorderApp: App {
             MainView()
                 .environment(services)
                 .onChange(of: scenePhase, initial: true) { _, phase in
+                    // Spotlight (SpotlightIndex): at launch, and on the way to the background, where the user can
+                    // search; a background task keeps the app awake for it.
+                    if phase == .background || (phase == .active && !spotlightSynced) {
+                        syncSpotlight(after: spotlightSynced ? 0 : 5)   // at launch after the first busy seconds
+                        spotlightSynced = true
+                    }
                     guard phase == .active else { return }
                     #if DEBUG
                     if WarmupBench.isRequested {               // QA: the models' cold timings, nothing else loading
@@ -43,6 +50,18 @@ struct RecorderApp: App {
                 }
         }
         .modelContainer(services.container)
+    }
+
+    private func syncSpotlight(after delay: TimeInterval) {
+        let context = services.container.mainContext
+        try? context.save()                            // a title typed just now is in what is indexed
+        let task = UIApplication.shared.beginBackgroundTask(withName: "Spotlight")
+        Task {
+            try? await Task.sleep(for: .seconds(delay))
+            await SpotlightIndex.sync(context)
+
+            UIApplication.shared.endBackgroundTask(task)
+        }
     }
 }
 

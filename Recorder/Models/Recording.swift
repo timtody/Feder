@@ -83,6 +83,7 @@ final class Recording {
     var automaticTitle: String? = nil    // the last title TranscriptTitler gave it: a better model may replace that one
     var diarizerRaw: String? = nil       // DiarizerKind.rawValue of speakerTurns' model; nil: diarized before it was kept
                                          // (the app before Scribe: pyannote, or the live labels)
+    var editCount: Int = 0               // the user corrected words or speakers this often (search and Spotlight re-read)
 
     init(name: String, audioFileName: String, localeIdentifier: String) {
         self.id = UUID()
@@ -122,17 +123,6 @@ final class Recording {
     func setSpeakerName(_ name: String, for index: Int) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         speakerNames[index] = trimmed.isEmpty ? nil : trimmed
-    }
-
-    /// Plain-text export: one paragraph per segment, prefixed with the speaker name once identified by the offline
-    /// pass (`.done`). Preliminary live labels are not exported: their indices are unrelated to the offline ones.
-    var plainText: String {
-        let labelled = speakerStatus == .done
-        return segments.map { segment in
-            if labelled, let index = segment.speakerIndex { return "\(speakerName(index)): \(segment.text)" }
-            return segment.text
-        }
-        .joined(separator: "\n\n")
     }
 
     /// Trims, strips a leading "#", rejects blanks and case-insensitive duplicates. Returns whether it was added.

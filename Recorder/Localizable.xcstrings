@@ -1064,6 +1064,16 @@
         }
       }
     },
+    "Markdown": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markdown"
+          }
+        }
+      }
+    },
     "Match %lld of %lld": {
       "localizations": {
         "de": {
@@ -1384,6 +1394,16 @@
         }
       }
     },
+    "PDF": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PDF"
+          }
+        }
+      }
+    },
     "Parakeet": {
       "shouldTranslate": false
     },
@@ -1607,6 +1627,16 @@
         }
       }
     },
+    "SRT": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SRT"
+          }
+        }
+      }
+    },
     "Save": {
       "localizations": {
         "de": {
@@ -1673,6 +1703,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Teilen"
+          }
+        }
+      }
+    },
+    "Share As": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teilen als"
           }
         }
       }
@@ -1753,6 +1793,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sprechererkennung"
+          }
+        }
+      }
+    },
+    "Speaker Names": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprechernamen"
           }
         }
       }
@@ -1917,6 +1967,16 @@
         }
       }
     },
+    "Subtitles": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Untertitel"
+          }
+        }
+      }
+    },
     "Suggested": {
       "localizations": {
         "de": {
@@ -2057,6 +2117,16 @@
         }
       }
     },
+    "Text": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text"
+          }
+        }
+      }
+    },
     "The download server answered with error %lld. Try again later.": {
       "localizations": {
         "de": {
@@ -2173,6 +2243,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dieser Sprecher"
+          }
+        }
+      }
+    },
+    "Timestamps": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeitangaben"
           }
         }
       }
@@ -2397,6 +2477,16 @@
         }
       }
     },
+    "WebVTT": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WebVTT"
+          }
+        }
+      }
+    },
     "Welcome": {
       "localizations": {
         "de": {
@@ -2413,6 +2503,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Willkommen bei Feder"
+          }
+        }
+      }
+    },
+    "Word Document": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Word-Dokument"
           }
         }
       }

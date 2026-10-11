@@ -54,6 +54,23 @@ extension MainView {
                 closeCard()
             }
         }
+        if arguments.contains("-exportAllFormats"), let newest {
+            // QA: every export format of the newest transcript into tmp/ExportQA (with timestamps), to inspect
+            // the files from the simulator's container.
+            let snapshot = newest.exportSnapshot(names: true, timestamps: true, withWords: true)
+            let folder = FileManager.default.temporaryDirectory.appending(path: "ExportQA")
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            for format in TranscriptExport.Format.allCases {
+                if let url = try? await TranscriptExport.file(format, of: snapshot) {
+                    try? FileManager.default.copyItem(at: url, to: folder.appending(path: url.lastPathComponent))
+                }
+            }
+        }
+        if let text = UserDefaults.standard.string(forKey: "openSpotlightResult") {
+            // As if the first Spotlight result for `text` were tapped: once the launch's index sync has run (5 s).
+            do { try await Task.sleep(for: .seconds(7)) } catch { return }
+            if let id = await SpotlightIndex.debugQuery(text).first.flatMap(UUID.init(uuidString:)) { openFromOutside(id) }
+        }
         guard arguments.contains("-autoRecord") else { return }
         await services.prepareLiveDiarizer()           // live labels need the model loaded before the session is made
         startRecording()

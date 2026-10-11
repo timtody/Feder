@@ -8,14 +8,22 @@ import UIKit
 @MainActor
 enum ShareSheet {
     static func present(text: String, title: String) {
+        present(TranscriptItem(text: text, title: title))
+    }
+
+    /// An exported file (TranscriptExport): the sheet shows its name and type itself.
+    static func present(file: URL) {
+        present(file as NSURL)
+    }
+
+    private static func present(_ item: Any) {
         guard let root = UIApplication.shared.connectedScenes
                 .compactMap({ $0 as? UIWindowScene })
                 .flatMap(\.windows)
                 .first(where: \.isKeyWindow)?.rootViewController else { return }
         var top = root
         while let presented = top.presentedViewController, !presented.isBeingDismissed { top = presented }
-        let controller = UIActivityViewController(activityItems: [TranscriptItem(text: text, title: title)],
-                                                  applicationActivities: nil)
+        let controller = UIActivityViewController(activityItems: [item], applicationActivities: nil)
         top.present(controller, animated: true)
     }
 

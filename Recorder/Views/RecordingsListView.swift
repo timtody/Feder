@@ -109,7 +109,7 @@ struct RecordingsListView: View {
                                 Label("Delete", systemImage: "trash")
                             }
                             Button {
-                                ShareSheet.present(text: recording.plainText, title: recording.name)   // at once
+                                ShareSheet.present(text: TranscriptExport.plainText(recording), title: recording.name)   // at once
                             } label: {
                                 Label("Share", systemImage: "square.and.arrow.up")
                             }
@@ -268,6 +268,7 @@ struct RecordingsListView: View {
 
     private func delete(_ recording: Recording) {
         services.people.forget(recording)
+        SpotlightIndex.remove(recording.id)
         AudioFileStore.delete(fileName: recording.audioFileName)
         modelContext.delete(recording)
         try? modelContext.save()

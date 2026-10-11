@@ -110,6 +110,7 @@ extension Recording {
         hasher.combine(vocabularyPending)
         hasher.combine(speakerCountOverride)
         hasher.combine(speakerNames)                 // order-independent; the key is only ever compared in memory
+        hasher.combine(editCount)                    // words or speakers corrected by hand
         return hasher.finalize()
     }
 

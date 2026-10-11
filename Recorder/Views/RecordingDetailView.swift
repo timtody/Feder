@@ -40,6 +40,8 @@ struct RecordingDetailView: View {
     @State private var tagFocusRequest = 0           // each Add Tag press: focus the tag field (TagEditor)
     @State private var bodyShown: Bool
     @State private var hitGeometry = HitGeometry()
+    @AppStorage(TranscriptExport.namesKey) private var exportNames = true
+    @AppStorage(TranscriptExport.timestampsKey) private var exportTimestamps = false
     @State private var keepsStatusRow = false           // the status line was shown: its place stays (see body)
 
     init(recording: Recording, search: TranscriptSearchContext? = nil, fadesInBody: Bool = false, holdsBody: Bool = false,
@@ -208,6 +210,7 @@ struct RecordingDetailView: View {
             // and reading a deleted-and-saved (detached) @Model traps.
             guard deleteOnDisappear, !recording.isDeleted else { return }
             services.people.forget(recording)
+            SpotlightIndex.remove(recording.id)
             AudioFileStore.delete(fileName: recording.audioFileName)
             modelContext.delete(recording)
             try? modelContext.save()
@@ -281,11 +284,41 @@ struct RecordingDetailView: View {
         }
     }
 
-    /// The same system share sheet as the list's Share swipe action (title and app symbol in its header), presented
-    /// at once: ShareLink of the plain text showed a generic text icon and the first line instead.
+    /// Share: a menu of formats (TranscriptExport) and the two options, remembered for the next time. Text goes to
+    /// the same system share sheet as the list's Share swipe action (title and app symbol in its header; ShareLink of
+    /// the plain text showed a generic text icon and the first line instead); the others as a file, written off the
+    /// main actor first.
     private var shareButton: some View {
-        Button("Share Transcript", systemImage: "square.and.arrow.up") {
-            ShareSheet.present(text: recording.plainText, title: recording.name)
+        Menu {
+            Section("Share As") {
+                Button("Text", systemImage: "doc.plaintext") { share(.text) }
+                Button("PDF", systemImage: "doc.richtext") { share(.pdf) }
+                Button("Word Document", systemImage: "doc.text") { share(.word) }
+                Button("Markdown", systemImage: "number") { share(.markdown) }
+                Menu("Subtitles", systemImage: "captions.bubble") {
+                    Button("SRT") { share(.srt) }
+                    Button("WebVTT") { share(.vtt) }
+                }
+            }
+            Section {
+                Toggle("Speaker Names", isOn: $exportNames)
+                Toggle("Timestamps", isOn: $exportTimestamps)
+            }
+        } label: {
+            Label("Share Transcript", systemImage: "square.and.arrow.up")
+        }
+    }
+
+    private func share(_ format: TranscriptExport.Format) {
+        let snapshot = recording.exportSnapshot(names: exportNames, timestamps: exportTimestamps,
+                                                withWords: format.isSubtitles)
+        guard format != .text else {
+            ShareSheet.present(text: TranscriptExport.plainText(snapshot), title: recording.name)
+            return
+        }
+        Task {
+            guard let url = try? await TranscriptExport.file(format, of: snapshot) else { return }
+            ShareSheet.present(file: url)
         }
     }
 

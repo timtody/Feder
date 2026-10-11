@@ -1,3 +1,4 @@
+import CoreSpotlight
 import SwiftUI
 import SwiftData
 import UIKit
@@ -99,6 +100,11 @@ struct MainView: View {
             Onboarding(pages: onboardingPages)
         }
         .task { await offerOnboarding() }
+        // A transcript tapped in Spotlight (SpotlightIndex): its card, out of its row in the Transcripts list.
+        .onContinueUserActivity(CSSearchableItemActionType) { activity in
+            guard let id = SpotlightIndex.recordingID(from: activity) else { return }
+            openFromOutside(id)
+        }
         .environment(\.cardZoom, cardZoom)
         .environment(\.openTranscript, OpenTranscriptAction { recording, search, sourceID in
             openCard(recording, search: search, sourceID: sourceID)
@@ -174,6 +180,18 @@ struct MainView: View {
         InteractionTrace.begin("open")
         endEditing()
         present(CardRequest(transcript: recording, search: search, sourceID: sourceID))
+    }
+
+    /// A transcript asked for from outside the app (Spotlight): the Transcripts list goes behind the card, and the card
+    /// opens out of its row. A recording going on stays in the accessory.
+    func openFromOutside(_ id: UUID) {
+        var descriptor = FetchDescriptor<Recording>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        guard let recording = try? modelContext.fetch(descriptor).first else { return }
+        tab = .transcripts
+        if cardPhase == .open { closeCard() }
+        openCard(recording, search: nil,
+                 sourceID: OpenTranscriptAction.rowSource(RecordingsListView.transcriptsList, recording))
     }
 
     /// Opens the card on `request`, or, while the last card is still shrinking away, once it is gone (cardDismissed).
