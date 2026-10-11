@@ -35,6 +35,10 @@ struct TranscriptView: View {
     /// Edit Text: each paragraph is a text field writing into these drafts (by segment id; a paragraph not touched has
     /// none). nil: the paragraphs are text with the system's selection.
     var edits: Binding<[UUID: String]>? = nil
+    /// Edit Text's speaker chips: a paragraph moved to another speaker (segment id → speaker index; an index past the
+    /// transcript's speakers is a new speaker). Set with `edits`: each paragraph then has a chip above it instead of the
+    /// turns' name rows, so one paragraph can go to another speaker (the name row's menu moves a whole turn).
+    var speakerEdits: Binding<[UUID: Int]>? = nil
 
     enum SpeakerEdit {
         case assign(turnStartingAt: UUID, to: Int?)       // nil: a new speaker
@@ -55,8 +59,14 @@ struct TranscriptView: View {
         LazyVStack(alignment: .leading, spacing: 0) {
             ForEach(Array(segments.enumerated()), id: \.element.id) { index, segment in
                 let startsTurn = index == 0 || segments[index - 1].speakerIndex != segment.speakerIndex
-                let showsHeader = startsTurn && segment.speakerIndex != nil && speakerName != nil
+                let chips = speakerEdits != nil && segment.speakerIndex != nil && speakerName != nil
+                let showsHeader = startsTurn && segment.speakerIndex != nil && speakerName != nil && !chips
                 VStack(alignment: .leading, spacing: 0) {
+                    if chips, let speaker = segment.speakerIndex, let speakerEdits {
+                        speakerChip(index: index, segment: segment.id, speaker: speaker, edits: speakerEdits)
+                            .padding(.top, startsTurn ? TranscriptStyle.turnSpacing - 8 : 4)
+                            .padding(.bottom, TranscriptStyle.nameToText + 2)
+                    }
                     if showsHeader, let speaker = segment.speakerIndex, let speakerName {
                         header(index: index, segment: segment.id, speaker: speaker, name: speakerName(speaker),
                                start: segment.start, showsTip: index == 0 && showsNameTip && !preliminary)
@@ -88,6 +98,42 @@ struct TranscriptView: View {
             do { try await Task.sleep(for: .seconds(4)) } catch { return }
             withAnimation { noticeRow = nil }
         }
+    }
+
+    /// Edit Text: the paragraph's speaker (as chosen so far) as a menu of the transcript's speakers, the new ones chosen
+    /// for other paragraphs, and New Speaker.
+    private func speakerChip(index: Int, segment: UUID, speaker: Int, edits: Binding<[UUID: Int]>) -> some View {
+        let chosen = edits.wrappedValue[segment] ?? speaker
+        let existing = speakers
+        let added = Set(edits.wrappedValue.values).subtracting(existing).sorted()
+        let next = max(existing.max() ?? -1, added.max() ?? -1) + 1
+        let name = { (index: Int) in speakerName?(index) ?? String(localized: "Speaker \(index + 1)") }
+        return Menu {
+            ForEach(existing + added, id: \.self) { choice in
+                Button {
+                    edits.wrappedValue[segment] = choice == speaker ? nil : choice
+                } label: {
+                    if choice == chosen { Label(name(choice), systemImage: "checkmark") } else { Text(name(choice)) }
+                }
+            }
+            Divider()
+            Button("New Speaker", systemImage: "plus") { edits.wrappedValue[segment] = next }
+        } label: {
+            HStack(spacing: 4) {
+                Text(name(chosen))
+                    .font(.subheadline.weight(.semibold))
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2.weight(.semibold))
+            }
+            .foregroundStyle(SpeakerPalette.color(chosen))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(SpeakerPalette.color(chosen).opacity(0.14), in: Capsule())
+            .contentShape(Capsule())
+        }
+        .accessibilityLabel(name(chosen))
+        .accessibilityHint("Changes the speaker of this paragraph.")
+        .accessibilityIdentifier("SpeakerChip.\(index)")
     }
 
     @ViewBuilder

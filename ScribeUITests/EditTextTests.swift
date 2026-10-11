@@ -14,8 +14,10 @@ final class EditTextTests: ScribeUITestCase {
                                                               : app.textViews["ParagraphField.0"]
         XCTAssertTrue(field.waitForExistence(timeout: 5), "the paragraphs are fields")
         XCTAssertTrue(app.buttons["Done Editing"].exists && app.buttons["Cancel Editing"].exists, "Done and Cancel")
-        field.tap()
-        field.typeKey(.downArrow, modifierFlags: .command)                  // to the end
+        // The cursor to the end: a tap right of the last line's end (⌘↓ didn't always move it once the software
+        // keyboard came up, and the word went in at the start).
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.88)).tap()
+        sleep(1)
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "under.".count) + word + ".")
         shot("Editing", app)
         hittable(app.buttons.matching(NSPredicate(format: "label == %@", "Done Editing")), or: app.buttons["Done Editing"]).tap()

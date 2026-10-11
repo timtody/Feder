@@ -168,6 +168,7 @@ final class SpeakerIdentifier {
     func setSpeakerCount(_ count: Int?, for recording: Recording) {
         guard !isGone(recording), !inFlight.contains(recording.id) else { return }
         recording.speakerCountOverride = count
+        if lastCorrection?.recordingID == recording.id { lastCorrection = nil }   // its speakers are about to change
         people.resetSpeakers(of: recording)                   // speaker numbers change: links and samples go
         recording.speakerNames = [:]
         recording.speakerStatus = .pending
@@ -182,20 +183,104 @@ final class SpeakerIdentifier {
         !isGone(recording) && recording.speakerStatus == .done && !inFlight.contains(recording.id)
     }
 
+    /// The last hand correction (any transcript), which Undo takes back: one level, replaced by the next correction and
+    /// dropped when the transcript's speakers are identified again ("Speakers: n").
+    struct UndoableCorrection: Identifiable {
+        enum Kind { case assign, merge, edit }
+        let id = UUID()
+        let recordingID: UUID
+        let kind: Kind
+        fileprivate let snapshot: CorrectionSnapshot
+    }
+    private(set) var lastCorrection: UndoableCorrection?
+
+    /// What a correction changes in a transcript, and in the people (their samples from it).
+    fileprivate struct CorrectionSnapshot {
+        var words: [TranscriptWord]
+        var segments: [TranscriptSegment]
+        var speakerTurns: [SpeakerTurn]
+        var speakerNames: [Int: String]
+        var speakerPeople: [Int: UUID]
+        var speakerVoices: [Int: [Float]]
+        var voicesVersion: Int
+        var people: PeopleDirectory.Snapshot
+    }
+
+    private func snapshot(of recording: Recording) -> CorrectionSnapshot {
+        CorrectionSnapshot(words: recording.words, segments: recording.segments, speakerTurns: recording.speakerTurns,
+                           speakerNames: recording.speakerNames, speakerPeople: recording.speakerPeople,
+                           speakerVoices: recording.speakerVoices, voicesVersion: recording.voicesVersion,
+                           people: people.snapshot(of: recording))
+    }
+
+    /// Takes the last correction back, if it was `recording`'s: words, paragraphs, speakers, names, voices and the
+    /// people's samples from it as they were. A voice job still running for the correction drops its result
+    /// (refreshVoices(of:) checks `editCount`).
+    func undoLastCorrection(of recording: Recording) {
+        guard let undo = lastCorrection, undo.recordingID == recording.id, !isGone(recording),
+              recording.speakerStatus == .done else { return }
+        lastCorrection = nil
+        let state = undo.snapshot
+        recording.words = state.words
+        recording.segments = state.segments
+        recording.speakerTurns = state.speakerTurns
+        recording.speakerNames = state.speakerNames
+        recording.speakerPeople = state.speakerPeople
+        recording.speakerVoices = state.speakerVoices
+        recording.voicesVersion = state.voicesVersion
+        people.restore(state.people, of: recording)
+        recording.editCount += 1                              // search and Spotlight read it again
+        try? modelContext.save()
+    }
+
     /// The paragraphs `segments` (one stretch of the transcript) go to `speaker`, or to a new speaker (nil): the name
     /// row's "Assign to", and Edit Text's speaker chip.
     func assign(_ segments: [TranscriptSegment], to speaker: Int?, in recording: Recording) {
         guard canCorrectSpeakers(of: recording), let first = segments.first, let last = segments.last else { return }
+        let before = snapshot(of: recording)
         let target = speaker ?? recording.speakerCount
         let offset = recording.alignmentOffset
         apply(SpeakerCorrection.assigning(recording.correctableTurns, start: first.start - offset,
                                           end: last.end - offset, to: target), to: recording)
+        lastCorrection = UndoableCorrection(recordingID: recording.id, kind: .assign, snapshot: before)
+    }
+
+    /// Edit Text's Done: the paragraphs' new text into the words (Recording.applyTextEdits), then the paragraphs whose
+    /// speaker chip was changed to their new speakers (`speakers`: segment id → speaker index; an index past the
+    /// transcript's speakers is a new one, the same index for several paragraphs the same new speaker). One correction
+    /// for Undo. Returns the words typed in place of others (for Your Words).
+    func applyEdits(text: [UUID: String], speakers: [UUID: Int], in recording: Recording) -> [String] {
+        guard canCorrectSpeakers(of: recording) else { return [] }
+        let before = snapshot(of: recording)
+        let editsBefore = recording.editCount
+        let replacements = recording.applyTextEdits(text)
+        // The paragraphs keep their ids through the text's re-alignment (by overlap), so the chips' choices still
+        // name them; a paragraph whose text was deleted is gone, and its choice with it.
+        let offset = recording.alignmentOffset
+        var turns = recording.correctableTurns
+        var moved = false
+        for segment in recording.segments {
+            guard let target = speakers[segment.id], target != segment.speakerIndex else { continue }
+            turns = SpeakerCorrection.assigning(turns, start: segment.start - offset, end: segment.end - offset, to: target)
+            moved = true
+        }
+        if moved {
+            apply(turns, to: recording)
+        } else if recording.editCount != editsBefore {
+            try? modelContext.save()
+        }
+        if moved || recording.editCount != editsBefore {
+            lastCorrection = UndoableCorrection(recordingID: recording.id, kind: .edit, snapshot: before)
+        }
+        return replacements
     }
 
     /// Everything `from` said becomes `into`'s: the name row's "Merge Into". `into` keeps its name; an unnamed `into`
     /// takes `from`'s name and person.
     func merge(_ from: Int, into: Int, in recording: Recording) {
         guard canCorrectSpeakers(of: recording), from != into else { return }
+        let before = snapshot(of: recording)
+        defer { lastCorrection = UndoableCorrection(recordingID: recording.id, kind: .merge, snapshot: before) }
         if recording.speakerNames[into] == nil, let name = recording.speakerNames[from] {
             recording.speakerNames[into] = name
             recording.speakerPeople[into] = recording.speakerPeople[from]
@@ -423,10 +508,13 @@ final class SpeakerIdentifier {
         }
         let url = recording.audioURL
         let words = recording.words
+        let edits = recording.editCount
         let labels = TranscriptAligner.speakers(words: words, turns: TranscriptAligner.turns(from: recording.segments),
                                                 smoothing: false)
+        // Dropped when the transcript was corrected or a correction undone meanwhile: the voices belong to labels
+        // that are gone (the next job, if any, computes them again).
         guard let voices = try? await diarizer.voices(fileURL: url, windows: VoiceWindows.windows(words: words, speakers: labels)),
-              !isGone(recording), recording.speakerStatus == .done else { return }
+              !isGone(recording), recording.speakerStatus == .done, recording.editCount == edits else { return }
         people.replaceVoices(of: recording, with: voices.mapValues(\.embedding))
         recording.voicesVersion = Self.voicesVersion
         try? modelContext.save()

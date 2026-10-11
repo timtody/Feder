@@ -144,6 +144,45 @@ final class PeopleDirectory {
         linked.subtracting(recording.speakerPeople.values).forEach(removeIfUnused)
     }
 
+    /// What a hand correction of `recording` can change in the people: their samples from this transcript, and the
+    /// people linked to it (one left without samples and transcripts is removed). Undo puts it back (`restore`).
+    struct Snapshot {
+        struct Entry {
+            var id: UUID
+            var name: String
+            var createdAt: Date
+            var samples: [VoiceSample]     // this transcript's only
+        }
+        var entries: [Entry]
+    }
+
+    func snapshot(of recording: Recording) -> Snapshot {
+        let linked = Set(recording.speakerPeople.values)
+        return Snapshot(entries: allPeople().compactMap { person in
+            let samples = person.samples.filter { $0.recordingID == recording.id }
+            guard !samples.isEmpty || linked.contains(person.id) else { return nil }
+            return Snapshot.Entry(id: person.id, name: person.name, createdAt: person.createdAt, samples: samples)
+        })
+    }
+
+    /// Undo of a hand correction: this transcript's samples are those of `snapshot` again, and a person the correction
+    /// removed comes back with its id (the transcript's links point to it).
+    func restore(_ snapshot: Snapshot, of recording: Recording) {
+        var people = Dictionary(uniqueKeysWithValues: allPeople().map { ($0.id, $0) })
+        for person in people.values { person.removeSamples { $0.recordingID == recording.id } }
+        for entry in snapshot.entries {
+            let person = people[entry.id] ?? {
+                let person = Person(name: entry.name)
+                person.id = entry.id
+                person.createdAt = entry.createdAt
+                modelContext.insert(person)
+                people[entry.id] = person
+                return person
+            }()
+            for sample in entry.samples { person.setSample(sample) }
+        }
+    }
+
     /// Before a transcript is deleted: its samples go, people left with neither samples nor transcripts go too.
     func forget(_ recording: Recording) {
         let linked = Set(recording.speakerPeople.values)

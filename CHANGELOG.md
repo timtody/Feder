@@ -9,7 +9,17 @@ release carries a later version's features, its notes are the 1.0 text plus thos
 
 ### English
 
+- Undo a correction: after you change a speaker, merge two speakers or edit the text, tap Undo, or shake your iPhone.
+- Give a single paragraph to another speaker: in Edit Text, each paragraph has its speaker above it to change.
+- Naming a speaker from the tip takes one tap.
+
 ### Deutsch
+
+- Mach eine Korrektur rückgängig: Nachdem du einen Sprecher geändert, zwei zusammengeführt oder den Text bearbeitet
+  hast, tippe auf „Widerrufen“ oder schüttle dein iPhone.
+- Ordne einen einzelnen Absatz einem anderen Sprecher zu: Beim Bearbeiten steht über jedem Absatz sein Sprecher zum
+  Ändern.
+- Einen Sprecher aus dem Tipp heraus zu benennen, braucht nur noch einen Tipp.
 
 ## 1.1
 

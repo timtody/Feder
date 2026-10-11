@@ -42,12 +42,16 @@ struct RecordingDetailView: View {
     @State private var hitGeometry = HitGeometry()
     @AppStorage(TranscriptExport.namesKey) private var exportNames = true
     @AppStorage(TranscriptExport.timestampsKey) private var exportTimestamps = false
-    @State private var keepsStatusRow = false
+    @State private var keepsStatusRow = false           // the status line was shown: its place stays (see body)
     @State private var pendingMerge: SpeakerMerge?
-    /// Edit Text: the paragraphs' drafts while editing (by segment id), nil otherwise.
+    /// Edit Text: the paragraphs' text and speaker-chip drafts while editing (by segment id), nil otherwise.
     @State private var textEdits: [UUID: String]?
+    @State private var speakerEdits: [UUID: Int] = [:]
     /// Words typed in place of others, offered for Your Words after Done.
-    @State private var vocabularyOffer: [String]?           // the status line was shown: its place stays (see body)
+    @State private var vocabularyOffer: [String]?
+    /// The Undo toast for the last correction, until it times out (shake to undo works on).
+    @State private var undoToast: UUID?
+    @Environment(\.undoManager) private var undoManager
 
     init(recording: Recording, search: TranscriptSearchContext? = nil, fadesInBody: Bool = false, holdsBody: Bool = false,
          turning: Bool = false, onClose: @escaping () -> Void) {
@@ -143,7 +147,8 @@ struct RecordingDetailView: View {
                                hitFrame: search == nil ? nil : { id, frame in hitGeometry.frames[id] = frame },
                                flashes: isEditingText ? nil : flashes,
                                showsNameTip: search == nil && recording.speakerNames.isEmpty && !isEditingText,
-                               correctSpeaker: speakerCorrection, edits: textEditsBinding)
+                               correctSpeaker: speakerCorrection, edits: textEditsBinding,
+                               speakerEdits: isEditingText ? $speakerEdits : nil)
                     .opacity(bodyShown ? 1 : 0)
             }
             .coordinateSpace(.named(TranscriptView.contentSpace))
@@ -159,6 +164,21 @@ struct RecordingDetailView: View {
         // (pixel track on the iPhone 17 simulator; testRecordAccessoryFlow measured 4-23 pt).
         // The soft edge under the bottom toolbar, as in Notes and Mail (and as the live view has under its Stop).
         .scrollEdgeEffectStyle(.soft, for: .bottom)
+        // The last correction's Undo, above the bottom toolbar for a few seconds (like Mail's Undo after a delete).
+        .overlay(alignment: .bottom) {
+            if let undoToast, services.identifier.lastCorrection?.id == undoToast,
+               let kind = services.identifier.lastCorrection?.kind {
+                UndoToast(title: Self.undoTitle(kind), undo: undoCorrection)
+                    .padding(.bottom, 10)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.snappy, value: undoToast)
+        .task(id: undoToast) {
+            guard undoToast != nil else { return }
+            do { try await Task.sleep(for: .seconds(6)) } catch { return }
+            undoToast = nil
+        }
         .safeAreaBar(edge: .bottom) {
             // While the toolbar is hidden under the melt's replicas: a stand-in of its height (52 pt, the inset the bar
             // adds), so the soft edge is already there and doesn't switch on at once when the real bar takes over.
@@ -199,7 +219,7 @@ struct RecordingDetailView: View {
         .toolbar {
             if isEditingText {
                 ToolbarItemGroup(placement: .keyboard) {
-                    Button(role: .cancel) { textEdits = nil; endEditing() }
+                    Button(role: .cancel) { cancelEditingText() }
                         .accessibilityLabel("Cancel Editing")
                     Spacer()
                     Button(role: .confirm, action: finishEditingText)
@@ -229,7 +249,10 @@ struct RecordingDetailView: View {
                             isPresented: Binding(get: { pendingMerge != nil }, set: { if !$0 { pendingMerge = nil } }),
                             titleVisibility: .visible) {
             Button("Merge") {
-                if let merge = pendingMerge { services.identifier.merge(merge.from, into: merge.into, in: recording) }
+                if let merge = pendingMerge {
+                    services.identifier.merge(merge.from, into: merge.into, in: recording)
+                    offerUndo()
+                }
             }
         } message: {
             Text("Everything they said is then one speaker's.")
@@ -265,7 +288,7 @@ struct RecordingDetailView: View {
     private var bottomBar: some ToolbarContent {
         if isEditingText {
             ToolbarItem(placement: .bottomBar) {
-                Button(role: .cancel) { textEdits = nil; endEditing() }          // glass xmark
+                Button(role: .cancel) { cancelEditingText() }          // glass xmark
                     .accessibilityLabel("Cancel Editing")
             }
             ToolbarSpacer(.flexible, placement: .bottomBar)
@@ -431,6 +454,7 @@ struct RecordingDetailView: View {
     private var editTextButton: some View {
         Button("Edit Text", systemImage: "pencil") {
             titleFocused = false
+            speakerEdits = [:]
             textEdits = [:]
         }
         .disabled(!services.identifier.canCorrectSpeakers(of: recording))
@@ -438,15 +462,56 @@ struct RecordingDetailView: View {
 
     /// Done: the edited paragraphs into the words (Recording.applyTextEdits); words typed in place of others are
     /// offered for Your Words, so the next transcripts get them right.
+    /// Done: the text and the speaker chips in one correction (SpeakerIdentifier.applyEdits, one step for Undo); words
+    /// typed in place of others are offered for Your Words.
     private func finishEditingText() {
         guard let drafts = textEdits else { return }
+        let speakers = speakerEdits
         textEdits = nil
+        speakerEdits = [:]
         endEditing()
-        guard !drafts.isEmpty, services.identifier.canCorrectSpeakers(of: recording) else { return }
-        let replacements = recording.applyTextEdits(drafts)
-        try? modelContext.save()
+        guard !drafts.isEmpty || !speakers.isEmpty else { return }
+        let replacements = services.identifier.applyEdits(text: drafts, speakers: speakers, in: recording)
+        offerUndo()
         let candidates = TextCorrection.vocabularyCandidates(replacements, known: Vocabulary.custom)
         if !candidates.isEmpty { vocabularyOffer = Array(candidates.prefix(5)) }
+    }
+
+    private func cancelEditingText() {
+        textEdits = nil
+        speakerEdits = [:]
+        endEditing()
+    }
+
+    // MARK: Undo
+
+    /// After a correction of this transcript: the Undo toast for a few seconds, and Undo for shaking the iPhone (the
+    /// system's shake-to-undo, through the window's UndoManager) until the next correction.
+    private func offerUndo() {
+        guard let correction = services.identifier.lastCorrection, correction.recordingID == recording.id else { return }
+        undoToast = correction.id
+        let identifier = services.identifier
+        let recording = recording
+        undoManager?.removeAllActions()
+        undoManager?.registerUndo(withTarget: identifier) { identifier in
+            MainActor.assumeIsolated { identifier.undoLastCorrection(of: recording) }
+        }
+        undoManager?.setActionName(Self.undoTitle(correction.kind))
+    }
+
+    private func undoCorrection() {
+        undoToast = nil
+        undoManager?.removeAllActions()
+        services.identifier.undoLastCorrection(of: recording)
+    }
+
+    /// What the toast says was done, and the shake alert's "Undo …".
+    private static func undoTitle(_ kind: SpeakerIdentifier.UndoableCorrection.Kind) -> String {
+        switch kind {
+        case .assign: String(localized: "Speaker Changed")
+        case .merge: String(localized: "Speakers Merged")
+        case .edit: String(localized: "Transcript Edited")
+        }
     }
 
     private func endEditing() {
@@ -465,6 +530,7 @@ struct RecordingDetailView: View {
         switch edit {
         case .assign(let id, let speaker):
             services.identifier.assign(recording.turnSegments(startingAt: id), to: speaker, in: recording)
+            offerUndo()
         case .merge(let from, let into):
             pendingMerge = SpeakerMerge(from: from, into: into)
         }
@@ -617,3 +683,23 @@ private final class HitGeometry {
     .environment(AppServices(container: PreviewData.container))
 }
 #endif
+
+/// "Speakers Merged · Undo": a glass capsule with what was done and an Undo button.
+private struct UndoToast: View {
+    let title: String
+    let undo: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+            Button("Undo", action: undo)
+                .font(.subheadline.weight(.semibold))
+                .accessibilityIdentifier("UndoCorrection")
+        }
+        .padding(.leading, 18)
+        .padding(.trailing, 14)
+        .padding(.vertical, 10)
+        .glassEffect(.regular.interactive(), in: Capsule())
+    }
+}

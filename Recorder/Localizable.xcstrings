@@ -414,6 +414,16 @@
         }
       }
     },
+    "Changes the speaker of this paragraph.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ändert den Sprecher dieses Absatzes."
+          }
+        }
+      }
+    },
     "Check What Matters": {
       "localizations": {
         "de": {
@@ -1967,6 +1977,16 @@
         }
       }
     },
+    "Speaker Changed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprecher geändert"
+          }
+        }
+      }
+    },
     "Speaker Identification": {
       "localizations": {
         "de": {
@@ -2043,6 +2063,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sprecher"
+          }
+        }
+      }
+    },
+    "Speakers Merged": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprecher zusammengeführt"
           }
         }
       }
@@ -2567,6 +2597,16 @@
         }
       }
     },
+    "Transcript Edited": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkript bearbeitet"
+          }
+        }
+      }
+    },
     "Transcription": {
       "localizations": {
         "de": {
@@ -2653,6 +2693,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tippe ein Wort aus einem Gespräch in die iPhone-Suche und öffne das Transkript direkt von dort."
+          }
+        }
+      }
+    },
+    "Undo": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widerrufen"
           }
         }
       }
