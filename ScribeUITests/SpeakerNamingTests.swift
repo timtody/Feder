@@ -212,6 +212,8 @@ final class SpeakerNamingTests: ScribeUITestCase {
         app.buttons["Continue"].tap()
         app.buttons["Continue"].tap()
         app.buttons["No Thanks"].tap()
+        XCTAssertTrue(app.buttons["Show in iPhone Search"].waitForExistence(timeout: 5))
+        app.buttons["No Thanks"].tap()
         if app.buttons["Not Now"].waitForExistence(timeout: 3) { app.buttons["Not Now"].tap() }
         XCTAssertTrue(app.staticTexts["Welcome to Feder"].waitForNonExistence(timeout: 5))
         let transcripts = app.buttons["Transcripts"].firstMatch

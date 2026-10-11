@@ -13,8 +13,8 @@ Each version has an English and a German list.
 - Titles and summaries are written in your iPhone's language. Existing ones are written again once.
 - Share a transcript as a PDF, a Word document, Markdown or subtitles (SRT, WebVTT), or as text, with or without speaker
   names and timestamps.
-- Find your transcripts in the iPhone's search: type a word from a conversation on the Home Screen and open it straight
-  from the result.
+- Find your transcripts in the iPhone's search, if you turn it on: type a word from a conversation on the Home Screen
+  and open it straight from the result. It's off until you choose it, and the index stays on your iPhone.
 - Fix a misheard word: tap the pencil under a transcript, correct the text, and add new words to Your Words so later
   transcripts get them right.
 - Fix who said what: touch and hold a speaker's name to give that part to another speaker or to a new one, or to merge
@@ -29,8 +29,9 @@ Each version has an English and a German list.
 - Titel und Zusammenfassungen entstehen in der Sprache deines iPhones. Bestehende werden einmal neu geschrieben.
 - Teile ein Transkript als PDF, Word-Dokument, Markdown oder Untertitel (SRT, WebVTT) oder als Text, mit oder ohne
   Sprechernamen und Zeitangaben.
-- Finde deine Transkripte in der iPhone-Suche: Tippe auf dem Home-Bildschirm ein Wort aus einem Gespräch und öffne es
-  direkt aus dem Treffer.
+- Finde deine Transkripte in der iPhone-Suche, wenn du sie einschaltest: Tippe auf dem Home-Bildschirm ein Wort aus
+  einem Gespräch und öffne es direkt aus dem Treffer. Sie ist aus, bis du sie wählst, und der Index bleibt auf deinem
+  iPhone.
 - Korrigiere falsch verstandene Wörter: Tippe auf den Stift unter einem Transkript, berichtige den Text und füge neue
   Wörter zu „Deine Wörter“ hinzu, damit spätere Transkripte sie richtig schreiben.
 - Korrigiere, wer was gesagt hat: Halte den Namen eines Sprechers gedrückt, um den Abschnitt einem anderen oder einem

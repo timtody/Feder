@@ -7,11 +7,12 @@ final class SystemIntegrationTests: ScribeUITestCase {
     /// as Spotlight does and opens the first result through the same path as a tapped result (MainView.openFromOutside).
     @MainActor
     func testSpotlightFindsTranscript() throws {
-        let app = launch(["-openSpotlightResult", "workshops"])     // a word only in Budget Review's text
+        let app = launch(["-spotlightOn", "-openSpotlightResult", "workshops"])     // a word only in Budget Review's text
         XCTAssertTrue(app.buttons["SpeakerHeader.0"].waitForExistence(timeout: 20), "the result's card opens")
         XCTAssertEqual(app.textFields["Title"].value as? String, "Budget Review")
         closeCard(app)
-        XCTAssertTrue(app.staticTexts["Budget Review"].exists, "back in the Transcripts list")
+        // (Budget Review itself may be below the screen: the tests' recordings are newer.)
+        XCTAssertTrue(transcribe(app).waitForExistence(timeout: 5), "back in the list, with the record accessory")
     }
 }
 

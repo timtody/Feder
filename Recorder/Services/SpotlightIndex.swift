@@ -7,8 +7,11 @@ import UniformTypeIdentifiers
 /// The transcripts in the iPhone's own search (Spotlight): title, summary, tags, speaker names and the words, so a
 /// search on the home screen for "budget" finds the transcript and opens its card (MainView's
 /// `onContinueUserActivity`). The index is Core Spotlight's on the device; it never leaves the iPhone (not eligible for
-/// public indexing), and with `.complete` protection it is readable only while the iPhone is unlocked. Hiding Feder's
-/// content from search is the system's own switch (Settings › Apps › Feder › Search), so there is none in the app.
+/// public indexing), and with `.complete` protection it is readable only while the iPhone is unlocked. Opt-in
+/// (`enabledKey`, off until the user turns it on in the onboarding or Settings, October 2026): the transcripts then
+/// also sit in a system index outside the app's store, and what the user types into the iPhone's search can go to
+/// Apple for suggestions (iOS's, not Feder's), so it is the user's choice, like voice profiles. Off, the index is
+/// deleted.
 ///
 /// Kept in step by `sync`: at launch and whenever the app goes to the background (before the user can use Spotlight).
 /// It compares a key per transcript (`indexKey`: title, tags, summary, speakers, edits; not the words, which are the
@@ -19,6 +22,9 @@ enum SpotlightIndex {
     nonisolated static let domain = "transcripts"
     /// UserDefaults: `[id: indexKey]` of what is in the index.
     nonisolated static let keysKey = "spotlightKeys"
+    /// UserDefaults: "Show in iPhone Search" (onboarding, Settings); absent means off.
+    nonisolated static let enabledKey = "spotlightIndexing"
+    nonisolated static var isEnabled: Bool { UserDefaults.standard.bool(forKey: enabledKey) }
     /// Transcripts whose paragraphs are read per turn of the main actor.
     private static let batch = 8
 
@@ -39,6 +45,12 @@ enum SpotlightIndex {
 
     /// Brings the index up to date with the store.
     static func sync(_ context: ModelContext) async {
+        guard isEnabled else {
+            // Off: everything Feder put into the index goes (also what an earlier build indexed before it was opt-in).
+            guard UserDefaults.standard.dictionary(forKey: keysKey) != nil else { return }
+            if await deleteAll() { UserDefaults.standard.removeObject(forKey: keysKey) }
+            return
+        }
         guard let recordings = try? context.fetch(FetchDescriptor<Recording>()) else { return }
         let known = UserDefaults.standard.dictionary(forKey: keysKey) as? [String: String] ?? [:]
         let keys = Dictionary(uniqueKeysWithValues: recordings.map { ($0.id.uuidString, indexKey($0)) })
@@ -58,6 +70,11 @@ enum SpotlightIndex {
         print("[Scribe] spotlight: indexed \(entries.count), removed \(gone.count)")
         #endif
         UserDefaults.standard.set(keys, forKey: keysKey)
+    }
+
+    @concurrent
+    nonisolated private static func deleteAll() async -> Bool {
+        (try? await index.deleteAllSearchableItems()) != nil
     }
 
     @concurrent

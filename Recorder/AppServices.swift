@@ -88,6 +88,12 @@ final class AppServices {
         } else if ProcessInfo.processInfo.arguments.contains("-voiceRecognitionOn") {
             UserDefaults.standard.set(true, forKey: PeopleDirectory.recognitionKey)
         }
+        // Likewise "Show in iPhone Search": `-spotlightOn` stores it on, `-resetSpotlight` removes it.
+        if ProcessInfo.processInfo.arguments.contains("-resetSpotlight") {
+            UserDefaults.standard.removeObject(forKey: SpotlightIndex.enabledKey)
+        } else if ProcessInfo.processInfo.arguments.contains("-spotlightOn") {
+            UserDefaults.standard.set(true, forKey: SpotlightIndex.enabledKey)
+        }
         #endif
         identifier = SpeakerIdentifier(diarizer: diarizer, fileTranscriber: fileTranscriber, people: people,
                                        betterSummaries: betterSummaries, modelContext: container.mainContext)

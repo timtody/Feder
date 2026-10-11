@@ -894,6 +894,26 @@
         }
       }
     },
+    "Find Transcripts in iPhone Search": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkripte in der iPhone-Suche finden"
+          }
+        }
+      }
+    },
+    "From the Home Screen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vom Home-Bildschirm aus"
+          }
+        }
+      }
+    },
     "Gemma by Google · 3.6 GB": {
       "localizations": {
         "de": {
@@ -1484,6 +1504,16 @@
         }
       }
     },
+    "Off: your transcripts are not in the iPhone's search.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus: Deine Transkripte sind nicht in der iPhone-Suche."
+          }
+        }
+      }
+    },
     "On-device transcription isn't available on this device.": {
       "localizations": {
         "de": {
@@ -1867,6 +1897,16 @@
         }
       }
     },
+    "Show in iPhone Search": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In der iPhone-Suche zeigen"
+          }
+        }
+      }
+    },
     "Shows all of it.": {
       "localizations": {
         "de": {
@@ -2103,6 +2143,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Startet eine neue Aufnahme mit Live-Transkript"
+          }
+        }
+      }
+    },
+    "Stays on This iPhone": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bleibt auf diesem iPhone"
           }
         }
       }
@@ -2367,6 +2417,16 @@
         }
       }
     },
+    "The search index is kept on this iPhone and can be read only while it is unlocked. We never upload it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Suchindex liegt auf diesem iPhone und ist nur lesbar, solange es entsperrt ist. Wir laden ihn nie hoch."
+          }
+        }
+      }
+    },
     "The speaker models are %lld MB. Download them now, or wait for Wi-Fi.": {
       "localizations": {
         "de": {
@@ -2587,6 +2647,16 @@
         }
       }
     },
+    "Type a word from a conversation in the iPhone's search and open the transcript from there.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippe ein Wort aus einem Gespräch in die iPhone-Suche und öffne das Transkript direkt von dort."
+          }
+        }
+      }
+    },
     "Untitled Transcript": {
       "localizations": {
         "de": {
@@ -2677,6 +2747,26 @@
         }
       }
     },
+    "What You Type": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was du eingibst"
+          }
+        }
+      }
+    },
+    "What you type into the iPhone's search can go to Apple for suggestions. You can turn that off in the iPhone's Settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was du in die iPhone-Suche tippst, kann für Vorschläge an Apple gehen. Das kannst du in den Einstellungen des iPhone ausschalten."
+          }
+        }
+      }
+    },
     "Word Document": {
       "localizations": {
         "de": {
@@ -2747,6 +2837,16 @@
         }
       }
     },
+    "Your transcripts can be found in the iPhone's search. The index stays on this iPhone and can be read only while it is unlocked. What you type there can go to Apple for suggestions; that is set in the iPhone's Settings › Search.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Transkripte lassen sich in der iPhone-Suche finden. Der Index bleibt auf diesem iPhone und ist nur lesbar, solange es entsperrt ist. Was du dort eingibst, kann für Vorschläge an Apple gehen; das stellst du in den Einstellungen des iPhone unter „Suche“ ein."
+          }
+        }
+      }
+    },
     "^[%lld Transcript](inflect: true)": {
       "localizations": {
         "de": {
@@ -2775,6 +2875,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "^[%lld Transkript](inflect: true)"
+          }
+        }
+      }
+    },
+    "iPhone Search": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone-Suche"
           }
         }
       }

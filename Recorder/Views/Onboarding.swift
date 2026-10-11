@@ -1,5 +1,6 @@
 import SwiftUI
 import Speech
+import SwiftData
 
 /// A page of the onboarding sheet.
 enum OnboardingPage: Hashable {
@@ -13,6 +14,9 @@ enum OnboardingPage: Hashable {
     /// Recognizing people by voice: what it does, that voice profiles are biometric data and need consent, that they
     /// never leave the iPhone; its switch is off until the user turns it on. Once for everyone.
     case voiceProfiles
+    /// Transcripts in the iPhone's search (Spotlight): what it does, that the index stays on the iPhone, and that what
+    /// one types there can go to Apple for suggestions; off until the user turns it on. Once for everyone.
+    case spotlight
     /// The optional downloads, on one page, each with its switch: Parakeet (610 MB, more accurate transcripts after
     /// Stop) and Gemma (3.6 GB, titles and summaries; 8 GB iPhones only). Download / Not Now.
     case improvements
@@ -42,6 +46,8 @@ struct Onboarding: View {
     static let recordingNoticeKey = "recordingNoticeShown"
     /// UserDefaults: the voice profiles page was shown.
     static let voiceProfilesShownKey = "voiceProfilesOnboardingShown"
+    /// UserDefaults: the iPhone Search page was shown.
+    static let spotlightShownKey = "spotlightOnboardingShown"
     /// UserDefaults: Optional Improvements was shown. (Until October 2026 a Gemma-only page, `gemmaOnboardingShown`.)
     static let improvementsShownKey = "improvementsOnboardingShown"
     /// UserDefaults: the Gemma-only page it replaced was shown, so Gemma was offered once already.
@@ -66,6 +72,7 @@ struct Onboarding: View {
             case .welcome: welcome
             case .beforeYouRecord: beforeYouRecord
             case .voiceProfiles: voiceProfiles
+            case .spotlight: spotlight
             case .improvements: improvements
             }
         }
@@ -134,6 +141,11 @@ struct Onboarding: View {
             .onAppear { UserDefaults.standard.set(true, forKey: Self.voiceProfilesShownKey) }
     }
 
+    private var spotlight: some View {
+        SpotlightPage(onDone: { next(after: .spotlight) })
+            .onAppear { UserDefaults.standard.set(true, forKey: Self.spotlightShownKey) }
+    }
+
     private var improvements: some View {
         ImprovementsPage(onDone: { next(after: .improvements) })
             .onAppear { UserDefaults.standard.set(true, forKey: Self.improvementsShownKey) }
@@ -177,6 +189,45 @@ private struct VoiceProfilesPage: View {
             }
             Button {
                 recognizesVoices = false
+                onDone()
+            } label: {
+                Text("No Thanks")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.glass)
+            .controlSize(.large)
+        }
+    }
+}
+
+/// iPhone Search: off by default (October 2026), like voice profiles: with it on, the transcripts also sit in a
+/// system index outside the app (on the iPhone, readable only while it is unlocked), and what one types into the
+/// iPhone's search can go to Apple for suggestions (iOS's own behaviour, its switch in the iPhone's Settings). The page
+/// says both; two large buttons decide it (SpotlightIndex.enabledKey), and turning it on indexes at once.
+private struct SpotlightPage: View {
+    let onDone: () -> Void
+    @AppStorage(SpotlightIndex.enabledKey) private var showsInSearch = false
+    @Environment(\.modelContext) private var modelContext
+
+    var body: some View {
+        OnboardingLayout(title: "Find Transcripts in iPhone Search") {
+            OnboardingRow(symbol: "magnifyingglass", title: "From the Home Screen",
+                          text: "Type a word from a conversation in the iPhone's search and open the transcript from there.")
+            OnboardingRow(symbol: "lock.fill", title: "Stays on This iPhone",
+                          text: "The search index is kept on this iPhone and can be read only while it is unlocked. We never upload it.")
+            OnboardingRow(symbol: "info.circle", title: "What You Type",
+                          text: "What you type into the iPhone's search can go to Apple for suggestions. You can turn that off in the iPhone's Settings.")
+        } footnote: {
+            Text("You can change this any time in Settings.")
+        } buttons: {
+            ProminentButton("Show in iPhone Search") {
+                showsInSearch = true
+                Task { await SpotlightIndex.sync(modelContext) }
+                onDone()
+            }
+            Button {
+                showsInSearch = false
                 onDone()
             } label: {
                 Text("No Thanks")

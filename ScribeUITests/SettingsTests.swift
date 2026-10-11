@@ -313,5 +313,23 @@ final class SettingsTests: ScribeUITestCase {
         XCTAssertTrue(app.staticTexts["Before You Record"].waitForExistence(timeout: 5))
         app.buttons["Continue"].tap()
         XCTAssertTrue(app.buttons["No Thanks"].waitForExistence(timeout: 5), "and the voice page")
+        app.buttons["No Thanks"].tap()
+        XCTAssertTrue(app.buttons["Show in iPhone Search"].waitForExistence(timeout: 5), "and the iPhone Search page")
+    }
+
+    /// Show in iPhone Search is off until turned on (opt-in, like voice profiles); its footer says what it means.
+    @MainActor
+    func testSpotlightSwitchOffByDefault() throws {
+        let app = launch(["-resetSpotlight"])
+        app.buttons["Settings"].firstMatch.tap()
+        let toggle = app.switches["Show in iPhone Search"].firstMatch
+        for _ in 0..<4 where !toggle.isHittable { app.swipeUp() }
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertEqual(toggle.value as? String, "0", "off by default")
+        XCTAssertTrue(app.staticTexts["Off: your transcripts are not in the iPhone's search."].exists)
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Your transcripts can be found'"))
+                        .firstMatch.waitForExistence(timeout: 5), "on: the footer says where it stays and what typing sends")
+        shot("iPhone Search on", app)
     }
 }

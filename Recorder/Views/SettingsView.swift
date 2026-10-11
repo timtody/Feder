@@ -20,6 +20,8 @@ struct SettingsView: View {
     @State private var resetPages: [OnboardingPage] = []
     #endif
     @AppStorage(PeopleDirectory.recognitionKey) private var recognizesVoices = false
+    @AppStorage(SpotlightIndex.enabledKey) private var showsInSearch = false
+    @Environment(\.modelContext) private var modelContext
     @State private var confirmsVoiceDeletion = false
     @State private var path = NavigationPath()          // untyped: People pushes Person values too
 
@@ -81,6 +83,18 @@ struct SettingsView: View {
                     Text("Vocabulary")
                 } footer: {
                     Text("Names and terms the transcription often gets wrong.")
+                }
+
+                // Opt-in (SpotlightIndex): turned on, the transcripts are indexed at once; off, the index is deleted.
+                Section {
+                    Toggle("Show in iPhone Search", isOn: $showsInSearch)
+                        .onChange(of: showsInSearch) { Task { await SpotlightIndex.sync(modelContext) } }
+                } header: {
+                    Text("iPhone Search")
+                } footer: {
+                    Text(showsInSearch
+                         ? "Your transcripts can be found in the iPhone's search. The index stays on this iPhone and can be read only while it is unlocked. What you type there can go to Apple for suggestions; that is set in the iPhone's Settings › Search."
+                         : "Off: your transcripts are not in the iPhone's search.")
                 }
 
                 // App Review 5.1.1(i): the privacy policy reachable in the app; § 5 DDG: the legal notice; the HIG
@@ -161,12 +175,12 @@ struct SettingsView: View {
     /// launch (TipKit's store can only be reset before it is configured). Downloaded models and settings stay.
     private func resetOnboarding() {
         let defaults = UserDefaults.standard
-        for key in [AppServices.welcomeShownKey, Onboarding.recordingNoticeKey, Onboarding.voiceProfilesShownKey,
+        for key in [AppServices.welcomeShownKey, Onboarding.recordingNoticeKey, Onboarding.voiceProfilesShownKey, Onboarding.spotlightShownKey,
                     Onboarding.improvementsShownKey, Onboarding.legacyGemmaShownKey] {
             defaults.removeObject(forKey: key)
         }
         NameSpeakersTip.showAgain()
-        resetPages = [.welcome, .beforeYouRecord, .voiceProfiles]
+        resetPages = [.welcome, .beforeYouRecord, .voiceProfiles, .spotlight]
             + (services.offersParakeet || services.offersGemma ? [.improvements] : [])
     }
     #endif

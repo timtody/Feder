@@ -157,6 +157,7 @@ struct MainView: View {
         if !AppServices.modelDownloadsAllowed { pages.append(.welcome) }
         if !defaults.bool(forKey: Onboarding.recordingNoticeKey) { pages.append(.beforeYouRecord) }
         if !defaults.bool(forKey: Onboarding.voiceProfilesShownKey) { pages.append(.voiceProfiles) }
+        if !defaults.bool(forKey: Onboarding.spotlightShownKey) { pages.append(.spotlight) }
         if services.offersParakeet || services.offersGemma, !defaults.bool(forKey: Onboarding.improvementsShownKey) {
             pages.append(.improvements)
         }

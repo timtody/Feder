@@ -10,11 +10,13 @@ import XCTest
 /// many seconds.
 final class OnboardingTests: ScribeUITestCase {
     /// A new install: Welcome (with the download sizes; can't be swiped away), Before You Record (with the privacy
-    /// policy), Recognize People by Voice (biometric data, off until turned on), then Optional Improvements with a switch each for Parakeet and Gemma; the button names what it loads.
+    /// policy), Recognize People by Voice (biometric data, off until turned on), Find Transcripts in iPhone Search
+    /// (off until turned on; says what typing there can send to Apple), then Optional Improvements with a switch each for
+    /// Parakeet and Gemma; the button names what it loads.
     @MainActor
     func testNewInstallPages() throws {
         let app = launch(["-welcomeShown", "NO", "-recordingNoticeShown", "NO", "-voiceProfilesOnboardingShown", "NO",
-                          "-resetVoiceRecognition", "-improvementsOnboardingShown", "NO",
+                          "-spotlightOnboardingShown", "NO", "-resetSpotlight", "-resetVoiceRecognition", "-improvementsOnboardingShown", "NO",
                           "-fakeGemmaDownload", "-fakeParakeetDownload", "-gemmaOnboardingShown", "NO"])
         let welcome = app.staticTexts["Welcome to Feder"]
         XCTAssertTrue(welcome.waitForExistence(timeout: 5), "Welcome first")
@@ -39,6 +41,12 @@ final class OnboardingTests: ScribeUITestCase {
         XCTAssertTrue(app.staticTexts["Never Leaves This iPhone"].exists)
         shot("Voice profiles", app)
         recognize.tap()
+        let search = app.buttons["Show in iPhone Search"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5), "then the iPhone's search")
+        XCTAssertTrue(app.staticTexts["What You Type"].exists, "it says what typing there can send to Apple")
+        XCTAssertTrue(app.staticTexts["Stays on This iPhone"].exists)
+        shot("iPhone Search", app)
+        app.buttons["No Thanks"].tap()
         XCTAssertTrue(app.staticTexts["Optional Improvements"].waitForExistence(timeout: 5), "then the optional downloads")
         let both = app.buttons["Download (4.2 GB)"]
         XCTAssertTrue(both.exists, "both on by default")
