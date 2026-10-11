@@ -100,6 +100,23 @@ final class CalendarTests: ScribeUITestCase {
         XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10), "the card closes")
     }
 
+    /// A read slower than the wait (`-fakeCalendarDelay 90`, preparing quick) doesn't hold up recording: after preparing
+    /// the press waits at most 1 s for it, then records as "New Transcript N", and the name stays when the read ends.
+    @MainActor
+    func testSlowReadDoesNotHoldUpRecording() throws {
+        let app = launch(["-calendarContext", "YES", "-fakeCalendarEvent", "Standup", "-fakeCalendarDelay", "90",
+                          "-fakeSilence"])
+        app.open(URL(string: "feder://record")!)
+        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 10), "the card is up")
+        XCTAssertTrue(app.staticTexts["Listening…"].waitForExistence(timeout: 30), "recording, not waiting for the read")
+        let title = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'New Transcript '"))
+        XCTAssertTrue(title.allElementsBoundByIndex.contains { $0.isHittable }, "New Transcript N")
+        XCTAssertFalse(app.staticTexts["Standup"].exists, "the read hasn't ended")
+        shot("Recording before a slow read", app)
+        app.buttons["Stop"].firstMatch.tap()                // -fakeSilence: nothing saved, the card closes
+        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10), "the card closes")
+    }
+
     /// On, with access but no event now: the transcript keeps "New Transcript N".
     @MainActor
     func testNoEventKeepsDefaultName() throws {
@@ -130,12 +147,21 @@ final class CalendarTests: ScribeUITestCase {
         XCTAssertTrue(header.exists)
         XCTAssertLessThan(header.frame.minY, maria.frame.minY)
         XCTAssertLessThan(header.frame.minY, jonas.frame.minY)
-        XCTAssertTrue(anna.exists, "Anna, this speaker, under People")
-        XCTAssertLessThan(jonas.frame.minY, anna.frame.minY, "the invitees above the people")
         XCTAssertTrue(app.staticTexts["From the calendar event “Kickoff Meeting”."].exists, "the footer names the event")
         XCTAssertTrue(maria.label.contains("Invited"), maria.label)
         XCTAssertTrue(jonas.label.contains("Already in this transcript"), jonas.label)
         shot("Seeded invitees", app)
+        // Anna, this speaker's person, is under People below the invitees: the half-height sheet shows only the
+        // invitees, so it is pulled up first (List's rows below the fold don't exist yet), by its Invitees header: a
+        // swipe up on the bottom row started in the home gesture's area and sent the app to the Home Screen.
+        for _ in 0..<2 where !anna.isHittable {
+            header.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)))
+        }
+        XCTAssertTrue(anna.exists, "Anna, this speaker, under People")
+        XCTAssertLessThan(jonas.frame.minY, anna.frame.minY, "the invitees above the people")
+        XCTAssertTrue(anna.label.contains("This speaker"), anna.label)
+        shot("Seeded invitees, sheet pulled up", app)
 
         nameField(app).typeText("Ma")
         XCTAssertTrue(maria.waitForExistence(timeout: 3))

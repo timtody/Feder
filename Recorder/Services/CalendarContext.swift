@@ -46,6 +46,8 @@ final class CalendarContext {
     /// When the last read ended: the launch's read usually ends just before the app becomes active, which needs no
     /// second one.
     @ObservationIgnored private var lastRead: ContinuousClock.Instant?
+    /// Presses waiting for the running read (`pendingEvent`), resumed when it ends or when their wait is over.
+    @ObservationIgnored private var waiters: [UUID: CheckedContinuation<Void, Never>] = [:]
     @ObservationIgnored private var changeDebounce: Task<Void, Never>?
     @ObservationIgnored private var observers: [any NSObjectProtocol] = []
     @ObservationIgnored private let reader = CalendarReader()
@@ -78,15 +80,22 @@ final class CalendarContext {
     func pendingEvent(at date: Date, waitingUpTo limit: Duration) async -> CalendarEvent? {
         guard Self.isEnabled else { return nil }
         if refreshing == nil, window?.contains(date) != true { refresh() }
-        if let refreshing {
-            await withTaskGroup(of: Void.self) { group in
-                group.addTask { await refreshing.value }
-                group.addTask { try? await Task.sleep(for: limit) }
-                await group.next()
-                group.cancelAll()
-            }
-        }
+        await waitForRead(upTo: limit)
         return event(at: date)
+    }
+
+    /// Returns when the running read has ended or after `limit`, whichever comes first. Not a task group racing
+    /// `refreshing.value` against a sleep: awaiting a task's value ignores cancellation, so the group waited for the
+    /// whole read however long it took, and a slow calendar held up the recording's start.
+    private func waitForRead(upTo limit: Duration) async {
+        guard refreshing != nil else { return }
+        let id = UUID()
+        let timeout = Task { [weak self] in
+            do { try await Task.sleep(for: limit) } catch { return }
+            self?.waiters.removeValue(forKey: id)?.resume()
+        }
+        await withCheckedContinuation { waiters[id] = $0 }
+        timeout.cancel()
     }
 
     // MARK: The switch
@@ -150,6 +159,9 @@ final class CalendarContext {
             } while again
             refreshing = nil
             lastRead = .now
+            let waiting = waiters.values
+            waiters = [:]
+            for waiter in waiting { waiter.resume() }
         }
     }
 
