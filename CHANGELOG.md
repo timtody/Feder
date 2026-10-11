@@ -1,9 +1,17 @@
 # What's New in Feder
 
 The changes users notice, newest first, written for the App Store's "What's New" and TestFlight's "What to Test".
-Each version has an English and a German list.
+Each version has an English and a German list. None of these versions has been released yet: if the first App Store
+release carries a later version's features, its notes are the 1.0 text plus those lists. The app's version
+(`MARKETING_VERSION` in project.yml) is the one in progress.
 
-## 1.1 (in progress)
+## 1.2 (in progress)
+
+### English
+
+### Deutsch
+
+## 1.1
 
 ### English
 
