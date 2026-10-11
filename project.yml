@@ -69,6 +69,8 @@ targets:
       path: Recorder/Info.plist
       properties:
         CFBundleDisplayName: Feder
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"     # xcodegen writes a literal 1.0 otherwise
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSMicrophoneUsageDescription: "Feder uses the microphone to record and transcribe audio. Everything stays on this iPhone."
         NSLocationWhenInUseUsageDescription: "Feder saves where a transcript was started, so you can see and search it later."
         UIBackgroundModes: [audio]
@@ -110,6 +112,8 @@ targets:
       path: FederWidgets/Info.plist
       properties:
         CFBundleDisplayName: Feder
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
