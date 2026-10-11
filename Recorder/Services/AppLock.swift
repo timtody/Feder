@@ -61,6 +61,8 @@ final class AppLock {
     @ObservationIgnored private var waitsForRecording = false
     /// The prompt was interrupted by the system once in this foreground (another alert, Feder left): asked once more.
     @ObservationIgnored private var retriedAfterInterruption = false
+    /// Unlock requests so far: the automatic prompt, due a moment after the activation, checks nobody asked meanwhile.
+    @ObservationIgnored private var requests = 0
     #if DEBUG && targetEnvironment(simulator)
     /// `-fakeAuthentication success,cancel,…`: the answers in order (the last one repeats), without LocalAuthentication.
     @ObservationIgnored private var fakeOutcomes: [Outcome]?
@@ -114,11 +116,15 @@ final class AppLock {
     }
 
     /// The iPhone locked: Feder locks whatever the grace period (it is for switching apps, not for a phone left on a
-    /// table). Usually Feder is in the background by then; a recording keeps it running.
+    /// table). Usually Feder is in the background by then; a recording keeps it running. A suspended Feder gets this
+    /// notification queued at its return, possibly after the return's activation: then nothing else would ask, so the
+    /// prompt is due and Unlock shows (never the bare lock symbol with nothing to tap).
     private func iPhoneLocked() {
-        guard Self.isEnabled else { return }
+        guard Self.isEnabled, !isLocked else { return }
         isLocked = true
+        promptDue = true
         cover()
+        if UIApplication.shared.applicationState == .active { showsPrompt = true }
     }
 
     private func enteringForeground() {
@@ -138,11 +144,13 @@ final class AppLock {
         guard isLocked else { uncover(); return }
         guard promptDue else { return }
         promptDue = false
+        let asked = requests
         Task {
             // Control Center's and the Action Button's intent is performed after Feder came to the foreground; unverified
             // how long after on an iPhone (README › App Lock).
             try? await Task.sleep(for: .milliseconds(300))
-            guard isLocked, !isAuthenticating else { return }
+            // Not if a recording that reached `.recording` meanwhile has already asked (and was perhaps cancelled).
+            guard isLocked, !isAuthenticating, requests == asked else { return }
             guard UIApplication.shared.applicationState == .active else { promptDue = true; return }
             if isRecordingStarting {
                 // Unlock meanwhile, should preparing take long (a speech model's first download).
@@ -188,6 +196,10 @@ final class AppLock {
     private func authenticate() async {
         guard isLocked, !isAuthenticating else { return }
         isAuthenticating = true
+        requests += 1
+        // This return's prompt: a recording started from outside can reach `.recording` before the activation (seen
+        // on the simulator with a cold start from the link), and the activation must not ask a second time.
+        promptDue = false
         let outcome = await evaluate(reason: String(localized: "Unlock your transcripts."))
         isAuthenticating = false
         switch outcome {

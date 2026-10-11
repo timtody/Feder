@@ -90,7 +90,8 @@ final class AppLockTests: ScribeUITestCase {
     @MainActor
     func testLaunchIsLocked() throws {
         let app = launch(["-appLockOn", "-fakeAuthentication", "cancel,success"], waitsForList: false)
-        XCTAssertTrue(app.buttons["Unlock"].waitForExistence(timeout: 15), "Unlock after the cancel")
+        let unlock = app.buttons["Unlock"]
+        XCTAssertTrue(waitFor({ unlock.exists && unlock.isEnabled }, timeout: 20), "Unlock after the cancel")
         XCTAssertTrue(app.staticTexts["Feder Is Locked"].exists)
         XCTAssertTrue(app.staticTexts["Use Face ID to see your transcripts."].exists)
         XCTAssertFalse(app.staticTexts["Project Kickoff"].exists, "no transcript behind the lock")
@@ -112,7 +113,8 @@ final class AppLockTests: ScribeUITestCase {
         XCUIDevice.shared.press(.home)
         sleep(1)
         app.activate()
-        XCTAssertTrue(app.buttons["Unlock"].waitForExistence(timeout: 10), "locked on return (Face ID cancelled)")
+        let unlock = app.buttons["Unlock"]
+        XCTAssertTrue(waitFor({ unlock.exists && unlock.isEnabled }, timeout: 15), "locked on return (Face ID cancelled)")
         XCTAssertFalse(app.textFields["Title"].exists, "the card is behind the lock")
         XCTAssertFalse(app.buttons["Minimize"].exists)
         shot("Locked over the card", app)
@@ -172,22 +174,45 @@ final class AppLockTests: ScribeUITestCase {
 
     /// A recording started from outside while Feder is locked (the Lock Screen widget's link here; Control Center, the
     /// Action Button and Siri go the same way) starts at once behind the lock, whose view shows its time, level and
-    /// Stop. Face ID is asked once it records; unlocked, the card is up recording.
+    /// Stop. Face ID is asked once it records, and only once (on the simulator the activation can come seconds after
+    /// the recording started); unlocked, the card is up recording. A cold start, as from a locked iPhone: Feder isn't
+    /// running when the link opens it.
     @MainActor
     func testRecordLinkWhileLocked() throws {
         // -fakeSilence: nothing is transcribed, so Stop saves nothing (RecordingFromOutsideTests).
+        let app = launch(["-appLockOn", "-fakeAuthentication", "cancel,success", "-fakeSilence"], waitsForList: false)
+        app.terminate()
+        app.open(URL(string: "feder://record")!)            // launches it again, with the same arguments
+        assertRecordsBehindTheLock(app)
+    }
+
+    /// The same while Feder runs locked (Unlock after a cancelled Face ID): the link reaches the running app through
+    /// the system, the recording starts behind the lock, and Face ID is asked once more when it records.
+    @MainActor
+    func testRecordLinkWhileRunningLocked() throws {
         let app = launch(["-appLockOn", "-fakeAuthentication", "cancel,cancel,success", "-fakeSilence"],
                          waitsForList: false)
-        XCTAssertTrue(app.buttons["Unlock"].waitForExistence(timeout: 15), "locked")
-        app.open(URL(string: "feder://record")!)
+        let unlock = app.buttons["Unlock"]
+        XCTAssertTrue(waitFor({ unlock.exists && unlock.isEnabled }, timeout: 20), "locked, Face ID cancelled")
+        XCUIDevice.shared.system.open(URL(string: "feder://record")!)
+        assertRecordsBehindTheLock(app)
+    }
+
+    /// The lock view's recording bar, one cancelled Face ID once it records (the answer after it is a success, so a
+    /// second request would unlock), then Unlock: the card recording, and its Stop.
+    @MainActor
+    private func assertRecordsBehindTheLock(_ app: XCUIApplication) {
         let lockStop = app.buttons["LockStop"]
-        XCTAssertTrue(lockStop.waitForExistence(timeout: 15), "the lock view's recording bar, with Stop")
+        XCTAssertTrue(lockStop.waitForExistence(timeout: 20), "the lock view's recording bar, with Stop")
         XCTAssertTrue(app.staticTexts["Recording"].exists, "it says Recording")
         XCTAssertFalse(app.buttons["Minimize"].exists, "the recording card is behind the lock")
-        sleep(2)                                            // Face ID was asked (and cancelled) once it recorded
-        XCTAssertTrue(app.buttons["Unlock"].isHittable, "Unlock stays")
+        let unlock = app.buttons["Unlock"]
+        XCTAssertTrue(waitFor({ unlock.exists && unlock.isEnabled }, timeout: 15), "Face ID asked once it recorded")
+        sleep(4)                                            // a second request would unlock by itself
+        XCTAssertTrue(unlock.exists && unlock.isEnabled, "Unlock stays: Face ID was asked once")
+        XCTAssertFalse(app.buttons["Minimize"].exists)
         shot("Recording while locked", app)
-        app.buttons["Unlock"].tap()
+        unlock.tap()
         XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 10), "unlocked: the card")
         XCTAssertFalse(lockStop.exists)
         let stop = app.buttons["Stop"].firstMatch
@@ -244,6 +269,9 @@ final class AppLockTests: ScribeUITestCase {
         sleep(4)                                            // the Face ID sheet is up (SpringBoard's, not in the tree)
         shot("Face ID", app)
         XCTAssertFalse(app.staticTexts["Project Kickoff"].exists, "locked")
+        // While Face ID is asked only the lock symbol shows (the rest is transparent, so nothing flashes as the cover
+        // drops); Unlock is in the tree but waits.
+        XCTAssertFalse(app.buttons["Unlock"].isEnabled, "Unlock waits while Face ID is asked")
         #if targetEnvironment(simulator)
         notify_post("com.apple.BiometricKit_Sim.pearl.match")
         #endif

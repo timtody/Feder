@@ -76,24 +76,23 @@ struct AppLockView: View {
             Label {
                 Text("Feder Is Locked")
                     .opacity(prompts ? 1 : 0)
-                    .accessibilityHidden(!prompts)
             } icon: {
                 Image(systemName: "lock.fill")
-                    .accessibilityHidden(true)
             }
         } description: {
             Text(description)
                 .opacity(prompts ? 1 : 0)
-                .accessibilityHidden(!prompts)
         } actions: {
             Button("Unlock") {
                 Task { await lock.unlock() }
             }
             .buttonStyle(.glassProminent)
             .controlSize(.large)
+            // Dimmed while only covering: ContentUnavailableView keeps its parts in the accessibility tree whatever
+            // their opacity (`accessibilityHidden` on them, or on the whole view, didn't remove them in the UI tests), so
+            // VoiceOver can read "Feder Is Locked" under the Face ID sheet, which is true, and Unlock waits.
             .disabled(lock.isAuthenticating || !prompts)
             .opacity(prompts ? 1 : 0)
-            .accessibilityHidden(!prompts)
         }
         // Fades in after a cancel; gone at once when covering for the snapshot.
         .animation(prompts ? .easeOut(duration: 0.2) : nil, value: prompts)
