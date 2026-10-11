@@ -121,6 +121,27 @@ final class AppLockTests: ScribeUITestCase {
         assertCard(app)
     }
 
+    /// Leaving Feder covers it before iOS takes the app switcher's snapshot: the switcher shows the lock, not the card
+    /// (the snapshot is an image: the shot is for the eye).
+    @MainActor
+    func testAppSwitcherShowsTheLock() throws {
+        let app = launch(["-appLockOn", "-fakeAuthentication", "success"], waitsForList: false)
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15), "unlocked at launch")
+        open("Project Kickoff", in: app)
+        XCUIDevice.shared.press(.home)
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        XCTAssertTrue(springboard.wait(for: .runningForeground, timeout: 5))
+        sleep(2)
+        // From the bottom edge up to the middle, and hold: the app switcher.
+        springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.995))
+            .press(forDuration: 0.05, thenDragTo: springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)),
+                   withVelocity: .slow, thenHoldForDuration: 1.5)
+        sleep(1)
+        shot("App switcher", springboard)
+        app.activate()
+        XCTAssertTrue(app.textFields["Title"].waitForExistence(timeout: 10), "unlocked again: the card")
+    }
+
     /// With a grace period (4 s here; Settings offers 1, 5 and 15 minutes), a short trip away doesn't lock; a longer
     /// one does.
     @MainActor

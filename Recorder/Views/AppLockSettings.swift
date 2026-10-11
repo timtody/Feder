@@ -78,11 +78,11 @@ struct AppLockSection: View {
         } else if isOn {
             switch lock.method {
             case .faceID:
-                Text("Feder asks for Face ID when it opens and when you come back. Recording from Control Center, the Action Button or Siri starts at once, and the Live Activity shows no words.")
+                Text("Feder asks for Face ID when it opens and when you come back. Recording from Control Center, the Action Button or Siri starts at once, and the Lock Screen and Dynamic Island show the time but no words.")
             case .touchID:
-                Text("Feder asks for Touch ID when it opens and when you come back. Recording from Control Center, the Action Button or Siri starts at once, and the Live Activity shows no words.")
+                Text("Feder asks for Touch ID when it opens and when you come back. Recording from Control Center, the Action Button or Siri starts at once, and the Lock Screen and Dynamic Island show the time but no words.")
             case .passcode:
-                Text("Feder asks for your passcode when it opens and when you come back. Recording from Control Center, the Action Button or Siri starts at once, and the Live Activity shows no words.")
+                Text("Feder asks for your passcode when it opens and when you come back. Recording from Control Center, the Action Button or Siri starts at once, and the Lock Screen and Dynamic Island show the time but no words.")
             }
         } else {
             Text("Off: anyone using this iPhone can open Feder.")
