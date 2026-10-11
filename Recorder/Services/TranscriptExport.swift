@@ -106,7 +106,9 @@ nonisolated enum TranscriptExport {
         }
     }
 
-    /// Paragraphs of one speaker in a row are a turn: the lead is written once, at the turn's start (as the card does).
+    /// Paragraphs of one speaker in a row are a turn: the lead (name, and the turn's start time with Timestamps) is
+    /// written once, at the turn's start, as the card does. (With Timestamps every paragraph had one until October
+    /// 2026, so a speaker's pause split their turn into "Speaker 1 (0:08)", "Speaker 1 (0:19)".)
     static func startsTurn(_ index: Int, _ paragraphs: [Paragraph]) -> Bool {
         index == 0 || paragraphs[index - 1].speaker != paragraphs[index].speaker
     }
@@ -121,7 +123,7 @@ nonisolated enum TranscriptExport {
 
     static func plainText(_ snapshot: Snapshot) -> String {
         snapshot.paragraphs.enumerated().map { index, paragraph in
-            if let lead = lead(paragraph, snapshot), snapshot.timestamps || startsTurn(index, snapshot.paragraphs) {
+            if let lead = lead(paragraph, snapshot), startsTurn(index, snapshot.paragraphs) {
                 return "\(lead): \(paragraph.text)"
             }
             return paragraph.text
@@ -135,7 +137,7 @@ nonisolated enum TranscriptExport {
         if let summary = snapshot.summary { lines += ["", "> \(summary)"] }
         lines.append("")
         for (index, paragraph) in snapshot.paragraphs.enumerated() {
-            if let lead = lead(paragraph, snapshot), snapshot.timestamps || startsTurn(index, snapshot.paragraphs) {
+            if let lead = lead(paragraph, snapshot), startsTurn(index, snapshot.paragraphs) {
                 lines += ["**\(lead)**", ""]
             }
             lines += [paragraph.text, ""]
@@ -254,8 +256,9 @@ nonisolated enum TranscriptExport {
         if let summary = snapshot.summary { add(summary, .italicSystemFont(ofSize: 11), .darkGray, before: 6, after: 6) }
         for (index, paragraph) in snapshot.paragraphs.enumerated() {
             let turn = startsTurn(index, snapshot.paragraphs)
-            if let lead = lead(paragraph, snapshot), snapshot.timestamps || turn {
-                add(lead, .systemFont(ofSize: 10, weight: .semibold), .darkGray, before: turn ? 12 : 6, after: 2)
+            if let lead = lead(paragraph, snapshot), turn {
+                // Near black: a grey heading read as provisional next to the black text.
+                add(lead, .systemFont(ofSize: 10.5, weight: .semibold), UIColor(white: 0.12, alpha: 1), before: 12, after: 2)
                 add(paragraph.text, .systemFont(ofSize: 11), after: 4)
             } else {
                 add(paragraph.text, .systemFont(ofSize: 11), before: turn ? 12 : 0, after: 4)
@@ -289,8 +292,8 @@ nonisolated enum TranscriptExport {
         if let summary = snapshot.summary { body += paragraph(summary, size: 21, italic: true, color: "555555", before: 120, after: 200) }
         for (index, item) in snapshot.paragraphs.enumerated() {
             let turn = startsTurn(index, snapshot.paragraphs)
-            if let lead = lead(item, snapshot), snapshot.timestamps || turn {
-                body += paragraph(lead, size: 19, bold: true, color: "555555", before: turn ? 240 : 120, after: 40)
+            if let lead = lead(item, snapshot), turn {
+                body += paragraph(lead, size: 20, bold: true, color: "1F1F1F", before: 240, after: 40)
             }
             body += paragraph(item.text, size: 22)
         }
