@@ -33,14 +33,20 @@ final class ActionItemsTests: ScribeUITestCase {
         button.tap()
     }
 
-    /// iOS's question for Reminders (springboard): taps the button whose label starts with `prefix`.
+    /// iOS's question for Reminders (springboard): allows full access, or doesn't. Springboard speaks the simulator's
+    /// language, not the app's `-AppleLanguages (en)`: "Allow Full Access" / "Don't Allow", or the German labels.
     @MainActor
-    private func answerRemindersAlert(_ prefix: String) -> Bool {
+    private func answerRemindersAlert(allow: Bool) -> Bool {
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let alert = springboard.alerts.firstMatch
-        guard alert.waitForExistence(timeout: 10) else { return false }
+        guard alert.waitForExistence(timeout: 15) else { return false }
         note("Reminders alert", alert.debugDescription)
-        let button = alert.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", prefix)).firstMatch
+        screenShot(allow ? "Reminders question" : "Reminders question (denied)")
+        let denies = "(label BEGINSWITH[c] 'don' OR label BEGINSWITH[c] 'nicht')"
+        let predicate = allow
+            ? NSPredicate(format: "(label CONTAINS[c] 'allow' OR label CONTAINS[c] 'erlauben') AND NOT \(denies)")
+            : NSPredicate(format: denies)
+        let button = alert.buttons.matching(predicate).firstMatch
         guard button.exists else { return false }
         button.tap()
         return true
@@ -89,7 +95,7 @@ final class ActionItemsTests: ScribeUITestCase {
         let app = launch(["-interactionTrace"])          // the press timings, for `log stream`
         _ = openBudgetItems(app)
         choose("Add to Reminders", forItem: 0, app)
-        XCTAssertTrue(answerRemindersAlert("Allow"), "iOS asks for Reminders")
+        XCTAssertTrue(answerRemindersAlert(allow: true), "iOS asks for Reminders")
         let added = NSPredicate(format: "label CONTAINS 'In Reminders'")
         XCTAssertTrue(app.descendants(matching: .any).matching(added).firstMatch.waitForExistence(timeout: 10),
                       "the item says In Reminders: \(item(0, app).label)")
@@ -121,7 +127,7 @@ final class ActionItemsTests: ScribeUITestCase {
         let app = launch()
         _ = openBudgetItems(app)
         choose("Add to Reminders", forItem: 1, app)
-        XCTAssertTrue(answerRemindersAlert("Don"), "iOS asks for Reminders: Don't Allow")
+        XCTAssertTrue(answerRemindersAlert(allow: false), "iOS asks for Reminders: Don't Allow")
         let alert = app.alerts["Allow Access to Reminders"]
         XCTAssertTrue(alert.waitForExistence(timeout: 5), "Feder's alert")
         XCTAssertTrue(alert.buttons["Open Settings"].exists)
@@ -133,41 +139,45 @@ final class ActionItemsTests: ScribeUITestCase {
     }
 
     /// Add to Calendar shows Apple's New Event editor over the card, prefilled with the task (it runs in its own
-    /// process and asks for no permission); Cancel leaves the item, Add marks it "In Calendar".
+    /// process and asks for no permission); Cancel leaves the item, Add marks it "In Calendar". The editor's own
+    /// controls are out of XCUITest's reach (another process: the app's tree shows only an empty container, and
+    /// `app.screenshot()` an empty sheet), so they are tapped where iOS 27 draws them: the close button at the sheet's
+    /// top left, the checkmark (Add) at its top right; the screen's screenshot shows the editor.
     @MainActor
     func testAddToCalendarOpensEditor() throws {
         let app = launch(["-interactionTrace"])
         _ = openBudgetItems(app)
-        choose("Add to Calendar", forItem: 0, app)
         let back = app.buttons["Minimize"]
+        let screen = app.coordinate(withNormalizedOffset: .zero)
+        let close = screen.withOffset(CGVector(dx: 38, dy: 100))
+        let confirm = screen.withOffset(CGVector(dx: app.frame.width - 38, dy: 100))
+
+        choose("Add to Calendar", forItem: 0, app)
         XCTAssertTrue(waitFor({ !back.isHittable }, timeout: 10), "the editor covers the card")
-        sleep(2)
-        shot("New Event editor", app)
-        note("Editor tree", app.debugDescription)
-        // The editor's own buttons, when XCUITest reaches them (out of process, like the file picker: maybe not).
-        let add = app.navigationBars.buttons["Add"].firstMatch
-        if add.exists {
-            XCTAssertTrue(app.textFields.matching(NSPredicate(format: "value == 'Send the numbers to finance'"))
-                .firstMatch.exists || app.staticTexts["Send the numbers to finance"].exists, "prefilled with the task")
-            app.navigationBars.buttons["Cancel"].firstMatch.tap()
-            XCTAssertTrue(waitFor({ back.isHittable }, timeout: 5), "Cancel closes it")
-            XCTAssertFalse(item(0, app).label.contains("In Calendar"), "cancelled: not added")
-            choose("Add to Calendar", forItem: 0, app)
-            XCTAssertTrue(add.waitForExistence(timeout: 10))
-            add.tap()
-            XCTAssertTrue(waitFor({ back.isHittable }, timeout: 5), "Add closes it")
-            XCTAssertTrue(waitFor({ self.item(0, app).label.contains("In Calendar") }, timeout: 5),
-                          "added: \(item(0, app).label)")
-            shot("Added to Calendar", app)
-        } else {
-            // Not reachable: closed like a sheet, the item unchanged.
-            for _ in 0..<3 where !back.isHittable {
-                app.swipeDown(velocity: .fast)
-                _ = waitFor({ back.isHittable }, timeout: 4)
-            }
-            XCTAssertTrue(back.isHittable, "the editor closed")
-            XCTAssertFalse(item(0, app).label.contains("In Calendar"))
-        }
+        sleep(4)                                                // the remote editor draws its content
+        screenShot("New Event editor")
+        close.tap()
+        XCTAssertTrue(waitFor({ back.isHittable }, timeout: 10), "the close button closes it")
+        XCTAssertFalse(item(0, app).label.contains("In Calendar"), "cancelled: not added: \(item(0, app).label)")
+
+        choose("Add to Calendar", forItem: 0, app)
+        XCTAssertTrue(waitFor({ !back.isHittable }, timeout: 10), "the editor again")
+        sleep(4)
+        confirm.tap()
+        XCTAssertTrue(waitFor({ back.isHittable }, timeout: 10), "Add closes it")
+        XCTAssertTrue(waitFor({ self.item(0, app).label.contains("In Calendar") }, timeout: 10),
+                      "added: \(item(0, app).label)")
+        XCTAssertFalse(item(1, app).label.contains("In Calendar"), "only that one")
+        shot("Added to Calendar", app)
+    }
+
+    /// The whole screen (the out-of-process editor shows in it, not in `app.screenshot()`).
+    @MainActor
+    private func screenShot(_ name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     /// Remove takes an item away at once (a suggestion: no question); the count follows.

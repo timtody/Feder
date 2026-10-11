@@ -140,7 +140,7 @@ struct ActionItemsDisclosure: View {
             }
             if adding.contains(item.id) {
                 ProgressView()
-                    .frame(width: 44, height: 44)
+                    .frame(width: 44, height: 44, alignment: .trailing)
                     .onAppear { InteractionTrace.shown("reminders") }
             } else {
                 Menu {
@@ -151,9 +151,10 @@ struct ActionItemsDisclosure: View {
                     Divider()
                     Button("Remove", systemImage: "trash", role: .destructive) { remove(item) }
                 } label: {
+                    // At the row's end, under the disclosure chevron (centred in its 44 pt target it stood 13 pt in).
                     Image(systemName: item.isAdded ? "checkmark.circle.fill" : "plus.circle")
                         .font(.title3)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 44, height: 44, alignment: .trailing)
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel(String(localized: "Add “\(item.task)” to Reminders or Calendar"))

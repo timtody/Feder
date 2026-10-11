@@ -79,13 +79,16 @@ nonisolated enum DueDate {
 
     // MARK: Own rules (what the detector misses), English and German
 
-    /// "this week", "Ende der Woche" (the first Friday on or after the recording), "next week", "nächste Woche" (a week
-    /// later), "end of day", "Feierabend" (the recording's day), "end of the month", "Monatsende", "Ende nächsten
+    /// "this week", "Ende der Woche" (the first Friday on or after the recording), "next week", "nächste Woche" (the
+    /// Friday of the week after the recording's, weeks from Monday: said on a Saturday or Sunday, the coming one, not the
+    /// one after it), "end of day", "Feierabend" (the recording's day), "end of the month", "Monatsende", "Ende nächsten
     /// Monats", "Ende Oktober" (that month's last day).
     private static func weekOrMonth(_ text: String, day: Date, calendar: Calendar) -> Date? {
         let friday = calendar.date(byAdding: .day, value: (6 - calendar.component(.weekday, from: day) + 7) % 7, to: day)
         if text.contains(/\b(next week|nachste[nrs]? woche|kommende[nrs]? woche)\b/) {
-            return friday.flatMap { calendar.date(byAdding: .day, value: 7, to: $0) }
+            return calendar.date(byAdding: .day, value: 7, to: day).flatMap { week in
+                calendar.date(byAdding: .day, value: 4 - (calendar.component(.weekday, from: week) + 5) % 7, to: week)
+            }
         }
         if text.contains(/\b(this week|end of (the|this) week|diese[nrs]? woche|ende der woche)\b/) { return friday }
         if text.contains(/\b(end of (the )?day|end of business|eod|cob|feierabend|heute noch)\b/) { return day }
