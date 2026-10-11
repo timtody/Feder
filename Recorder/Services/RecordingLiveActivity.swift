@@ -74,22 +74,19 @@ enum RecordingLiveActivity {
     private static func send() {
         guard let activity = current else { return }
         lastUpdate = .now
-        if !state.isSaving { state.text = tail(of: latestText) }
+        if !state.isSaving { state.words = tail(of: latestText) }
         let id = activity.id, state = state
         self.state.level = 0
         Task { await update(id, state) }
     }
 
-    /// The last words of the live text, about two lines of the lock screen's width, cut at a word ("…" in front).
-    nonisolated static func tail(of text: LiveText, characters: Int = 110) -> String {
-        let words = text.segments.map(\.text) + text.provisional.map(\.word.text)
-        var tail = ""
-        for word in words.reversed() {
-            let next = tail.isEmpty ? word : word + " " + tail
-            guard next.count <= characters else { return "…" + tail }
-            tail = next
-        }
-        return tail
+    /// The last words of the live text, about one line and a half of the lock screen (the row shows what fits at its
+    /// right end), each with its index in the transcript as id.
+    nonisolated static func tail(of text: LiveText, count: Int = 14) -> [LiveWord] {
+        let words = text.segments.flatMap { $0.text.split(separator: " ").map(String.init) }
+            + text.provisional.map(\.word.text)
+        let first = max(0, words.count - count)
+        return words[first...].enumerated().map { LiveWord(id: first + $0.offset, text: $0.element) }
     }
 
     // By id, off the main actor: an Activity isn't Sendable, so it is looked up where it is used.

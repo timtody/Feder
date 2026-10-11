@@ -17,15 +17,16 @@ struct FederWidgets: WidgetBundle {
 
 // MARK: Live Activity
 
-/// While recording: the microphone's level, the running time, the newest words and Stop; from Stop until the
-/// transcript is saved "Saving…" and no Stop. No title: the activity is the recording itself, and the words say more.
-/// Laid out symmetrically: the level and the time on the left, Stop on the right, both centred on one line; the words
-/// under them across the whole width.
+/// While recording. Lock screen: one row, the running time, the newest words running from right to left, and Stop at
+/// the right end; no meter and no title. Dynamic Island: the level meter and the time (compact), the meter (minimal);
+/// expanded the meter and the time, Stop, and the words under them. From Stop until the transcript is saved "Saving…"
+/// and no Stop.
 struct RecordingLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: RecordingActivityAttributes.self) { context in
             LockScreenRecording(state: context.state)
-                .padding(16)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
                 .activityBackgroundTint(nil)
         } dynamicIsland: { context in
             DynamicIsland {
@@ -64,61 +65,82 @@ private struct LockScreenRecording: View {
     let state: RecordingActivityAttributes.ContentState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                LevelMeter(level: state.level, isSaving: state.isSaving)
-                    .font(.title3)
-                RecordingTime(state: state)
-                    .font(.title2.weight(.semibold))
-                Spacer(minLength: 0)
-                if !state.isSaving { StopButton() }
-            }
+        HStack(spacing: 12) {
+            RecordingTime(state: state)
+                .font(.title3.weight(.semibold))
             LiveWords(state: state)
+            if !state.isSaving { StopButton() }
         }
     }
 }
 
-/// The level as the waveform symbol filled up to it (`variableValue`), red while recording.
+/// The level as bars that start small and grow to the right (`cellularbars`), lit up to the loudest level since the
+/// last update: the waveform symbol it replaced lit from left to right too, but its bars are tall in the middle, so a
+/// louder voice lit smaller bars and it didn't read as a meter.
 private struct LevelMeter: View {
     let level: Double
     let isSaving: Bool
 
     var body: some View {
-        Image(systemName: "waveform", variableValue: isSaving ? 0 : min(1, 0.15 + level * 1.2))
+        Image(systemName: "cellularbars", variableValue: isSaving ? 0 : min(1, level * 1.4))
             .foregroundStyle(.red)
-            .symbolEffect(.variableColor.iterative.dimInactiveLayers, options: .repeating, isActive: !isSaving && level > 0.05)
             .accessibilityLabel(isSaving ? "Saving…" : "Recording")
     }
 }
 
-/// The newest words, two lines, or "Saving…" / "Listening…" when there are none.
+/// The newest words in one line, running from right to left: the newest at the right end, older ones moving left at
+/// each update and fading out at the left edge (each word keeps its id, so the system animates its move; a new one
+/// comes in from the right). "Listening…" before the first word, "Saving…" from Stop.
 private struct LiveWords: View {
     let state: RecordingActivityAttributes.ContentState
 
     var body: some View {
         Group {
             if state.isSaving {
-                Text("Saving…")
-            } else if state.text.isEmpty {
-                Text("Listening…")
+                Text("Saving…").frame(maxWidth: .infinity, alignment: .leading)
+            } else if state.words.isEmpty {
+                Text("Listening…").frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                Text(state.text)
+                // A one-line box as wide as the space, the words hung from its right edge (an overlay places a wider
+                // view by its alignment; in a frame the row came out centred and was cut at both ends).
+                Text(verbatim: " ")
+                    .frame(maxWidth: .infinity)
+                    .overlay(alignment: .trailing) {
+                        HStack(spacing: 4) {
+                            ForEach(state.words) { word in
+                                Text(word.text).transition(.push(from: .trailing))
+                            }
+                        }
+                        .fixedSize()
+                    }
+                    .clipped()
+                    .mask {
+                        LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.2)],
+                                       startPoint: .leading, endPoint: .trailing)
+                    }
             }
         }
         .font(.subheadline)
         .foregroundStyle(.secondary)
-        .lineLimit(2, reservesSpace: true)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .lineLimit(1)
     }
 }
 
-/// The time since the recording started, counted by the system (no updates from the app).
+/// The time since the recording started, counted by the system (no updates from the app). Sized by a stand-in of
+/// its width ("00:00", "0:00:00" after an hour): a timer text's own ideal width is that of its longest value, and with
+/// it the lock screen's row came out empty.
 private struct RecordingTime: View {
     let state: RecordingActivityAttributes.ContentState
 
     var body: some View {
-        Text(timerInterval: state.since...Date.distantFuture, countsDown: false)
+        Text(verbatim: Date.now.timeIntervalSince(state.since) >= 3_000 ? "0:00:00" : "00:00")
             .monospacedDigit()
+            .hidden()
+            .overlay(alignment: .leading) {
+                Text(timerInterval: state.since...Date.distantFuture, countsDown: false)
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
     }
 }
 

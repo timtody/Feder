@@ -64,22 +64,28 @@ final class RecordingControl {
     }
 }
 
-/// The Live Activity while recording (lock screen, Dynamic Island): the time from `since`, the microphone's level, the
-/// newest transcribed words and Stop; "Saving…" from Stop until the transcript is saved. The app updates it at most
-/// once a second (RecordingLiveActivity): the level is a coarse meter, not Voice Memos' live one (iOS draws a Live
-/// Activity from snapshots, it has no live drawing of its own).
+/// The Live Activity while recording (lock screen, Dynamic Island): the time from `since`, the newest transcribed words
+/// (running from right to left), the microphone's level (the island's meter) and Stop; "Saving…" from Stop until the
+/// transcript is saved. The app updates it at most once a second (RecordingLiveActivity): iOS draws a Live Activity
+/// from these snapshots and animates between them, it has no live drawing of its own.
 nonisolated struct RecordingActivityAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable, Sendable {
         var since: Date
         var isSaving: Bool
-        /// The newest words, at most two lines' worth ("…" in front when cut).
-        var text: String = ""
+        /// The newest words, each with its place in the transcript as id: an update moves the ones still there to the
+        /// left and brings the new ones in from the right.
+        var words: [LiveWord] = []
         /// The microphone's level 0...1 at the last update.
         var level: Double = 0
     }
 
     /// The transcript's name (kept for the system's own listings; the views don't show it).
     var name: String
+}
+
+nonisolated struct LiveWord: Codable, Hashable, Sendable, Identifiable {
+    var id: Int
+    var text: String
 }
 
 /// The URL the lock screen widget opens: start a transcript.
