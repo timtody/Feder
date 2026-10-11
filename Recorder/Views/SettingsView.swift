@@ -18,6 +18,7 @@ struct SettingsView: View {
     @State private var showsWelcome = false
     #if DEBUG
     @State private var resetPages: [OnboardingPage] = []
+    @AppStorage(AppServices.liveLabelsModelKey) private var liveLabelsModel = LiveLabelsModel.lsEEND
     #endif
     @AppStorage(PeopleDirectory.recognitionKey) private var recognizesVoices = false
     @AppStorage(SpotlightIndex.enabledKey) private var showsInSearch = false
@@ -106,6 +107,7 @@ struct SettingsView: View {
                     NavigationLink("Acknowledgements", value: SettingsRoute.acknowledgements)
                     #if DEBUG
                     Button("Reset Onboarding") { resetOnboarding() }   // Debug builds only: no reinstall to see it again
+                    liveLabelsModelPicker
                     #endif
                 } header: {
                     Text("About")
@@ -182,6 +184,32 @@ struct SettingsView: View {
         NameSpeakersTip.showAgain()
         resetPages = [.welcome, .beforeYouRecord, .voiceProfiles, .spotlight]
             + (services.offersParakeet || services.offersGemma ? [.improvements] : [])
+    }
+
+    /// Debug builds: the live-labels model, LS-EEND or Sortformer, to compare the two on the iPhone. Applies from the
+    /// next recording once the chosen model is loaded (a missing one downloads on Wi-Fi, like LS-EEND's); the line
+    /// below the name says how far it is. Not localized: release builds never show it.
+    private var liveLabelsModelPicker: some View {
+        Picker(selection: $liveLabelsModel) {
+            Text(verbatim: "LS-EEND").tag(LiveLabelsModel.lsEEND)
+            Text(verbatim: "Sortformer").tag(LiveLabelsModel.sortformer)
+        } label: {
+            VStack(alignment: .leading) {
+                Text(verbatim: "Live Labels Model")
+                Text(verbatim: liveModelStatus)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .onChange(of: liveLabelsModel) { services.liveLabelsModelChanged() }
+    }
+
+    private var liveModelStatus: String {
+        if !liveSpeakerLabels { return "Live Speaker Labels are off" }
+        if services.isLiveModelReady { return "Loaded" }
+        if services.isLiveModelDownloading { return "Downloading \(services.liveModel.downloadMB) MB…" }
+        if services.isLiveModelWaiting { return "Waiting for Wi-Fi (\(services.liveModel.downloadMB) MB)" }
+        return "Not loaded"
     }
     #endif
 
@@ -298,9 +326,9 @@ struct SpeakerModelView: View {
     @Environment(AppServices.self) private var services
     @State private var asksLowData = false
 
-    /// MB of speaker models that wait for Wi-Fi: Nemotron (100) and the live-label model (45).
+    /// MB of speaker models that wait for Wi-Fi: Nemotron (100) and the live-label model (45; Debug builds' Sortformer 246).
     private var waitingMB: Int {
-        (services.nemotron.state == .waitingForWiFi ? 100 : 0) + (services.isLiveModelWaiting ? 45 : 0)
+        (services.nemotron.state == .waitingForWiFi ? 100 : 0) + (services.isLiveModelWaiting ? services.liveModel.downloadMB : 0)
     }
 
     var body: some View {

@@ -20,21 +20,42 @@ final class AppServices {
     nonisolated static let welcomeShownKey = "welcomeShown"
     static var modelDownloadsAllowed: Bool { UserDefaults.standard.bool(forKey: welcomeShownKey) }
 
+    #if DEBUG
+    /// UserDefaults key of the live-labels model chosen in Settings › About (Debug builds only). Absent means LS-EEND.
+    nonisolated static let liveLabelsModelKey = "liveLabelsModel"
+    #endif
+    /// The model behind the next recording's live labels: always LS-EEND in release builds; Debug builds can pick
+    /// Sortformer to compare the two on the iPhone (README › Live latency notes).
+    static var liveLabelsModel: LiveLabelsModel {
+        #if DEBUG
+        UserDefaults.standard.string(forKey: liveLabelsModelKey).flatMap(LiveLabelsModel.init(rawValue:)) ?? .lsEEND
+        #else
+        .lsEEND
+        #endif
+    }
+
     /// Hugging Face commits pinned for FluidAudio's downloads, so a change upstream can't alter what users get without
-    /// an app update. Only LS-EEND (the commit that was `main` on 2026-10-07, the one tested): its whole model is one
-    /// download whose revision marker sits inside the model folder. FluidAudio 0.17.4 pins pyannote itself. Nemotron
-    /// and Parakeet stay on `main`, because for a revision other than "main" FluidAudio deletes a repo folder that has no
+    /// an app update. LS-EEND (the commit that was `main` on 2026-10-07, the one tested): its whole model is one
+    /// download whose revision marker sits inside the model folder. Sortformer (Debug builds' live-labels comparison;
+    /// `main` on 2026-10-11, unchanged since 2026-06-24, the files the Mac bench ran): one download too, its marker in
+    /// the repo folder `sortformer`, which holds nothing else. FluidAudio 0.17.4 pins pyannote itself. Nemotron and
+    /// Parakeet stay on `main`, because for a revision other than "main" FluidAudio deletes a repo folder that has no
     /// `.fluidaudio-revision` marker of its own (ModelCache.swift:43-45): Nemotron's loader downloads its bundle and then
     /// the repo root, which wiped the bundle it had just fetched (a fresh install failed once and downloaded twice), and
     /// Parakeet folders downloaded before the pin have no marker (610 MB fetched again at the next transcription).
     /// Nemotron is guarded by FluidAudio's weights-version marker instead (`discardStaleCache`).
     nonisolated static let modelRevisions = [
         "FluidInference/ls-eend-coreml": "28ce1b1f8ef186729df63b3886fbaae7bc10c4a1",
+        "FluidInference/diar-streaming-sortformer-coreml": "ae9a27ab45dc0aa3abede7d2d6bad2b7a69aa6d1",
     ]
 
     let container: ModelContainer
     let identifier: SpeakerIdentifier
-    let liveDiarizer: any LiveDiarizer
+    /// The live diarizer and the model it runs; Debug builds replace both when another model is chosen
+    /// (`liveLabelsModelChanged`, which counts `liveDiarizerGeneration` up, so a prepare of a replaced one is ignored).
+    @ObservationIgnored private var liveDiarizer: any LiveDiarizer
+    private(set) var liveModel: LiveLabelsModel
+    @ObservationIgnored private var liveDiarizerGeneration = 0
     let parakeet: ParakeetModel                      // Parakeet Ultra for the pass after Stop (optional download)
     let network = NetworkPath()                      // Wi-Fi, cellular, Low Data Mode or offline, watched
     let nemotron: NemotronModel                      // the Nemotron speaker model's download (Settings)
@@ -64,16 +85,17 @@ final class AppServices {
         nemotron = NemotronModel(diarizer: nemotronDiarizer, network: network)
         betterSummaries = BetterSummaries(network: network)
         parakeet = ParakeetModel(network: network)
+        let liveModel = Self.liveLabelsModel
+        self.liveModel = liveModel
+        liveDiarizer = Self.makeLiveDiarizer(liveModel)
         #if DEBUG && targetEnvironment(simulator)
         usesFakes = true
         let diarizer: any SpeakerDiarizer = FakeDiarizer()
         let fileTranscriber: any FileTranscriber = FakeFileTranscriber()
-        liveDiarizer = FakeLiveDiarizer()
         #else
         usesFakes = false
         let diarizer: any SpeakerDiarizer = DiarizerSelector(nemotron: nemotronDiarizer, pyannote: FluidAudioDiarizer())
         let fileTranscriber: any FileTranscriber = SpeechFileTranscriber(parakeet: parakeet)
-        liveDiarizer = LSEENDLiveDiarizer()
         #endif
         people = PeopleDirectory(modelContext: container.mainContext)
         // Recognition became opt-in (October 2026). Someone who already has voice profiles had it on: it stays on (and
@@ -174,23 +196,57 @@ final class AppServices {
             return
         }
         guard !isPreparingLiveModel else { return }
-        let downloaded = usesFakes || LSEENDLiveDiarizer.isDownloaded
+        // Debug builds can replace the diarizer while this waits (liveLabelsModelChanged).
+        let model = liveModel, diarizer = liveDiarizer, generation = liveDiarizerGeneration
+        let downloaded = usesFakes || model.isDownloaded
         if !force, !downloaded, await network.current() != .wifi {
-            isLiveModelWaiting = true
+            if generation == liveDiarizerGeneration { isLiveModelWaiting = true }
             return
         }
+        guard generation == liveDiarizerGeneration else { return }   // replaced meanwhile; its own prepare runs
         isLiveModelWaiting = false
         isPreparingLiveModel = true
         isLiveModelDownloading = !downloaded
-        defer { isPreparingLiveModel = false; isLiveModelDownloading = false }
-        do {
-            try await liveDiarizer.prepare()
-            isLiveModelReady = true
-            isLiveModelWaiting = false
-        } catch {
-            isLiveModelReady = false
-            isLiveModelWaiting = !LSEENDLiveDiarizer.isDownloaded && network.kind != .wifi
+        let prepared: Bool
+        do { try await diarizer.prepare(); prepared = true } catch { prepared = false }
+        isPreparingLiveModel = false
+        isLiveModelDownloading = false
+        guard generation == liveDiarizerGeneration else {   // replaced while this loaded: its prepare was skipped
+            await prepareLiveDiarizer(force: force)
+            return
         }
+        isLiveModelReady = prepared
+        isLiveModelWaiting = !prepared && !model.isDownloaded && network.kind != .wifi
+    }
+
+    #if DEBUG
+    /// Settings › About chose another live-labels model (Debug builds): the next recording uses it once it is loaded.
+    /// The previous diarizer is released, so only one model stays in memory (a recording still using it keeps it until
+    /// it ends; then its worker finishes).
+    func liveLabelsModelChanged() {
+        let model = Self.liveLabelsModel
+        guard model != liveModel else { return }
+        liveModel = model
+        liveDiarizer = Self.makeLiveDiarizer(model)
+        liveDiarizerGeneration += 1
+        isLiveModelReady = false
+        isLiveModelWaiting = false
+        Task { await prepareLiveDiarizer() }
+    }
+    #endif
+
+    /// The live diarizer for `model`; on the simulator a fake one at that model's rate (SpeechTranscriber is
+    /// unavailable there, and the fake keeps the capture's conversion to the chosen rate exercised).
+    private static func makeLiveDiarizer(_ model: LiveLabelsModel) -> any LiveDiarizer {
+        #if DEBUG && targetEnvironment(simulator)
+        FakeLiveDiarizer(sampleRate: model == .sortformer ? SortformerLiveDiarizer.sampleRate
+                                                          : LSEENDLiveDiarizer.sampleRate)
+        #else
+        switch model {
+        case .lsEEND: LSEENDLiveDiarizer()
+        case .sortformer: SortformerLiveDiarizer()
+        }
+        #endif
     }
 
     /// Once per launch, in the background: loads the downloaded Nemotron model before the first recording needs it.
@@ -287,5 +343,27 @@ final class AppServices {
         let live = Self.liveSpeakerLabelsEnabled && isLiveModelReady ? liveDiarizer : nil
         return RecordingSession(capture: MicrophoneCapture(), transcriber: transcriber,
                                 modelContext: container.mainContext, identifier: identifier, liveDiarizer: live)
+    }
+}
+
+/// The model behind the live speaker labels (`AppServices.liveLabelsModel`): LS-EEND, or in Debug builds NVIDIA's
+/// streaming Sortformer for the comparison on the iPhone.
+nonisolated enum LiveLabelsModel: String, CaseIterable, Sendable {
+    case lsEEND, sortformer
+
+    /// Complete on disk: preparing it only loads it, on any connection (a missing one waits for Wi-Fi).
+    var isDownloaded: Bool {
+        switch self {
+        case .lsEEND: LSEENDLiveDiarizer.isDownloaded
+        case .sortformer: SortformerLiveDiarizer.isDownloaded
+        }
+    }
+
+    /// Its download in MB, for "Download Now Using Cellular (n MB)".
+    var downloadMB: Int {
+        switch self {
+        case .lsEEND: 45
+        case .sortformer: 246      // the fp16 head of v3/fp16/SortformerNvidiaLow_v2.1 at the pinned commit
+        }
     }
 }

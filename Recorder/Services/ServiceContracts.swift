@@ -52,13 +52,13 @@ nonisolated protocol AudioCapture: AnyObject, Sendable {
     /// Opens `fileURL` for writing in `analyzerFormat`, installs the input tap, starts the engine.
     /// Every converted buffer is written to the file AND yielded as AnalyzerInput(buffer:, bufferStartTime:) with the
     /// cumulative frame position, so file time == transcript time. Single consumer.
-    /// With `liveSamples`, the same frames are also resampled (one persistent converter) to mono Float32 at
-    /// `LiveAudio.sampleRate` and yielded there in order, never dropped, so live-diarizer sample 0 == file frame 0.
-    /// `liveSamples` is finished by seal(), or at once when the resampler can't be built (no live labels then). When
-    /// start throws, nothing was yielded to it and the caller just drops its stream.
+    /// With `liveSamples`, the same frames are also converted (one persistent converter) to mono Float32 at its
+    /// `sampleRate` (the live diarizer's) and yielded to its `samples` in order, never dropped, so live-diarizer
+    /// sample 0 == file frame 0. That stream is finished by seal(), or at once when the converter can't be built (no
+    /// live labels then). When start throws, nothing was yielded to it and the caller just drops its stream.
     /// With `levels`, every buffer's input level is yielded there too (0 at -50 dBFS or quieter ... 1 at -10 dBFS or
     /// louder, RMS), for the level meter; finished by seal().
-    func start(writingTo fileURL: URL, analyzerFormat: AVAudioFormat, liveSamples: AsyncStream<[Float]>.Continuation?,
+    func start(writingTo fileURL: URL, analyzerFormat: AVAudioFormat, liveSamples: LiveAudio?,
                levels: AsyncStream<Float>.Continuation?) async throws -> AsyncStream<AnalyzerInput>
     /// Stop's first step, synchronous: finishes the streams and closes the file (later buffers are dropped), and
     /// returns the recorded duration in seconds (from the file length). Safe to call when not started. The engine
@@ -139,9 +139,11 @@ nonisolated enum SpeakerCount: Sendable, Equatable {
 
 // MARK: - Live diarization
 
-/// The audio format between AudioCapture and LiveDiarizer: mono Float32 at LS-EEND's model rate.
-nonisolated enum LiveAudio {
-    static let sampleRate: Double = 8_000
+/// What AudioCapture feeds a LiveDiarizer: mono Float32 at the diarizer's own `sampleRate` (LS-EEND 8 kHz, Sortformer
+/// 16 kHz), made by the capture's one persistent converter, so no model resamples again.
+nonisolated struct LiveAudio: Sendable {
+    let sampleRate: Double
+    let samples: AsyncStream<[Float]>.Continuation
 }
 
 /// One live-diarization snapshot: the full state so far, not a delta. Times are seconds from file frame 0.
@@ -156,11 +158,14 @@ nonisolated struct LiveSpeakerTurns: Sendable, Equatable {
 /// Streaming speaker diarization DURING a recording: the live, provisional counterpart of SpeakerDiarizer.
 /// Strictly best effort: a recording never waits for it and never fails because of it.
 nonisolated protocol LiveDiarizer: Sendable {
+    /// The rate `start` expects its samples at: the model's (LS-EEND 8 kHz, Sortformer 16 kHz).
+    var sampleRate: Double { get }
     /// Idempotent. Downloads (network needed once) and loads the model. Never awaited on the recording path.
     func prepare() async throws
-    /// Consumes `samples` (mono Float32 at LiveAudio.sampleRate, sample 0 == file frame 0) off the main actor and yields
-    /// snapshots, at most one per 0.5 s of audio, plus a last one with `processedUntil == .infinity` once `samples`
-    /// finished and everything was diarized. The stream then finishes; it also finishes early (without that last
-    /// snapshot) when the model isn't loaded, inference fails, or the consumer stops listening.
+    /// Consumes `samples` (mono Float32 at `sampleRate`, sample 0 == file frame 0) off the main actor and yields
+    /// snapshots, at most one per model step (0.5 s of audio for LS-EEND, 0.48 s for Sortformer), plus a last one with
+    /// `processedUntil == .infinity` once `samples` finished and everything was diarized. The stream then finishes; it
+    /// also finishes early (without that last snapshot) when the model isn't loaded, inference fails, or the consumer
+    /// stops listening.
     func start(samples: AsyncStream<[Float]>) -> AsyncStream<LiveSpeakerTurns>
 }

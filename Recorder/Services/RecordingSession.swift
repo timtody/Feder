@@ -113,12 +113,16 @@ final class RecordingSession: Identifiable {
             locale = setup.locale
             let fileName = AudioFileStore.newFileName()
             self.fileName = fileName
-            // Live labels: capture yields the frames it writes, from file frame 0, into this unbounded stream. It buffers
-            // until the live diarizer gets it below, once recording has really started, so nothing is lost.
-            let liveSamples = liveDiarizer.map { _ in AsyncStream<[Float]>.makeStream() }
+            // Live labels: capture yields the frames it writes, from file frame 0, at the live model's rate, into this
+            // unbounded stream. It buffers until the live diarizer gets it below, once recording has really started, so
+            // nothing is lost.
+            let liveSamples = liveDiarizer.map { diarizer in
+                let (stream, continuation) = AsyncStream<[Float]>.makeStream()
+                return (stream: stream, audio: LiveAudio(sampleRate: diarizer.sampleRate, samples: continuation))
+            }
             let levels = AsyncStream<Float>.makeStream(bufferingPolicy: .bufferingNewest(1))
             let input = try await capture.start(writingTo: AudioFileStore.url(for: fileName), analyzerFormat: setup.audioFormat,
-                                                liveSamples: liveSamples?.continuation, levels: levels.continuation)
+                                                liveSamples: liveSamples?.audio, levels: levels.continuation)
             try await transcriber.start(input: input) { [weak self] event in self?.handle(event) }
             guard state != .discarded else {                  // cancelled while the analyzer was starting
                 _ = capture.seal()

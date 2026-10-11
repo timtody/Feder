@@ -15,6 +15,9 @@ nonisolated final class LSEENDLiveDiarizer: LiveDiarizer, Sendable {
     static let variant: LSEENDVariant = .dihard3          // general purpose, up to 10 speakers
     static let stepSize: LSEENDStepSize = .step500ms      // one CoreML call per 0.5 s of audio (10/s at the 100 ms default)
     static let publishInterval: TimeInterval = 0.5        // seconds of audio between two snapshots: every step
+    static let sampleRate: Double = 8_000                 // the model's input rate; the capture converts to it
+
+    var sampleRate: Double { Self.sampleRate }
 
     private enum Request: Sendable {
         case prepare(CheckedContinuation<Void, any Error>)
@@ -66,12 +69,10 @@ nonisolated final class LSEENDLiveDiarizer: LiveDiarizer, Sendable {
 
     // MARK: Worker (runs on the detached task only)
 
-    /// One recording, with a fresh LSEENDDiarizer (the streaming state lives in the diarizer, not in the model). Feeds
-    /// every chunk in order: time is the count of fed samples, so nothing may be dropped. Once nobody listens any more
-    /// (or inference failed) it only drains, so capture is never blocked and the worker becomes free again.
+    /// One recording, with a fresh LSEENDDiarizer (the streaming state lives in the diarizer, not in the model), fed and
+    /// published by LiveDiarizerStream.
     private static func run(model: LSEENDModel, samples: AsyncStream<[Float]>,
                             out: AsyncStream<LiveSpeakerTurns>.Continuation) async {
-        defer { out.finish() }
         // Frame-based config on purpose: LSEENDDiarizer overwrites frameDurationSeconds with the model's 0.1 s AFTER
         // the seconds-based initializer converted with its 0.08 s default. 3 frames = 0.3 s minimum speech, 5 frames
         // = 0.5 s minimum gap: no label flicker on breaths and blips.
@@ -79,54 +80,10 @@ nonisolated final class LSEENDLiveDiarizer: LiveDiarizer, Sendable {
                                                  timelineConfig: DiarizerTimelineConfig(minFramesOn: 3, minFramesOff: 5))
         else {
             for await _ in samples {}
+            out.finish()
             return
         }
-        let frameHz = diarizer.modelFrameHz ?? 10
-        var numbering: [Int: Int] = [:]                     // LS-EEND slot -> speakerIndex, for this recording
-        var publishedAt: TimeInterval = 0
-        var listening = true
-        for await chunk in samples {
-            guard listening else { continue }
-            do {
-                guard try diarizer.process(samples: chunk) != nil else { continue }   // nil until a 0.5 s step is full
-            } catch {
-                listening = false                           // live labels end for this recording only
-                continue
-            }
-            let processed = Double(diarizer.numFramesProcessed) / frameHz
-            guard processed - publishedAt >= publishInterval else { continue }
-            publishedAt = processed
-            if case .terminated = out.yield(snapshot(of: diarizer.timeline, until: processed, numbering: &numbering)) {
-                listening = false
-            }
-        }
-        guard listening else { return }
-        _ = try? diarizer.finalizeSession()                 // flushes the right context and closes open segments
-        out.yield(snapshot(of: diarizer.timeline, until: .infinity, numbering: &numbering))
-    }
-
-    /// Every segment so far (closed + still open, read from the timeline itself, so segments closed by finalize() are
-    /// included), with LS-EEND's model slots (0..<10, possibly sparse) renumbered 0, 1, 2 ... by first appearance. The
-    /// mapping persists for the recording, so a number once shown never moves to another slot.
-    private static func snapshot(of timeline: DiarizerTimeline, until processedUntil: TimeInterval,
-                                 numbering: inout [Int: Int]) -> LiveSpeakerTurns {
-        let segments = timeline.speakers.values
-            .flatMap { $0.finalizedSegments + $0.tentativeSegments }
-            .sorted { ($0.startFrame, $0.speakerIndex) < ($1.startFrame, $1.speakerIndex) }
-        var turns: [SpeakerTurn] = []
-        turns.reserveCapacity(segments.count)
-        for segment in segments {
-            let index: Int
-            if let known = numbering[segment.speakerIndex] {
-                index = known
-            } else {
-                index = numbering.count
-                numbering[segment.speakerIndex] = index
-            }
-            turns.append(SpeakerTurn(speakerIndex: index, start: TimeInterval(segment.startTime),
-                                     end: TimeInterval(segment.endTime)))
-        }
-        return LiveSpeakerTurns(turns: turns, processedUntil: processedUntil)
+        await LiveDiarizerStream.run(diarizer, samples: samples, publishInterval: publishInterval, out: out)
     }
 
     /// LSEENDModel.loadFromHuggingFace downloads only when the .mlmodelc directory is missing (LSEENDInference.swift:64-73),

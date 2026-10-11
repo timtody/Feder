@@ -178,26 +178,30 @@ nonisolated struct FakeDiarizer: SpeakerDiarizer {
     }
 }
 
-/// Simulator stand-in for LSEENDLiveDiarizer: alternates two speakers every 5 s of RECEIVED audio (so it follows the
-/// real microphone stream, after FakeTranscriber's backlog), ~1 s behind like LS-EEND, one snapshot per 0.5 s of audio.
+/// Simulator stand-in for LSEENDLiveDiarizer (and SortformerLiveDiarizer: `sampleRate` follows the chosen model, so the
+/// capture's 16 kHz path runs too): alternates two speakers every 5 s of RECEIVED audio (so it follows the real
+/// microphone stream, after FakeTranscriber's backlog), ~1 s behind like LS-EEND, one snapshot per 0.5 s of audio.
 /// 5 s on purpose: FakeDiarizer's 4 s turns then visibly replace the live labels after Stop.
 nonisolated struct FakeLiveDiarizer: LiveDiarizer {
+    var sampleRate = LSEENDLiveDiarizer.sampleRate
+
     func prepare() async throws {}
 
     func start(samples: AsyncStream<[Float]>) -> AsyncStream<LiveSpeakerTurns> {
         let (snapshots, out) = AsyncStream<LiveSpeakerTurns>.makeStream(bufferingPolicy: .bufferingNewest(1))
         let offset = FakeTranscriber.backlog
+        let rate = sampleRate
         Task {
             var fed = 0
             var publishedAt: TimeInterval = 0
             for await chunk in samples {
                 fed += chunk.count
-                let processed = offset + Double(fed) / LiveAudio.sampleRate - 1
+                let processed = offset + Double(fed) / rate - 1
                 guard processed - publishedAt >= 0.5 else { continue }
                 publishedAt = processed
                 out.yield(Self.snapshot(until: processed))
             }
-            var last = Self.snapshot(until: offset + Double(fed) / LiveAudio.sampleRate)
+            var last = Self.snapshot(until: offset + Double(fed) / rate)
             last.processedUntil = .infinity
             out.yield(last)
             out.finish()

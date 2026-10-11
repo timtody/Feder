@@ -22,7 +22,7 @@ enum AudioSessionUse {
 }
 
 /// AVAudioEngine input tap -> AVAudioConverter (mic format -> analyzer format) -> AVAudioFile + AsyncStream<AnalyzerInput>,
-/// plus (live speaker labels) a second persistent converter -> mono Float32 at LiveAudio.sampleRate -> AsyncStream<[Float]>.
+/// plus (live speaker labels) a second persistent converter -> mono Float32 at the live diarizer's rate -> AsyncStream<[Float]>.
 @AudioHardware
 final class MicrophoneCapture: nonisolated AudioCapture {
     private let engine = AVAudioEngine()
@@ -52,7 +52,7 @@ final class MicrophoneCapture: nonisolated AudioCapture {
         }
     }
 
-    func start(writingTo fileURL: URL, analyzerFormat: AVAudioFormat, liveSamples: AsyncStream<[Float]>.Continuation?,
+    func start(writingTo fileURL: URL, analyzerFormat: AVAudioFormat, liveSamples: LiveAudio?,
                levels: AsyncStream<Float>.Continuation?) throws -> AsyncStream<AnalyzerInput> {
         // Shut down already (Cancel while the analyzer was being prepared): no engine on a session let go of.
         guard holdsSession else { throw RecorderError.audioEngineFailed("cancelled") }
@@ -83,17 +83,17 @@ final class MicrophoneCapture: nonisolated AudioCapture {
         guard file.processingFormat == analyzerFormat else {   // .otherFormat yields a 0 ch / 0 Hz processing format
             throw RecorderError.audioEngineFailed("Unsupported analyzer format \(analyzerFormat).")
         }
-        // Live speaker labels: the frames written to the file, resampled by ONE persistent converter (filter state
-        // carries across buffers; FluidAudio's own resampler builds a new converter per call).
+        // Live speaker labels: the frames written to the file, converted to the live model's rate by ONE persistent
+        // converter (filter state carries across buffers; FluidAudio's own resampler builds a new converter per call).
         var live: CaptureTap.Live?
         if let liveSamples {
-            if let mono = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: LiveAudio.sampleRate,
+            if let mono = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: liveSamples.sampleRate,
                                         channels: 1, interleaved: false),
                let down = AVAudioConverter(from: analyzerFormat, to: mono) {
                 down.primeMethod = .none   // live-diarizer sample 0 == file frame 0
-                live = CaptureTap.Live(converter: down, samples: liveSamples)
+                live = CaptureTap.Live(converter: down, samples: liveSamples.samples)
             } else {
-                liveSamples.finish()       // this recording simply gets no live labels
+                liveSamples.samples.finish()   // this recording simply gets no live labels
             }
         }
 
@@ -152,7 +152,7 @@ final class MicrophoneCapture: nonisolated AudioCapture {
 /// unchecked code: AVAudioFile, AVAudioConverter and the continuations are Sendable; the mutable part is in the Mutex.
 nonisolated private final class CaptureTap: Sendable {
     struct Live: Sendable {
-        let converter: AVAudioConverter                  // analyzer format -> mono Float32 at LiveAudio.sampleRate
+        let converter: AVAudioConverter                  // analyzer format -> mono Float32 at the live model's rate
         let samples: AsyncStream<[Float]>.Continuation
     }
 
