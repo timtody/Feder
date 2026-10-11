@@ -54,6 +54,8 @@
 	<string>Feder saves where a transcript was started, so you can see and search it later.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Feder uses the microphone to record and transcribe audio. Everything stays on this iPhone.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Feder adds the action items you choose to Reminders and reads none of your other reminders.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIBackgroundModes</key>

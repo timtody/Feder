@@ -43,6 +43,7 @@ struct RecordingDetailView: View {
     @AppStorage(TranscriptExport.namesKey) private var exportNames = true
     @AppStorage(TranscriptExport.timestampsKey) private var exportTimestamps = false
     @State private var keepsStatusRow = false           // the status line was shown: its place stays (see body)
+    @State private var keepsActionsRow = false          // the action items' place was held: it stays (ActionItemsSlot)
     @State private var pendingMerge: SpeakerMerge?
     /// Edit Text: the paragraphs' text and speaker-chip drafts while editing (by segment id), nil otherwise.
     @State private var textEdits: [UUID: String]?
@@ -132,6 +133,9 @@ struct RecordingDetailView: View {
                             .animation(.easeInOut(duration: 0.25), value: statusText == nil)
                             .opacity(bodyShown ? 1 : 0)
                         }
+                        // The action items under the summary, their place held while they are being found.
+                        ActionItemsSlot(recording: recording, statusShown: statusText != nil, keepsRow: keepsActionsRow)
+                            .opacity(bodyShown ? 1 : 0)
                         // HIG › Generative AI: say that AI made it and can be wrong. For the whole transcript, not only
                         // the summary: the words, the speakers and the names recognized by voice are all generated (a
                         // caption under the summary alone implied the rest was not).
@@ -214,6 +218,8 @@ struct RecordingDetailView: View {
         .onChange(of: segments) { findHits() }              // the vocabulary pass or a new speaker count rewrote them
         .modifier(PlaybackFollowing(card: self, segments: segments))
         .onChange(of: statusText != nil, initial: true) { _, shown in if shown { keepsStatusRow = true } }
+        .onChange(of: ActionItemsSlot.reserves(recording, statusShown: statusText != nil, identifier: services.identifier),
+                  initial: true) { _, held in if held { keepsActionsRow = true } }
         .onChange(of: recording.speakerStatusRaw) {        // "Speakers: n" re-runs identification: numbers change
             if recording.speakerStatus != .done { renaming = nil }
         }

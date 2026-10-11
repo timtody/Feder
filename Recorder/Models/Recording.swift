@@ -81,6 +81,8 @@ final class Recording {
     var summaryVersion: Int = 0          // TranscriptTitler.version once title and summary were attempted with a model
     var nameIsUserSet: Bool = false      // the user edited the title; automatic titles never replace it
     var automaticTitle: String? = nil    // the last title TranscriptTitler gave it: a better model may replace that one
+    var actionItems: [ActionItem] = []   // Gemma's to-dos (ActionItemExtractor); []: none found, or not looked for yet
+    var actionItemsVersion: Int = 0      // ActionItemExtractor.version once Gemma looked (answered or failed for good)
     var diarizerRaw: String? = nil       // DiarizerKind.rawValue of speakerTurns' model; nil: diarized before it was kept
                                          // (the app before Scribe: pyannote, or the live labels)
     var editCount: Int = 0               // the user corrected words or speakers this often (search and Spotlight re-read)

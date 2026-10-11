@@ -54,6 +54,10 @@ nonisolated enum TranscriptExport {
         var aiNote: String
         var names: Bool
         var timestamps: Bool
+        /// The action items the user didn't remove, one line each (ActionItemText.line), under their heading after the
+        /// summary; plain text and subtitles stay the transcript alone.
+        var actionItemsHeading = ""
+        var actionItems: [String] = []
     }
 
     // MARK: Writing
@@ -135,6 +139,10 @@ nonisolated enum TranscriptExport {
         var lines = ["# \(snapshot.title)", "", "_\(snapshot.metaLine)_"]
         if !snapshot.tags.isEmpty { lines += ["", snapshot.tags.map { "#\($0.replacingOccurrences(of: " ", with: "-"))" }.joined(separator: " ")] }
         if let summary = snapshot.summary { lines += ["", "> \(summary)"] }
+        // A task list: Notes, Obsidian and GitHub show checkboxes.
+        if !snapshot.actionItems.isEmpty {
+            lines += ["", "## \(snapshot.actionItemsHeading)", ""] + snapshot.actionItems.map { "- [ ] \($0)" }
+        }
         lines.append("")
         for (index, paragraph) in snapshot.paragraphs.enumerated() {
             if let lead = lead(paragraph, snapshot), startsTurn(index, snapshot.paragraphs) {
@@ -202,7 +210,7 @@ nonisolated enum TranscriptExport {
 
     // MARK: PDF
 
-    /// A4 pages with the card's order: title, date line, tags, summary, the turns, and the AI note at the end; page
+    /// A4 pages with the card's order: title, date line, tags, summary, action items, the turns, and the AI note at the end; page
     /// numbers at the foot. Laid out with Core Text (`CTFramesetter`), page by page.
     static func pdf(_ snapshot: Snapshot) -> Data {
         let page = CGRect(x: 0, y: 0, width: 595, height: 842)
@@ -254,6 +262,11 @@ nonisolated enum TranscriptExport {
         add(snapshot.metaLine, .systemFont(ofSize: 10), .darkGray, after: 4)
         if !snapshot.tags.isEmpty { add(snapshot.tags.map { "#\($0)" }.joined(separator: "  "), .systemFont(ofSize: 10), .darkGray, after: 4) }
         if let summary = snapshot.summary { add(summary, .italicSystemFont(ofSize: 11), .darkGray, before: 6, after: 6) }
+        if !snapshot.actionItems.isEmpty {
+            add(snapshot.actionItemsHeading, .systemFont(ofSize: 10.5, weight: .semibold), UIColor(white: 0.12, alpha: 1),
+                before: 8, after: 2)
+            for item in snapshot.actionItems { add("• " + item, .systemFont(ofSize: 11), after: 2) }
+        }
         for (index, paragraph) in snapshot.paragraphs.enumerated() {
             let turn = startsTurn(index, snapshot.paragraphs)
             if let lead = lead(paragraph, snapshot), turn {
@@ -290,6 +303,10 @@ nonisolated enum TranscriptExport {
         body += paragraph(snapshot.metaLine, size: 18, color: "666666", after: 80)
         if !snapshot.tags.isEmpty { body += paragraph(snapshot.tags.map { "#\($0)" }.joined(separator: "  "), size: 18, color: "666666") }
         if let summary = snapshot.summary { body += paragraph(summary, size: 21, italic: true, color: "555555", before: 120, after: 200) }
+        if !snapshot.actionItems.isEmpty {
+            body += paragraph(snapshot.actionItemsHeading, size: 21, bold: true, color: "1F1F1F", before: 120, after: 40)
+            for item in snapshot.actionItems { body += paragraph("• " + item, size: 22, after: 40) }
+        }
         for (index, item) in snapshot.paragraphs.enumerated() {
             let turn = startsTurn(index, snapshot.paragraphs)
             if let lead = lead(item, snapshot), turn {
@@ -391,10 +408,14 @@ extension Recording {
         }
         var meta = [createdAt.formatted(date: .long, time: .shortened), duration.clockFormatted]
         if let placeName { meta.append(placeName) }
-        return .init(title: name, metaLine: meta.joined(separator: " · "),
-                     summary: summary?.isEmpty == false ? summary : nil, tags: tags,
-                     paragraphs: segments.map { .init(speaker: speaker($0.speakerIndex), start: $0.start, text: $0.text) },
-                     words: words, aiNote: String(localized: "AI-generated content can contain mistakes."),
-                     names: names && labelled, timestamps: timestamps)
+        var snapshot = TranscriptExport.Snapshot(
+            title: name, metaLine: meta.joined(separator: " · "),
+            summary: summary?.isEmpty == false ? summary : nil, tags: tags,
+            paragraphs: segments.map { .init(speaker: speaker($0.speakerIndex), start: $0.start, text: $0.text) },
+            words: words, aiNote: String(localized: "AI-generated content can contain mistakes."),
+            names: names && labelled, timestamps: timestamps)
+        snapshot.actionItemsHeading = String(localized: "Action Items")
+        snapshot.actionItems = actionItems.filter { !$0.isRemoved }.map(ActionItemText.line)
+        return snapshot
     }
 }

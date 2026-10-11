@@ -31,6 +31,7 @@
 		BD3F585F5DF9E3B245ACC980 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 5369E989FEB69AFA9F06EF50 /* MLXLMCommon */; };
 		C52AA21891D8870AA04AFDE1 /* SearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F19636A7502AD131706A5F /* SearchTests.swift */; };
 		CBD772DADF0086EDEB0FF0C5 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 69D646AF45C91B8E21B6CD14 /* Localizable.xcstrings */; };
+		DA60EFBC99FE385BCDBA472A /* ActionItemsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB3C11DB1BCB92F126A94B4 /* ActionItemsTests.swift */; };
 		DEB13780364793E430D76278 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = C99D4D671ADAEAD1CC8310D5 /* FluidAudio */; };
 		E1032F5173E6FFC4C1C6878F /* SettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34990786B63747A3152C8DA7 /* SettingsTests.swift */; };
 		EB3C3FFDA4851C15F84E8FE6 /* SpeakerNamingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FE0FEEB768611208CA19668 /* SpeakerNamingTests.swift */; };
@@ -85,6 +86,7 @@
 		69D646AF45C91B8E21B6CD14 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		894E9486143AAD7D3710C41E /* OnboardingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingTests.swift; sourceTree = "<group>"; };
 		9A0118C12D431B788B233588 /* FederWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FederWidgets.swift; sourceTree = "<group>"; };
+		AAB3C11DB1BCB92F126A94B4 /* ActionItemsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionItemsTests.swift; sourceTree = "<group>"; };
 		B5E5334822ED139DB77164FF /* ScribeUITestCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScribeUITestCase.swift; sourceTree = "<group>"; };
 		C2FEA08FE163F0FEAAC15066 /* SystemIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemIntegrationTests.swift; sourceTree = "<group>"; };
 		C47DC3D3045444F493063CD3 /* SpeakerModelPrewarmTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerModelPrewarmTests.swift; sourceTree = "<group>"; };
@@ -159,6 +161,7 @@
 		450F05D8F32855007DA5CC69 /* ScribeUITests */ = {
 			isa = PBXGroup;
 			children = (
+				AAB3C11DB1BCB92F126A94B4 /* ActionItemsTests.swift */,
 				3CBB09BF835A7714BACE9828 /* EditTextTests.swift */,
 				F9888AE62014305DE6B7512B /* ExportTests.swift */,
 				0960C3DA36C230C1F4975E37 /* GemmaDownloadTests.swift */,
@@ -346,6 +349,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DA60EFBC99FE385BCDBA472A /* ActionItemsTests.swift in Sources */,
 				0EBB87CDD9ACF8FF5846234A /* EditTextTests.swift in Sources */,
 				3DE7EA9DAFB6057C8FE49F91 /* ExportTests.swift in Sources */,
 				196D9B1D9C1FC93B2D97EAC5 /* GemmaDownloadTests.swift in Sources */,
