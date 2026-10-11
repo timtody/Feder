@@ -140,6 +140,7 @@ final class PersonPageTests: ScribeUITestCase {
         page.buttons.firstMatch.tap()                                    // Back
         XCTAssertTrue(page.waitForNonExistence(timeout: 5), "one page deep")
         XCTAssertTrue(app.staticTexts["Archive 1"].waitForExistence(timeout: 5), "the Transcripts list")
+        sleep(1)                     // the pop finishes: on a loaded Mac, a tap right after it once opened nothing
 
         open("Archive 1", in: app)
         app.buttons["SpeakerHeader.0"].press(forDuration: 1.0)
