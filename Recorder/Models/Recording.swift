@@ -84,6 +84,8 @@ final class Recording {
     var diarizerRaw: String? = nil       // DiarizerKind.rawValue of speakerTurns' model; nil: diarized before it was kept
                                          // (the app before Scribe: pyannote, or the live labels)
     var editCount: Int = 0               // the user corrected words or speakers this often (search and Spotlight re-read)
+    var calendarEventTitle: String? = nil // the calendar event running at Record whose title named it (CalendarContext); nil: none
+    var calendarAttendees: [String] = [] // that event's invitees' names (no addresses, not the user, at most 30): the rename sheet offers them
 
     init(name: String, audioFileName: String, localeIdentifier: String) {
         self.id = UUID()

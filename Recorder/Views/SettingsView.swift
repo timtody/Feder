@@ -57,6 +57,7 @@ struct SettingsView: View {
 
                 Section {
                     Toggle("Live Speaker Labels", isOn: $liveSpeakerLabels)
+                    CalendarToggle()                       // Name from Calendar (CalendarToggle.swift)
                     Toggle("Save Location", isOn: $saveLocation)
                     NavigationLink(value: SettingsRoute.transcription) {
                         LabeledContent("Transcription", value: transcriptionValue)
@@ -73,7 +74,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Recording")
                 } footer: {
-                    Text("Live Speaker Labels show who is speaking as you record. Save Location keeps where a recording was made; the place name comes from Apple Maps. After you stop, each recording is transcribed again and its speakers are identified more accurately.")
+                    Text("Live Speaker Labels show who is speaking as you record. Name from Calendar names a transcript after the calendar event running when you start it and offers its invitees as speaker names. Save Location keeps where a recording was made; the place name comes from Apple Maps. After you stop, each recording is transcribed again and its speakers are identified more accurately.")
                 }
 
                 Section {
@@ -178,11 +179,11 @@ struct SettingsView: View {
     private func resetOnboarding() {
         let defaults = UserDefaults.standard
         for key in [AppServices.welcomeShownKey, Onboarding.recordingNoticeKey, Onboarding.voiceProfilesShownKey, Onboarding.spotlightShownKey,
-                    Onboarding.improvementsShownKey, Onboarding.legacyGemmaShownKey] {
+                    Onboarding.calendarShownKey, Onboarding.improvementsShownKey, Onboarding.legacyGemmaShownKey] {
             defaults.removeObject(forKey: key)
         }
         NameSpeakersTip.showAgain()
-        resetPages = [.welcome, .beforeYouRecord, .voiceProfiles, .spotlight]
+        resetPages = [.welcome, .beforeYouRecord, .voiceProfiles, .spotlight, .calendar]
             + (services.offersParakeet || services.offersGemma ? [.improvements] : [])
     }
 

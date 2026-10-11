@@ -64,6 +64,8 @@ final class AppServices {
     /// Plays a transcript's audio (the card's player bar, a tapped word).
     let player = TranscriptPlayer()
     let betterSummaries: BetterSummaries             // Gemma for titles and summaries (Settings)
+    /// Name from Calendar: today's and tomorrow's events in memory, read off the main actor (CalendarContext).
+    let calendar = CalendarContext()
     let usesFakes: Bool
     private let nemotronDiarizer: NemotronDiarizer
     @ObservationIgnored private var prewarmed = false
@@ -359,7 +361,8 @@ final class AppServices {
         #endif
         let live = Self.liveSpeakerLabelsEnabled && isLiveModelReady ? liveDiarizer : nil
         return RecordingSession(capture: MicrophoneCapture(), transcriber: transcriber,
-                                modelContext: container.mainContext, identifier: identifier, liveDiarizer: live)
+                                modelContext: container.mainContext, identifier: identifier, liveDiarizer: live,
+                                calendar: CalendarContext.isEnabled ? calendar : nil)   // the cache only, no I/O
     }
 }
 

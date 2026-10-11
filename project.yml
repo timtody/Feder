@@ -73,6 +73,7 @@ targets:
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSMicrophoneUsageDescription: "Feder uses the microphone to record and transcribe audio. Everything stays on this iPhone."
         NSLocationWhenInUseUsageDescription: "Feder saves where a transcript was started, so you can see and search it later."
+        NSCalendarsFullAccessUsageDescription: "Feder names a transcript after the calendar event running when you start it and offers its invitees as speaker names. Everything stays on this iPhone."   # Name from Calendar (CalendarContext), asked only when turned on
         UIBackgroundModes: [audio]
         NSSupportsLiveActivities: true                        # the recording's Live Activity (FederWidgets)
         CFBundleDocumentTypes:                                # "Feder" in other apps' share sheets for audio: an import
