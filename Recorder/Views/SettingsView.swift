@@ -24,10 +24,12 @@ struct SettingsView: View {
     @AppStorage(SpotlightIndex.enabledKey) private var showsInSearch = false
     @Environment(\.modelContext) private var modelContext
     @State private var confirmsVoiceDeletion = false
-    @State private var path = NavigationPath()          // untyped: People pushes Person values too
+    /// The stack's path (untyped: People pushes person pages too) lives in AppNavigation, so "Go to Person" can push here.
+    @Environment(AppNavigation.self) private var navigation
 
     var body: some View {
-        NavigationStack(path: $path) {
+        @Bindable var navigation = navigation
+        NavigationStack(path: $navigation.settings) {
             Form {
                 Section {
                     Toggle("Recognize People by Voice", isOn: recognition)
@@ -130,6 +132,7 @@ struct SettingsView: View {
                 case .acknowledgements: AcknowledgementsView()
                 }
             }
+            .personDestination(stack: .settings)
             .alert("Delete Voice Profiles?", isPresented: $confirmsVoiceDeletion) {
                 Button("Turn Off and Delete", role: .destructive) {
                     recognizesVoices = false
@@ -149,7 +152,9 @@ struct SettingsView: View {
             #endif
             #if DEBUG
             .task {                                    // QA hook: `-showPeople` opens Settings with People pushed
-                if ProcessInfo.processInfo.arguments.contains("-showPeople"), path.isEmpty { path.append(SettingsRoute.people) }
+                if ProcessInfo.processInfo.arguments.contains("-showPeople"), navigation.settings.isEmpty {
+                    navigation.settings.append(SettingsRoute.people)
+                }
             }
             #endif
             .onChange(of: liveSpeakerLabels) {
@@ -474,6 +479,7 @@ struct VocabularyView: View {
 #Preview {
     SettingsView()
         .environment(AppServices(container: PreviewData.container))
+        .environment(AppNavigation())
 }
 #endif
 

@@ -42,6 +42,8 @@ struct MainView: View {
     @Environment(\.modelContext) var modelContext
     @State var tab: AppTab = .transcripts
     @State var searchState = SearchState()
+    /// The tabs' navigation stacks (person pages; Settings' pages), so "Go to Person" can push onto the tab under the card.
+    @State var navigation = AppNavigation()
     @State private var tabBeforeSearch: AppTab = .transcripts
     /// The accessory is inline (the bar minimized): Search shows as its own circle (`Tab(role: .search)`). It starts
     /// `true` and the accessory sets it right on its first appearance (before the first frame): the Search circle
@@ -63,6 +65,9 @@ struct MainView: View {
     private enum CardPhase { case closed, open, closing }
     @State private var cardPhase = CardPhase.closed
     @State private var pendingCard: CardRequest?
+    /// "Go to Person" while the card was up: the person's page, pushed once the card has shrunk back into its row
+    /// (cardDismissed; pushed earlier, the push took the card's zoom target away).
+    @State private var pendingPerson: UUID?
     @State var card = TranscriptCardContent()
     @Namespace private var cardZoom
     /// The onboarding sheet's pages while it is up (see offerOnboarding); empty otherwise.
@@ -89,7 +94,8 @@ struct MainView: View {
         // Through the environment, not as closure properties: with closures the lists compared unequal on every
         // MainView update (a tab, the card, the bar minimizing) and both re-ran their bodies (~50 ms each on the
         // simulator: the @Query and every row); with plain properties SwiftUI skips them.
-        .environment(\.searchActions, SearchActions(open: openSearch, close: closeSearch))
+        .environment(\.searchActions, SearchActions(open: openSearch, close: closeSearch, search: freshSearch))
+        .environment(navigation)
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory {
             RecordAccessory(session: card.session, start: startRecording, open: openRecorder,
@@ -136,6 +142,7 @@ struct MainView: View {
         .environment(\.openTranscript, OpenTranscriptAction { recording, search, sourceID in
             openCard(recording, search: search, sourceID: sourceID)
         })
+        .environment(\.openPerson, OpenPersonAction { openPerson($0) })
         .onChange(of: tab) { old, new in
             if new == .search, old != .search { tabBeforeSearch = old }
             if old == .search, new != .search { endEditing() }   // the keyboard goes with the Search tab
@@ -157,7 +164,12 @@ struct MainView: View {
     private var tabSelection: Binding<AppTab> {
         Binding(get: { tab }, set: { new in
             InteractionTrace.begin("tab"); InteractionTrace.shown("tab")   // the tabs are alive: the next commit shows it
-            if new == .search { searchState.focusRequest += 1 }
+            if new == .search {
+                // Tapped again: back to its results from a person page. The field only takes the focus where it is
+                // on screen, not under a person page kept from before.
+                if tab == .search { navigation.search = [] }
+                if navigation.search.isEmpty { searchState.focusRequest += 1 }
+            }
             tab = new
         })
     }
@@ -216,7 +228,7 @@ struct MainView: View {
         var descriptor = FetchDescriptor<Recording>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
         guard let recording = try? modelContext.fetch(descriptor).first else { return }
-        tab = .transcripts
+        showList()
         if cardPhase == .open { closeCard() }
         openCard(recording, search: nil,
                  sourceID: OpenTranscriptAction.rowSource(RecordingsListView.transcriptsList, recording))
@@ -230,7 +242,7 @@ struct MainView: View {
         card.search = request.search
         card.sourceID = request.sourceID
         card.turnedFromRecording = false
-        if request.showsList { tab = .transcripts }
+        if request.showsList { showList() }
         if request.deferred {
             Task { if cardPhase == .closing { pendingCard = request } else { cardPhase = .open } }
         } else {
@@ -255,6 +267,10 @@ struct MainView: View {
         card.sourceID = TranscriptCardContent.recorderSource
         card.turnedFromRecording = false
         if let session = card.session, !session.isOngoing { card.session = nil }
+        if let person = pendingPerson {
+            pendingPerson = nil
+            pushPerson(person)
+        }
         if let request = pendingCard {
             pendingCard = nil
             present(request)
@@ -263,6 +279,29 @@ struct MainView: View {
             // recorded in the first second would otherwise never see Welcome or Before You Record).
             Task { await offerOnboarding() }
         }
+    }
+
+    // MARK: People
+
+    /// "Go to Person" in a card's name row, like Apple Music's Go to Artist: the card shrinks back into its row, then
+    /// the person's page is pushed onto the tab under it. Opened from that person's own page (its rows' source ids
+    /// name the person), closing the card is the way back to it.
+    func openPerson(_ id: UUID) {
+        guard cardPhase == .open else { pushPerson(id); return }
+        if !(card.sourceID.hasPrefix("person.") && card.sourceID.contains(id.uuidString)) { pendingPerson = id }
+        closeCard()
+    }
+
+    private func pushPerson(_ id: UUID) {
+        InteractionTrace.begin("person")
+        navigation.push(PersonRoute(id: id), on: tab)
+    }
+
+    /// The Transcripts list itself, a person page pushed there popped: a transcript opened from outside zooms out of
+    /// its row, and one just saved tops the list when the card closes.
+    private func showList() {
+        tab = .transcripts
+        navigation.transcripts = []
     }
 
     // MARK: Recording
@@ -302,7 +341,7 @@ struct MainView: View {
         }
         card.session = nil                      // the accessory says Transcribe again
         if showsRecording {
-            tab = .transcripts                   // behind the card: the new transcript tops the list when it closes
+            showList()                           // behind the card: the new transcript tops the list when it closes
             card.transcript = recording           // in place (TranscriptCard turns the recording into it)
             card.search = nil
             card.turnedFromRecording = true
@@ -356,7 +395,7 @@ struct MainView: View {
                 return
             }
             guard let last else { return }
-            tab = .transcripts
+            showList()
             guard services.identifier.editingText.isEmpty else { return }
             if cardPhase == .open { closeCard() }
             present(CardRequest(transcript: last, sourceID: TranscriptCardContent.recorderSource, showsList: true,
@@ -373,6 +412,16 @@ struct MainView: View {
             searchState.query = ""
             searchState.add(token)
         }
+        navigation.search = []                       // the results, not a person page left in the Search tab
+        tab = .search
+        searchState.focusRequest += 1
+    }
+
+    /// A person page's topic: the Search tab with exactly these tokens and text (replacing what was searched before).
+    private func freshSearch(_ tokens: [SearchToken], _ text: String) {
+        searchState.tokens = tokens
+        searchState.query = text
+        navigation.search = []
         tab = .search
         searchState.focusRequest += 1
     }

@@ -24,6 +24,7 @@
 		95CEACAB0CEC68CDC1028D97 /* PlaybackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D04382C8ECD81DC76999E3C /* PlaybackTests.swift */; };
 		9842882BB124165D5F36A048 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 4BF152A52DD140039F8897C1 /* MLX */; };
 		99DA2F289B5773340A468E46 /* ImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 401A84F61C5FFEFD372D9CA8 /* ImportTests.swift */; };
+		A8FC5B9D203DFFCBB90734EC /* PersonPageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DAED1346C652730838D3DF5 /* PersonPageTests.swift */; };
 		ACE3A2F03E31206AE3CA1D0A /* TagEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6061ACE8B763190CD40341F /* TagEditorTests.swift */; };
 		B1FB85133BB65085CC0C8494 /* TranscriptionLanguageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3914E00B46027D3444C29616 /* TranscriptionLanguageTests.swift */; };
 		B5552D6F520774D1A62A09A3 /* OnboardingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 894E9486143AAD7D3710C41E /* OnboardingTests.swift */; };
@@ -71,6 +72,7 @@
 
 /* Begin PBXFileReference section */
 		0960C3DA36C230C1F4975E37 /* GemmaDownloadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GemmaDownloadTests.swift; sourceTree = "<group>"; };
+		0DAED1346C652730838D3DF5 /* PersonPageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonPageTests.swift; sourceTree = "<group>"; };
 		1D9844FE4177FE163F4856E7 /* ResponsivenessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponsivenessTests.swift; sourceTree = "<group>"; };
 		24639CFDE8DBBA9454DEA98F /* SpeakerCorrectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerCorrectionTests.swift; sourceTree = "<group>"; };
 		2D04382C8ECD81DC76999E3C /* PlaybackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackTests.swift; sourceTree = "<group>"; };
@@ -164,6 +166,7 @@
 				0960C3DA36C230C1F4975E37 /* GemmaDownloadTests.swift */,
 				401A84F61C5FFEFD372D9CA8 /* ImportTests.swift */,
 				894E9486143AAD7D3710C41E /* OnboardingTests.swift */,
+				0DAED1346C652730838D3DF5 /* PersonPageTests.swift */,
 				2D04382C8ECD81DC76999E3C /* PlaybackTests.swift */,
 				1D9844FE4177FE163F4856E7 /* ResponsivenessTests.swift */,
 				B5E5334822ED139DB77164FF /* ScribeUITestCase.swift */,
@@ -351,6 +354,7 @@
 				196D9B1D9C1FC93B2D97EAC5 /* GemmaDownloadTests.swift in Sources */,
 				99DA2F289B5773340A468E46 /* ImportTests.swift in Sources */,
 				B5552D6F520774D1A62A09A3 /* OnboardingTests.swift in Sources */,
+				A8FC5B9D203DFFCBB90734EC /* PersonPageTests.swift in Sources */,
 				95CEACAB0CEC68CDC1028D97 /* PlaybackTests.swift in Sources */,
 				02CD8C4FECB1072974082C3B /* ResponsivenessTests.swift in Sources */,
 				B739DD0671E8E7B2825F900A /* ScribeUITestCase.swift in Sources */,

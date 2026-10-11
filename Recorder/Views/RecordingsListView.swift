@@ -15,6 +15,7 @@ struct RecordingsListView: View {
     @Environment(AppServices.self) private var services
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openTranscript) private var openTranscript
+    @Environment(AppNavigation.self) private var navigation
     @Query(sort: \Recording.createdAt, order: .reverse) private var recordings: [Recording]
     @Query(sort: \Person.name) private var people: [Person]
     @State private var appliedQuery = ""                 // what is searched: the typed text after a typing pause
@@ -67,8 +68,14 @@ struct RecordingsListView: View {
         #endif
     }
 
+    /// The tab's stack: person pages only ("Go to Person" from a card opened out of this list), in AppNavigation.
+    private var path: Binding<[PersonRoute]> {
+        Binding(get: { isSearch ? navigation.search : navigation.transcripts },
+                set: { if isSearch { navigation.search = $0 } else { navigation.transcripts = $0 } })
+    }
+
     private var transcripts: some View {
-        NavigationStack {
+        NavigationStack(path: path) {
             let visible = shown                            // both filter or sort everything: once per update
             let suggested = suggestions
             List {
@@ -144,6 +151,7 @@ struct RecordingsListView: View {
             .navigationTitle(isSearch ? "Search" : "Transcripts")   // for VoiceOver only
             // No top bar (the tab bar shows where one is), so the list starts right under the status bar.
             .toolbar(.hidden, for: .navigationBar)
+            .personDestination(stack: isSearch ? .search : .transcripts)
             .safeAreaBar(edge: .top, spacing: 0) {             // a bar: the list fades out under it
                 if isSearch {
                     // Our own field at the top of the Search tab, like Apple Music's; the tokens float under it as
@@ -295,11 +303,13 @@ private struct SearchInput: Equatable {
     var query: SearchQuery
 }
 
-/// Opening the Search tab (pull-to-search, a tag chip; with a token to add) and closing it (the search bar's close
-/// button): MainView's, handed to the lists through the environment.
+/// Opening the Search tab (pull-to-search, a tag chip; with a token to add), closing it (the search bar's close
+/// button), and a fresh search with these tokens and text in place of the current one (a person page's topics):
+/// MainView's, handed to the lists through the environment.
 struct SearchActions {
     let open: (SearchToken?) -> Void
     let close: () -> Void
+    var search: ([SearchToken], String) -> Void = { _, _ in }
 }
 
 extension EnvironmentValues {
@@ -312,6 +322,7 @@ extension EnvironmentValues {
     RecordingsListView(isSearch: false, searchState: SearchState())
         .modelContainer(PreviewData.container)
         .environment(AppServices(container: PreviewData.container))
+        .environment(AppNavigation())
 }
 #endif
 

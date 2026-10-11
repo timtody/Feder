@@ -792,6 +792,10 @@ final class SpeakerIdentifier {
         guard !isGone(recording) else { return }
         if let description {
             recording.summary = description.summary
+            recording.topics = description.topics           // person pages' recurring topics
+            #if DEBUG
+            print("[Scribe] topics: \(description.topics)")
+            #endif
             // Checked after the wait: the user may have renamed it meanwhile. A name the app gave, or the title a model
             // gave it before (a better model's title replaces it), never one the user typed.
             if let title = description.title, !recording.nameIsUserSet,

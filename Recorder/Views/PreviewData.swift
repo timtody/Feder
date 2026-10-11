@@ -26,6 +26,7 @@ enum PreviewData {
     static let kickoffID = UUID(uuidString: "5C0FFEE0-0000-4000-8000-000000000001")!
     static let budgetID = UUID(uuidString: "5C0FFEE0-0000-4000-8000-000000000002")!
     static let pendingID = UUID(uuidString: "5C0FFEE0-0000-4000-8000-000000000003")!
+    static let licenceID = UUID(uuidString: "5C0FFEE0-0000-4000-8000-000000000004")!
     static let maxFiller = 30
 
     /// Filler transcript `index`'s fixed id, so the next launch replaces it.
@@ -42,9 +43,12 @@ enum PreviewData {
     /// With `pending`, also "Weekly Sync" (newest, live labels only), queued for speaker identification: combine it
     /// with `-fakeDiarizeSeconds` to keep its speakers preliminary. `filler` older transcripts ("Archive 1"…, no tags,
     /// unnamed speakers) make the list long enough to scroll: the UI tests of the headings and the minimized tab bar.
+    /// With `personTopics`, also "Licence Planning" (two days old; Anna Schmidt and Jonas Weber, tagged "finance", with
+    /// Gemma's topics), and Budget Review gets topics too, so Anna's page has recurring topics: the tag "finance", then
+    /// "travel", "licences" and "forecast" (a separate flag: the other tests' lists and counts stay as they are).
     static func seed(into context: ModelContext, people: PeopleDirectory, identifier: SpeakerIdentifier, pending: Bool,
-                     filler: Int = 0) {
-        let seeded = Set([kickoffID, budgetID, pendingID] + (0..<maxFiller).map(fillerID))
+                     filler: Int = 0, personTopics: Bool = false) {
+        let seeded = Set([kickoffID, budgetID, pendingID, licenceID] + (0..<maxFiller).map(fillerID))
         for recording in (try? context.fetch(FetchDescriptor<Recording>())) ?? [] where seeded.contains(recording.id) {
             people.forget(recording)
             context.delete(recording)
@@ -78,6 +82,24 @@ enum PreviewData {
         people.name("Jonas Weber", speaker: 1, in: kickoff)
         people.name("Lena Vogel", speaker: 0, in: budget)
         people.name("Anna Schmidt", speaker: 1, in: budget)
+
+        if personTopics {
+            budget.topics = ["travel", "licences", "forecast"]
+            let licence = transcript(name: "Licence Planning", lines: licenceLines, id: licenceID,
+                                     createdAt: .now.addingTimeInterval(-2 * 86_400))
+            licence.tags = ["finance"]
+            licence.topics = ["licences", "travel", "forecast"]
+            licence.summary = "Anna renews the design licences before the end of the month and Jonas checks their "
+                + "prices. Travel to the workshops is booked early, so it stays within the forecast."
+            licence.speakerVoices = [0: VoiceMatch.unit(zip(anna, voice(seed: 5)).map { $0 + 0.4 * $1 }), 1: voice(seed: 2)]
+            licence.voicesVersion = SpeakerIdentifier.voicesVersion
+            licence.summaryVersion = TranscriptTitler.version
+            licence.diarizer = .nemotron
+            context.insert(licence)
+            try? context.save()
+            people.name("Anna Schmidt", speaker: 0, in: licence)
+            people.name("Jonas Weber", speaker: 1, in: licence)
+        }
 
         guard pending else { return }
         let sync = transcript(name: "Weekly Sync", lines: kickoffLines, id: pendingID, createdAt: .now.addingTimeInterval(1))
@@ -118,6 +140,12 @@ enum PreviewData {
         (1, "The travel overrun comes from the two customer workshops. I'd move part of the licence budget to cover it."),
         (0, "Fine with me if finance agrees. Can you send them the numbers by Friday?"),
         (1, "Will do. I'll also add the forecast for the third quarter so they see the whole year."),
+    ]
+
+    private static let licenceLines: [(speaker: Int, text: String)] = [
+        (0, "We need to renew the design licences before the end of the month, and the travel plan for the workshops is still open."),
+        (1, "I can check the licence prices this week. For travel, the forecast says we stay within budget if we book early."),
+        (0, "Then let's book the trains now and put both into the forecast for finance."),
     ]
 
     /// A finished transcript of `lines`: words 0.38 s apart, 1.1 s between turns, diarized and aligned.

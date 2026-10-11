@@ -84,6 +84,8 @@ final class Recording {
     var diarizerRaw: String? = nil       // DiarizerKind.rawValue of speakerTurns' model; nil: diarized before it was kept
                                          // (the app before Scribe: pyannote, or the live labels)
     var editCount: Int = 0               // the user corrected words or speakers this often (search and Spotlight re-read)
+    var topics: [String] = []            // Gemma's "Topics:" line (TranscriptTitler), written with the summary; empty for
+                                         // transcripts described before it was kept (their summary stands in: person pages)
 
     init(name: String, audioFileName: String, localeIdentifier: String) {
         self.id = UUID()
