@@ -10,24 +10,22 @@ Live Activity and Dynamic Island while recording; start from Control Center, the
 lock screen widget; Edit Text with Your Words; speaker corrections (assign a part, new speaker, merge); Share as PDF,
 Word, Markdown and subtitles; iPhone Search (opt-in); titles and summaries in the iPhone's language.
 
-## P1: next (1.2), high value, small to medium effort
+## Done in 1.2 (in progress): the former P1
 
-1. **Better live speaker labels.** Still the biggest quality gap: LS-EEND puts much of a conversation under Speaker 1.
-   Streaming Sortformer (already in FluidAudio) scored 92–94 % of words right against 82–85 % on the Mac bench and
-   labelled new speakers within about 2.3 s instead of up to 19 s. Start behind a Debug switch and compare both on a
-   real problem recording from the iPhone (a WAV where it went wrong). Limits: 4 speakers, about 235 MB, load next to
-   SpeechAnalyzer unmeasured.
-2. **Tap a word to hear it.** The audio is kept already. Playback highlights the words as they are spoken, a tap on a
-   word jumps there, and a doubtful word can be checked before it is corrected with Edit Text. Pairs naturally with
-   the existing corrections.
-3. **Import audio.** From Voice Memos, Files or the share sheet, transcribed offline with the same steps as after Stop
-   (words, speakers, vocabulary, summary). Makes Feder the place for all audio, not only new recordings.
-4. **Undo for corrections.** Assign, merge and text edits are final today (merge asks first). One level of Undo in the
-   card (shake or a toast's Undo) makes them safe to try.
-5. **A paragraph to another speaker.** Today a whole turn moves (the name row's menu). In Edit Text, a speaker chip
-   above each paragraph would move a single paragraph, for turns the diarizer ran together.
-6. **The rename tip in one tap.** A popover tip takes the first tap to close, so naming takes two taps the first time.
-   An inline tip under the first name row, or a tip with a Rename action, avoids it.
+1. **Better live speaker labels: Sortformer behind a Debug switch** (Settings › About › Live Labels Model in Debug
+   builds; release builds keep LS-EEND). Mac bench, 12 meetings, words right when first labelled: 93.0 % against
+   86.3 % with noise (−55 dBFS, four seeds), 93.9 % against 81.9 % clean; a new speaker labelled after 1.5 s (p50) and
+   no speaker missed. Still to do before it becomes the default: compare both on a real problem recording on the
+   iPhone, check memory next to Nemotron and Gemma (236 MB model), the first Neural Engine compile and the live text's
+   delay, and add Sortformer (CC-BY-4.0) to the acknowledgements. Limits: 4 speakers, 246 MB download.
+2. **Listen** (tap a word to hear it): the headphones in a transcript's toolbar show a player; the spoken word lights
+   up and stays on screen, a tap on a word plays from it, and the lock screen and AirPods control it. A mode, not
+   always on: off, a transcript is plain text as before.
+3. **Import audio** from the record accessory's Import button (right of the language; minimized, it stays on the right
+   and the language goes) and from the share sheet of Voice Memos, Files and other apps; the same steps as after Stop.
+4. **Undo for corrections:** a toast's Undo or a shake takes back the last speaker change, merge or text edit.
+5. **A paragraph to another speaker:** Edit Text has a speaker chip above each paragraph.
+6. **The rename tip in one tap:** the first tap on a name renames, with the tip still showing.
 
 ## P2: features that set Feder apart (1.x)
 
@@ -72,7 +70,7 @@ Word, Markdown and subtitles; iPhone Search (opt-in); titles and summaries in th
 - **Backup and sync.** A lost phone can mean lost transcripts beyond the iPhone's own backup. An encrypted export to
   Files, started by the user, keeps the promise; iCloud sync would bend "nothing leaves the phone" and needs a clear
   decision and wording in the privacy policy first.
-- **How long audio is kept.** Tap-to-hear (P1 #2) makes the audio more valuable, and it takes space. A storage manager
+- **How long audio is kept.** Listen and Import make the audio more valuable, and it takes space. A storage manager
   (for example: delete the audio after 30 days, keep the text) needs a default.
 - **What the 1.1 release contains.** Everything above "Done" is on main now; decide whether it ships as 1.0's first
   TestFlight build or as 1.1 after it (CHANGELOG.md lists it under 1.1).
@@ -81,9 +79,10 @@ Word, Markdown and subtitles; iPhone Search (opt-in); titles and summaries in th
 
 The real Spotlight results, the Control Center control with the feather, the Live Activity on the actual lock screen,
 German summaries from Gemma, and the iPhone-only items in TASKS.md (live labels on a real conversation, the search
-keyboard test on the software keyboard).
+keyboard test on the software keyboard). From 1.2: Listen's Now Playing on the lock screen and the AirPods, Import from
+Voice Memos' share sheet, and Sortformer on the iPhone (see Done in 1.2, item 1).
 
-## Suggested for 1.2
+## Suggested next
 
-#1, #2, #4 and #6: the biggest quality gap, the feature that makes corrections trustworthy, and two small fixes to
-things users meet in their first minutes.
+Sortformer as the default once the iPhone check holds (item 1 above), then #7 (bookmarks while recording) and #13 (app
+lock): both small, and both fit the recording and privacy promise.

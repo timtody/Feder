@@ -5,7 +5,7 @@ Feder is a local-only iPhone transcription app: SwiftUI, Swift 6, iOS 26+, built
 ## Hard rules
 
 - **Never change the bundle id (`de.timtody.feder`) or `PRODUCT_NAME` (`Feder`).** The user's real transcripts live on their iPhone under this identity, and the App Store record is tied to it. (Changed once, on 2026-10-08, from `de.cofinpro.recorder` / `Recorder` before the first App Store submission, at the user's request: it publishes under timtody; the transcripts under the old identity were deliberately not moved.)
-- **Nothing leaves the phone.** Do not add network calls except the existing, user-initiated model downloads: Parakeet, Nemotron and Gemma via pinned Hugging Face revisions. No analytics and no cloud models.
+- **Nothing leaves the phone.** Do not add network calls except the existing, user-initiated model downloads: Parakeet, Nemotron, the live-label models (LS-EEND; Sortformer only in Debug builds) and Gemma via pinned Hugging Face revisions. No analytics and no cloud models.
 - **UI tests and the `-seedSamples` launch hooks are simulator only.** They must never touch an iPhone's store.
 - **Keep `CHANGELOG.md` current.** Every change a user would notice gets a line under the version in progress, in English and German, written for users (what they can do now, not how it is built); fixes the user never saw (inside one unreleased version) need none.
 - **A local git repo, no remote.** Commit after each step with a clear message, so steps can be reverted; still look before you overwrite or delete. `build/`, DerivedData and `*.xcresult` are ignored.
