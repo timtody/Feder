@@ -2,11 +2,11 @@ import SwiftUI
 import UIKit
 
 /// App Lock's window (AppLock): its own UIWindow above everything Feder shows (the card's full-screen cover, sheets,
-/// alerts, the file picker, TipKit's popovers, the share sheet), which all stay alive underneath. Built once when the
-/// scene connects, before its first frame, so covering is only `isHidden = false`, drawn before iOS takes the app
-/// switcher's snapshot. While it is up it is the key window (a hardware keyboard can't type into a field underneath),
-/// and Feder's own window is hidden from VoiceOver and the UI tests; unlocked, that window is key again (ShareSheet
-/// presents on the key window).
+/// alerts, the file picker, TipKit's popovers, the share sheet), which all stay alive underneath. Built when the scene
+/// connects, before its first frame, so covering is only `isHidden = false`, drawn before iOS takes the app switcher's
+/// snapshot. While it is up it is the key window (a hardware keyboard can't type into a field underneath), and Feder's
+/// own window is hidden from VoiceOver and the UI tests; unlocked, that window is key again (ShareSheet presents on the
+/// key window).
 @MainActor
 final class AppLockWindow {
     private static var current: AppLockWindow?
@@ -21,18 +21,37 @@ final class AppLockWindow {
         window.isHidden = true
     }
 
-    /// RecorderApp.init: whether Feder starts locked is decided now, and the window comes with the scene.
+    /// RecorderApp.init: whether Feder starts locked is decided now, and the window comes with the scene. With every
+    /// new app scene: UIKit may disconnect a background scene to reclaim its memory while the process lives on (a long
+    /// recording keeps it running) and connect a new one at the return, whose SwiftUI window would otherwise have no
+    /// lock above it. Not reproduced: on an iPhone `requestSceneSessionDestruction` refuses ("The current device does
+    /// not support multiple scenes"), so this may never happen there. Only the app's own role: an external display's
+    /// scene (mirroring the screen, lock included) must not take the lock's window away.
     static func install(_ lock: AppLock) {
         lock.install()
         let center = NotificationCenter.default
         _ = center.addObserver(forName: UIScene.willConnectNotification, object: nil, queue: .main) { note in
             let scene = note.object as? UIWindowScene
             MainActor.assumeIsolated {
-                guard current == nil, let scene else { return }
+                guard let scene, scene.session.role == .windowApplication, current?.window.windowScene !== scene else {
+                    return
+                }
+                current?.window.isHidden = true             // a scene gone without a disconnect seen
                 let cover = AppLockWindow(scene: scene, lock: lock)
                 current = cover
                 lock.present = { cover.show($0) }
                 if lock.isCovered { cover.show(true) }
+            }
+        }
+        _ = center.addObserver(forName: UIScene.didDisconnectNotification, object: nil, queue: .main) { note in
+            let scene = note.object as? UIWindowScene
+            MainActor.assumeIsolated {
+                guard let cover = current, cover.window.windowScene === scene || cover.window.windowScene == nil else {
+                    return
+                }
+                cover.window.isHidden = true
+                current = nil
+                lock.present = nil                          // the cover state stays in AppLock for the next scene
             }
         }
         // At launch SwiftUI makes its window key after the lock's is up: hidden from accessibility too, and the lock
@@ -99,7 +118,9 @@ struct AppLockView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(.systemBackground))
         .overlay(alignment: .bottom) {
-            if let session = lock.session, session.isOngoing {
+            // Only while covering: the window exists, hidden, whether App Lock is on or not, and the bar's level meter
+            // and timer would update with every reading of every recording.
+            if lock.isCovered, let session = lock.session, session.isOngoing {
                 LockRecordingBar(session: session)
             }
         }

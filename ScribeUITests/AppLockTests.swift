@@ -2,9 +2,11 @@ import XCTest
 import notify
 
 /// App Lock (AppLock, AppLockView, Settings › App Lock). Face ID is faked, so cancels and failures can be told apart:
-/// `-fakeAuthentication success|failure|cancel,…` answers each request in turn after 0.3 s (the last answer repeats),
-/// and the switch reads "Require Face ID" as on the iPhone 17 (`testRealFaceIDUnlocks` runs the real one). `-appLockOn` starts with App Lock on (locking
-/// Immediately); every other test launches with it off (ScribeUITestCase).
+/// `-fakeAuthentication success|failure|cancel|nopasscode,…` answers each request in turn after 0.3 s (the last answer
+/// repeats), and the switch reads "Require Face ID" as on the iPhone 17 (`testRealFaceIDUnlocks` runs the real one).
+/// `-appLockOn` starts with App Lock on (locking Immediately); every other test launches with it off
+/// (ScribeUITestCase). The iPhone locking and unlocking, which the simulator never reports, are Darwin notifications
+/// the app reposts as UIKit's (`notify_post`, AppLock's test hooks).
 final class AppLockTests: ScribeUITestCase {
     /// Off by default with the "Off: …" footer. Turning it on asks for Face ID first: a failure springs the switch back,
     /// a success leaves it on, with the Lock picker (Immediately) and the footer that says what it does. Off again at
@@ -219,6 +221,91 @@ final class AppLockTests: ScribeUITestCase {
         XCTAssertTrue(stop.waitForExistence(timeout: 5), "recording, with the large Stop")
         stop.tap()
         XCTAssertTrue(transcribe(app).waitForExistence(timeout: 15), "stopped")
+    }
+
+    /// The iPhone locking locks Feder whatever the grace period. The simulator has no passcode and never reports it, so
+    /// the test posts the app's stand-ins for UIKit's protected-data notifications (AppLock's test hooks). Left within a
+    /// 60 s grace period and the iPhone locked meanwhile: locked at the return. Unlocked, and only then the iPhone's
+    /// unlock reported (as a Feder suspended meanwhile may get it, after the return's activation): covered again at
+    /// once, and Face ID asked.
+    @MainActor
+    func testIPhoneLockingWithinTheGracePeriod() throws {
+        let app = launch(["-appLockOn", "-appLockGrace", "60", "-fakeAuthentication", "success,cancel,success,cancel"],
+                         waitsForList: false)
+        let kickoff = app.staticTexts["Project Kickoff"]
+        XCTAssertTrue(kickoff.waitForExistence(timeout: 15), "unlocked at launch")
+        XCUIDevice.shared.press(.home)
+        sleep(2)
+        notify_post("de.timtody.feder.test.iPhoneLocked")
+        sleep(1)
+        app.activate()
+        let unlock = app.buttons["Unlock"]
+        XCTAssertTrue(waitFor({ unlock.exists && unlock.isEnabled }, timeout: 15),
+                      "locked within the grace period: the iPhone locked meanwhile (Face ID cancelled)")
+        XCTAssertFalse(kickoff.exists)
+        unlock.tap()
+        XCTAssertTrue(kickoff.waitForExistence(timeout: 10), "unlocked")
+
+        notify_post("de.timtody.feder.test.iPhoneUnlocked")
+        XCTAssertTrue(waitFor({ unlock.exists && unlock.isEnabled }, timeout: 15),
+                      "the lock reported late: covered again, Face ID asked (cancelled)")
+        XCTAssertFalse(kickoff.exists)
+        shot("Locked by the iPhone's lock", app)
+    }
+
+    /// The iPhone's lock reported while a recording prepares (after the activation, as a suspended Feder may get it):
+    /// Feder covers, and Face ID waits for the recording, with Unlock meanwhile. Unlock tapped and cancelled while it
+    /// prepares: nothing asks again by itself once it records (the answer after the cancel is a success, so any request
+    /// by itself would unlock).
+    @MainActor
+    func testIPhoneLockedWhileARecordingStarts() throws {
+        let app = launch(["-appLockOn", "-appLockGrace", "60", "-fakePrepareSeconds", "15", "-fakeSilence",
+                          "-fakeAuthentication", "success,cancel,success"], waitsForList: false)
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15), "unlocked at launch")
+        transcribe(app).tap()
+        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 10), "the card, preparing")
+        notify_post("de.timtody.feder.test.iPhoneUnlocked")
+        let unlock = app.buttons["Unlock"]
+        XCTAssertTrue(waitFor({ unlock.exists && unlock.isEnabled }, timeout: 10),
+                      "locked, and Face ID waits for the recording (asked now, it would have unlocked)")
+        XCTAssertTrue(app.staticTexts["Preparing…"].exists, "the lock view's bar: preparing")
+        XCTAssertFalse(app.buttons["Minimize"].exists, "the card is behind the lock")
+        shot("Locked while preparing", app)
+        unlock.tap()                                       // cancelled
+        sleep(1)
+        XCTAssertTrue(waitFor { unlock.exists && unlock.isEnabled }, "still locked")
+        let lockStop = app.buttons["LockStop"]
+        XCTAssertTrue(lockStop.waitForExistence(timeout: 30), "recording behind the lock")
+        sleep(4)                                            // a request by itself would unlock
+        XCTAssertTrue(unlock.exists && unlock.isEnabled, "not asked again by itself once it records")
+        XCTAssertFalse(app.buttons["Minimize"].exists)
+        unlock.tap()
+        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 10), "unlocked: the card")
+        let stop = app.buttons["Stop"].firstMatch
+        XCTAssertTrue(stop.waitForExistence(timeout: 5), "recording, with the large Stop")
+        stop.tap()
+        XCTAssertTrue(transcribe(app).waitForExistence(timeout: 15), "stopped")
+    }
+
+    /// The passcode removed after App Lock was turned on (`nopasscode`: LocalAuthentication's `passcodeNotSet`): Feder
+    /// opens, and App Lock is off, as Settings shows it, so leaving doesn't cover Feder any more. Back after a passcode
+    /// was set (each return's check finds one with the fake), the switch can be turned on again.
+    @MainActor
+    func testPasscodeRemoved() throws {
+        let app = launch(["-appLockOn", "-fakeAuthentication", "nopasscode,success"], waitsForList: false)
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15), "opened: nothing could unlock it")
+        let toggle = appLockSwitch(app)
+        XCTAssertEqual(toggle.value as? String, "0", "off")
+        XCTAssertFalse(toggle.isEnabled, "and disabled")
+        XCTAssertTrue(app.staticTexts["Set a passcode in the iPhone's Settings to lock Feder."].exists)
+        shot("No passcode", app)
+        XCUIDevice.shared.press(.home)
+        sleep(1)
+        app.activate()
+        XCTAssertTrue(waitFor({ toggle.isEnabled }, timeout: 10), "a passcode again: the switch can be turned on")
+        XCTAssertEqual(toggle.value as? String, "0", "still off: App Lock was turned off, not only shown off")
+        XCTAssertFalse(app.buttons["Unlock"].exists, "not locked at the return")
+        XCTAssertTrue(app.staticTexts["Off: anyone using this iPhone can open Feder."].waitForExistence(timeout: 5))
     }
 
     /// While App Lock is on, the Live Activity shows no words: "Recording" stands in their place, with the time, the
