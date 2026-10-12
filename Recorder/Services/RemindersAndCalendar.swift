@@ -38,6 +38,14 @@ actor ReminderWriter {
         case noList                  // Reminders has no list to add to (defaultCalendarForNewReminders is nil)
     }
 
+    nonisolated enum Outcome: Sendable {
+        case added
+        /// Don't Allow at iOS's question just now: that is the answer, so the card says nothing more (HIG: respect it).
+        case declined
+        /// Denied before (iOS doesn't ask again) or restricted: the card offers Settings.
+        case denied
+    }
+
     private var store: EKEventStore?
 
     private var eventStore: EKEventStore {
@@ -48,19 +56,18 @@ actor ReminderWriter {
     }
 
     /// Adds the drafts to Reminders' default list, all or none (one commit), once Feder has full access: asked for the
-    /// first time (iOS's alert; afterwards iOS answers with the earlier choice). false: not allowed (denied now or
-    /// before, or restricted), nothing added.
-    func add(_ drafts: [ReminderDraft]) async throws -> Bool {
+    /// first time (iOS's alert; afterwards iOS answers with the earlier choice). Not allowed: nothing added.
+    func add(_ drafts: [ReminderDraft]) async throws -> Outcome {
         switch EKEventStore.authorizationStatus(for: .reminder) {
         case .fullAccess:
             break
         case .notDetermined:
-            guard try await eventStore.requestFullAccessToReminders() else { return false }
+            guard try await eventStore.requestFullAccessToReminders() else { return .declined }
         default:
-            return false
+            return .denied
         }
         try save(drafts)
-        return true
+        return .added
     }
 
     private func save(_ drafts: [ReminderDraft]) throws {
@@ -188,3 +195,54 @@ enum EventEditor {
         }
     }
 }
+
+#if DEBUG && targetEnvironment(simulator)
+// UI tests only, and only in the simulator (it deletes reminders): `-federRemindersReport` reads back what Feder added
+// to Reminders and removes it, so the tests check what arrived there and their runs don't pile up.
+extension ReminderWriter {
+    /// The reminders whose link is Feder's (feder://), one line each: "title | due | alarms | link | notes" (the due
+    /// date "2026-10-16", with "15:00" when it has a time; the alarms' dates or "no alarm"), and then deletes them.
+    /// Without full access (an earlier test denied it): "no access".
+    func debugTakeFederReminders() async -> [String] {
+        guard EKEventStore.authorizationStatus(for: .reminder) == .fullAccess else { return ["no access"] }
+        let store = eventStore
+        let found: [(id: String, line: String)] = await withCheckedContinuation { continuation in
+            store.fetchReminders(matching: store.predicateForReminders(in: nil)) { reminders in
+                let ours = (reminders ?? []).filter { $0.url?.scheme == FederURL.scheme }
+                continuation.resume(returning: ours.map { ($0.calendarItemIdentifier, Self.debugLine($0)) })
+            }
+        }
+        for item in found {
+            if let reminder = store.calendarItem(withIdentifier: item.id) as? EKReminder {
+                try? store.remove(reminder, commit: false)
+            }
+        }
+        try? store.commit()
+        return found.map(\.line).sorted()
+    }
+
+    nonisolated private static func debugLine(_ reminder: EKReminder) -> String {
+        func text(_ parts: DateComponents) -> String {
+            let day = String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+            guard let hour = parts.hour else { return day }
+            return day + String(format: " %02d:%02d", hour, parts.minute ?? 0)
+        }
+        let due = reminder.dueDateComponents.map(text) ?? "no due date"
+        let alarms = (reminder.alarms ?? []).compactMap(\.absoluteDate).map {
+            text(Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: $0))
+        }
+        return [reminder.title ?? "", due, alarms.isEmpty ? "no alarm" : alarms.joined(separator: ", "),
+                reminder.url?.absoluteString ?? "", reminder.notes ?? ""].joined(separator: " | ")
+    }
+}
+
+extension EventEditor {
+    /// An alert over whatever is frontmost, for the UI tests to read (`-federRemindersReport`).
+    static func debugAlert(_ title: String, _ lines: [String]) {
+        guard let top = topViewController() else { return }
+        let alert = UIAlertController(title: title, message: lines.joined(separator: "\n"), preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        top.present(alert, animated: false)
+    }
+}
+#endif

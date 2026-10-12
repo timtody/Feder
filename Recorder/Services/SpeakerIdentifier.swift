@@ -146,7 +146,10 @@ final class SpeakerIdentifier {
             if wordsToCome { progress.expect(.words) }
             progress.expect(.speakers)
             if wordsToCome || recording.vocabularyPending { progress.expect(.vocabulary) }
-            if canDescribe { progress.expect(.summary); progress.expect(.actions) }
+            if canDescribe { progress.expect(.summary) }
+            // Only when they will be looked for: listed, the card holds their place, and a re-run ("Speakers: n") of a
+            // transcript whose items are current left a blank row (ActionItemsSlot).
+            if canDescribe, recording.actionItemsVersion < ActionItemExtractor.version { progress.expect(.actions) }
         }
         enqueueJob(for: recording) { await self.identify(recording) }
     }
@@ -764,7 +767,14 @@ final class SpeakerIdentifier {
             track(id) { $0.drop(.summary) }
             return
         }
-        track(id) { $0.begin(.summary) }
+        // The action items come next in this pass. On a transcript without a summary (the sweep's older ones) the
+        // status line takes a new place: listed now, their place is held in that same move rather than inserted when
+        // they begin. Under a summary the line only covers it, and they follow quietly (findActionItems).
+        let actionsFollow = recording.actionItemsVersion < ActionItemExtractor.version && (recording.summary ?? "").isEmpty
+        track(id) { progress in
+            progress.begin(.summary)
+            if actionsFollow { progress.expect(.actions) }
+        }
         defer {
             if case .running = progress[id]?.state(of: .summary) {   // not now: waiting for Stop, or given up
                 let waits = waitingForGemma.contains { $0.id == id }
@@ -822,9 +832,14 @@ final class SpeakerIdentifier {
             track(id) { $0.drop(.actions) }
             return
         }
-        track(id) { $0.begin(.actions) }
+        // On the card only when the step was listed ahead (after Stop, a re-run, or behind the summary it follows): the
+        // sweep's pass over an older transcript whose summary is current only adds items, quietly. Shown, the status
+        // line covered that summary for Gemma's whole run and the held place moved the open transcript down; now the
+        // row appears when items are found.
+        let shown = progress[id]?.state(of: .actions) != nil
+        if shown { track(id) { $0.begin(.actions) } }
         defer {
-            if case .running = progress[id]?.state(of: .actions) {   // not now: waiting for Stop, or given up
+            if shown, case .running = progress[id]?.state(of: .actions) {   // not now: waiting for Stop, or given up
                 let waits = waitingForGemma.contains { $0.id == id }
                 track(id) { waits ? $0.expect(.actions, again: true) : $0.drop(.actions) }
             }
@@ -854,7 +869,7 @@ final class SpeakerIdentifier {
         recording.actionItems = ActionItem.merged(found, keepingFlagsOf: recording.actionItems)
         recording.actionItemsVersion = max(recording.actionItemsVersion, target)
         try? modelContext.save()
-        track(id) { $0.finish(.actions) }
+        if shown { track(id) { $0.finish(.actions) } }
     }
 
     /// Gemma can't run while a recording is made: described right after Stop (setRecording). Ids, not

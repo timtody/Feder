@@ -229,7 +229,7 @@ nonisolated final class FakeTextWriter: TextWriter, @unchecked Sendable {
                  partial: (@Sendable (String) -> Void)?) async throws -> String {
         try await Task.sleep(for: .seconds(1))
         // The action items (ActionItemExtractor), checked first: its instructions have no "Title:". The seeded Budget
-        // Review's, else two of the test recording.
+        // Review's, else two of the test recording: one due on a day, one at a time (a reminder with an alarm).
         if instructions.contains("Task:") || instructions.contains("Aufgabe:") {
             try await Task.sleep(for: .seconds(2))           // long enough for a UI test to see the step's status line
             if prompt.contains("numbers by Friday") {
@@ -237,7 +237,7 @@ nonisolated final class FakeTextWriter: TextWriter, @unchecked Sendable {
                     "Task: Add the third-quarter forecast | Who: Anna Schmidt | Due: -"
             }
             return "Task: Send the test results to the team | Who: - | Due: by Friday\n" +
-                "Task: Check the provisional words | Who: - | Due: -"
+                "Task: Check the provisional words | Who: - | Due: tomorrow at 10:00"
         }
         guard instructions.contains("Title:") else { return "A part of the test conversation about the live transcript." }
         let answer = "Topics: live transcript; provisional words\nSummary: The test checks the live transcript; new words " +

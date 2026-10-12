@@ -86,10 +86,20 @@ nonisolated enum ActionItemText {
 
     /// The line under the task: owner · due · In Reminders · In Calendar (what there is of it).
     static func caption(_ item: ActionItem) -> String? {
-        var parts = [item.owner, due(item)].compactMap { $0 }
-        if item.addedToReminders != nil { parts.append(String(localized: "In Reminders")) }
-        if item.addedToCalendar != nil { parts.append(String(localized: "In Calendar")) }
+        let parts = [item.owner, due(item)].compactMap { $0 } + places(item)
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// Where it was added, "In Reminders, In Calendar", nil when nowhere: the item menu's VoiceOver value (its
+    /// checkmark).
+    static func added(_ item: ActionItem) -> String? {
+        let places = places(item)
+        return places.isEmpty ? nil : places.joined(separator: ", ")
+    }
+
+    private static func places(_ item: ActionItem) -> [String] {
+        [item.addedToReminders.map { _ in String(localized: "In Reminders") },
+         item.addedToCalendar.map { _ in String(localized: "In Calendar") }].compactMap { $0 }
     }
 
     /// "Send the numbers to finance (Anna Schmidt, Friday, 16 October 2026)": the exports' and Copy's line.
