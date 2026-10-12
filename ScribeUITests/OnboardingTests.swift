@@ -11,13 +11,12 @@ import XCTest
 final class OnboardingTests: ScribeUITestCase {
     /// A new install: Welcome (with the download sizes; can't be swiped away), Before You Record (with the privacy
     /// policy), Recognize People by Voice (biometric data, off until turned on), Find Transcripts in iPhone Search
-    /// (off until turned on; says what typing there can send to Apple), Name Transcripts from Your Calendar (off until
-    /// turned on), then Optional Improvements with a switch each for Parakeet and Gemma; the button names what it loads.
+    /// (off until turned on; says what typing there can send to Apple), then Optional Improvements with a switch each for
+    /// Parakeet and Gemma; the button names what it loads.
     @MainActor
     func testNewInstallPages() throws {
         let app = launch(["-welcomeShown", "NO", "-recordingNoticeShown", "NO", "-voiceProfilesOnboardingShown", "NO",
                           "-spotlightOnboardingShown", "NO", "-resetSpotlight", "-resetVoiceRecognition", "-improvementsOnboardingShown", "NO",
-                          "-calendarOnboardingShown", "NO", "-resetCalendar",
                           "-fakeGemmaDownload", "-fakeParakeetDownload", "-gemmaOnboardingShown", "NO"])
         let welcome = app.staticTexts["Welcome to Feder"]
         XCTAssertTrue(welcome.waitForExistence(timeout: 5), "Welcome first")
@@ -47,10 +46,6 @@ final class OnboardingTests: ScribeUITestCase {
         XCTAssertTrue(app.staticTexts["What You Type"].exists, "it says what typing there can send to Apple")
         XCTAssertTrue(app.staticTexts["Stays on This iPhone"].exists)
         shot("iPhone Search", app)
-        app.buttons["No Thanks"].tap()
-        XCTAssertTrue(app.buttons["Name from Calendar"].waitForExistence(timeout: 5), "then naming from the calendar")
-        XCTAssertTrue(app.staticTexts["Named After the Meeting"].exists && app.staticTexts["Invitees as Speaker Names"].exists)
-        shot("Calendar", app)
         app.buttons["No Thanks"].tap()
         XCTAssertTrue(app.staticTexts["Optional Improvements"].waitForExistence(timeout: 5), "then the optional downloads")
         let both = app.buttons["Download (4.2 GB)"]

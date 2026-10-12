@@ -25,8 +25,7 @@ class ScribeUITestCase: XCTestCase {
         let language = arguments.contains("-AppleLanguages") ? [] : ["-AppleLanguages", "(en)"]
         // The onboarding's pages count as passed unless a test asks for them (a fresh simulator has no transcripts, so
         // the app would take it for a new install and cover the list with the sheet).
-        let onboarding = ["-welcomeShown", "-recordingNoticeShown", "-voiceProfilesOnboardingShown", "-spotlightOnboardingShown",
-                          "-calendarOnboardingShown", "-improvementsOnboardingShown"]
+        let onboarding = ["-welcomeShown", "-recordingNoticeShown", "-voiceProfilesOnboardingShown", "-spotlightOnboardingShown", "-improvementsOnboardingShown"]
             .filter { !arguments.contains($0) }.flatMap { [$0, "YES"] }
         // Recognize People by Voice is off on a new install; the tests run with it on (the seeded people get voice
         // profiles), unless a test asks for a new install's state (`-resetVoiceRecognition`).

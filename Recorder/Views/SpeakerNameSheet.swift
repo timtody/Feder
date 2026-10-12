@@ -11,8 +11,9 @@ struct SpeakerRenameTarget: Identifiable {
 /// name and selected, so typing replaces it) and the known people below it, those linked to this speaker or with a
 /// similar voice first, filtered as you type. Choosing a person or saving a typed name links the speaker to that person
 /// (`PeopleDirectory.name`), so the person's voice fingerprint learns this speaker's voice. "Use Default Name" goes back
-/// to "Speaker N". A transcript started during a calendar event (CalendarContext) offers that event's invitees first,
-/// in an "Invitees" section above the people (an invitee who is a person already shows once, there).
+/// to "Speaker N". A transcript started during a calendar event (CalendarContext) offers that event's invitees in an
+/// "Invitees" section above the people (an invitee who is a person already shows once, there); the person this speaker
+/// is linked to and those with a similar voice stay above them, in "Suggestions".
 struct SpeakerNameSheet: View {
     let recording: Recording
     let speaker: Int
@@ -67,8 +68,18 @@ struct SpeakerNameSheet: View {
                 }
                 let choices = choices
                 // The calendar event's invitees (Calendar's own word), above the people: a tap names the speaker
-                // exactly like typing the name (a person is made on first use). Never assigned by itself.
-                let invitees = choices.filter(\.isInvitee), others = choices.filter { !$0.isInvitee }
+                // exactly like typing the name (a person is made on first use). Never assigned by itself. The sheet's
+                // best guesses, this speaker's person (the user themselves, say, who is never an invitee) and similar
+                // voices, would sink below up to 30 invitees, off the half-height sheet: they come first, in
+                // Suggestions. Without invitees they lead the people as before.
+                let invitees = choices.filter(\.isInvitee)
+                let suggested = invitees.isEmpty ? [] : choices.filter { !$0.isInvitee && $0.reason != .other }
+                let others = choices.filter { !$0.isInvitee && (invitees.isEmpty || $0.reason == .other) }
+                if !suggested.isEmpty {
+                    Section("Suggestions") {
+                        ForEach(suggested) { choice in choiceButton(choice, counts: counts) }
+                    }
+                }
                 if !invitees.isEmpty {
                     Section {
                         ForEach(invitees) { choice in choiceButton(choice, counts: counts) }

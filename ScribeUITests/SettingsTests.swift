@@ -315,8 +315,6 @@ final class SettingsTests: ScribeUITestCase {
         XCTAssertTrue(app.buttons["No Thanks"].waitForExistence(timeout: 5), "and the voice page")
         app.buttons["No Thanks"].tap()
         XCTAssertTrue(app.buttons["Show in iPhone Search"].waitForExistence(timeout: 5), "and the iPhone Search page")
-        app.buttons["No Thanks"].tap()
-        XCTAssertTrue(app.buttons["Name from Calendar"].waitForExistence(timeout: 5), "and the Calendar page")
     }
 
     /// Show in iPhone Search is off until turned on (opt-in, like voice profiles); its footer says what it means.

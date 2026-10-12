@@ -10,7 +10,8 @@ nonisolated struct CalendarEvent: Sendable, Equatable {
     var end: Date
     /// Display names (`CalendarRules.attendees`): not the user, no rooms, no addresses, at most 30.
     var attendees: [String]
-    /// The user is an attendee or the organizer, or the event has no attendees in a calendar they can change: their own.
+    /// The user is an attendee or the organizer, or the event has no attendees: their own. False only in a calendar they
+    /// can change (someone else's event in one they can only read isn't kept at all: `CalendarRules.event`).
     var userTakesPart: Bool
 }
 
@@ -38,19 +39,24 @@ nonisolated enum CalendarRules {
     static let maxTitleLength = 100
 
     /// The event as Feder keeps it, or nil when it can't name a transcript: all-day, cancelled, declined by the user,
-    /// or without a title.
+    /// without a title, or someone else's in a calendar the user can only read.
     static func event(title rawTitle: String?, start: Date, end: Date, isAllDay: Bool, isCanceled: Bool,
                       attendees: [CalendarParticipant], organizer: CalendarParticipant?,
                       calendarIsWritable: Bool) -> CalendarEvent? {
         guard !isAllDay, !isCanceled, end > start, let title = title(rawTitle) else { return nil }
         if attendees.contains(where: { $0.isCurrentUser && $0.declined }) { return nil }
-        // An event the user is invited to or organizes is theirs; one without attendees is theirs when it is in a
-        // calendar they can change (not a colleague's read-only shared calendar, where someone else's meeting would
-        // name a private conversation).
-        let takesPart = attendees.contains(where: \.isCurrentUser) || organizer?.isCurrentUser == true
-            || (attendees.isEmpty && calendarIsWritable)
+        // An event the user is invited to or organizes is theirs. One they aren't on, in a calendar they can only read
+        // (a partner's calendar shared view-only, a colleague's delegated Exchange or Google calendar), is dropped
+        // here, not merely ranked last: whenever nothing of the user's own ran, its "Therapy" or "1:1 HR" named their
+        // private conversation (also on the Lock Screen) and its invitees were stored with it. In a calendar the user
+        // can change it stays, after their own: there it is theirs when it has no attendees, and Google and CalDAV
+        // don't always mark the user (`isCurrentUser`), so their own invitation can look like someone else's.
+        // (Calendars hidden in the Calendar app are read like the others: EventKit doesn't say which are hidden.)
+        let isUser = attendees.contains(where: \.isCurrentUser) || organizer?.isCurrentUser == true
+        guard isUser || calendarIsWritable else { return nil }
         return CalendarEvent(title: title, start: start, end: end,
-                             attendees: self.attendees(attendees, organizer: organizer), userTakesPart: takesPart)
+                             attendees: self.attendees(attendees, organizer: organizer),
+                             userTakesPart: isUser || attendees.isEmpty)
     }
 
     /// Trimmed, one line, at most `maxTitleLength` characters; nil when nothing is left.

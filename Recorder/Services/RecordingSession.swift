@@ -54,15 +54,18 @@ final class RecordingSession: Identifiable {
     /// recording card shows it in the title's place from its first frame, so it never changes under the user (not even
     /// when transcripts are deleted meanwhile). Not in `start()`: that runs 0.12 s after the card has begun zooming in
     /// (MainView.startDelay), which showed the title field's grey "Title" placeholder until then. One exception: a press
-    /// that came while the calendar was still being read (a cold launch from Control Center, the Action Button, Siri or
-    /// the widget) takes the event that read finds, once, while preparing (`takeLateCalendarEvent`), before `.recording`
-    /// hands the name to the Live Activity; never later.
+    /// that came before the calendar read that makes the cache current had ended (a cold launch from Control Center, the
+    /// Action Button, Siri or the widget; a return to the foreground after a meeting was cancelled or moved elsewhere)
+    /// takes what that read finds, once, while preparing (`recheckCalendarEvent`), before `.recording` hands the name to
+    /// the Live Activity; never later.
     private(set) var transcriptName: String
     /// The calendar event the recording was started in (CalendarContext; nil: none, or naming from the calendar is
     /// off): its title names the transcript, and its title and invitees are saved with it.
     private(set) var calendarEvent: CalendarEvent?
     /// When Transcribe was pressed: the moment the calendar event is picked for.
     let pressedAt: Date
+    /// The calendar cache's read at the press (`CalendarContext.generation`): a later one is picked from again.
+    private let pressedCalendarRead: Int
     /// Where the recording started, once PlaceLocator has it (the recording card shows it in the date line).
     private(set) var place: RecordingPlace?
     /// The recorded length (the file's), from Stop on: the duration the transcript will show.
@@ -93,16 +96,18 @@ final class RecordingSession: Identifiable {
         self.calendar = calendar
         let pressedAt = Date.now
         self.pressedAt = pressedAt
+        pressedCalendarRead = calendar?.generation ?? 0
         // From the calendar's in-memory cache: no EventKit call in the press. A calendar name isn't a default name, so
         // Gemma writes only the summary (TranscriptTitler.isDefaultName).
         let event = calendar?.event(at: pressedAt)
         calendarEvent = event
-        if let event {
-            transcriptName = event.title
-        } else {
-            let count = (try? modelContext.fetchCount(FetchDescriptor<Recording>())) ?? 0
-            transcriptName = String(localized: "New Transcript \(count + 1)")   // stored: TranscriptTitler.isDefaultName knows both languages
-        }
+        transcriptName = event?.title ?? Self.defaultName(in: modelContext)
+    }
+
+    /// "New Transcript N": one more than the transcripts there are (a synchronous count; only when no event names it).
+    private static func defaultName(in modelContext: ModelContext) -> String {
+        let count = (try? modelContext.fetchCount(FetchDescriptor<Recording>())) ?? 0
+        return String(localized: "New Transcript \(count + 1)")   // stored: TranscriptTitler.isDefaultName knows both languages
     }
 
     /// The language to transcribe in: the one chosen in the record accessory, else the phone's (TranscriptionLanguage).
@@ -126,7 +131,7 @@ final class RecordingSession: Identifiable {
                 self.downloadProgress = progress
                 self.state = .downloadingSpeechModel
             }
-            await takeLateCalendarEvent()                     // ≤ 1 s, only while the calendar is still being read
+            await recheckCalendarEvent()                      // ≤ 1 s, only while a calendar read is still running
             guard state != .discarded else {                  // cancelled during prepare/download: nothing captured yet
                 await capture.shutDown()                      // deactivates the audio session
                 return
@@ -167,17 +172,23 @@ final class RecordingSession: Identifiable {
         }
     }
 
-    /// A cold launch from outside the app (Control Center, the Action Button, Siri, the widget) presses within about a
-    /// second of launching, often before the calendar's first read has finished, and so finds no event. That read had
-    /// the time of preparing (permission, audio session, speech model) and has at most 1 s more; what it finds names
-    /// the transcript once, without animation, while the card still says Preparing and before `.recording` hands the
-    /// name to the Live Activity. A warm press with the cache current returns at once.
-    private func takeLateCalendarEvent() async {
-        guard calendarEvent == nil, let calendar,
-              let event = await calendar.pendingEvent(at: pressedAt, waitingUpTo: .seconds(1)) else { return }
+    /// The press picked from the cache as it was; a read running then (or started by the return to the foreground the
+    /// press came with) may know better. A cold launch from outside the app (Control Center, the Action Button, Siri,
+    /// the widget) presses within about a second of launching, often before the first read has finished, and so finds
+    /// no event. A press that resumes a suspended Feder finds what was read before it was suspended: a meeting
+    /// cancelled, moved or declined on the Mac meanwhile still named the transcript, with its invitees, because only
+    /// a press that found nothing looked again. That read had the time of preparing (permission, audio session, speech
+    /// model) and has at most 1 s more; what it finds names the transcript once, without animation, while the card
+    /// still says Preparing and before `.recording` hands the name to the Live Activity: another event, or "New
+    /// Transcript N" when none runs any more. A warm press with the cache current returns at once.
+    private func recheckCalendarEvent() async {
+        guard let calendar,
+              case .event(let event) = await calendar.recheck(at: pressedAt, pickedFrom: pressedCalendarRead,
+                                                              waitingUpTo: .seconds(1)),
+              event != calendarEvent else { return }
         guard state == .preparing || state == .downloadingSpeechModel else { return }   // cancelled meanwhile
         calendarEvent = event
-        transcriptName = event.title
+        transcriptName = event?.title ?? Self.defaultName(in: modelContext)
     }
 
     /// "Cancel" on the preparing / downloading overlays, i.e. before anything was captured. The cover dismisses via

@@ -17,10 +17,6 @@ enum OnboardingPage: Hashable {
     /// Transcripts in the iPhone's search (Spotlight): what it does, that the index stays on the iPhone, and that what
     /// one types there can go to Apple for suggestions; off until the user turns it on. Once for everyone.
     case spotlight
-    /// Naming transcripts from the calendar (CalendarContext): what it does, that it reads the calendar only on the
-    /// iPhone and keeps just the event's name and its invitees' names; off until the user turns it on, and the calendar
-    /// permission is asked on that tap. Once for everyone.
-    case calendar
     /// The optional downloads, on one page, each with its switch: Parakeet (610 MB, more accurate transcripts after
     /// Stop) and Gemma (3.6 GB, titles and summaries; 8 GB iPhones only). Download / Not Now.
     case improvements
@@ -35,9 +31,8 @@ enum OnboardingPage: Hashable {
 /// with tinted symbols, one prominent glass button at the bottom (and a plain one under it where there is a choice).
 /// The pages are a NavigationStack inside the sheet, so iOS draws the push, the back button and the edge swipe.
 /// Welcome and Before You Record can't be swiped away (each counts only once its Continue is tapped); Optional
-/// Improvements can, and counts as shown when it appears. No permission is asked here except the calendar's, and that
-/// only on the Calendar page's own "Name from Calendar" tap (the user asked for it there): the microphone is asked at
-/// the first Transcribe, as Voice Memos does, and location at the first Stop. Copy without dashes (they read as machine
+/// Improvements can, and counts as shown when it appears. No permission is asked here: the microphone is asked at the
+/// first Transcribe, as Voice Memos does, and location at the first Stop. Copy without dashes (they read as machine
 /// written), and about privacy in the first person plural: "We never upload…", not "Feder doesn't…".
 struct Onboarding: View {
     let pages: [OnboardingPage]
@@ -53,8 +48,6 @@ struct Onboarding: View {
     static let voiceProfilesShownKey = "voiceProfilesOnboardingShown"
     /// UserDefaults: the iPhone Search page was shown.
     static let spotlightShownKey = "spotlightOnboardingShown"
-    /// UserDefaults: the Calendar page was shown.
-    static let calendarShownKey = "calendarOnboardingShown"
     /// UserDefaults: Optional Improvements was shown. (Until October 2026 a Gemma-only page, `gemmaOnboardingShown`.)
     static let improvementsShownKey = "improvementsOnboardingShown"
     /// UserDefaults: the Gemma-only page it replaced was shown, so Gemma was offered once already.
@@ -80,7 +73,6 @@ struct Onboarding: View {
             case .beforeYouRecord: beforeYouRecord
             case .voiceProfiles: voiceProfiles
             case .spotlight: spotlight
-            case .calendar: calendar
             case .improvements: improvements
             }
         }
@@ -152,11 +144,6 @@ struct Onboarding: View {
     private var spotlight: some View {
         SpotlightPage(onDone: { next(after: .spotlight) })
             .onAppear { UserDefaults.standard.set(true, forKey: Self.spotlightShownKey) }
-    }
-
-    private var calendar: some View {
-        CalendarOnboardingPage(onDone: { next(after: .calendar) })
-            .onAppear { UserDefaults.standard.set(true, forKey: Self.calendarShownKey) }
     }
 
     private var improvements: some View {
@@ -381,7 +368,7 @@ private struct OptionRow: View {
 
 /// A page: the large centred title, the rows, a footnote, and the buttons in the bottom scroll-edge bar
 /// (`safeAreaBar`, iOS 26: the content scrolls under the glass edge, as in Apple's sheets).
-struct OnboardingLayout<Rows: View, Footnote: View, Buttons: View>: View {
+private struct OnboardingLayout<Rows: View, Footnote: View, Buttons: View>: View {
     let title: LocalizedStringKey
     @ViewBuilder let rows: Rows
     @ViewBuilder let footnote: Footnote
@@ -424,7 +411,7 @@ struct OnboardingLayout<Rows: View, Footnote: View, Buttons: View>: View {
 }
 
 /// A feature row: a tinted symbol, then a headline and its text.
-struct OnboardingRow: View {
+private struct OnboardingRow: View {
     let symbol: String
     let title: LocalizedStringKey
     let text: LocalizedStringKey
@@ -450,7 +437,7 @@ struct OnboardingRow: View {
 }
 
 /// The page's main action: full width, prominent glass, large.
-struct ProminentButton: View {
+private struct ProminentButton: View {
     let title: LocalizedStringKey
     let action: () -> Void
 

@@ -179,11 +179,11 @@ struct SettingsView: View {
     private func resetOnboarding() {
         let defaults = UserDefaults.standard
         for key in [AppServices.welcomeShownKey, Onboarding.recordingNoticeKey, Onboarding.voiceProfilesShownKey, Onboarding.spotlightShownKey,
-                    Onboarding.calendarShownKey, Onboarding.improvementsShownKey, Onboarding.legacyGemmaShownKey] {
+                    Onboarding.improvementsShownKey, Onboarding.legacyGemmaShownKey] {
             defaults.removeObject(forKey: key)
         }
         NameSpeakersTip.showAgain()
-        resetPages = [.welcome, .beforeYouRecord, .voiceProfiles, .spotlight, .calendar]
+        resetPages = [.welcome, .beforeYouRecord, .voiceProfiles, .spotlight]
             + (services.offersParakeet || services.offersGemma ? [.improvements] : [])
     }
 

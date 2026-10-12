@@ -5,8 +5,10 @@ import UIKit
 /// after where they were made as this names them after when. Off until turned on. Turning it on asks for calendar access
 /// (the system alert, once), after the tap's frame (the status is read off the main actor); the switch stays on
 /// meanwhile instead of springing back under the alert. Denied before, it offers the iPhone's Settings ("Allow Calendar
-/// Access") rather than being a switch that does nothing. On only while access is given: taken back in the iPhone's
-/// Settings, it shows off. Off: nothing is read; transcripts keep the names and invitees they have.
+/// Access") rather than being a switch that does nothing; Open Settings stores it on, so it is on when the user comes
+/// back having allowed it (`enableWhenAllowed`). On only while access is given: taken back in the iPhone's Settings, it
+/// shows off. Off: nothing is read; transcripts keep the names and invitees they have. The only place that asks for
+/// calendar access (not the onboarding: CalendarContext).
 struct CalendarToggle: View {
     @Environment(AppServices.self) private var services
     @Environment(\.openURL) private var openURL
@@ -19,6 +21,7 @@ struct CalendarToggle: View {
                                                    set: { on in set(on) }))
             .alert("Allow Calendar Access", isPresented: $asksForSettings) {
                 Button("Open Settings") {
+                    services.calendar.enableWhenAllowed()
                     if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
                 }
                 Button("Cancel", role: .cancel) {}
