@@ -1,4 +1,5 @@
 import XCTest
+import notify
 
 /// Shared setup of Feder's UI tests. Every test launches the app (Debug, simulator fakes) with `-seedSamples`, which
 /// replaces the sample transcripts in the app's store: "Project Kickoff" (newest; Anna Schmidt and Jonas Weber, two
@@ -130,6 +131,17 @@ class ScribeUITestCase: XCTestCase {
     func dismissKeyboardTip(_ app: XCUIApplication) {
         let tip = app.keyboards.buttons["Continue"]
         if tip.waitForExistence(timeout: 1) { tip.tap() }
+    }
+
+    /// Shakes the simulated iPhone as Device › Shake does: UIKit registers for this Darwin notification in the simulator
+    /// and takes the iPhone's path from it (`motionEnded`, the key window's first responder's UndoManager, iOS's "Undo …"
+    /// alert). Returns that alert when it comes within `timeout`, nil otherwise. (A shake did reach the iOS 27
+    /// simulator all along: with nothing first responder it found no UndoManager, as on the iPhone, FED-7.)
+    @MainActor
+    func shake(_ app: XCUIApplication, timeout: TimeInterval = 3) -> XCUIElement? {
+        notify_post("com.apple.UIKit.SimulatorShake")
+        let alert = app.alerts.firstMatch
+        return alert.waitForExistence(timeout: timeout) ? alert : nil
     }
 
     /// A screenshot kept in the result bundle.

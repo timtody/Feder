@@ -97,6 +97,99 @@ final class SpeakerCorrectionTests: ScribeUITestCase {
                       "undone: \(names(app))")
     }
 
+    /// Shaking undoes the last correction with iOS's own alert ("Undo Speaker Changed", Cancel and Undo), also once the
+    /// toast is gone: the card's view is first responder while an Undo is on offer (ShakeUndoResponder; with nothing
+    /// focused a shake found no UndoManager and did nothing, FED-7). Cancel keeps the correction, Undo brings the four
+    /// turns back, and with nothing left to undo a shake brings no alert.
+    @MainActor
+    func testShakeUndoesACorrection() throws {
+        let app = launch()
+        open("Project Kickoff", in: app)
+        menu(app, header: 1, "Assign This Part To", "Anna Schmidt")
+        XCTAssertTrue(waitFor { self.names(app) == ["Anna Schmidt", "Jonas Weber"] }, "\(names(app))")
+        let alert = try XCTUnwrap(shake(app), "a shake offers the Undo")
+        XCTAssertEqual(alert.label, "Undo Speaker Changed")
+        shot("Shake to undo", app)
+        alert.buttons["Cancel"].tap()
+        XCTAssertTrue(alert.waitForNonExistence(timeout: 3))
+        XCTAssertEqual(names(app), ["Anna Schmidt", "Jonas Weber"], "Cancel keeps the correction")
+
+        XCTAssertTrue(app.buttons["UndoCorrection"].waitForNonExistence(timeout: 12), "the toast times out")
+        let again = try XCTUnwrap(shake(app), "without the toast a shake still offers the Undo")
+        XCTAssertEqual(again.label, "Undo Speaker Changed")
+        again.buttons["Undo"].tap()
+        XCTAssertTrue(waitFor { self.names(app) == ["Anna Schmidt", "Jonas Weber", "Anna Schmidt", "Jonas Weber"] },
+                      "undone: \(names(app))")
+        XCTAssertNil(shake(app, timeout: 2), "nothing left to undo")
+    }
+
+    /// A merge (after its question) and an Edit Text's Done (a chip and a typed word, the field ended by Done) are
+    /// undone by shaking too: "Undo Speakers Merged", "Undo Transcript Edited". The typing left nothing of its own to
+    /// undo once the fields were gone.
+    @MainActor
+    func testShakeUndoesMergeAndEdit() throws {
+        let app = launch()
+        open("Project Kickoff", in: app)
+        let four = ["Anna Schmidt", "Jonas Weber", "Anna Schmidt", "Jonas Weber"]
+        menu(app, header: 0, "Merge Into", "Jonas Weber")
+        app.buttons["Merge"].tap()
+        XCTAssertTrue(waitFor { self.names(app) == ["Jonas Weber"] }, "\(names(app))")
+        let merged = try XCTUnwrap(shake(app), "a shake after the merge")
+        XCTAssertEqual(merged.label, "Undo Speakers Merged")
+        merged.buttons["Undo"].tap()
+        XCTAssertTrue(waitFor { self.names(app) == four }, "merge undone: \(names(app))")
+
+        let editText = app.buttons["Edit Text"]
+        XCTAssertTrue(waitFor { editText.isEnabled }, "Edit Text, once nothing runs on the transcript")
+        editText.tap()
+        let chip = app.buttons["SpeakerChip.1"]
+        XCTAssertTrue(chip.waitForExistence(timeout: 5))
+        chip.tap()
+        let anna = app.buttons["Anna Schmidt"].firstMatch
+        XCTAssertTrue(anna.waitForExistence(timeout: 5))
+        anna.tap()
+        XCTAssertTrue(waitFor { chip.label == "Anna Schmidt" }, chip.label)
+        let field = app.textFields["ParagraphField.0"].exists ? app.textFields["ParagraphField.0"]
+                                                              : app.textViews["ParagraphField.0"]
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.88)).tap()
+        sleep(1)
+        field.typeText(" Danke.")
+        let done = app.buttons.matching(NSPredicate(format: "label == 'Done Editing'")).allElementsBoundByIndex
+            .filter(\.isHittable).min { $0.frame.minY < $1.frame.minY } ?? app.buttons["Done Editing"].firstMatch
+        done.tap()
+        XCTAssertTrue(waitFor { self.names(app) == ["Anna Schmidt", "Jonas Weber"] }, "\(names(app))")
+        // Anna's paragraphs are one now, the typed word inside it.
+        XCTAssertTrue(app.staticTexts["Paragraph.0"].label.contains("Danke."), app.staticTexts["Paragraph.0"].label)
+        let edited = try XCTUnwrap(shake(app), "a shake after Edit Text's Done")
+        XCTAssertEqual(edited.label, "Undo Transcript Edited")
+        edited.buttons["Undo"].tap()
+        XCTAssertTrue(waitFor { self.names(app) == four }, "edit undone: \(names(app))")
+        XCTAssertFalse(app.staticTexts["Paragraph.0"].label.contains("Danke."), "the word went with it")
+        XCTAssertNil(shake(app, timeout: 2), "nothing left to undo, no typing of gone fields")
+    }
+
+    /// The shake's first responder never takes the keys from a field: after a correction, the tapped title keeps the
+    /// keyboard past the toast's 6 s and what is typed lands there; once the title is done, a shake offers the
+    /// correction's Undo again.
+    @MainActor
+    func testShakeLeavesTheTitleFocused() throws {
+        let app = launch()
+        open("Project Kickoff", in: app)
+        menu(app, header: 1, "Assign This Part To", "Anna Schmidt")
+        XCTAssertTrue(waitFor { self.names(app) == ["Anna Schmidt", "Jonas Weber"] }, "\(names(app))")
+        let title = app.textFields["Title"]
+        title.tap()
+        XCTAssertTrue(app.buttons["UndoCorrection"].waitForNonExistence(timeout: 12), "the toast times out")
+        XCTAssertEqual(title.value(forKey: "hasKeyboardFocus") as? Bool, true, "the title keeps the keyboard")
+        title.typeText("!")
+        XCTAssertTrue((title.value as? String)?.contains("!") == true, "typed into the title: \(title.value ?? "")")
+        title.typeText("\n")
+        XCTAssertTrue(waitFor { title.value(forKey: "hasKeyboardFocus") as? Bool == false }, "the title is done")
+        let alert = try XCTUnwrap(shake(app), "then a shake offers the correction's Undo")
+        XCTAssertEqual(alert.label, "Undo Speaker Changed")
+        alert.buttons["Cancel"].tap()
+    }
+
     /// A rename after a correction drops its Undo (undoing would throw the rename away); a Done in Edit Text that
     /// changes nothing offers no Undo.
     @MainActor

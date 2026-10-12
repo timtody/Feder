@@ -121,12 +121,16 @@ final class ActionItemUndo {
 
     /// The removal the toast offers to undo, until it times out or something else takes its place.
     var toast: Removal?
-    /// Every removal whose shake action is registered (the card closing takes them back).
-    @ObservationIgnored private var registered: [Removal] = []
+    /// Every removal whose shake action is registered (the card closing takes them back). Observed: the shake's first
+    /// responder holds on while there is one (ShakeUndoResponder).
+    private var registered: [Removal] = []
+    /// Counts the removals registered for shaking: each one has the shake's first responder taken again.
+    private var registrations = 0
 
     func removed(_ itemID: UUID, in recording: Recording, undoManager: UndoManager?) {
         let removal = Removal(itemID: itemID, recording: recording)
         registered.append(removal)
+        registrations += 1
         undoManager?.registerUndo(withTarget: removal) { [weak self] removal in
             MainActor.assumeIsolated { self?.undo(removal, undoManager: nil) }
         }
@@ -142,6 +146,12 @@ final class ActionItemUndo {
         withAnimation(.snappy) {
             _ = ActionItemsList.change(removal.recording, [removal.itemID]) { $0.isRemoved = false }
         }
+    }
+
+    /// What the card's ShakeUndoResponder offers: it changes with every Undo registered for shaking, the card's
+    /// corrections (`corrections` counts them, `offered`: one is on offer) and these removals; nil while none is.
+    func shakeOffer(corrections: Int, offered: Bool) -> Int? {
+        offered || !registered.isEmpty ? corrections + registrations : nil
     }
 
     /// The card closed: no shake brings back an item on a card that isn't there.

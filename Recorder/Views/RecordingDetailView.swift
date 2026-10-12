@@ -60,6 +60,9 @@ struct RecordingDetailView: View {
     /// The correction whose Undo is on offer here (toast or shake), until withdrawn: shake comes back after the
     /// vocabulary pass only for it.
     @State private var offeredUndo: UUID?
+    /// Counts the corrections' Undos registered for shaking: each one has the card's view take first responder
+    /// (ShakeUndoResponder), so the shake finds it.
+    @State private var shakeUndos = 0
     /// The recording's audio file is there (the player bar and tapping a word to hear it).
     @State fileprivate var hasAudio = false
     /// Words ↔ paragraphs for the playback highlight and taps (rebuilt off the main actor when the paragraphs change).
@@ -673,8 +676,9 @@ struct RecordingDetailView: View {
     // MARK: Undo
 
     /// After a correction of this transcript: the Undo toast for a few seconds, and Undo for shaking the iPhone (the
-    /// system's shake-to-undo, through the window's UndoManager) until the next correction, Edit Text, the card closing,
-    /// or the correction's Undo going (SpeakerIdentifier.lastCorrection: the transcript changed in another way).
+    /// system's shake-to-undo, through the window's UndoManager, found through the card's ShakeUndoResponder) until the
+    /// next correction, Edit Text, the card closing, or the correction's Undo going (SpeakerIdentifier.lastCorrection:
+    /// the transcript changed in another way).
     private func offerUndo() {
         guard let correction = services.identifier.lastCorrection, correction.recordingID == recording.id else { return }
         undoToast = correction.id
@@ -687,11 +691,17 @@ struct RecordingDetailView: View {
     private var undoOffer: UndoOffer {
         let correction = services.identifier.lastCorrection
         let shown = undoToast.flatMap { toast in correction.flatMap { $0.id == toast ? $0.kind : nil } }
+        // A field, the rename sheet or a question has the keys: the shake's first responder waits (taken, it would end
+        // the edit). Not the Action Items sheet, which has no field: the card's view stays first responder under it
+        // (iOS 27 simulator), and takes it at a Remove there when it didn't have it yet, so a shake in the sheet finds it.
+        let keysElsewhere = titleFocused || editingTags || isEditingText || renaming != nil || pendingMerge != nil
+            || vocabularyOffer != nil || confirmDelete
         return UndoOffer(toast: undoToast, shownKind: shown, correctionID: correction?.id,
                          correctionHere: correction?.recordingID == recording.id,
                          passRunning: services.identifier.vocabularyRunning.contains(recording.id),
-                         alert: vocabularyOffer != nil, undo: undoCorrection, timedOut: { undoToast = nil },
-                         withdraw: withdrawUndo, passChanged: vocabularyPassChanged)
+                         alert: vocabularyOffer != nil, shakeUndos: shakeUndos, shakeOffered: offeredUndo != nil,
+                         actionItemUndo: actionItemUndo, keysElsewhere: keysElsewhere, undo: undoCorrection,
+                         timedOut: { undoToast = nil }, withdraw: withdrawUndo, passChanged: vocabularyPassChanged)
     }
 
     private func registerShakeUndo(_ correction: SpeakerIdentifier.UndoableCorrection) {
@@ -702,6 +712,7 @@ struct RecordingDetailView: View {
             MainActor.assumeIsolated { identifier.undoLastCorrection(of: recording) }
         }
         undoManager?.setActionName(Self.undoTitle(correction.kind))
+        shakeUndos += 1
     }
 
     /// While the transcript's vocabulary pass runs, Undo waits (SpeakerIdentifier.undoLastCorrection refuses): the
@@ -1044,28 +1055,25 @@ private struct UndoOffer: ViewModifier {
     let correctionHere: Bool
     let passRunning: Bool
     let alert: Bool
+    /// The shake's Undo: the corrections' registrations, whether one is on offer, the removals in Action Items.
+    let shakeUndos: Int
+    let shakeOffered: Bool
+    let actionItemUndo: ActionItemUndo
+    let keysElsewhere: Bool
     let undo: () -> Void
     let timedOut: () -> Void
     let withdraw: () -> Void
     let passChanged: (Bool) -> Void
 
-    #if DEBUG
-    @Environment(\.undoManager) private var undoManager
-    #endif
-
     func body(content: Content) -> some View {
         content
-            #if DEBUG
-            .overlay(alignment: .center) {
-                // UI tests (`-debugUndoButton`, a button over the middle of the card): undoes as a shake does, with the window's UndoManager. XCUITest can't
-                // shake, and ⌘Z presses got lost on the iOS 27 simulator (logged: the UndoManager never saw them).
-                if ProcessInfo.processInfo.arguments.contains("-debugUndoButton") {
-                    Button("Debug Undo") { undoManager?.undo() }
-                        .buttonStyle(.borderedProminent)
-                        .accessibilityIdentifier("DebugUndo")
-                }
+            // Read here, not in the card's body: a Remove in the sheet re-renders only this.
+            .background(alignment: .topLeading) {
+                ShakeUndoResponder(offer: actionItemUndo.shakeOffer(corrections: shakeUndos, offered: shakeOffered),
+                                   blocked: keysElsewhere)
+                    .frame(width: 0, height: 0)
+                    .accessibilityHidden(true)
             }
-            #endif
             .overlay(alignment: .bottom) {
                 if let shownKind {
                     UndoToast(title: RecordingDetailView.undoTitle(shownKind), undo: undo, isEnabled: !passRunning)

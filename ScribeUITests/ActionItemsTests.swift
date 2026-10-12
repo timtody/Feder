@@ -297,18 +297,28 @@ final class ActionItemsTests: ScribeUITestCase {
         XCTAssertTrue(none.exists, "still removed")
     }
 
-    /// Undo after a correction and then a Remove takes back the Remove first (the newest), the correction next, also
-    /// once the sheet is closed: Budget Review's second turn goes to Lena Vogel, the second item is removed in the Action
-    /// Items sheet, the sheet closes; the first ⌘Z brings the item back and leaves the correction, the second undoes the
-    /// correction. (The sheet withdrew the removal's Undo when it closed, which left an empty step: the first shake did
-    /// nothing.) `-debugUndoButton`'s hidden button undoes as a shake does, with the window's UndoManager: XCUITest
-    /// can't shake, the simulator's shake notification doesn't reach iOS 27, and ⌘Z on the hardware keyboard got lost
-    /// now and then (logged: the UndoManager never saw the press), more so with a sheet up.
+    /// Shaking puts back removed items and takes back a correction (iOS's own alert, `shake`), newest first, in the sheet
+    /// and after it. In the sheet, before any correction: "Undo Action Item Removed" brings the item back. Then Budget
+    /// Review's second turn goes to Lena Vogel, the second item is removed again and the sheet closes: the first shake
+    /// brings the item back and leaves the correction, the second undoes the correction, a third has nothing left. (The
+    /// sheet withdrew the removal's Undo when it closed, which left an empty step: the first shake did nothing.)
     @MainActor
     func testUndoTakesBackTheRemoveFirst() throws {
-        let app = launch(["-fakeGemmaDownload", "-debugUndoButton"])
-        let undo = app.buttons["DebugUndo"]
+        let app = launch(["-fakeGemmaDownload"])
         open("Budget Review", in: app)
+        actionItemsButton(app).tap()
+        XCTAssertTrue(item(1, app).waitForExistence(timeout: 5))
+        choose("Remove", forItem: 1, app)
+        XCTAssertTrue(waitFor({ !self.item(1, app).exists }, timeout: 3), "removed")
+        let inSheet = try XCTUnwrap(shake(app), "a shake in the sheet")
+        XCTAssertEqual(inSheet.label, "Undo Action Item Removed")
+        shot("Shake in the sheet", app)
+        inSheet.buttons["Undo"].tap()
+        XCTAssertTrue(item(1, app).waitForExistence(timeout: 3), "the item is back")
+        XCTAssertTrue(app.buttons["UndoRemoveActionItem"].waitForNonExistence(timeout: 3), "its toast goes")
+        app.buttons["CloseActionItems"].tap()
+        XCTAssertTrue(item(0, app).waitForNonExistence(timeout: 5), "the sheet closed")
+
         let names = {
             app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'SpeakerHeader.'")).allElementsBoundByIndex
                 .sorted { $0.frame.minY < $1.frame.minY }.map(\.label)
@@ -330,12 +340,17 @@ final class ActionItemsTests: ScribeUITestCase {
         app.buttons["CloseActionItems"].tap()
         XCTAssertTrue(item(0, app).waitForNonExistence(timeout: 5), "the sheet closed")
 
-        undo.tap()
-        sleep(2)
-        XCTAssertEqual(names(), ["Lena Vogel", "Anna Schmidt"], "the first Undo is the Remove's: the correction stays")
-        undo.tap()
+        let first = try XCTUnwrap(shake(app), "the first shake")
+        XCTAssertEqual(first.label, "Undo Action Item Removed", "the Remove first")
+        first.buttons["Undo"].tap()
+        sleep(1)
+        XCTAssertEqual(names(), ["Lena Vogel", "Anna Schmidt"], "the correction stays")
+        let second = try XCTUnwrap(shake(app), "the second shake")
+        XCTAssertEqual(second.label, "Undo Speaker Changed", "then the correction")
+        second.buttons["Undo"].tap()
         XCTAssertTrue(waitFor({ names() == ["Lena Vogel", "Anna Schmidt", "Lena Vogel", "Anna Schmidt"] }, timeout: 5),
-                      "then the correction: \(names())")
+                      "the correction undone: \(names())")
+        XCTAssertNil(shake(app, timeout: 2), "nothing left to undo")
         actionItemsButton(app).tap()
         XCTAssertTrue(item(1, app).waitForExistence(timeout: 5), "the item is back")
         XCTAssertEqual(itemCount(app), 2)
