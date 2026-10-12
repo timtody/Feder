@@ -4,11 +4,11 @@ import SwiftData
 /// One saved recording, the transcript card's content (`TranscriptCard`; Music's "Now Playing" for a transcript): the
 /// back button at the top left, inline-editable title, date and duration, the automatic summary, tags, speaker-identification
 /// status and the transcript grouped by speaker; its actions in the system's bottom toolbar (Liquid Glass): Share,
-/// Add Tag, Speakers and Delete. No top bar. Tapping a speaker's name row (or "Rename Speaker…" in its long-press menu) opens
+/// Add Tag, Edit Text, Action Items, Listen and Delete. No top bar. Tapping a speaker's name row (or "Rename Speaker…" in its long-press menu) opens
 /// the rename sheet for that speaker, once speakers are final.
 /// Opened from a search result (`search`), the transcript highlights the hits, starts at the result's paragraph and
-/// steps through the paragraphs with hits from the bottom toolbar ("2 of 5"), between a More menu (Share, Add Tag and
-/// Speakers) and Delete.
+/// steps through the paragraphs with hits from the bottom toolbar ("2 of 5"), between a More menu (Share, Add Tag, Edit
+/// Text, Action Items and Listen) and Delete.
 /// Turned from the recording (TranscriptCard), its title and date line lie exactly where the recording had them, what
 /// the recording didn't have fades in below them, and its toolbar takes over from the melted Stop.
 struct RecordingDetailView: View {
@@ -30,7 +30,6 @@ struct RecordingDetailView: View {
     @Environment(\.openPerson) private var openPerson     // a name row's "Go to Person"
 
     @State private var confirmDelete = false
-    @State private var pendingSpeakerCount: Int??    // a count waiting for "names will be reset" confirmation
     @FocusState private var titleFocused: Bool
     @State private var deleteOnDisappear = false
     @State private var hits: [UUID] = []             // paragraphs with search hits, in transcript order
@@ -44,8 +43,8 @@ struct RecordingDetailView: View {
     @AppStorage(TranscriptExport.namesKey) private var exportNames = true
     @AppStorage(TranscriptExport.timestampsKey) private var exportTimestamps = false
     @State private var keepsStatusRow = false           // the status line was shown: its place stays (see body)
-    @State private var keepsActionsRow = false          // the action items' place was held: it stays (ActionItemsSlot)
-    @State private var actionItemUndo = ActionItemUndo()   // Undo of a removed action item: toast and shake
+    @State private var showsActionItems = false         // the toolbar's Action Items: Gemma's to-dos in a sheet
+    @State private var actionItemUndo = ActionItemUndo()   // Undo of an item removed in that sheet: toast and shake
     @State private var pendingMerge: SpeakerMerge?
     /// Edit Text: the paragraphs' text and speaker-chip drafts while editing (by segment id), nil otherwise.
     @State private var textEdits: [UUID: String]?
@@ -135,10 +134,6 @@ struct RecordingDetailView: View {
                             .animation(.easeInOut(duration: 0.25), value: statusText == nil)
                             .opacity(bodyShown ? 1 : 0)
                         }
-                        // The action items under the summary, their place held while they are being found.
-                        ActionItemsSlot(recording: recording, statusShown: statusText != nil, keepsRow: keepsActionsRow,
-                                        undo: actionItemUndo)
-                            .opacity(bodyShown ? 1 : 0)
                         // HIG › Generative AI: say that AI made it and can be wrong. For the whole transcript, not only
                         // the summary: the words, the speakers and the names recognized by voice are all generated (a
                         // caption under the summary alone implied the rest was not).
@@ -218,16 +213,17 @@ struct RecordingDetailView: View {
         .cardCloseButton(hint: "Back to the transcripts", action: onClose)
         .task(id: search) { await showFirstHit() }
         .onAppear { InteractionTrace.shown("open") }
-        .onChange(of: segments) { findHits() }              // the vocabulary pass or a new speaker count rewrote them
+        .onChange(of: segments) { findHits() }              // the vocabulary pass or a correction rewrote them
         .modifier(PlaybackFollowing(card: self, segments: segments))
         .onChange(of: statusText != nil, initial: true) { _, shown in if shown { keepsStatusRow = true } }
-        .onChange(of: ActionItemsSlot.reserves(recording, statusShown: statusText != nil, identifier: services.identifier),
-                  initial: true) { _, held in if held { keepsActionsRow = true } }
-        .onChange(of: recording.speakerStatusRaw) {        // "Speakers: n" re-runs identification: numbers change
+        .onChange(of: recording.speakerStatusRaw) {        // Try Again re-runs identification: numbers change
             if recording.speakerStatus != .done { renaming = nil }
         }
         .sheet(item: $renaming) { target in
             SpeakerNameSheet(recording: recording, speaker: target.speaker)
+        }
+        .sheet(isPresented: $showsActionItems) {
+            ActionItemsSheet(recording: recording, undo: actionItemUndo)
         }
         #if DEBUG
         .task { await renameFirstSpeakerForQA() }
@@ -278,15 +274,6 @@ struct RecordingDetailView: View {
         } message: {
             Text("Everything they said is then one speaker's.")
         }
-        .confirmationDialog("Identify speakers again?", isPresented: Binding(
-            get: { pendingSpeakerCount != nil }, set: { if !$0 { pendingSpeakerCount = nil } }
-        ), titleVisibility: .visible) {
-            Button("Identify Again") {
-                if let count = pendingSpeakerCount { services.identifier.setSpeakerCount(count, for: recording) }
-            }
-        } message: {
-            Text("The speaker names you entered will be reset.")
-        }
         .onDisappear {
             if services.player.recordingID == recording.id { services.player.unload() } // the card closed
             if isEditingText { services.identifier.endEditingText(recording) }           // its drafts are gone
@@ -307,8 +294,8 @@ struct RecordingDetailView: View {
 
     // MARK: Bottom toolbar
 
-    /// Share, Add Tag, Edit Text and Speakers on the left (one glass group), Delete on the right; opened from a search, the hits'
-    /// "n of m" with previous/next between them (like Safari's Find on Page).
+    /// Share, Add Tag, Edit Text, Action Items and Listen on the left (one glass group), Delete on the right; opened from a
+    /// search, the hits' "n of m" with previous/next between them (like Safari's Find on Page).
     @ToolbarContentBuilder
     private var bottomBar: some ToolbarContent {
         if isEditingText {
@@ -331,14 +318,14 @@ struct RecordingDetailView: View {
         if combinesActions {
             // With the hit navigator the bar would have seven items, which fit no iPhone: iOS moved Next Match (and
             // Previous Match) into an overflow menu on the iPhone 17, the iPhone Air and the iPhone 18 Pro Max alike
-            // (iOS 27 simulators). Share, Add Tag, Edit Text and Speakers share one menu instead, so the navigator and Delete stay
-            // visible. (Before Add Tag, six items fit from 402 pt on.)
+            // (iOS 27 simulators). Share, Add Tag, Edit Text, Action Items and Listen share one menu instead, so the
+            // navigator and Delete stay visible. (Before Add Tag, six items fit from 402 pt on.)
             ToolbarItem(placement: .bottomBar) {
                 Menu {
                     shareButton
                     addTagButton
                     editTextButton
-                    speakersPicker.pickerStyle(.menu)       // a submenu here
+                    if BetterSummaries.isSupported { actionItemsButton }
                     listenButton
                 } label: {
                     Label("More", systemImage: "ellipsis")
@@ -348,12 +335,8 @@ struct RecordingDetailView: View {
             ToolbarItem(placement: .bottomBar) { shareButton }
             ToolbarItem(placement: .bottomBar) { addTagButton }
             ToolbarItem(placement: .bottomBar) { editTextButton }
-            ToolbarItem(placement: .bottomBar) {
-                Menu {
-                    speakersPicker
-                } label: {
-                    Label("Speakers", systemImage: "person.2")
-                }
+            if BetterSummaries.isSupported {
+                ToolbarItem(placement: .bottomBar) { actionItemsButton }
             }
             ToolbarItem(placement: .bottomBar) { listenButton }
         }
@@ -448,14 +431,18 @@ struct RecordingDetailView: View {
         }
     }
 
-    private var speakersPicker: some View {
-        Picker(selection: speakerCountChoice) {
-            Text("Automatic").tag(Int?.none)
-            ForEach(2...6, id: \.self) { Text("\($0) Speakers").tag(Int?.some($0)) }
-        } label: {
-            Label("Speakers", systemImage: "person.2")
+    /// Action Items (ActionItemsSheet): Gemma lists the transcript's to-dos when asked, where the speaker-count menu was
+    /// until October 2026 (Automatic, 2–6 Speakers: the user never found it useful; a wrong grouping is fixed per
+    /// paragraph). Once the speakers are final (the paragraphs carry their names). Not there at all on an iPhone that
+    /// can't run Gemma (under 8 GB: BetterSummaries.isSupported; the user's decision, not a greyed button that never
+    /// works; the melt has a layout without it); there while Gemma isn't downloaded yet, whose sheet says where to get it.
+    private var actionItemsButton: some View {
+        Button("Action Items", systemImage: "checklist") {
+            InteractionTrace.begin("actions")
+            titleFocused = false
+            showsActionItems = true
         }
-        .disabled(services.identifier.inFlight.contains(recording.id))
+        .disabled(recording.speakerStatus != .done)
     }
 
     /// Listen: shows the player bar (pressed again, or the bar's close button: ends it). Last in the group, so the
@@ -671,7 +658,6 @@ struct RecordingDetailView: View {
     /// or the correction's Undo going (SpeakerIdentifier.lastCorrection: the transcript changed in another way).
     private func offerUndo() {
         guard let correction = services.identifier.lastCorrection, correction.recordingID == recording.id else { return }
-        actionItemUndo.toast = nil                          // its toast's place (the item's shake Undo stays)
         undoToast = correction.id
         offeredUndo = correction.id
         registerShakeUndo(correction)
@@ -686,9 +672,7 @@ struct RecordingDetailView: View {
                          correctionHere: correction?.recordingID == recording.id,
                          passRunning: services.identifier.vocabularyRunning.contains(recording.id),
                          alert: vocabularyOffer != nil, undo: undoCorrection, timedOut: { undoToast = nil },
-                         withdraw: withdrawUndo, passChanged: vocabularyPassChanged,
-                         // A removed action item's toast; a correction's goes meanwhile (one toast at a time).
-                         actionItems: ActionItemUndoToast(undo: actionItemUndo, shown: { undoToast = nil }))
+                         withdraw: withdrawUndo, passChanged: vocabularyPassChanged)
     }
 
     private func registerShakeUndo(_ correction: SpeakerIdentifier.UndoableCorrection) {
@@ -805,22 +789,6 @@ struct RecordingDetailView: View {
         scroller?.scrollTo(hit, anchor: .center)
     }
 
-    /// The "Speakers" picker: automatic or an exact count. Choosing re-runs speaker identification; with names given,
-    /// it asks first, because the speaker numbers change.
-    private var speakerCountChoice: Binding<Int?> {
-        Binding(
-            get: { recording.speakerCountOverride },
-            set: { count in
-                guard count != recording.speakerCountOverride else { return }
-                if recording.speakerNames.isEmpty {
-                    services.identifier.setSpeakerCount(count, for: recording)
-                } else {
-                    pendingSpeakerCount = .some(count)
-                }
-            }
-        )
-    }
-
     /// What tapping a name says while speakers are not final: preliminary (live) speaker numbers are not the offline
     /// ones, so a name given now could land on a different person when the offline pass replaces the segments.
     private var preliminaryNotice: String {
@@ -919,8 +887,8 @@ private final class HitGeometry {
 }
 #endif
 
-/// "Speakers Merged · Undo": a glass capsule with what was done and an Undo button (also for a removed action item:
-/// ActionItemUndoToast).
+/// "Speakers Merged · Undo": a glass capsule with what was done and an Undo button (also for a removed action item in
+/// the Action Items sheet: ActionItemUndoToast).
 struct UndoToast: View {
     let title: String
     let undo: () -> Void
@@ -1024,8 +992,8 @@ private struct PlaybackFollowing: ViewModifier {
 /// The last correction's Undo, above the bottom toolbar for a few seconds (like Mail's Undo after a delete): the toast,
 /// its 6 s (counted once "Add to Your Words?" after an edit is answered, behind which it can't be tapped, and once the
 /// vocabulary pass is over, meanwhile it is greyed: Undo waits for it), and the Undo going when the correction does
-/// (the transcript changed in another way, or another correction replaced it). A removed action item's toast comes
-/// along (ActionItemUndoToast), here rather than in the card's modifier chain, which the type checker gave up on.
+/// (the transcript changed in another way, or another correction replaced it). Here rather than in the card's modifier
+/// chain, which the type checker gave up on.
 private struct UndoOffer: ViewModifier {
     let toast: UUID?
     let shownKind: SpeakerIdentifier.UndoableCorrection.Kind?
@@ -1037,11 +1005,24 @@ private struct UndoOffer: ViewModifier {
     let timedOut: () -> Void
     let withdraw: () -> Void
     let passChanged: (Bool) -> Void
-    let actionItems: ActionItemUndoToast
+
+    #if DEBUG
+    @Environment(\.undoManager) private var undoManager
+    #endif
 
     func body(content: Content) -> some View {
         content
-            .modifier(actionItems)
+            #if DEBUG
+            .overlay(alignment: .center) {
+                // UI tests (`-debugUndoButton`, a button over the middle of the card): undoes as a shake does, with the window's UndoManager. XCUITest can't
+                // shake, and ⌘Z presses got lost on the iOS 27 simulator (logged: the UndoManager never saw them).
+                if ProcessInfo.processInfo.arguments.contains("-debugUndoButton") {
+                    Button("Debug Undo") { undoManager?.undo() }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("DebugUndo")
+                }
+            }
+            #endif
             .overlay(alignment: .bottom) {
                 if let shownKind {
                     UndoToast(title: RecordingDetailView.undoTitle(shownKind), undo: undo, isEnabled: !passRunning)
@@ -1067,3 +1048,4 @@ private struct UndoTimer: Equatable {
     var alert: Bool
     var waits: Bool
 }
+

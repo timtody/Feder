@@ -2,12 +2,12 @@ import Foundation
 
 /// What happens to a transcript after Stop, as the card shows it (PipelineStatusLine): one step each for the words
 /// (Apple's recognizer or Parakeet), the speakers (Nemotron or pyannote, voices, recognition), the vocabulary pass and
-/// the title and summary, and the action items. A step is listed only when it applies to the transcript
+/// the title and summary. A step is listed only when it applies to the transcript
 /// (an older transcript described by the title sweep has only the summary step). SpeakerIdentifier keeps one per
 /// transcript in flight and drops it a moment after the last step, so the row goes away by itself.
 nonisolated struct PipelineProgress: Equatable, Sendable {
     enum Step: Int, CaseIterable, Sendable {
-        case words, speakers, vocabulary, summary, actions
+        case words, speakers, vocabulary, summary
 
         var title: String {
             switch self {
@@ -15,7 +15,6 @@ nonisolated struct PipelineProgress: Equatable, Sendable {
             case .speakers: "Speakers"
             case .vocabulary: "Vocabulary"
             case .summary: "Summary"
-            case .actions: "Action Items"
             }
         }
 
@@ -25,7 +24,6 @@ nonisolated struct PipelineProgress: Equatable, Sendable {
             case .speakers: "person.2.wave.2"
             case .vocabulary: "character.book.closed"
             case .summary: "apple.intelligence"
-            case .actions: "checklist"
             }
         }
     }

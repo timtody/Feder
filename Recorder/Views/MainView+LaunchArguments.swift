@@ -32,9 +32,10 @@ extension MainView {
                 kickoff.calendarAttendees = invitees.split(separator: "|").map(String.init)
                 try? modelContext.save()
             }
-            // `-seedOldTranscripts`: the samples as transcripts from before action items existed (their summaries due
-            // again, never looked for action items), Budget Review ten days old: the launch sweep must write Project
-            // Kickoff's summary only, and leave Budget Review, beyond `SpeakerIdentifier.gemmaLookBack`, alone.
+            // `-seedOldTranscripts`: the samples as transcripts never described and never looked for action items,
+            // Budget Review ten days old: the launch sweep must write Project Kickoff's summary only, leave Budget
+            // Review, beyond `SpeakerIdentifier.gemmaLookBack`, alone, and look for action items in neither (only the
+            // card's Action Items button does).
             if arguments.contains("-seedOldTranscripts") {
                 for recording in (try? modelContext.fetch(FetchDescriptor<Recording>())) ?? []
                 where [PreviewData.kickoffID, PreviewData.budgetID].contains(recording.id) {
@@ -76,8 +77,6 @@ extension MainView {
         if arguments.contains("-openFirstTranscript"), let newest {
             do { try await Task.sleep(for: .milliseconds(500)) } catch { return }   // the list (the zoom source) first
             openCard(newest, search: nil, sourceID: OpenTranscriptAction.rowSource(RecordingsListView.transcriptsList, newest))
-            let count = UserDefaults.standard.integer(forKey: "speakerCount")   // `-speakerCount 3`: as if picked
-            if count > 0 { services.identifier.setSpeakerCount(count, for: newest) }
             let close = UserDefaults.standard.double(forKey: "minimizeAfter")   // closes it again, as the grabber does
             if close > 0, !arguments.contains("-autoRecord") {
                 do { try await Task.sleep(for: .seconds(close)) } catch { return }

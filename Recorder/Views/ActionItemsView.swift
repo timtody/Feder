@@ -1,54 +1,111 @@
 import SwiftData
 import SwiftUI
 
-/// The place of the action items under the Summary row (RecordingDetailView): while the steps after Stop run and the
-/// action items are among them, a hidden folded row holds the place, so the end of the pipeline moves nothing: the
-/// status line crossfades into "Summary" and the held place into "Action Items" in the same update. Once held, the place
-/// stays while the card is open, an empty line when nothing was found (`keepsRow`, as the summary's). Otherwise the row
-/// is there only when the transcript has action items the user didn't remove; items already there stay on screen
-/// while new ones are looked for.
-struct ActionItemsSlot: View {
+/// The card's Action Items (the bottom toolbar's checklist, where the speaker-count menu was until October 2026): Gemma
+/// looks for a transcript's action items only when asked. It did so after every recording, and found tasks where nobody
+/// gave one (the user's decision). A sheet, as Notes and Mail show a tool's result: opened on a transcript Gemma never
+/// looked at, it asks at once and says so; with items found before, they are there at once, and Find Again asks once
+/// more (what was added or removed stays: ActionItem.merged). Closing it doesn't stop Gemma
+/// (SpeakerIdentifier.actionItemsSearch), and the items are kept with the transcript (exports, Spotlight). Without
+/// Gemma, while recording, or stopped by leaving the app, it says so instead. Export: each item's menu (Add to
+/// Reminders, Add to Calendar, Copy, Remove), Add All to Reminders, and Share for the list as text.
+struct ActionItemsSheet: View {
     let recording: Recording
-    /// The status line is shown (PipelineStatusLine.text).
-    let statusShown: Bool
-    /// The place was held while this card was open (RecordingDetailView's `keepsActionsRow`).
-    let keepsRow: Bool
-    /// The card's Undo for removed items (its toast and shake).
+    /// The card's: a removal's Undo outlives the sheet (ActionItemUndo).
     let undo: ActionItemUndo
 
     @Environment(AppServices.self) private var services
-    /// Here rather than in the row: the row is made anew when its last item is removed and put back (Undo), and it
-    /// came back folded.
-    @State private var isExpanded = false
+    @Environment(\.dismiss) private var dismiss
 
-    /// The status line is up and the action items are one of its steps, still to be found (SpeakerIdentifier lists
-    /// the step only then): their place is held.
-    static func reserves(_ recording: Recording, statusShown: Bool, identifier: SpeakerIdentifier) -> Bool {
-        statusShown && identifier.progress[recording.id]?.state(of: .actions) != nil
-            && SpeakerIdentifier.actionItemsDue(recording)
-    }
+    /// Gemma never looked (`actionItemsVersion` 0) and nothing is stored: opening the sheet asks.
+    private var neverLooked: Bool { recording.actionItemsVersion == 0 && recording.actionItems.isEmpty }
 
     var body: some View {
+        let search = services.identifier.actionItemsSearch[recording.id]
         let items = recording.actionItems                // read once per body (the SwiftData array is decoded on access)
-        let shown = items.contains { !$0.isRemoved }
-        let reserving = Self.reserves(recording, statusShown: statusShown, identifier: services.identifier)
-        if reserving || shown || keepsRow {
-            ZStack(alignment: .leading) {
-                if shown {
-                    ActionItemsDisclosure(recording: recording, items: items, isExpanded: $isExpanded, undo: undo)
+        let visible = items.filter { !$0.isRemoved }
+        let finding = search == .running || (search == nil && neverLooked)
+        NavigationStack {
+            Group {
+                if finding {
+                    ProgressView("Finding action items…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .accessibilityIdentifier("FindingActionItems")
+                } else if let search {
+                    problem(search)
+                } else if visible.isEmpty {
+                    ContentUnavailableView("No Action Items", systemImage: "checklist",
+                                           description: Text("Gemma found no tasks in this transcript."))
                 } else {
-                    ActionItemsDisclosure.standIn
+                    ActionItemsList(recording: recording, items: items, undo: undo)
                 }
             }
-            .animation(.easeInOut(duration: 0.25), value: shown)
+            .navigationTitle("Action Items")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(role: .close) { dismiss() }
+                        .accessibilityIdentifier("CloseActionItems")
+                }
+                if !finding, search == nil {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        if services.betterSummaries.activeModel != nil {     // only when it can run now
+                            Button("Find Again", systemImage: "arrow.clockwise", action: find)
+                        }
+                        if !visible.isEmpty {
+                            Button("Share", systemImage: "square.and.arrow.up") {
+                                ShareSheet.present(text: ActionItemText.list(visible, transcript: recording.name),
+                                                   title: String(localized: "Action Items"))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .modifier(ActionItemUndoToast(undo: undo))
+        .presentationDetents([.medium, .large])
+        .onAppear { InteractionTrace.shown("actions") }
+        .task {
+            // After the press's frame (the search reads the transcript's paragraphs). Never looked: ask, also after a
+            // search that ended without a result (a running one goes on); else the stored items, not an old problem.
+            if neverLooked { find() } else { services.identifier.forgetActionItemsProblem(of: recording.id) }
+        }
+        .onDisappear { undo.toast = nil }                  // the toast is the sheet's; the shake's Undo stays
+    }
+
+    private func find() {
+        services.identifier.findActionItems(in: recording)
+    }
+
+    @ViewBuilder
+    private func problem(_ search: SpeakerIdentifier.ActionItemsSearch) -> some View {
+        switch search {
+        case .running:
+            EmptyView()
+        case .needsGemma:
+            ContentUnavailableView("Gemma Needed", systemImage: "checklist",
+                                   description: Text("Gemma, the summary model, finds action items on this iPhone. Download it or turn it on in Settings › Summaries."))
+        case .afterRecording:
+            ContentUnavailableView("Recording in Progress", systemImage: "waveform",
+                                   description: Text("Action items can be found once the recording has ended."))
+        case .stopped:
+            ContentUnavailableView {
+                Label("Not Finished", systemImage: "checklist")
+            } description: {
+                Text("Feder stopped looking for action items when you left the app.")
+            } actions: {
+                Button("Try Again", action: find)
+            }
         }
     }
 }
 
-/// The card's Undo for removed action items, as for its corrections: a toast for the last removal (ActionItemUndoToast,
-/// 6 s), and shaking the iPhone puts back each removal, newest first, until the card closes (the window's UndoManager:
-/// a shake right after Remove takes back the Remove, not an earlier correction). Removed items are kept hidden and
-/// can't be shown again otherwise.
+/// The card's Undo for action items removed in its sheet, as for its corrections: a toast in the sheet for the last
+/// removal (ActionItemUndoToast, 6 s), and shaking the iPhone puts back each removal, newest first, until the card
+/// closes (the window's UndoManager: a shake right after Remove takes back the Remove, not an earlier correction). The
+/// card owns it, not the sheet: withdrawn when the sheet closed, the removal left an empty step on the UndoManager, and
+/// the next shake (⌘Z on the simulator) did nothing; only the one after it undid the correction. So the sheet closed,
+/// a shake still brings the item back first. Removed items are kept hidden and can't be shown again otherwise.
 @Observable
 final class ActionItemUndo {
     /// One removal: the UndoManager's target, so the toast's Undo takes back exactly its shake action.
@@ -83,7 +140,7 @@ final class ActionItemUndo {
         registered.removeAll { $0 === removal }
         if toast === removal { toast = nil }
         withAnimation(.snappy) {
-            _ = ActionItemsDisclosure.change(removal.recording, [removal.itemID]) { $0.isRemoved = false }
+            _ = ActionItemsList.change(removal.recording, [removal.itemID]) { $0.isRemoved = false }
         }
     }
 
@@ -95,11 +152,10 @@ final class ActionItemUndo {
     }
 }
 
-/// "Action Item Removed · Undo" above the bottom toolbar for 6 s, the toast of the card's corrections (UndoToast).
-/// `shown` hides a correction's toast meanwhile (the card hides this one when a correction's comes).
+/// "Action Item Removed · Undo" at the bottom of the Action Items sheet for 6 s, the toast of the card's corrections
+/// (UndoToast).
 struct ActionItemUndoToast: ViewModifier {
     let undo: ActionItemUndo
-    let shown: () -> Void
 
     @Environment(\.undoManager) private var undoManager
 
@@ -118,27 +174,23 @@ struct ActionItemUndoToast: ViewModifier {
             .animation(.snappy, value: undo.toast?.id)
             .task(id: undo.toast?.id) {
                 guard undo.toast != nil else { return }
-                shown()
                 do { try await Task.sleep(for: .seconds(6)) } catch { return }
                 undo.toast = nil
             }
     }
 }
 
-/// A transcript's action items (ActionItemExtractor), folded into one "Action Items" row like the Summary row above it
-/// (the system's `DisclosureGroup`, subheadline, the count in secondary). Opened, a row per item, the way Reminders
-/// lists them: the task, under it who and by when (and "In Reminders", "In Calendar" once added), in secondary: these
-/// are suggestions, often from past meetings, so a date gone by is never Reminders' overdue red. At the end of each row a
-/// menu (plus.circle, a filled checkmark once added anywhere, like Music's add-to-library): Add to Reminders (one tap,
-/// EventKit; once added, "Add to Reminders Again", for a reminder deleted there), Add to Calendar (Apple's New Event
-/// editor to check it in), Copy, and Remove (no question: it is a suggestion; Undo in a toast and by shaking; kept
-/// hidden, so a new extraction doesn't bring it back). "Add All to Reminders" under them while two or more aren't in
-/// Reminders yet. No glass: content.
-struct ActionItemsDisclosure: View {
+/// A transcript's action items (ActionItemExtractor) in the Action Items sheet, the way Reminders lists them: the task,
+/// under it who and by when (and "In Reminders", "In Calendar" once added), in secondary: these are suggestions, often
+/// from past meetings, so a date gone by is never Reminders' overdue red. At the end of each row a menu (plus.circle, a
+/// filled checkmark once added anywhere, like Music's add-to-library): Add to Reminders (one tap, EventKit; once added,
+/// "Add to Reminders Again", for a reminder deleted there), Add to Calendar (Apple's New Event editor to check it in),
+/// Copy, and Remove (no question: it is a suggestion; also by swiping; Undo in a toast and by shaking; kept hidden, so
+/// Find Again doesn't bring it back). "Add All to Reminders" under them while two or more aren't in Reminders yet.
+struct ActionItemsList: View {
     let recording: Recording
-    /// All of the transcript's items, removed ones too (read once by the slot).
+    /// All of the transcript's items, removed ones too (read once by the sheet).
     let items: [ActionItem]
-    @Binding var isExpanded: Bool
     let undo: ActionItemUndo
 
     @Environment(\.modelContext) private var modelContext
@@ -152,38 +204,30 @@ struct ActionItemsDisclosure: View {
     /// Counts successful adds (the success haptic).
     @State private var added = 0
 
-    private var visible: [ActionItem] { items.filter { !$0.isRemoved } }
-
     var body: some View {
-        let visible = visible
+        let visible = items.filter { !$0.isRemoved }
         let notInReminders = visible.filter { $0.addedToReminders == nil }
-        DisclosureGroup(isExpanded: $isExpanded) {
-            VStack(alignment: .leading, spacing: 4) {
+        List {
+            Section {
                 ForEach(Array(visible.enumerated()), id: \.element.id) { index, item in
                     row(item, index: index)
+                        .swipeActions {
+                            Button("Remove", systemImage: "trash", role: .destructive) { remove(item) }
+                        }
                 }
-                if notInReminders.count >= 2 {
+            } footer: {
+                Text("AI-generated content can contain mistakes.")
+            }
+            if notInReminders.count >= 2 {
+                Section {
                     Button("Add All to Reminders") { addToReminders(notInReminders.map(\.id)) }
-                        .buttonStyle(.borderless)
                         .disabled(!adding.isEmpty)
-                        .frame(minHeight: 44)
                         .accessibilityIdentifier("AddAllToReminders")
                 }
             }
-            .padding(.top, 6)
-        } label: {
-            HStack(spacing: 6) {
-                Text("Action Items").fontWeight(.semibold)
-                Text(verbatim: "\(visible.count)").foregroundStyle(.secondary)
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Action Items")
-            .accessibilityValue(([String(visible.count)] + visible.map(\.task)).joined(separator: ", "))
-            .accessibilityIdentifier("ActionItems")
         }
-        .font(.subheadline)
-        // The editor's store is made off the main actor while the row opens, so Add to Calendar doesn't make it.
-        .task(id: isExpanded) { if isExpanded { await EventEditor.warmUp() } }
+        // The editor's store is made off the main actor while the sheet opens, so Add to Calendar doesn't make it.
+        .task { await EventEditor.warmUp() }
         .sensoryFeedback(.success, trigger: added)
         .alert("Allow Access to Reminders", isPresented: $accessDenied) {
             Button("Open Settings") {
@@ -248,7 +292,7 @@ struct ActionItemsDisclosure: View {
                     Divider()
                     Button("Remove", systemImage: "trash", role: .destructive) { remove(item) }
                 } label: {
-                    // At the row's end, under the disclosure chevron (centred in its 44 pt target it stood 13 pt in).
+                    // At the row's end, like Reminders' info button.
                     Image(systemName: item.isAdded ? "checkmark.circle.fill" : "plus.circle")
                         .font(.title3)
                         .frame(width: 44, height: 44, alignment: .trailing)
@@ -327,20 +371,5 @@ struct ActionItemsDisclosure: View {
         for index in stored.indices where ids.contains(stored[index].id) { update(&stored[index]) }
         recording.actionItems = stored
         return true
-    }
-
-    /// A hidden folded row: what holds the place in the same height before there are items (or when none were found).
-    static var standIn: some View {
-        DisclosureGroup(isExpanded: .constant(false)) {
-            EmptyView()
-        } label: {
-            HStack(spacing: 6) {
-                Text("Action Items").fontWeight(.semibold)
-                Text(verbatim: "0")
-            }
-        }
-        .font(.subheadline)
-        .hidden()
-        .accessibilityHidden(true)
     }
 }

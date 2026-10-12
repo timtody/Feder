@@ -56,8 +56,8 @@ final class SearchTests: ScribeUITestCase {
     }
 
     /// The hit navigator ("n of m", Previous Match, Next Match) is in the card's bottom toolbar between the More menu
-    /// (Share, Add Tag and Speakers: seven items fit no iPhone's bar) and Delete, all reachable (not in an overflow
-    /// menu).
+    /// (Share, Add Tag, Edit Text, Action Items and Listen: seven items fit no iPhone's bar) and Delete, all reachable
+    /// (not in an overflow menu).
     @MainActor
     private func assertHitNavigatorInBottomBar(_ app: XCUIApplication) {
         let height = app.windows.firstMatch.frame.height
@@ -151,9 +151,10 @@ final class SearchTests: ScribeUITestCase {
         XCTAssertEqual(app.staticTexts["Paragraph.0"].value as? String, "Current match")
         shot("Word result opened", app)
 
-        // Share, Add Tag and Speakers are in the More menu meanwhile, and Add Tag works from there.
+        // Share, Add Tag and Edit Text are in the More menu meanwhile (no Action Items: this simulator can't run Gemma),
+        // and Add Tag works from there.
         app.buttons["More"].tap()
-        for label in ["Share Transcript", "Add Tag", "Speakers"] {
+        for label in ["Share Transcript", "Add Tag", "Edit Text"] {
             XCTAssertTrue(app.buttons[label].waitForExistence(timeout: 5), "\(label) in the More menu")
         }
         shot("More menu with the hit navigator", app)

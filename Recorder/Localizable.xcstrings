@@ -103,28 +103,6 @@
     "%lld": {
       "shouldTranslate": false
     },
-    "%lld Speakers": {
-      "localizations": {
-        "de": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld Sprecher"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld Sprecher"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "%lld of %lld": {
       "localizations": {
         "de": {
@@ -237,6 +215,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aufgaben"
+          }
+        }
+      }
+    },
+    "Action Items from “%@”": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgaben aus „%@“"
+          }
+        }
+      }
+    },
+    "Action items can be found once the recording has ended.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgaben können gesucht werden, sobald die Aufnahme beendet ist."
           }
         }
       }
@@ -440,16 +438,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Diesen Abschnitt zuordnen"
-          }
-        }
-      }
-    },
-    "Automatic": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Automatisch"
           }
         }
       }
@@ -1084,6 +1072,16 @@
         }
       }
     },
+    "Feder stopped looking for action items when you left the app.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder hat die Suche nach Aufgaben angehalten, als du die App verlassen hast."
+          }
+        }
+      }
+    },
     "Feder tells voices apart and recognizes people you've named before.": {
       "localizations": {
         "de": {
@@ -1130,6 +1128,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nach Tag %@ filtern"
+          }
+        }
+      }
+    },
+    "Find Again": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut suchen"
           }
         }
       }
@@ -1194,6 +1202,16 @@
         }
       }
     },
+    "Gemma Needed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma erforderlich"
+          }
+        }
+      }
+    },
     "Gemma by Google · 3.6 GB": {
       "localizations": {
         "de": {
@@ -1220,6 +1238,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gemma konnte nicht geladen werden. Lade das Modell erneut herunter."
+          }
+        }
+      }
+    },
+    "Gemma found no tasks in this transcript.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma hat in diesem Transkript keine Aufgaben gefunden."
           }
         }
       }
@@ -1264,6 +1292,16 @@
         }
       }
     },
+    "Gemma, the summary model, finds action items on this iPhone. Download it or turn it on in Settings › Summaries.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma, das Modell für Zusammenfassungen, findet die Aufgaben auf diesem iPhone. Lade es unter Einstellungen › Zusammenfassungen oder schalte es dort ein."
+          }
+        }
+      }
+    },
     "Go to Person": {
       "localizations": {
         "de": {
@@ -1274,32 +1312,12 @@
         }
       }
     },
-    "Google's Gemma 4 E2B writes a title and a short summary of every transcript, on this iPhone: it reads a whole meeting at once and keeps who said what. It needs a one-time 3.6 GB download over Wi-Fi, which goes on in the background, also when Feder is closed. Existing transcripts get summaries too; titles you typed stay.": {
+    "Google's Gemma 4 E2B writes a title and a short summary of every new transcript, on this iPhone: it reads a whole meeting at once and keeps who said what. When you tap Action Items in a transcript, it lists them. It needs a one-time 3.6 GB download over Wi-Fi, which goes on in the background, also when Feder is closed. Transcripts from the last three days get a summary too; titles you typed stay.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Googles Gemma 4 E2B schreibt für jedes Transkript einen Titel und eine kurze Zusammenfassung, auf diesem iPhone: Es liest ein ganzes Meeting auf einmal und weiß, wer was gesagt hat. Dafür ist ein einmaliger Download von 3,6 GB über WLAN nötig, der im Hintergrund weiterläuft, auch wenn Feder geschlossen ist. Bestehende Transkripte bekommen ebenfalls Zusammenfassungen; eingegebene Titel bleiben erhalten."
-          }
-        }
-      }
-    },
-    "Google's Gemma 4 E2B writes a title, a short summary and the action items of every new transcript, on this iPhone: it reads a whole meeting at once and keeps who said what. It needs a one-time 3.6 GB download over Wi-Fi, which goes on in the background, also when Feder is closed. Transcripts from the last three days get them too; titles you typed stay.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Googles Gemma 4 E2B schreibt für jedes neue Transkript einen Titel, eine kurze Zusammenfassung und die Aufgaben, auf diesem iPhone: Es liest ein ganzes Meeting auf einmal und weiß, wer was gesagt hat. Dafür ist ein einmaliger Download von 3,6 GB über WLAN nötig, der im Hintergrund weiterläuft, auch wenn Feder geschlossen ist. Transkripte der letzten drei Tage bekommen sie ebenfalls; eingegebene Titel bleiben erhalten."
-          }
-        }
-      }
-    },
-    "Google's Gemma 4 E2B writes a title, a short summary and the action items of every transcript, on this iPhone: it reads a whole meeting at once and keeps who said what. It needs a one-time 3.6 GB download over Wi-Fi, which goes on in the background, also when Feder is closed. Existing transcripts get them too; titles you typed stay.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Googles Gemma 4 E2B schreibt für jedes Transkript einen Titel, eine kurze Zusammenfassung und die Aufgaben, auf diesem iPhone: Es liest ein ganzes Meeting auf einmal und weiß, wer was gesagt hat. Dafür ist ein einmaliger Download von 3,6 GB über WLAN nötig, der im Hintergrund weiterläuft, auch wenn Feder geschlossen ist. Bestehende Transkripte bekommen sie ebenfalls; eingegebene Titel bleiben erhalten."
+            "value": "Googles Gemma 4 E2B schreibt für jedes neue Transkript einen Titel und eine kurze Zusammenfassung, auf diesem iPhone: Es liest ein ganzes Meeting auf einmal und weiß, wer was gesagt hat. Wenn du in einem Transkript auf „Aufgaben“ tippst, listet es sie auf. Dafür ist ein einmaliger Download von 3,6 GB über WLAN nötig, der im Hintergrund weiterläuft, auch wenn Feder geschlossen ist. Transkripte der letzten drei Tage bekommen ebenfalls eine Zusammenfassung; eingegebene Titel bleiben erhalten."
           }
         }
       }
@@ -1310,26 +1328,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Transkripte in der iPhone-Suche ausblenden?"
-          }
-        }
-      }
-    },
-    "Identify Again": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Erneut erkennen"
-          }
-        }
-      }
-    },
-    "Identify speakers again?": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sprecher erneut erkennen?"
           }
         }
       }
@@ -1864,6 +1862,16 @@
         }
       }
     },
+    "No Action Items": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Aufgaben"
+          }
+        }
+      }
+    },
     "No Internet Connection": {
       "localizations": {
         "de": {
@@ -1930,6 +1938,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Auf diesem Gerät nicht verfügbar"
+          }
+        }
+      }
+    },
+    "Not Finished": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht abgeschlossen"
           }
         }
       }
@@ -2307,6 +2325,16 @@
         }
       }
     },
+    "Recording in Progress": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufnahme läuft"
+          }
+        }
+      }
+    },
     "Refining speakers…": {
       "localizations": {
         "de": {
@@ -2673,16 +2701,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sprechermodell · Wartet auf WLAN"
-          }
-        }
-      }
-    },
-    "Speakers": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sprecher"
           }
         }
       }
@@ -3093,16 +3111,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Die Sprechermodelle sind %lld MB groß. Jetzt laden oder auf WLAN warten."
-          }
-        }
-      }
-    },
-    "The speaker names you entered will be reset.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die eingegebenen Sprechernamen werden zurückgesetzt."
           }
         }
       }
@@ -3587,22 +3595,22 @@
         }
       }
     },
+    "Writes a title and a short summary for each transcript, and its action items when you ask.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schreibt für jedes Transkript einen Titel und eine kurze Zusammenfassung und auf Wunsch seine Aufgaben."
+          }
+        }
+      }
+    },
     "Writes a title and a short summary for each transcript.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Schreibt für jedes Transkript einen Titel und eine kurze Zusammenfassung."
-          }
-        }
-      }
-    },
-    "Writes a title, a short summary and the action items for each transcript.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Schreibt für jedes Transkript einen Titel, eine kurze Zusammenfassung und die Aufgaben."
           }
         }
       }

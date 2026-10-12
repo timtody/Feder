@@ -3,7 +3,7 @@ import Foundation
 /// A to-do Gemma found in a transcript (ActionItemExtractor): who does what by when, as the conversation said it.
 /// Stored encoded in `Recording.actionItems`. Every field is decided now: Swift's synthesized `Decodable` ignores
 /// default values, so a field added later must be Optional, or the stored arrays stop decoding.
-/// The owner is text, not a speaker number: "Speakers: n" and the corrections renumber the speakers (`compaction`,
+/// The owner is text, not a speaker number: the corrections and Try Again renumber the speakers (`compaction`,
 /// `renumberSpeakers`), and a number would then name the wrong person; like the summary, a later rename doesn't change it.
 nonisolated struct ActionItem: Codable, Hashable, Identifiable, Sendable {
     var id: UUID = UUID()
@@ -114,6 +114,12 @@ nonisolated enum ActionItemText {
             details.append(phrase)
         }
         return details.isEmpty ? item.task : "\(item.task) (\(details.joined(separator: ", ")))"
+    }
+
+    /// The Action Items sheet's Share: a heading with the transcript's title, then one line per item ("• " and `line`),
+    /// plain text that reads the same in Messages, Mail and Notes.
+    static func list(_ items: [ActionItem], transcript title: String) -> String {
+        ([String(localized: "Action Items from “\(title)”")] + items.map { "• " + line($0) }).joined(separator: "\n")
     }
 
     /// A reminder's or event's notes: "Anna Schmidt · From “Budget Review”, 6 Oct 2026" (the transcript's link is the

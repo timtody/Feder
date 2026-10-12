@@ -65,7 +65,11 @@ struct MeltLayer: View {
                 symbol("tag", at: Self.tagCentre, in: group, of: bar.group)
                 // Edit Text is disabled while the steps after Stop run, which they always do right after Stop.
                 symbol("pencil", at: Self.editCentre, in: group, of: bar.group, disabled: true)
-                symbol("person.2", at: Self.speakersCentre, in: group, of: bar.group)
+                // Action Items too: the speakers aren't final right after Stop. Only where Gemma can run (the bar has
+                // no Action Items elsewhere).
+                if BetterSummaries.isSupported {
+                    symbol("checklist", at: Self.actionItemsCentre, in: group, of: bar.group, disabled: true)
+                }
                 // Listen: enabled at the hand-over (the card has found the recording's audio by then).
                 symbol("headphones", at: Self.listenCentre, in: group, of: bar.group)
                 symbol("trash", at: Self.deleteCentre, in: delete, of: bar.delete)
@@ -105,24 +109,28 @@ struct MeltLayer: View {
                       y: frame.minY + centre.y * frame.height / final.height)
     }
 
-    // The transcript's bar (Share, Add Tag, Edit Text, Speakers, Listen, flexible space, Delete), measured on iOS 27,
-    // iPhone 17 (402 × 874 pt), from the system's glass views: Share, Add Tag, Edit Text, Speakers and Listen in one
-    // capsule (28, 798, 285 × 48; 227.67 wide before Listen, 175 before Edit Text, 116 before Add Tag), Delete a circle
-    // (326, 798, 48 × 48), 28 pt from the screen's edges and 42 pt above the safe area's bottom. The symbols' centres in
-    // their glass, from their image views (replicas there match the real bar to 0.02 pt). Edit Text's and Listen's came
-    // from the buttons' frames instead (UI test): their centres matched Share's and Add Tag's image views exactly, the
-    // capsule reaches 5 pt past the outer buttons, and the others didn't move when Listen came. Another item in the
+    // The transcript's bar (Share, Add Tag, Edit Text, Action Items, Listen, flexible space, Delete), measured on iOS 27,
+    // iPhone 17 (402 × 874 pt), from the system's glass views: Share, Add Tag, Edit Text, Action Items and Listen in one
+    // capsule (28, 798, 279.33 × 48; 285 with Speakers' wider person.2 in Action Items' place, 175 before Edit Text, 116
+    // before Add Tag), Delete a circle (326, 798, 48 × 48), 28 pt from the screen's edges and 42 pt above the safe
+    // area's bottom. The symbols' centres in their glass, from their image views (replicas there match the real bar to
+    // 0.02 pt). Edit Text's, Action Items' and Listen's came from the buttons' frames instead (UI test, 2026-10-12):
+    // their centres matched Share's and Add Tag's image views exactly, the capsule reaches 5 pt past the outer buttons,
+    // and the items before the one that changed didn't move. Without Action Items (an iPhone that can't run Gemma: no
+    // button) the capsule is 219.67 wide and Listen sits where Action Items would (same UI test). Another item in the
     // bar's group changes these: measure again.
     private static let shareCentre = CGPoint(x: 25.33, y: 22.67)
     private static let tagCentre = CGPoint(x: 82.17, y: 25.0)
     private static let editCentre = CGPoint(x: 138.0, y: 24.0)
-    private static let speakersCentre = CGPoint(x: 197.0, y: 25.0)
-    private static let listenCentre = CGPoint(x: 258.33, y: 24.0)
+    private static let actionItemsCentre = CGPoint(x: 194.17, y: 24.0)
+    private static var listenCentre: CGPoint {
+        BetterSummaries.isSupported ? CGPoint(x: 252.67, y: 24.0) : CGPoint(x: 193.0, y: 24.0)
+    }
     private static let deleteCentre = CGPoint(x: 23.83, y: 23.33)
 
     static func barItems(in safeArea: CGRect) -> (group: CGRect, delete: CGRect) {
         let y = safeArea.maxY - 42
-        return (CGRect(x: 28, y: y, width: 285, height: 48),
+        return (CGRect(x: 28, y: y, width: BetterSummaries.isSupported ? 279.33 : 219.67, height: 48),
                 CGRect(x: safeArea.maxX - 28 - 48, y: y, width: 48, height: 48))   // portrait only: safe x = screen x
     }
 

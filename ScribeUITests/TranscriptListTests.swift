@@ -113,7 +113,7 @@ final class TranscriptListTests: ScribeUITestCase {
     /// into the accessory, which shows "Recording" and Stop while the list can be browsed; a tap on the accessory opens
     /// it again; Stop saves it and the SAME card turns into the transcript in place (no push, no Back): the same title
     /// and date line at the same place, the timer landed as the duration beside the date, and the bottom toolbar where
-    /// the Stop was, one Share, Add Tag, Speakers and Delete each (the melt's stand-ins are gone). Minimize then closes
+    /// the Stop was, one Share, Add Tag and Delete each (the melt's stand-ins are gone). Minimize then closes
     /// it to the list, where the new transcript is at the top with the start time.
     @MainActor
     func testRecordAccessoryFlow() throws {
@@ -175,11 +175,13 @@ final class TranscriptListTests: ScribeUITestCase {
         XCTAssertNil(reachable(app.staticTexts.matching(NSPredicate(format: "label == %@", name)), timeout: 0),
                      "only the transcript's title field shows the name (the recording's header is gone)")
         // One of each, hittable: the melt's glass stand-ins are gone and were never in the accessibility tree.
-        for label in ["Share Transcript", "Add Tag", "Speakers", "Delete Transcript"] {
+        for label in ["Share Transcript", "Add Tag", "Delete Transcript"] {
             let matches = app.buttons.matching(NSPredicate(format: "label == %@", label))
             XCTAssertEqual(matches.count, 1, "exactly one \(label)")
             XCTAssertTrue(matches.firstMatch.isHittable && matches.firstMatch.isEnabled, "\(label) can be tapped")
         }
+        // This simulator can't run Gemma (no -fakeGemma): no Action Items, the melt's layout without it.
+        XCTAssertFalse(app.buttons["Action Items"].exists, "no Action Items without Gemma")
         // Title and date line where the recording had them; the timer is now the duration beside the date.
         let savedDate = reachable(app.staticTexts.matching(NSPredicate(format: "label == %@", day)), timeout: 5)
         XCTAssertNotNil(savedDate, "the transcript's date line has the start time \(day)")
@@ -287,10 +289,10 @@ final class TranscriptListTests: ScribeUITestCase {
         let app = launch()
         open("Project Kickoff", in: app)
         shot("Card", app)
-        // Project Kickoff runs on under the bottom toolbar: there, between the Share/Speakers group and Delete, the
-        // text is faded by the system's soft scroll edge (as in Notes and Mail), not crisp next to the glass.
-        let speakers = app.buttons["Speakers"].frame, delete = app.buttons["Delete Transcript"].frame
-        let gap = CGRect(x: speakers.maxX + 12, y: speakers.midY - 12, width: delete.minX - speakers.maxX - 24, height: 24)
+        // Project Kickoff runs on under the bottom toolbar: there, between the Share…Listen group and Delete, the text
+        // is faded by the system's soft scroll edge (as in Notes and Mail), not crisp next to the glass.
+        let listen = app.buttons["Listen"].frame, delete = app.buttons["Delete Transcript"].frame
+        let gap = CGRect(x: listen.maxX + 12, y: listen.midY - 12, width: delete.minX - listen.maxX - 24, height: 24)
         let crisp = crispShare(of: gap, in: app)
         note("Under the toolbar", "crisp share \(crisp) in \(gap)")
         XCTAssertLessThan(crisp, 0.002, "text under the bottom toolbar is faded (scroll edge effect): \(crisp)")
@@ -370,31 +372,28 @@ final class TranscriptListTests: ScribeUITestCase {
     }
 
     /// The card's actions are in the system's bottom toolbar (like Photos and Mail; Liquid Glass), not in a top menu:
-    /// Share, Speakers (its count picker) and Delete, within thumb reach; the card covers the tab bar and the record
-    /// accessory. Delete asks first, then the card closes and the transcript is gone from the list.
+    /// Share, Add Tag and Delete, within thumb reach; the card covers the tab bar and the record accessory. No Action
+    /// Items on this simulator, which can't run Gemma (ActionItemsTests pretend it can), and no Speakers menu. Delete asks
+    /// first, then the card closes and the transcript is gone from the list.
     @MainActor
     func testCardBottomToolbar() throws {
         let app = launch()
         open("Budget Review", in: app)
-        let share = app.buttons["Share Transcript"], speakers = app.buttons["Speakers"]
+        let share = app.buttons["Share Transcript"]
         let addTag = app.buttons["Add Tag"], delete = app.buttons["Delete Transcript"]
         let height = app.windows.firstMatch.frame.height
-        for (element, name) in [(share, "Share"), (addTag, "Add Tag"), (speakers, "Speakers"), (delete, "Delete")] {
+        for (element, name) in [(share, "Share"), (addTag, "Add Tag"), (delete, "Delete")] {
             XCTAssertTrue(element.waitForExistence(timeout: 5), name)
             XCTAssertTrue(element.isHittable, "\(name) is not hidden in an overflow menu")
             XCTAssertGreaterThan(element.frame.minY, height * 0.85, "\(name) at the bottom")
         }
         XCTAssertLessThan(share.frame.minX, addTag.frame.minX, "Add Tag beside Share, in the left group")
-        XCTAssertLessThan(addTag.frame.minX, speakers.frame.minX, "then Speakers")
         XCTAssertLessThan(share.frame.minX, delete.frame.minX, "Delete on the right")
         XCTAssertFalse(app.buttons["More"].exists, "no top-right menu")
         shot("Card toolbar", app)
 
-        speakers.tap()
-        XCTAssertTrue(app.buttons["Automatic"].waitForExistence(timeout: 5), "the speaker count picker")
-        XCTAssertTrue(app.buttons["3 Speakers"].exists)
-        shot("Speakers menu", app)
-        app.buttons["Automatic"].tap()                                      // unchanged: closes the menu
+        XCTAssertFalse(app.buttons["Action Items"].exists, "no Action Items without Gemma, though items are stored")
+        XCTAssertFalse(app.buttons["Speakers"].exists, "no speaker-count menu")
 
         let trash = delete.frame                                            // the dialog grows out of it, replacing it
         delete.tap()

@@ -247,7 +247,6 @@ final class RecordingSession: Identifiable {
         let recording = Recording(name: transcriptName,
                                   audioFileName: fileName,
                                   localeIdentifier: (locale ?? Self.transcriptionLocale).identifier(.bcp47))
-        recording.actionItemsDue = true                       // a new transcript: its action items are looked for once
         // What the recording card showed: the start time (not the moment of saving) and the place, when it was found
         // already, so the transcript's date line is the card's and nothing pops in after the turn.
         recording.createdAt = since

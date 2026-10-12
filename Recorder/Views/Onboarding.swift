@@ -281,7 +281,7 @@ private struct ImprovementsPage: View {
             }
             if offersGemma {
                 OptionRow(symbol: "text.alignleft", title: "AI Model for Summaries and Automatic Titles",
-                          text: "Writes a title, a short summary and the action items for each transcript.",
+                          text: "Writes a title and a short summary for each transcript, and its action items when you ask.",
                           size: gemmaHasRoom ? "Gemma by Google · 3.6 GB" : "Gemma by Google · 3.6 GB · not enough free storage",
                           isOn: $wantsGemma)
                     .disabled(!gemmaHasRoom)

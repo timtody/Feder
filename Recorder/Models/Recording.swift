@@ -65,7 +65,7 @@ final class Recording {
     var latitude: Double? = nil          // where the recording started (nil: no permission, no fix, or older transcripts)
     var longitude: Double? = nil
     var placeName: String? = nil         // e.g. "Mitte, Berlin" (reverse geocoded)
-    var speakerCountOverride: Int? = nil // the user's "Speakers" choice; nil = automatic
+    var speakerCountOverride: Int? = nil // the card's former "Speakers" choice (until October 2026; still used); nil = automatic
     var wordsRefined: Bool = false       // the full-accuracy pass after Stop ran (words are from it, or it found nothing better)
     var vocabularyPending: Bool = false  // the vocabulary pass (vocabulary terms) still has to run on `words`
     // Smart Corrections (Gemma proposing text fixes to review) were removed in October 2026. Their four properties stay
@@ -82,10 +82,9 @@ final class Recording {
     var nameIsUserSet: Bool = false      // the user edited the title; automatic titles never replace it
     var automaticTitle: String? = nil    // the last title TranscriptTitler gave it: a better model may replace that one
     var actionItems: [ActionItem] = []   // Gemma's to-dos (ActionItemExtractor); []: none found, or not looked for yet
-    var actionItemsVersion: Int = 0      // ActionItemExtractor.version once Gemma looked (answered or failed for good)
-    /// Action items are to be looked for: set only when a recording is saved or a file imported (never for transcripts
-    /// that existed before, nor by a later extractor version), cleared once Gemma looked. Looked for only within
-    /// `SpeakerIdentifier.gemmaLookBack` of the recording (one made while Gemma downloaded gets them once it's there).
+    var actionItemsVersion: Int = 0      // ActionItemExtractor.version once Gemma looked (the card's Action Items); 0: never
+    /// No longer set or read (kept for the store): until October 2026 a new transcript's action items were looked for
+    /// automatically after its summary; now only the card's Action Items button asks Gemma.
     var actionItemsDue: Bool = false
     var diarizerRaw: String? = nil       // DiarizerKind.rawValue of speakerTurns' model; nil: diarized before it was kept
                                          // (the app before Scribe: pyannote, or the live labels)

@@ -1,6 +1,7 @@
 import Foundation
 
-/// The detail menu's "Speakers: n" for Nemotron, which has no speaker-count setting: its turns are regrouped by voice,
+/// A stored speaker count (`Recording.speakerCountOverride`, the card's former "Speakers: n", until October 2026) for
+/// Nemotron, which has no speaker-count setting: its turns are regrouped by voice,
 /// only as far as the count asks. Each turn is cut into equal pieces of at most 10 s (one embedding-model input,
 /// embedded inside its real surrounding audio by VoiceEmbedder.embeddings); each found speaker starts as one cluster of
 /// its pieces of at least 1 s (all its pieces when it has none):
