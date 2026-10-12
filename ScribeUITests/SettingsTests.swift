@@ -337,4 +337,39 @@ final class SettingsTests: ScribeUITestCase {
                         .firstMatch.waitForExistence(timeout: 5), "on: the footer says where it stays and what typing sends")
         shot("iPhone Search on", app)
     }
+
+    /// Name from Calendar is off until turned on (opt-in), in the Recording section between Live Speaker Labels and
+    /// Save Location, and the Recording footer says what it does.
+    @MainActor
+    func testCalendarSwitchOffByDefault() throws {
+        let app = launch(["-resetCalendar"])
+        app.buttons["Settings"].firstMatch.tap()
+        let toggle = app.switches["Name from Calendar"].firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "the switch under Recording")
+        XCTAssertEqual(toggle.value as? String, "0", "off by default")
+        let labels = app.switches["Live Speaker Labels"].firstMatch, location = app.switches["Save Location"].firstMatch
+        XCTAssertLessThanOrEqual(labels.frame.maxY, toggle.frame.minY + 1, "after Live Speaker Labels")
+        XCTAssertLessThanOrEqual(toggle.frame.maxY, location.frame.minY + 1, "right above Save Location")
+        XCTAssertLessThan(location.frame.minY - toggle.frame.maxY, 20, "in the same section")
+        let footer = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Name from Calendar names a transcript'"))
+        XCTAssertTrue(footer.firstMatch.exists, "the footer says what it does")
+        shot("Name from Calendar off", app)
+    }
+
+    /// Calendar access denied earlier (`-fakeCalendarAccess denied`: no system alert comes then): turning the switch on
+    /// offers the iPhone's Settings ("Allow Calendar Access") instead, and it stays off.
+    @MainActor
+    func testCalendarSwitchDeniedOffersSettings() throws {
+        let app = launch(["-resetCalendar", "-fakeCalendarAccess", "denied"])
+        app.buttons["Settings"].firstMatch.tap()
+        let toggle = app.switches["Name from Calendar"].firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        let alert = app.alerts["Allow Calendar Access"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5), "it offers the iPhone's Settings")
+        XCTAssertTrue(alert.buttons["Open Settings"].exists && alert.buttons["Cancel"].exists)
+        shot("Allow Calendar Access", app)
+        alert.buttons["Cancel"].tap()
+        XCTAssertTrue(waitFor { (toggle.value as? String) == "0" }, "still off")
+    }
 }

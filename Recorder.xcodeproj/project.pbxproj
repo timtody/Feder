@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		003A0C3D487BACCF64C0FB1C /* CalendarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90F2B151771787436936BF0D /* CalendarTests.swift */; };
 		02CD8C4FECB1072974082C3B /* ResponsivenessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D9844FE4177FE163F4856E7 /* ResponsivenessTests.swift */; };
 		0EBB87CDD9ACF8FF5846234A /* EditTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CBB09BF835A7714BACE9828 /* EditTextTests.swift */; };
 		196D9B1D9C1FC93B2D97EAC5 /* GemmaDownloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0960C3DA36C230C1F4975E37 /* GemmaDownloadTests.swift */; };
@@ -86,6 +87,7 @@
 		5FD49FF381B0530C8297D2E4 /* TranscriptListTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptListTests.swift; sourceTree = "<group>"; };
 		69D646AF45C91B8E21B6CD14 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		894E9486143AAD7D3710C41E /* OnboardingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingTests.swift; sourceTree = "<group>"; };
+		90F2B151771787436936BF0D /* CalendarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarTests.swift; sourceTree = "<group>"; };
 		9A0118C12D431B788B233588 /* FederWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FederWidgets.swift; sourceTree = "<group>"; };
 		B5E5334822ED139DB77164FF /* ScribeUITestCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScribeUITestCase.swift; sourceTree = "<group>"; };
 		C2FEA08FE163F0FEAAC15066 /* SystemIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemIntegrationTests.swift; sourceTree = "<group>"; };
@@ -162,6 +164,7 @@
 			isa = PBXGroup;
 			children = (
 				11AC04323E32E9C6C7223AA5 /* AppLockTests.swift */,
+				90F2B151771787436936BF0D /* CalendarTests.swift */,
 				3CBB09BF835A7714BACE9828 /* EditTextTests.swift */,
 				F9888AE62014305DE6B7512B /* ExportTests.swift */,
 				0960C3DA36C230C1F4975E37 /* GemmaDownloadTests.swift */,
@@ -350,6 +353,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8FC0FF45FD4555728181073B /* AppLockTests.swift in Sources */,
+				003A0C3D487BACCF64C0FB1C /* CalendarTests.swift in Sources */,
 				0EBB87CDD9ACF8FF5846234A /* EditTextTests.swift in Sources */,
 				3DE7EA9DAFB6057C8FE49F91 /* ExportTests.swift in Sources */,
 				196D9B1D9C1FC93B2D97EAC5 /* GemmaDownloadTests.swift in Sources */,

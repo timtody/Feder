@@ -11,7 +11,9 @@ struct SpeakerRenameTarget: Identifiable {
 /// name and selected, so typing replaces it) and the known people below it, those linked to this speaker or with a
 /// similar voice first, filtered as you type. Choosing a person or saving a typed name links the speaker to that person
 /// (`PeopleDirectory.name`), so the person's voice fingerprint learns this speaker's voice. "Use Default Name" goes back
-/// to "Speaker N".
+/// to "Speaker N". A transcript started during a calendar event (CalendarContext) offers that event's invitees in an
+/// "Invitees" section above the people (an invitee who is a person already shows once, there); the person this speaker
+/// is linked to and those with a similar voice stay above them, in "Suggestions".
 struct SpeakerNameSheet: View {
     let recording: Recording
     let speaker: Int
@@ -37,7 +39,7 @@ struct SpeakerNameSheet: View {
 
     private var choices: [SpeakerNameChoices.Choice] {
         let candidates = people.map { SpeakerNameChoices.Candidate(id: $0.id, name: $0.name, fingerprint: $0.fingerprint) }
-        return SpeakerNameChoices.rank(candidates, voice: recording.speakerVoices[speaker],
+        return SpeakerNameChoices.rank(candidates, invitees: recording.calendarAttendees, voice: recording.speakerVoices[speaker],
                                        current: recording.speakerPeople[speaker],
                                        typed: draft == initialName ? "" : draft)   // the prefilled name filters nothing
     }
@@ -65,14 +67,33 @@ struct SpeakerNameSheet: View {
                     Text("Names every turn of this speaker in this transcript.")
                 }
                 let choices = choices
-                if !choices.isEmpty {
-                    Section("People") {
-                        ForEach(choices) { choice in
-                            // Always names (so confirms) the speaker, also with its current name: a recognized
-                            // speaker's voice then becomes a sample of that person.
-                            Button { name(choice.name) } label: { row(choice, transcripts: counts[choice.id] ?? 0) }
-                                .accessibilityIdentifier("PersonChoice.\(choice.name)")
+                // The calendar event's invitees (Calendar's own word), above the people: a tap names the speaker
+                // exactly like typing the name (a person is made on first use). Never assigned by itself. The sheet's
+                // best guesses, this speaker's person (the user themselves, say, who is never an invitee) and similar
+                // voices, would sink below up to 30 invitees, off the half-height sheet: they come first, in
+                // Suggestions. Without invitees they lead the people as before.
+                let invitees = choices.filter(\.isInvitee)
+                let suggested = invitees.isEmpty ? [] : choices.filter { !$0.isInvitee && $0.reason != .other }
+                let others = choices.filter { !$0.isInvitee && (invitees.isEmpty || $0.reason == .other) }
+                if !suggested.isEmpty {
+                    Section("Suggestions") {
+                        ForEach(suggested) { choice in choiceButton(choice, counts: counts) }
+                    }
+                }
+                if !invitees.isEmpty {
+                    Section {
+                        ForEach(invitees) { choice in choiceButton(choice, counts: counts) }
+                    } header: {
+                        Text("Invitees")
+                    } footer: {
+                        if let title = recording.calendarEventTitle {
+                            Text("From the calendar event “\(title)”.")
                         }
+                    }
+                }
+                if !others.isEmpty {
+                    Section("People") {
+                        ForEach(others) { choice in choiceButton(choice, counts: counts) }
                     }
                 }
             }
@@ -131,6 +152,13 @@ struct SpeakerNameSheet: View {
         .frame(minHeight: 56)
     }
 
+    private func choiceButton(_ choice: SpeakerNameChoices.Choice, counts: [UUID: Int]) -> some View {
+        // Always names (so confirms) the speaker, also with its current name: a recognized speaker's voice then
+        // becomes a sample of that person.
+        Button { name(choice.name) } label: { row(choice, transcripts: choice.personID.flatMap { counts[$0] } ?? 0) }
+            .accessibilityIdentifier("PersonChoice.\(choice.name)")
+    }
+
     private func row(_ choice: SpeakerNameChoices.Choice, transcripts: Int) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "person.crop.circle.fill")
@@ -162,7 +190,15 @@ struct SpeakerNameSheet: View {
         case .current: return String(localized: "This speaker")
         case .similarVoice: return String(localized: "Similar voice")
         case .other:
-            if recording.speakerPeople.contains(where: { $0.value == choice.id && $0.key != speaker }) {
+            guard let id = choice.personID else {
+                // An invitee who isn't a person yet: another speaker may have the name (a person deleted since).
+                let name = SearchFolding.fold(choice.name)
+                if recording.speakerNames.contains(where: { $0.key != speaker && SearchFolding.fold($0.value) == name }) {
+                    return String(localized: "Already in this transcript")
+                }
+                return String(localized: "Invited")
+            }
+            if recording.speakerPeople.contains(where: { $0.value == id && $0.key != speaker }) {
                 return String(localized: "Already in this transcript")
             }
             return count == 1 ? "1 transcript" : "\(count) transcripts"

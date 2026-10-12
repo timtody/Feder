@@ -52,6 +52,8 @@
 	<false/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Feder uses Face ID to unlock your transcripts when App Lock is on.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Feder names a transcript after the calendar event running when you start it and offers its invitees as speaker names. Everything stays on this iPhone.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Feder saves where a transcript was started, so you can see and search it later.</string>
 	<key>NSMicrophoneUsageDescription</key>

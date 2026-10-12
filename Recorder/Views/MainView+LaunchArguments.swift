@@ -21,6 +21,14 @@ extension MainView {
             PreviewData.seed(into: modelContext, people: services.people, identifier: services.identifier,
                              pending: arguments.contains("-seedPendingSample"),
                              filler: UserDefaults.standard.integer(forKey: "seedFiller"))
+            // `-seedInvitees "Maria Lopez|Jonas Weber"`: Project Kickoff as if started during the calendar event
+            // "Kickoff Meeting" with those invitees (the rename sheet's Invitees section, without recording).
+            if let invitees = UserDefaults.standard.string(forKey: "seedInvitees"),
+               let kickoff = try? modelContext.fetch(FetchDescriptor<Recording>()).first(where: { $0.id == PreviewData.kickoffID }) {
+                kickoff.calendarEventTitle = "Kickoff Meeting"
+                kickoff.calendarAttendees = invitees.split(separator: "|").map(String.init)
+                try? modelContext.save()
+            }
             do { try await Task.sleep(for: .milliseconds(300)) } catch { return }   // @Query catches up first
         }
         #endif

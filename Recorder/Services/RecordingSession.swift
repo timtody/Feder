@@ -49,11 +49,23 @@ final class RecordingSession: Identifiable {
     private(set) var level: Float = 0                      // microphone level 0...1 for the meter, while recording
     private(set) var downloadProgress: Progress?
     private(set) var locale: Locale?
-    /// The name the transcript will be saved with ("New Transcript N"), fixed when the session is made (at Record): the
+    /// The name the transcript will be saved with (the calendar event running at Record, else "New Transcript N"),
+    /// fixed when the session is made (at Record): the
     /// recording card shows it in the title's place from its first frame, so it never changes under the user (not even
     /// when transcripts are deleted meanwhile). Not in `start()`: that runs 0.12 s after the card has begun zooming in
-    /// (MainView.startDelay), which showed the title field's grey "Title" placeholder until then.
-    let transcriptName: String
+    /// (MainView.startDelay), which showed the title field's grey "Title" placeholder until then. One exception: a press
+    /// that came before the calendar read that makes the cache current had ended (a cold launch from Control Center, the
+    /// Action Button, Siri or the widget; a return to the foreground after a meeting was cancelled or moved elsewhere)
+    /// takes what that read finds, once, while preparing (`recheckCalendarEvent`), before `.recording` hands the name to
+    /// the Live Activity; never later.
+    private(set) var transcriptName: String
+    /// The calendar event the recording was started in (CalendarContext; nil: none, or naming from the calendar is
+    /// off): its title names the transcript, and its title and invitees are saved with it.
+    private(set) var calendarEvent: CalendarEvent?
+    /// When Transcribe was pressed: the moment the calendar event is picked for.
+    let pressedAt: Date
+    /// The calendar cache's read at the press (`CalendarContext.generation`): a later one is picked from again.
+    private let pressedCalendarRead: Int
     /// Where the recording started, once PlaceLocator has it (the recording card shows it in the date line).
     private(set) var place: RecordingPlace?
     /// The recorded length (the file's), from Stop on: the duration the transcript will show.
@@ -64,6 +76,7 @@ final class RecordingSession: Identifiable {
     private let modelContext: ModelContext
     private let identifier: SpeakerIdentifier
     private let liveDiarizer: (any LiveDiarizer)?          // nil: live labels off, or the model isn't loaded yet
+    private let calendar: CalendarContext?                 // nil: Name from Calendar is off
     private var live = LiveTranscript()                    // words, provisional words, live labels -> `text`
     private var liveTurns = LiveSpeakerTurns()             // the newest snapshot, also after recording (for saving)
     private var liveTask: Task<Void, Never>?
@@ -74,14 +87,27 @@ final class RecordingSession: Identifiable {
     private var interruptionObserver: (any NSObjectProtocol)?
 
     init(capture: any AudioCapture, transcriber: any Transcriber, modelContext: ModelContext, identifier: SpeakerIdentifier,
-         liveDiarizer: (any LiveDiarizer)? = nil) {
+         liveDiarizer: (any LiveDiarizer)? = nil, calendar: CalendarContext? = nil) {
         self.capture = capture
         self.transcriber = transcriber
         self.modelContext = modelContext
         self.identifier = identifier
         self.liveDiarizer = liveDiarizer
+        self.calendar = calendar
+        let pressedAt = Date.now
+        self.pressedAt = pressedAt
+        pressedCalendarRead = calendar?.generation ?? 0
+        // From the calendar's in-memory cache: no EventKit call in the press. A calendar name isn't a default name, so
+        // Gemma writes only the summary (TranscriptTitler.isDefaultName).
+        let event = calendar?.event(at: pressedAt)
+        calendarEvent = event
+        transcriptName = event?.title ?? Self.defaultName(in: modelContext)
+    }
+
+    /// "New Transcript N": one more than the transcripts there are (a synchronous count; only when no event names it).
+    private static func defaultName(in modelContext: ModelContext) -> String {
         let count = (try? modelContext.fetchCount(FetchDescriptor<Recording>())) ?? 0
-        transcriptName = String(localized: "New Transcript \(count + 1)")   // stored: TranscriptTitler.isDefaultName knows both languages
+        return String(localized: "New Transcript \(count + 1)")   // stored: TranscriptTitler.isDefaultName knows both languages
     }
 
     /// The language to transcribe in: the one chosen in the record accessory, else the phone's (TranscriptionLanguage).
@@ -105,6 +131,7 @@ final class RecordingSession: Identifiable {
                 self.downloadProgress = progress
                 self.state = .downloadingSpeechModel
             }
+            await recheckCalendarEvent()                      // ≤ 1 s, only while a calendar read is still running
             guard state != .discarded else {                  // cancelled during prepare/download: nothing captured yet
                 await capture.shutDown()                      // deactivates the audio session
                 return
@@ -143,6 +170,25 @@ final class RecordingSession: Identifiable {
             guard state != .discarded else { return }         // a cancelled start may still throw; keep .discarded
             state = .failed(error as? RecorderError ?? .audioEngineFailed(error.localizedDescription))
         }
+    }
+
+    /// The press picked from the cache as it was; a read running then (or started by the return to the foreground the
+    /// press came with) may know better. A cold launch from outside the app (Control Center, the Action Button, Siri,
+    /// the widget) presses within about a second of launching, often before the first read has finished, and so finds
+    /// no event. A press that resumes a suspended Feder finds what was read before it was suspended: a meeting
+    /// cancelled, moved or declined on the Mac meanwhile still named the transcript, with its invitees, because only
+    /// a press that found nothing looked again. That read had the time of preparing (permission, audio session, speech
+    /// model) and has at most 1 s more; what it finds names the transcript once, without animation, while the card
+    /// still says Preparing and before `.recording` hands the name to the Live Activity: another event, or "New
+    /// Transcript N" when none runs any more. A warm press with the cache current returns at once.
+    private func recheckCalendarEvent() async {
+        guard let calendar,
+              case .event(let event) = await calendar.recheck(at: pressedAt, pickedFrom: pressedCalendarRead,
+                                                              waitingUpTo: .seconds(1)),
+              event != calendarEvent else { return }
+        guard state == .preparing || state == .downloadingSpeechModel else { return }   // cancelled meanwhile
+        calendarEvent = event
+        transcriptName = event?.title ?? Self.defaultName(in: modelContext)
     }
 
     /// "Cancel" on the preparing / downloading overlays, i.e. before anything was captured. The cover dismisses via
@@ -206,6 +252,12 @@ final class RecordingSession: Identifiable {
         recording.createdAt = since
         recording.duration = duration
         if let place { recording.apply(place) }
+        // The calendar event it was started in: its title and invitees' names (the rename sheet offers them). Not when
+        // Name from Calendar was turned off before Stop, as Save Location keeps no place then; the name stays as shown.
+        if let calendarEvent, CalendarContext.isEnabled {
+            recording.calendarEventTitle = calendarEvent.title
+            recording.calendarAttendees = calendarEvent.attendees
+        }
         recording.words = words
         // Live labels (if any) are saved as preliminary segments; speakerStatus stays .pending (Recording.init), and
         // SpeakerIdentifier's offline pass replaces them (offline is the source of truth).

@@ -65,6 +65,8 @@ final class AppServices {
     let player = TranscriptPlayer()
     let betterSummaries: BetterSummaries             // Gemma for titles and summaries (Settings)
     let appLock = AppLock()                          // Face ID before Feder shows a transcript (Settings › App Lock)
+    /// Name from Calendar: today's and tomorrow's events in memory, read off the main actor (CalendarContext).
+    let calendar = CalendarContext()
     let usesFakes: Bool
     private let nemotronDiarizer: NemotronDiarizer
     @ObservationIgnored private var prewarmed = false
@@ -360,7 +362,8 @@ final class AppServices {
         #endif
         let live = Self.liveSpeakerLabelsEnabled && isLiveModelReady ? liveDiarizer : nil
         return RecordingSession(capture: MicrophoneCapture(), transcriber: transcriber,
-                                modelContext: container.mainContext, identifier: identifier, liveDiarizer: live)
+                                modelContext: container.mainContext, identifier: identifier, liveDiarizer: live,
+                                calendar: CalendarContext.isEnabled ? calendar : nil)   // the cache only, no I/O
     }
 }
 
