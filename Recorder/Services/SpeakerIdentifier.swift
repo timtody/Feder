@@ -833,7 +833,26 @@ final class SpeakerIdentifier {
         }
         recording.summaryVersion = max(recording.summaryVersion, version)
         try? modelContext.save()
+        await titleBookmarks(recording)                    // Gemma still loaded; within the summary's step
         track(id) { $0.finish(.summary) }
+    }
+
+    /// Gemma's short title per bookmark (BookmarkTitler, FED-14's experiment), right after the summary: only for a
+    /// transcript with bookmarks and not titled yet. Anything that stops it leaves the Bookmarks row with the sentences
+    /// alone; the titles are not looked for again later.
+    private func titleBookmarks(_ recording: Recording) async {
+        guard !isGone(recording), !recording.bookmarks.isEmpty,
+              recording.bookmarkTitles.count != recording.bookmarks.count,
+              betterSummaries.activeModel != nil, !isRecording else { return }
+        let places = Bookmarks.places(recording.bookmarks, words: recording.words, segments: recording.segments)
+        guard places.count == recording.bookmarks.count else { return }
+        let locale = TranscriptTitler.appLocale
+        let german = TranscriptTitler.isGerman(locale), language = TranscriptTitler.languageName(locale)
+        guard let titles = try? await betterSummaries.run({ model in
+            try await BookmarkTitler.titles(for: places, german: german, language: language, writer: model)
+        }), !isGone(recording) else { return }
+        recording.bookmarkTitles = titles
+        try? modelContext.save()
     }
 
     // MARK: Action items (the card's button)

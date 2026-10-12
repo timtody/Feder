@@ -15,6 +15,8 @@ import SwiftUI
 struct WordParagraph: View, Equatable {
     let text: String
     var highlights: [Range<String.Index>] = []
+    /// Bookmarked sentences (character offsets), tinted word by word (BookmarkHighlight).
+    var marks: [Range<Int>] = []
     /// The tokens being spoken in this paragraph (read in `body`), nil or empty: none.
     let playing: () -> Range<Int>?
     let onTap: (Int) -> Void
@@ -23,11 +25,11 @@ struct WordParagraph: View, Equatable {
 
     /// Without the closures (new ones at every update of the transcript).
     static func == (a: WordParagraph, b: WordParagraph) -> Bool {
-        a.text == b.text && a.highlights == b.highlights
+        a.text == b.text && a.highlights == b.highlights && a.marks == b.marks
     }
 
     var body: some View {
-        WordRuns(text: text, highlights: highlights)
+        WordRuns(text: text, highlights: highlights, marks: marks)
             .equatable()
             .textRenderer(WordRenderer(frames: frames, playing: playing()))
             // Simultaneous: the paragraph's text selection (a long press) keeps working.
@@ -41,9 +43,10 @@ struct WordParagraph: View, Equatable {
 private struct WordRuns: View, Equatable {
     let text: String
     let highlights: [Range<String.Index>]
+    let marks: [Range<Int>]
 
     var body: some View {
-        WordText.make(text, highlights: highlights)
+        WordText.make(text, highlights: highlights, marks: marks)
     }
 }
 
@@ -96,7 +99,7 @@ nonisolated struct WordRenderer: TextRenderer {
 
 enum WordText {
     /// The paragraph as one `Text` of word runs (each with its `WordToken`), the search's highlights per word.
-    static func make(_ text: String, highlights: [Range<String.Index>]) -> Text {
+    static func make(_ text: String, highlights: [Range<String.Index>], marks: [Range<Int>] = []) -> Text {
         var runs: [Text] = []
         var index = 0
         var cursor = text.startIndex
@@ -114,7 +117,12 @@ enum WordText {
                     word.index(word.startIndex, offsetBy: text.distance(from: range.lowerBound, to: hit.lowerBound))
                         ..< word.index(word.startIndex, offsetBy: text.distance(from: range.lowerBound, to: hit.upperBound))
                 }
-                runs.append(SearchHighlight.text(word, shifted).customAttribute(WordToken(index: index)))
+                // A word of a bookmarked sentence is tinted as a whole (the spaces between stay clear).
+                let lower = text.distance(from: text.startIndex, to: range.lowerBound)
+                let marked = marks.contains { $0.overlaps(lower..<(lower + word.count)) }
+                var styled = SearchHighlight.attributed(word, shifted)
+                if marked { BookmarkHighlight.tintBackground(&styled, 0..<word.count) }
+                runs.append(Text(styled).customAttribute(WordToken(index: index)))
                 index += 1
             }
             guard end < text.endIndex else { break }

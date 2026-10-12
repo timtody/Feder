@@ -45,6 +45,9 @@ struct RecordingDetailView: View {
     @State private var keepsStatusRow = false           // the status line was shown: its place stays (see body)
     @State private var showsActionItems = false         // the toolbar's Action Items: Gemma's to-dos in a sheet
     @State private var actionItemUndo = ActionItemUndo()   // Undo of an item removed in that sheet: toast and shake
+    /// Each bookmark's sentence (Bookmarks.places), found once the words are read (after the first frame), again
+    /// when a pass or a correction rewrites the paragraphs.
+    @State private var bookmarkPlaces: [Bookmarks.Place] = []
     @State private var pendingMerge: SpeakerMerge?
     /// Edit Text: the paragraphs' text and speaker-chip drafts while editing (by segment id), nil otherwise.
     @State private var textEdits: [UUID: String]?
@@ -134,6 +137,12 @@ struct RecordingDetailView: View {
                             .animation(.easeInOut(duration: 0.25), value: statusText == nil)
                             .opacity(bodyShown ? 1 : 0)
                         }
+                        // The bookmarks under the summary: a tap scrolls to the highlighted sentence (FED-14).
+                        if !bookmarkPlaces.isEmpty {
+                            BookmarksDisclosure(places: bookmarkPlaces, titles: recording.bookmarkTitles,
+                                                onSelect: reveal)
+                                .opacity(bodyShown ? 1 : 0)
+                        }
                         // HIG › Generative AI: say that AI made it and can be wrong. For the whole transcript, not only
                         // the summary: the words, the speakers and the names recognized by voice are all generated (a
                         // caption under the summary alone implied the rest was not).
@@ -164,6 +173,10 @@ struct RecordingDetailView: View {
                 // No spacing above: the first name row brings its own (the space above a name is part of its target).
                 transcript(segments)
                     .opacity(bodyShown ? 1 : 0)
+                    .task(id: segments) {
+                        guard !recording.bookmarks.isEmpty, !recording.isDeleted else { return }
+                        bookmarkPlaces = Bookmarks.places(recording.bookmarks, words: recording.words, segments: segments)
+                    }
                 // An imported file in which the transcriber found no words (a recording without any is discarded
                 // at Stop instead); while its steps run the status line says what is being done.
                 if segments.isEmpty, statusText == nil, recording.wordsRefined {
@@ -538,7 +551,7 @@ struct RecordingDetailView: View {
                               flashes: changes, showsNameTip: showsTip, correctSpeaker: speakerCorrection,
                               edits: textEditsBinding, speakerEdits: speakerEdits, playing: playing,
                               onWordTap: onWordTap, people: people, showPerson: showPerson,
-                              bookmarks: Bookmarks.byParagraph(recording.bookmarks, in: segments))
+                              bookmarks: Self.bookmarkRanges(bookmarkPlaces, in: segments))
     }
 
     // MARK: Playback
@@ -780,6 +793,30 @@ struct RecordingDetailView: View {
         hitIndex = (hitIndex + delta + hits.count) % hits.count
         hitGeometry.userScrolled = .now                     // Listen's following waits: the user went there
         withAnimation { reveal(hits[hitIndex]) }
+    }
+
+    /// The bookmarked sentences' ranges by paragraph, each only while its paragraph still has that sentence there: a
+    /// pass that rewrote the paragraph leaves it unhighlighted until the places are found again (`bookmarkPlaces`).
+    static func bookmarkRanges(_ places: [Bookmarks.Place], in segments: [TranscriptSegment]) -> [UUID: [Range<Int>]] {
+        guard !places.isEmpty else { return [:] }
+        let texts = Dictionary(segments.map { ($0.id, $0.text) }, uniquingKeysWith: { first, _ in first })
+        var result: [UUID: [Range<Int>]] = [:]
+        for place in places {
+            guard let range = place.range, let text = texts[place.segmentID], range.upperBound <= text.count else { continue }
+            let start = text.index(text.startIndex, offsetBy: range.lowerBound)
+            let end = text.index(start, offsetBy: range.count)
+            if text[start..<end] == place.sentence { result[place.segmentID, default: []].append(range) }
+        }
+        return result
+    }
+
+    /// A bookmark in the Bookmarks row: its paragraph scrolled so the sentence is on screen (a long paragraph is
+    /// scrolled as far into it as the sentence starts). Listen's following waits, as for any scroll by the user.
+    private func reveal(_ place: Bookmarks.Place) {
+        hitGeometry.userScrolled = .now
+        withAnimation(.snappy) {
+            scroller?.scrollTo(place.segmentID, anchor: UnitPoint(x: 0.5, y: min(max(place.position, 0.1), 0.9)))
+        }
     }
 
     /// Like Safari's Find on Page: scrolls a hit to the centre only when it isn't wholly visible between the top

@@ -94,6 +94,7 @@ final class Recording {
     var topics: [String] = []            // Gemma's "Topics:" line (TranscriptTitler), written with the summary; empty for
                                          // transcripts described before it was kept (their summary stands in: person pages)
     var bookmarks: [TimeInterval] = []   // moments marked while recording, in seconds from its start (Bookmarks)
+    var bookmarkTitles: [String] = []    // Gemma's title per bookmark, in their order (BookmarkTitler); []: none yet
 
     init(name: String, audioFileName: String, localeIdentifier: String) {
         self.id = UUID()

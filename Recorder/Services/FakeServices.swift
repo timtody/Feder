@@ -228,6 +228,11 @@ nonisolated final class FakeTextWriter: TextWriter, @unchecked Sendable {
     func respond(instructions: String, prompt: String, maxTokens: Int, temperature: Float,
                  partial: (@Sendable (String) -> Void)?) async throws -> String {
         try await Task.sleep(for: .seconds(1))
+        // The bookmarks' titles (BookmarkTitler): "Bookmark title 1", … one per numbered passage.
+        if instructions.contains("bookmarked passage") || instructions.contains("markierten Abschnitt") {
+            let count = prompt.split(whereSeparator: \.isNewline).filter { $0.first?.isNumber == true }.count
+            return (1...max(1, count)).map { "\($0): Bookmark title \($0)" }.joined(separator: "\n")
+        }
         // The action items (ActionItemExtractor), checked first: its instructions have no "Title:". The seeded Budget
         // Review's, else two of the test recording: one due on a day, one at a time (a reminder with an alarm).
         if instructions.contains("Task:") || instructions.contains("Aufgabe:") {
