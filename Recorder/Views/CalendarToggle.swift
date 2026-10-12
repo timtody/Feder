@@ -59,6 +59,11 @@ struct CalendarToggle: View {
             }
         }
         .pickerStyle(.navigationLink)
+        // The row shows the chosen option's own view as its value, and a Label in a row moves the row's separator to
+        // its title: once a calendar was chosen on the page, the divider below began under "Work" instead of at the
+        // row's text like the others (FED-64; at launch with one already chosen it didn't). The page's rows keep their
+        // separators after the dots, as on iOS's Default Calendar page.
+        .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
     }
 
     private func set(_ on: Bool) {
