@@ -45,8 +45,8 @@ struct RecordingDetailView: View {
     @State private var keepsStatusRow = false           // the status line was shown: its place stays (see body)
     @State private var showsActionItems = false         // the toolbar's Action Items: Gemma's to-dos in a sheet
     @State private var actionItemUndo = ActionItemUndo()   // Undo of an item removed in that sheet: toast and shake
-    /// Each bookmark's sentence (Bookmarks.places), found once the words are read (after the first frame), again
-    /// when a pass or a correction rewrites the paragraphs.
+    /// Each bookmark's sentence (Bookmarks.places), found once the text is final (Bookmarks.textIsFinal), after the first
+    /// frame (it reads the words), and again when a correction rewrites the paragraphs; none before (FED-73).
     @State private var bookmarkPlaces: [Bookmarks.Place] = []
     @State private var pendingMerge: SpeakerMerge?
     /// Edit Text: the paragraphs' text and speaker-chip drafts while editing (by segment id), nil otherwise.
@@ -173,8 +173,11 @@ struct RecordingDetailView: View {
                 // No spacing above: the first name row brings its own (the space above a name is part of its target).
                 transcript(segments)
                     .opacity(bodyShown ? 1 : 0)
-                    .task(id: segments) {
+                    .task(id: BookmarkSource(segments: segments, isFinal: Bookmarks.textIsFinal(recording))) {
                         guard !recording.bookmarks.isEmpty, !recording.isDeleted else { return }
+                        // Not on text the steps after Stop still rewrite: placed on the live words, then on each
+                        // pass's, the highlights vanished and came back on other words until the end (FED-73).
+                        guard Bookmarks.textIsFinal(recording) else { bookmarkPlaces = []; return }
                         bookmarkPlaces = Bookmarks.places(recording.bookmarks, words: recording.words, segments: segments)
                     }
                 // An imported file in which the transcriber found no words (a recording without any is discarded
@@ -1087,3 +1090,8 @@ private struct UndoTimer: Equatable {
     var waits: Bool
 }
 
+/// What the bookmarks' sentences are found from: the paragraphs, and whether the text is final.
+private struct BookmarkSource: Equatable {
+    let segments: [TranscriptSegment]
+    let isFinal: Bool
+}

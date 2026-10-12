@@ -92,6 +92,14 @@ nonisolated enum Bookmarks {
         }
     }
 
+    /// The text the bookmarks' sentences are found in is final: the full-accuracy words pass has run, the speakers are
+    /// final, and the vocabulary pass is done. Before that each step after Stop rewrites the paragraphs; afterwards
+    /// only the user's own corrections do (FED-73).
+    @MainActor
+    static func textIsFinal(_ recording: Recording) -> Bool {
+        recording.wordsRefined && recording.speakerStatus == .done && !recording.vocabularyPending
+    }
+
     /// "Bookmark · 3:21", "Bookmarks · 3:21, 7:05": the line above a paragraph, in the exports.
     static func line(_ times: [TimeInterval]) -> String {
         let clocks = times.map(TranscriptExport.clock).joined(separator: ", ")

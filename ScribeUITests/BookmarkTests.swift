@@ -34,8 +34,9 @@ final class BookmarkTests: ScribeUITestCase {
     }
 
     /// The card's bookmark button sits left of the Stop, the Stop still centred; each press counts (VoiceOver: "1
-    /// bookmark", "2 bookmarks"), a second press within a second doesn't. After Stop the Bookmarks row lists both,
-    /// each with its time and sentence; with the fake Gemma (`-fakeGemma`) each gets a title after the summary.
+    /// bookmark", "2 bookmarks"), a second press within a second doesn't. After Stop no Bookmarks row while the text is
+    /// still being finished (FED-73); then it lists both, each with its time and sentence, and with the fake Gemma
+    /// (`-fakeGemma`) each gets a title after the summary.
     @MainActor
     func testBookmarkWhileRecording() throws {
         let app = launch(["-resetVoiceRecognition", "-fakeGemma"])
@@ -60,8 +61,23 @@ final class BookmarkTests: ScribeUITestCase {
 
         XCTAssertTrue(app.textFields["Title"].waitForExistence(timeout: 15), "the transcript")
         XCTAssertFalse(app.staticTexts["Bookmark"].exists, "no line above the paragraph any more")
-        // Gemma's titles come with the summary.
-        XCTAssertTrue(app.buttons["Summary"].waitForExistence(timeout: 60), "the summary")
+        // While the steps after Stop still rewrite the text, no Bookmarks row (FED-73: it jumped from pass to pass);
+        // it comes once the text is final. Gemma's titles come with the summary.
+        let status = app.staticTexts["PipelineStatus"]
+        let textSteps: Set<String> = ["Transcribing…", "Identifying speakers…", "Refining speakers…",
+                                      "Checking vocabulary…", "Preparing speaker model…"]
+        var textStepSeen = false, bookmarksDuringText = false
+        let end = Date.now.addingTimeInterval(60)
+        while !app.buttons["Summary"].exists, Date.now < end {
+            if let line = try? status.snapshot(), textSteps.contains(line.label) {
+                textStepSeen = true
+                if app.buttons["Bookmarks"].exists { bookmarksDuringText = true }
+            }
+            RunLoop.current.run(until: .now.addingTimeInterval(0.2))
+        }
+        XCTAssertTrue(textStepSeen, "the steps after Stop were seen")
+        XCTAssertFalse(bookmarksDuringText, "no Bookmarks row while the text is being finished")
+        XCTAssertTrue(app.buttons["Summary"].exists, "the summary")
         let rows = openBookmarks(app, count: 2)
         XCTAssertTrue(rows[0].contains("Bookmark title 1") && rows[1].contains("Bookmark title 2"), "titled: \(rows)")
         XCTAssertTrue(rows.allSatisfy { $0.contains("0:") }, "with their times: \(rows)")
