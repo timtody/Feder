@@ -64,6 +64,7 @@ final class AppServices {
     /// Plays a transcript's audio (the card's player bar, a tapped word).
     let player = TranscriptPlayer()
     let betterSummaries: BetterSummaries             // Gemma for titles and summaries (Settings)
+    let appLock = AppLock()                          // Face ID before Feder shows a transcript (Settings › App Lock)
     let usesFakes: Bool
     private let nemotronDiarizer: NemotronDiarizer
     @ObservationIgnored private var prewarmed = false

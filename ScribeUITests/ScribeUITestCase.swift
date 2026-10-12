@@ -17,8 +17,10 @@ class ScribeUITestCase: XCTestCase {
         continueAfterFailure = false
     }
 
+    /// `waitsForList: false` for a launch that is locked (App Lock, `-appLockOn`): the list is behind the lock and hidden
+    /// from the accessibility tree.
     @MainActor
-    func launch(_ arguments: [String] = []) -> XCUIApplication {
+    func launch(_ arguments: [String] = [], waitsForList: Bool = true) -> XCUIApplication {
         let app = XCUIApplication()
         // English unless a test asks for another language: the queries match the English labels, and the app follows
         // the simulator's language otherwise (Localizable.xcstrings has German).
@@ -30,9 +32,14 @@ class ScribeUITestCase: XCTestCase {
         // Recognize People by Voice is off on a new install; the tests run with it on (the seeded people get voice
         // profiles), unless a test asks for a new install's state (`-resetVoiceRecognition`).
         let voices = arguments.contains("-resetVoiceRecognition") ? [] : ["-voiceRecognitionOn"]
-        app.launchArguments = ["-seedSamples"] + language + onboarding + voices + arguments
+        // App Lock is off unless a test turns it on (`-appLockOn`): a test that turned it on in Settings would otherwise
+        // leave every later one locked.
+        let lock = arguments.contains("-appLockOn") ? [] : ["-resetAppLock"]
+        app.launchArguments = ["-seedSamples"] + language + onboarding + voices + lock + arguments
         app.launch()
-        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15), "the seeded transcripts are listed")
+        if waitsForList {
+            XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15), "the seeded transcripts are listed")
+        }
         return app
     }
 

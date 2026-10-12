@@ -74,7 +74,7 @@ final class SettingsTests: ScribeUITestCase {
     /// German; the seeded transcripts' own words stay as they are.
     @MainActor
     func testGermanLocalization() throws {
-        let app = launch(["-AppleLanguages", "(de)", "-AppleLocale", "de_DE"])
+        let app = launch(["-AppleLanguages", "(de)", "-AppleLocale", "de_DE", "-fakeAuthentication", "success"])
         XCTAssertTrue(app.buttons["Transkripte"].firstMatch.waitForExistence(timeout: 5), "the Transcripts tab in German")
         XCTAssertTrue(app.buttons["Transkribieren"].firstMatch.exists, "the record control in German")
         XCTAssertTrue(app.collectionViews.staticTexts["Transkripte"].exists, "the heading in German")
@@ -85,6 +85,11 @@ final class SettingsTests: ScribeUITestCase {
         XCTAssertTrue(app.switches["Sprecher live anzeigen"].waitForExistence(timeout: 5), "Settings in German")
         XCTAssertTrue(app.staticTexts["Aufnahme"].exists, "the Recording section's header")
         shot("Settings in German", app)
+        let lock = app.switches["AppLock"].firstMatch        // App Lock, in iOS's words for its own ("Face ID anfordern")
+        for _ in 0..<4 where !lock.isHittable { app.swipeUp() }
+        XCTAssertEqual(lock.label, "Face ID anfordern", "App Lock in German")
+        XCTAssertTrue(app.staticTexts["App-Sperre"].exists, "its section's header")
+        shot("App Lock in German", app)
     }
 
     /// The October 2026 cleanup: no font choice, Smart Corrections or Developer section. Transcription is Apple Speech by
