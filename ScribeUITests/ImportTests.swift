@@ -33,8 +33,9 @@ final class ImportTests: ScribeUITestCase {
         XCTAssertTrue(importButton.isHittable, "and goes again")
     }
 
-    /// A file shared from another app (`-importTestAudio`: a 12 s AAC file, "Interview Lena") becomes a transcript:
-    /// the card opens on it, its words and speakers come in, and it can be listened to (its audio is kept).
+    /// A file shared from another app (`-importTestAudio`: a 12 s AAC file, "Interview Lena", made a month ago) becomes
+    /// a transcript: the card opens on it, its words and speakers come in, and it can be listened to (its audio is
+    /// kept). It is dated when it was imported, not by its file, so it tops the list, and it is tagged Import (FED-6).
     @MainActor
     func testImportedFileBecomesTranscript() throws {
         let app = launch(["-importTestAudio", "-fakeWordChanges", "-fakeDiarizeSeconds", "1"])
@@ -45,7 +46,25 @@ final class ImportTests: ScribeUITestCase {
         XCTAssertTrue(app.buttons["Listen"].wait(for: \.isEnabled, toEqual: true, timeout: 5), "and its audio")
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS '0:12'")).firstMatch.exists,
                       "its length")
+        // The card's date line, under the title: the rows behind the card have dates in the tree too.
+        let titleFrame = title.frame
+        let dated = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Today at '")).allElementsBoundByIndex
+            .contains { abs($0.frame.minY - titleFrame.maxY) < 30 && $0.isHittable }
+        XCTAssertTrue(dated, "dated today, not a month ago as its file")
+        XCTAssertTrue(app.buttons["Remove Import"].exists, "tagged Import")
         shot("Imported", app)
+
+        closeCard(app)
+        let meta = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH 'Today at' AND label CONTAINS 'Tag: Import'")).firstMatch
+        XCTAssertTrue(meta.waitForExistence(timeout: 5), "its row: today, with the Import tag")
+        let row = app.staticTexts["Interview Lena"].firstMatch
+        XCTAssertLessThan(row.frame.minY, app.staticTexts["Project Kickoff"].firstMatch.frame.minY,
+                          "on top of the list, above the newest sample")
+        shot("Imported in the list", app)
+
+        row.tap()
+        XCTAssertTrue(app.buttons["Delete Transcript"].waitForExistence(timeout: 5))
         app.buttons["Delete Transcript"].tap()                   // the samples stay on top for the other tests
         app.buttons["Delete"].firstMatch.tap()
         XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
@@ -64,6 +83,8 @@ final class ImportTests: ScribeUITestCase {
         XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
         let first = app.staticTexts["Interview Lena"].firstMatch
         XCTAssertTrue(first.waitForExistence(timeout: 5), "the first file is a transcript too")
+        XCTAssertLessThan(first.frame.minY, app.staticTexts["Project Kickoff"].firstMatch.frame.minY,
+                          "on top of the list too")
         first.tap()
         XCTAssertTrue(app.buttons["Delete Transcript"].waitForExistence(timeout: 5))
         app.buttons["Delete Transcript"].tap()

@@ -397,11 +397,11 @@ struct MainView: View {
 
     /// A file from the picker or another app's share sheet: converted off the main actor (AudioImporter), saved as a
     /// transcript in the language it is spoken in (LanguageProbe; the one chosen for the next recording when that
-    /// can't be told), queued for the steps after Stop, and opened in the
-    /// card out of the accessory, where its status line says what is being done. Files that come while one is being
-    /// converted wait their turn (dropped, a second file shared from Voice Memos was lost without a word, its Inbox copy
-    /// left behind); the card opens on the last one. A card in Edit Text stays open: the imports wait in the list, as
-    /// closing it would throw its drafts away.
+    /// can't be told), dated now so it tops the list as a new recording does, tagged Import (`Recording.importTag`),
+    /// queued for the steps after Stop, and opened in the card out of the accessory, where its status line says what
+    /// is being done. Files that come while one is being converted wait their turn (dropped, a second file shared from
+    /// Voice Memos was lost without a word, its Inbox copy left behind); the card opens on the last one. A card in Edit
+    /// Text stays open: the imports wait in the list, as closing it would throw its drafts away.
     func importAudio(from url: URL) {
         importQueue.append(url)
         guard !isImporting else { return }
@@ -420,10 +420,14 @@ struct MainView: View {
                     let locale = await LanguageProbe.language(of: AudioFileStore.url(for: converted.fileName),
                                                               duration: converted.duration,
                                                               chosen: TranscriptionLanguage.current)
+                    // Dated now (Recording.init), not by the file: dated by its file, an older Voice Memo sank deep into
+                    // the list, where nobody expects what was just imported (FED-6). The file's date stays the base of
+                    // the action items' deadlines ("by Friday" in last month's memo).
                     let recording = Recording(name: converted.name, audioFileName: converted.fileName,
                                               localeIdentifier: locale.identifier(.bcp47))
-                    recording.createdAt = converted.created ?? .now
+                    recording.originalDate = converted.created
                     recording.duration = converted.duration
+                    recording.addTag(Recording.importTag)
                     modelContext.insert(recording)
                     try? modelContext.save()
                     services.identifier.enqueue(recording)

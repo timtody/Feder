@@ -1372,6 +1372,16 @@
         }
       }
     },
+    "Import": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import"
+          }
+        }
+      }
+    },
     "Import Audio": {
       "localizations": {
         "de": {

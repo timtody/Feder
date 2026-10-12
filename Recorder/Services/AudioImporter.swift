@@ -12,7 +12,8 @@ nonisolated enum AudioImporter {
     struct Converted: Sendable {
         var fileName: String
         var duration: TimeInterval
-        /// When the audio was recorded, if the file says (its metadata, else the file's creation date).
+        /// When the audio was recorded, if the file says (its metadata, else the file's creation date): kept as the
+        /// transcript's `originalDate`, the base of its deadlines. The transcript itself is dated when imported (FED-6).
         var created: Date?
         /// The file's name without its extension, as the transcript's name.
         var name: String
@@ -120,11 +121,21 @@ nonisolated enum AudioImporter {
     }
 
     /// When the audio was recorded: the file's creation-date metadata (Voice Memos' m4a has it), else the file's own
-    /// creation date (a share sheet's copy is made at the share, so it is the last resort).
+    /// creation date (a share sheet's copy is made at the share, so it is the last resort). A date before 2000 or
+    /// ahead of now is a zeroed or wrong clock, no base for deadlines: nil.
     private static func recordedDate(of url: URL) async -> Date? {
+        func plausible(_ date: Date?) -> Date? {
+            guard let date, date > Date(timeIntervalSince1970: 946_684_800), date < .now.addingTimeInterval(60) else {
+                return nil
+            }
+            return date
+        }
         let asset = AVURLAsset(url: url)
-        if let item = try? await asset.load(.creationDate), let date = try? await item.load(.dateValue) { return date }
-        return (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate
+        if let item = try? await asset.load(.creationDate) {
+            let date = try? await item.load(.dateValue)
+            if let date = plausible(date) { return date }
+        }
+        return plausible((try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate)
     }
 
     /// A share sheet's copy in Documents/Inbox: removed once imported (the transcript has its own file).

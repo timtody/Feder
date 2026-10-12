@@ -51,7 +51,8 @@ final class Recording {
 
     var id: UUID
     var name: String
-    var createdAt: Date                  // when recording started (RecordingSession sets it; older ones: when saved)
+    var createdAt: Date                  // when recording started (RecordingSession sets it; older ones: when saved;
+                                         // imports: when imported, see originalDate)
     var duration: TimeInterval           // seconds, from the written file's length
     var audioFileName: String            // "<UUID>.wav" inside AudioFileStore.directory
     var localeIdentifier: String         // BCP-47 identifier of the transcriber locale actually used, e.g. "en-US"
@@ -95,6 +96,10 @@ final class Recording {
                                          // transcripts described before it was kept (their summary stands in: person pages)
     var bookmarks: [TimeInterval] = []   // moments marked while recording, in seconds from its start (Bookmarks)
     var bookmarkTitles: [String] = []    // unused: Gemma's bookmark titles, removed (FED-77); kept, the store has it
+    /// Imports: when the file says its audio was recorded (its metadata, else the file's date); `createdAt` is the
+    /// import's time, so it tops the list (FED-6). Only the action items' deadlines count from it. nil: recorded in
+    /// Feder, imported before it was kept, or the file didn't say.
+    var originalDate: Date? = nil
 
     init(name: String, audioFileName: String, localeIdentifier: String) {
         self.id = UUID()
@@ -148,4 +153,11 @@ final class Recording {
     }
 
     func removeTag(_ tag: String) { tags.removeAll { $0 == tag } }
+
+    /// The tag an import gets (FED-6), a plain tag the user can remove: searchable, a chip to filter by. "Import" in
+    /// German too, so the stored tag doesn't split by language, and the word of the Import button; not "upload", which
+    /// reads as sent somewhere, and nothing leaves the iPhone. Imports from before it have none: nothing marks them.
+    nonisolated static var importTag: String {
+        String(localized: "Import", comment: "The tag an imported transcript gets; stored with the transcript.")
+    }
 }

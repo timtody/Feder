@@ -97,6 +97,8 @@ nonisolated enum PersonDigest {
     static let liftFromOthers = 10
     static let maxTags = 3
     static let maxTopics = 8
+    /// The Import tag, folded: in the language of the moment and in English (the same word in German).
+    static let importTagKeys: Set<String> = [SearchFolding.fold(Recording.importTag), "import"]
 
     // MARK: Quotes
 
@@ -299,7 +301,11 @@ nonisolated enum PersonDigest {
         var tags: [String: Tally] = [:]
         var p = 0, o = 0
         for (index, source) in sources.enumerated() {
-            guard !source.terms.isEmpty || !source.tags.isEmpty else { continue }
+            // How a transcript came in is no topic: the Import tag (FED-6) would be one for anyone in two imports.
+            let sourceTags = source.tags.filter {
+                !importTagKeys.contains(SearchFolding.fold($0.trimmingCharacters(in: .whitespaces)))
+            }
+            guard !source.terms.isEmpty || !sourceTags.isEmpty else { continue }
             if source.isTheirs { p += 1 } else { o += 1 }
             var found: [(key: String, terms: [Term], position: Int)] = []   // each key once, in order
             for (position, term) in source.terms.enumerated() {
@@ -315,7 +321,7 @@ nonisolated enum PersonDigest {
                 count(&words[key, default: Tally()], source, terms: terms, order: index * 1_000 + position)
             }
             var seenTags = Set<String>()
-            for (position, tag) in source.tags.enumerated() {
+            for (position, tag) in sourceTags.enumerated() {
                 let key = SearchFolding.fold(tag.trimmingCharacters(in: .whitespaces))
                 guard !key.isEmpty, seenTags.insert(key).inserted else { continue }
                 count(&tags[key, default: Tally()], source, terms: [Term(key: key, surface: tag, base: tag)],

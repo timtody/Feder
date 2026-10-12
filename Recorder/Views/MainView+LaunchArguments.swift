@@ -112,8 +112,8 @@ extension MainView {
             }
         }
         if arguments.contains("-importTestAudio") {
-            // QA: as if a 12 s m4a (AAC, 44.1 kHz stereo: a format the recorder never writes) named "Interview Lena"
-            // came from another app's share sheet.
+            // QA: as if a 12 s m4a (AAC, 44.1 kHz stereo: a format the recorder never writes) named "Interview Lena",
+            // recorded a month ago, came from another app's share sheet.
             // After the list is up (the UI tests' launch waits for it).
             do { try await Task.sleep(for: .seconds(2)) } catch { return }
             let first = await Self.makeTestAudio(named: "Interview Lena")
@@ -154,27 +154,43 @@ extension MainView {
         await session.stop()
     }
 
-    /// A 12 s AAC file of a soft tone with pauses, in the app's temporary folder.
+    /// A 12 s AAC file of a soft tone with pauses, in the app's temporary folder, recorded a month ago as its
+    /// creation-date metadata says (as a Voice Memo's does): an import is dated when it is imported, not by its file
+    /// (FED-6). AVAudioFile alone stamps the file with the time it was written, so it is copied once more with the
+    /// metadata (passthrough: the same AAC).
     @concurrent
     nonisolated static func makeTestAudio(named name: String, channels voiced: Set<Int> = [0, 1]) async -> URL? {
         let url = FileManager.default.temporaryDirectory.appending(path: "\(name).m4a")
+        let raw = FileManager.default.temporaryDirectory.appending(path: "\(name) (raw).m4a")
         try? FileManager.default.removeItem(at: url)
+        try? FileManager.default.removeItem(at: raw)
+        defer { try? FileManager.default.removeItem(at: raw) }
         let settings: [String: Any] = [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: 44_100,
                                        AVNumberOfChannelsKey: 2, AVEncoderBitRateKey: 96_000]
-        guard let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2),
-              let file = try? AVAudioFile(forWriting: url, settings: settings),
-              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 44_100) else { return nil }
-        for second in 0..<12 {
-            buffer.frameLength = 44_100
-            for channel in 0..<2 {
-                let samples = buffer.floatChannelData![channel]
-                for i in 0..<44_100 {
-                    let on = second % 3 != 2 && voiced.contains(channel)   // a pause every third second
-                    samples[i] = on ? 0.2 * sin(2 * .pi * 220 * Float(i) / 44_100) : 0
+        do {                                                  // the file is closed at the scope's end, before it is read
+            guard let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2),
+                  let file = try? AVAudioFile(forWriting: raw, settings: settings),
+                  let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 44_100) else { return nil }
+            for second in 0..<12 {
+                buffer.frameLength = 44_100
+                for channel in 0..<2 {
+                    let samples = buffer.floatChannelData![channel]
+                    for i in 0..<44_100 {
+                        let on = second % 3 != 2 && voiced.contains(channel)   // a pause every third second
+                        samples[i] = on ? 0.2 * sin(2 * .pi * 220 * Float(i) / 44_100) : 0
+                    }
                 }
+                try? file.write(from: buffer)
             }
-            try? file.write(from: buffer)
         }
+        guard let export = AVAssetExportSession(asset: AVURLAsset(url: raw), presetName: AVAssetExportPresetPassthrough)
+        else { return nil }
+        let created = AVMutableMetadataItem()
+        created.keySpace = .common
+        created.key = AVMetadataKey.commonKeyCreationDate as NSString
+        created.value = Date.now.addingTimeInterval(-30 * 86_400) as NSDate
+        export.metadata = [created]
+        do { try await export.export(to: url, as: .m4a) } catch { return nil }
         return url
     }
 }

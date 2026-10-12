@@ -864,7 +864,8 @@ final class SpeakerIdentifier {
         let id = request.id, recording = request.recording
         guard !isGone(recording), recording.speakerStatus == .done else { actionItemsSearch[id] = nil; return }
         guard !isRecording else { actionItemsSearch[id] = .afterRecording; return }   // started while queued
-        let recordedAt = recording.createdAt
+        // Deadlines count from the conversation: an import's file date, not when it was imported (FED-6).
+        let recordedAt = recording.originalDate ?? recording.createdAt
         let paragraphs = recording.segments.map { segment in
             TranscriptTitler.paragraph(segment.text, speaker: segment.speakerIndex.map(recording.speakerName))
         }
