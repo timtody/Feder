@@ -310,7 +310,8 @@ actor CalendarReader {
                                    isCanceled: event.status == .canceled,
                                    attendees: (event.attendees ?? []).map(participant),
                                    organizer: event.organizer.map(participant),
-                                   calendarIsWritable: calendar.allowsContentModifications)
+                                   calendarIsWritable: calendar.allowsContentModifications,
+                                   isFeders: event.url?.scheme == FederURL.scheme)
     }
 
     nonisolated private static func participant(_ participant: EKParticipant) -> CalendarParticipant {
@@ -389,7 +390,7 @@ nonisolated enum CalendarFake {
         return CalendarRules.event(title: head, start: start, end: end, isAllDay: flags.contains("allday"),
                                    isCanceled: flags.contains("canceled"), attendees: attendees,
                                    organizer: others ? nil : CalendarParticipant(name: "Me", isCurrentUser: true),
-                                   calendarIsWritable: !shared)
+                                   calendarIsWritable: !shared, isFeders: flags.contains("feder"))
     }
 }
 #endif

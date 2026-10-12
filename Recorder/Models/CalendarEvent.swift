@@ -39,11 +39,14 @@ nonisolated enum CalendarRules {
     static let maxTitleLength = 100
 
     /// The event as Feder keeps it, or nil when it can't name a transcript: all-day, cancelled, declined by the user,
-    /// without a title, or someone else's in a calendar the user can only read.
+    /// without a title, someone else's in a calendar the user can only read, or Feder's own (`isFeders`: an action
+    /// item added with Add to Calendar, which carries the transcript's feder:// link; prefilled on the full hour
+    /// without attendees, it counted as the user's own and, shorter, beat the meeting starting with it, so the
+    /// transcript got the to-do's name and none of the invitees).
     static func event(title rawTitle: String?, start: Date, end: Date, isAllDay: Bool, isCanceled: Bool,
                       attendees: [CalendarParticipant], organizer: CalendarParticipant?,
-                      calendarIsWritable: Bool) -> CalendarEvent? {
-        guard !isAllDay, !isCanceled, end > start, let title = title(rawTitle) else { return nil }
+                      calendarIsWritable: Bool, isFeders: Bool = false) -> CalendarEvent? {
+        guard !isAllDay, !isCanceled, !isFeders, end > start, let title = title(rawTitle) else { return nil }
         if attendees.contains(where: { $0.isCurrentUser && $0.declined }) { return nil }
         // An event the user is invited to or organizes is theirs. One they aren't on, in a calendar they can only read
         // (a partner's calendar shared view-only, a colleague's delegated Exchange or Google calendar), is dropped

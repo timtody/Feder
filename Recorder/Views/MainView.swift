@@ -252,6 +252,11 @@ struct MainView: View {
         var descriptor = FetchDescriptor<Recording>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
         guard let recording = try? modelContext.fetch(descriptor).first else { return }
+        // Already showing: nothing to do (closing and reopening it ended Listen and its Undo). A card in Edit Text
+        // stays, as for an import: closing it threw the drafts away, and an action item's link from Reminders or
+        // Calendar makes coming back that way an everyday path.
+        if cardPhase == .open, card.transcript?.id == id { return }
+        guard services.identifier.editingText.isEmpty else { return }
         if cardPhase == .open { closeCard() }
         InteractionTrace.begin("open")
         endEditing()

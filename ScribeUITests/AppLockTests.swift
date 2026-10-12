@@ -380,8 +380,11 @@ final class AppLockTests: ScribeUITestCase {
     private func appLockSwitch(_ app: XCUIApplication) -> XCUIElement {
         app.buttons["Settings"].firstMatch.tap()
         let toggle = app.switches["AppLock"].firstMatch
+        // Below the first screen (Name from Calendar's row above it), where the lazy list hasn't made it yet: scrolled
+        // to until it exists and can be tapped.
+        XCTAssertTrue(app.buttons["Settings"].firstMatch.waitForExistence(timeout: 5))
+        for _ in 0..<6 where !(toggle.exists && toggle.isHittable) { app.swipeUp() }
         XCTAssertTrue(toggle.waitForExistence(timeout: 5), "the App Lock switch")
-        for _ in 0..<4 where !toggle.isHittable { app.swipeUp() }
         // The iPhone Search section under it on screen too.
         if !app.switches["Show in iPhone Search"].firstMatch.isHittable { app.swipeUp() }
         return toggle

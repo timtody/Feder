@@ -145,11 +145,14 @@ final class PersonPageModel {
     }
 
     /// A transcript's topic text: Gemma's Topics line, else (described before it was kept) its summary, and its title
-    /// unless it is still a name the app gave it.
+    /// when the user typed it or Gemma wrote it.
     static func termSource(_ recording: Recording) -> PersonDigest.TermSource {
         PersonDigest.TermSource(id: recording.id, topics: recording.topics,
                                 summary: recording.topics.isEmpty ? recording.summary : nil,
-                                title: TranscriptTitler.isDefaultName(recording.name) ? nil : recording.name)
+                                // A title the user typed or Gemma wrote, not one a calendar event or a file gave it:
+                                // a weekly meeting's name became the top topic of everyone in it.
+                                title: recording.nameIsUserSet || recording.name == recording.automaticTitle
+                                    ? recording.name : nil)
     }
 }
 
