@@ -77,7 +77,10 @@ class ScribeUITestCase: XCTestCase {
     /// The back button closes the card; returns once it is gone.
     @MainActor
     func closeCard(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
-        app.buttons["Minimize"].tap()
+        // The button's middle, as a finger taps it: `tap()` aims at a point XCUITest picks from the accessibility tree,
+        // which missed the button on a card scrolled to its end with the title under the button (Budget Review with its
+        // action items); a tap on the middle closed it there every time.
+        app.buttons["Minimize"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "the card closed", file: file, line: line)
     }
 

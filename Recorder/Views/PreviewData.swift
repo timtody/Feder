@@ -93,6 +93,7 @@ enum PreviewData {
             let licence = transcript(name: "Licence Planning", lines: licenceLines, id: licenceID,
                                      createdAt: .now.addingTimeInterval(-2 * 86_400))
             licence.tags = ["finance"]
+            licence.nameIsUserSet = true                 // a title the user typed: a topic source (PersonPageModel)
             licence.topics = ["licences", "travel", "forecast", "procurement"]
             licence.summary = "Anna renews the design licences before the end of the month and Jonas checks their "
                 + "prices. Travel to the workshops is booked early, so it stays within the forecast."
