@@ -259,6 +259,16 @@
         }
       }
     },
+    "Add Bookmark": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lesezeichen setzen"
+          }
+        }
+      }
+    },
     "Add Tag": {
       "localizations": {
         "de": {
@@ -488,6 +498,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Biometrische Daten"
+          }
+        }
+      }
+    },
+    "Bookmark · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lesezeichen · %@"
+          }
+        }
+      }
+    },
+    "Bookmarks · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lesezeichen · %@"
           }
         }
       }
@@ -1608,6 +1638,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Markdown"
+          }
+        }
+      }
+    },
+    "Marks this moment of the recording.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markiert diesen Moment der Aufnahme."
           }
         }
       }
@@ -3703,6 +3743,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "^[%lld bookmark](inflect: true)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld Lesezeichen](inflect: true)"
           }
         }
       }

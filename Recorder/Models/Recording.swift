@@ -93,6 +93,7 @@ final class Recording {
     var calendarAttendees: [String] = [] // that event's invitees' names (no addresses, not the user, at most 30): the rename sheet offers them
     var topics: [String] = []            // Gemma's "Topics:" line (TranscriptTitler), written with the summary; empty for
                                          // transcripts described before it was kept (their summary stands in: person pages)
+    var bookmarks: [TimeInterval] = []   // moments marked while recording, in seconds from its start (Bookmarks)
 
     init(name: String, audioFileName: String, localeIdentifier: String) {
         self.id = UUID()

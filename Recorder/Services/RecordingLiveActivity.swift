@@ -53,6 +53,16 @@ enum RecordingLiveActivity {
         }
     }
 
+    /// A bookmark was set: its count goes out at once (the Live Activity's own bookmark button shows it), not in the
+    /// next once-a-second slot.
+    static func bookmarked(count: Int) {
+        guard current != nil, !state.isSaving else { return }
+        state.bookmarks = count
+        pending?.cancel()
+        pending = nil
+        send()
+    }
+
     static func saving() {
         guard current != nil else { return }
         pending?.cancel()

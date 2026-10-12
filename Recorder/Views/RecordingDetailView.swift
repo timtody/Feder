@@ -537,7 +537,8 @@ struct RecordingDetailView: View {
                               renameSpeaker: renameAction, search: search, currentHit: currentHit, hitFrame: hitFrame,
                               flashes: changes, showsNameTip: showsTip, correctSpeaker: speakerCorrection,
                               edits: textEditsBinding, speakerEdits: speakerEdits, playing: playing,
-                              onWordTap: onWordTap, people: people, showPerson: showPerson)
+                              onWordTap: onWordTap, people: people, showPerson: showPerson,
+                              bookmarks: Bookmarks.byParagraph(recording.bookmarks, in: segments))
     }
 
     // MARK: Playback

@@ -70,6 +70,8 @@ final class RecordingSession: Identifiable {
     private(set) var place: RecordingPlace?
     /// The recorded length (the file's), from Stop on: the duration the transcript will show.
     private(set) var recordedDuration: TimeInterval?
+    /// Moments marked while recording (Bookmarks), in seconds from its start; saved with the transcript at Stop.
+    private(set) var bookmarks: [TimeInterval] = []
 
     private let capture: any AudioCapture
     private let transcriber: any Transcriber
@@ -206,6 +208,19 @@ final class RecordingSession: Identifiable {
         }
     }
 
+    /// Marks this moment (the card's bookmark button, the Live Activity's, or a start from outside while recording:
+    /// the Action Button). Measured from `.recording`'s start, as the timer counts (the file starts a few
+    /// milliseconds earlier: a bookmark lands that much early, within the word being said). False when not recording,
+    /// or when one was set within `Bookmarks.minimumGap`.
+    @discardableResult
+    func addBookmark() -> Bool {
+        guard case .recording(let since) = state,
+              let marks = Bookmarks.adding(max(0, Date.now.timeIntervalSince(since)), to: bookmarks) else { return false }
+        bookmarks = marks
+        RecordingLiveActivity.bookmarked(count: marks.count)
+        return true
+    }
+
     /// Stop button, audio interruption, or a mid-session transcriber failure. Saves whatever was transcribed.
     func stop() async { await stop(failure: nil) }
 
@@ -259,6 +274,7 @@ final class RecordingSession: Identifiable {
             recording.calendarAttendees = calendarEvent.attendees
         }
         recording.words = words
+        recording.bookmarks = bookmarks.filter { $0 <= duration }
         // Live labels (if any) are saved as preliminary segments; speakerStatus stays .pending (Recording.init), and
         // SpeakerIdentifier's offline pass replaces them (offline is the source of truth).
         recording.segments = TranscriptAligner.segments(words: words, turns: liveTurns.turns,

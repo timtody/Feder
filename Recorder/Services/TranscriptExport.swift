@@ -34,6 +34,9 @@ nonisolated enum TranscriptExport {
         var speaker: String?
         var start: TimeInterval
         var text: String
+        /// "🔖 Bookmark · 3:21": the moments marked in it while recording (Bookmarks), written above it as the card
+        /// shows them; nil: none. Not in subtitles.
+        var bookmark: String? = nil
     }
 
     struct Word: Sendable {
@@ -127,10 +130,11 @@ nonisolated enum TranscriptExport {
 
     static func plainText(_ snapshot: Snapshot) -> String {
         snapshot.paragraphs.enumerated().map { index, paragraph in
+            let bookmark = paragraph.bookmark.map { $0 + "\n" } ?? ""
             if let lead = lead(paragraph, snapshot), startsTurn(index, snapshot.paragraphs) {
-                return "\(lead): \(paragraph.text)"
+                return bookmark + "\(lead): \(paragraph.text)"
             }
-            return paragraph.text
+            return bookmark + paragraph.text
         }
         .joined(separator: "\n\n")
     }
@@ -148,6 +152,7 @@ nonisolated enum TranscriptExport {
             if let lead = lead(paragraph, snapshot), startsTurn(index, snapshot.paragraphs) {
                 lines += ["**\(lead)**", ""]
             }
+            if let bookmark = paragraph.bookmark { lines += ["_\(bookmark)_", ""] }
             lines += [paragraph.text, ""]
         }
         lines += ["---", "", "_\(snapshot.aiNote)_", ""]
@@ -269,13 +274,17 @@ nonisolated enum TranscriptExport {
         }
         for (index, paragraph) in snapshot.paragraphs.enumerated() {
             let turn = startsTurn(index, snapshot.paragraphs)
+            var before: CGFloat = turn ? 12 : 0
             if let lead = lead(paragraph, snapshot), turn {
                 // Near black: a grey heading read as provisional next to the black text.
                 add(lead, .systemFont(ofSize: 10.5, weight: .semibold), UIColor(white: 0.12, alpha: 1), before: 12, after: 2)
-                add(paragraph.text, .systemFont(ofSize: 11), after: 4)
-            } else {
-                add(paragraph.text, .systemFont(ofSize: 11), before: turn ? 12 : 0, after: 4)
+                before = 0
             }
+            if let bookmark = paragraph.bookmark {
+                add(bookmark, .systemFont(ofSize: 9.5, weight: .medium), .systemBlue, before: before, after: 2)
+                before = 0
+            }
+            add(paragraph.text, .systemFont(ofSize: 11), before: before, after: 4)
         }
         add(snapshot.aiNote, .systemFont(ofSize: 8), .gray, before: 18)
         return out
@@ -312,6 +321,7 @@ nonisolated enum TranscriptExport {
             if let lead = lead(item, snapshot), turn {
                 body += paragraph(lead, size: 20, bold: true, color: "1F1F1F", before: 240, after: 40)
             }
+            if let bookmark = item.bookmark { body += paragraph(bookmark, size: 19, color: "1F5FBF", after: 40) }
             body += paragraph(item.text, size: 22)
         }
         body += paragraph(snapshot.aiNote, size: 16, color: "888888", before: 360)
@@ -406,12 +416,16 @@ extension Recording {
             let name = segments.indices.contains(segment) ? speaker(segments[segment].speakerIndex) : nil
             words.append(.init(speaker: name, start: word.start, end: word.end, text: word.text))
         }
+        let bookmarks = Bookmarks.byParagraph(self.bookmarks, in: segments)
         var meta = [createdAt.formatted(date: .long, time: .shortened), duration.clockFormatted]
         if let placeName { meta.append(placeName) }
         var snapshot = TranscriptExport.Snapshot(
             title: name, metaLine: meta.joined(separator: " · "),
             summary: summary?.isEmpty == false ? summary : nil, tags: tags,
-            paragraphs: segments.map { .init(speaker: speaker($0.speakerIndex), start: $0.start, text: $0.text) },
+            paragraphs: segments.map { segment in
+                .init(speaker: speaker(segment.speakerIndex), start: segment.start, text: segment.text,
+                      bookmark: bookmarks[segment.id].map { "🔖 " + Bookmarks.line($0) })
+            },
             words: words, aiNote: String(localized: "AI-generated content can contain mistakes."),
             names: names && labelled, timestamps: timestamps)
         snapshot.actionItemsHeading = String(localized: "Action Items")

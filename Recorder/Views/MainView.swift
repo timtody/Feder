@@ -124,8 +124,9 @@ struct MainView: View {
         // (RecordingIntents) and the lock screen widget's link. A start asked for while the app was launching waits
         // in RecordingControl until here.
         .task {
-            RecordingControl.shared.start = { startRecording() }
+            RecordingControl.shared.start = { startFromOutside() }
             RecordingControl.shared.stop = { await card.session?.stop() }
+            RecordingControl.shared.bookmark = { card.session?.addBookmark() }
             if RecordingControl.shared.takePendingStart() { startRecording() }
         }
         .onOpenURL { url in
@@ -344,6 +345,13 @@ struct MainView: View {
     /// Transcribe (the accessory): a fresh session, started here so it survives the card being swiped down. Started
     /// at once: the audio session and the engine come up on the audio hardware's actor (MicrophoneCapture), so the
     /// card's zoom runs on a free main thread (started on it, the card only came up after "Preparing…").
+    /// A start from outside the app (the Action Button, Control Center, Siri, Shortcuts): while a recording runs it
+    /// adds a bookmark (FED-14), and the card opens on that recording as before; otherwise a new recording.
+    private func startFromOutside() {
+        if case .recording = card.session?.state { card.session?.addBookmark() }
+        startRecording()
+    }
+
     func startRecording() {
         InteractionTrace.begin(card.session == nil ? "transcribe" : "reopen")
         guard card.session == nil else { openRecorder(); return }

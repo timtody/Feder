@@ -30,18 +30,22 @@ struct RecordingLiveActivityWidget: Widget {
                 .activityBackgroundTint(nil)
         } dynamicIsland: { context in
             DynamicIsland {
+                // The bookmark on the left next to the time, away from Stop (FED-14); the level meter moves to Stop's side.
                 DynamicIslandExpandedRegion(.leading) {
-                    HStack(spacing: 6) {
-                        LevelMeter(level: context.state.level, isSaving: context.state.isSaving)
+                    HStack(spacing: 8) {
+                        if !context.state.isSaving { BookmarkButton(count: context.state.bookmarks ?? 0) }
                         RecordingTime(state: context.state).font(.title3.weight(.semibold))
                     }
                     .padding(.leading, 6)
                     .frame(maxHeight: .infinity)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    if !context.state.isSaving {
-                        StopButton().padding(.trailing, 6).frame(maxHeight: .infinity)
+                    HStack(spacing: 8) {
+                        LevelMeter(level: context.state.level, isSaving: context.state.isSaving)
+                        if !context.state.isSaving { StopButton() }
                     }
+                    .padding(.trailing, 6)
+                    .frame(maxHeight: .infinity)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     LiveWords(state: context.state)
@@ -66,6 +70,8 @@ private struct LockScreenRecording: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            // The bookmark on the left next to the time, away from Stop (FED-14).
+            if !state.isSaving { BookmarkButton(count: state.bookmarks ?? 0) }
             RecordingTime(state: state)
                 .font(.title3.weight(.semibold))
             LiveWords(state: state)
@@ -144,6 +150,28 @@ private struct RecordingTime: View {
                     .monospacedDigit()
                     .lineLimit(1)
             }
+    }
+}
+
+/// Adds a bookmark at this moment (AddBookmarkIntent, in the recording app's process: no unlock, Feder stays in the
+/// background). Filled, with the count beside it, once there is one: the press's only feedback on the Lock Screen.
+private struct BookmarkButton: View {
+    let count: Int
+
+    var body: some View {
+        Button(intent: AddBookmarkIntent()) {
+            HStack(spacing: 3) {
+                Image(systemName: count > 0 ? "bookmark.fill" : "bookmark")
+                if count > 0 { Text(verbatim: "\(count)").monospacedDigit() }
+            }
+            .font(.subheadline.weight(.semibold))
+            .frame(minWidth: 26, minHeight: 26)
+        }
+        .tint(.white)
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
+        .accessibilityLabel("Add Bookmark")
+        .accessibilityValue(count > 0 ? Text("^[\(count) bookmark](inflect: true)") : Text(verbatim: ""))
     }
 }
 

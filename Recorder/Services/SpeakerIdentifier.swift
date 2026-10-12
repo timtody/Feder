@@ -789,8 +789,12 @@ final class SpeakerIdentifier {
             }
         }
         let locale = Locale(identifier: recording.localeIdentifier)
-        let paragraphs = recording.segments.map { segment in
-            TranscriptTitler.paragraph(segment.text, speaker: segment.speakerIndex.map(recording.speakerName))
+        // The paragraphs with a bookmark carry TranscriptTitler's marker, so the summary covers what was marked.
+        let segments = recording.segments
+        let bookmarked = Set(Bookmarks.byParagraph(recording.bookmarks, in: segments).keys)
+        let paragraphs = segments.map { segment in
+            TranscriptTitler.paragraph(segment.text, speaker: segment.speakerIndex.map(recording.speakerName),
+                                       bookmarked: bookmarked.contains(segment.id))
         }
         guard betterSummaries.activeModel != nil else { return }      // only Gemma writes them (TranscriptTitler)
         guard !isRecording else {                                   // Gemma never runs while recording: after Stop
@@ -802,7 +806,8 @@ final class SpeakerIdentifier {
         do {
             let titler = titler
             description = try await betterSummaries.run { model in
-                try await titler.describe(paragraphs: paragraphs, locale: locale, writer: model)
+                try await titler.describe(paragraphs: paragraphs, locale: locale, writer: model,
+                                          bookmarked: !bookmarked.isEmpty)
             }
         } catch {
             // RetryLater: not marked described, tried again later; stopped because a recording started: again right

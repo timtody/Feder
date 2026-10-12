@@ -57,18 +57,21 @@ final class TranscriptTitler {
     /// from some of the parts only. Throws LocalModelFailed when Gemma can't run.
     /// `partial` gets the summary as the model writes it (the final request only, not the parts of a long transcript),
     /// so the card can show it growing.
-    func describe(paragraphs: [String], locale recordingLocale: Locale, writer: any TextWriter,
+    /// `bookmarked`: some paragraphs carry `bookmarkMarker` (moments marked while recording): the instructions then
+    /// say that the summary must cover them. Without bookmarks the request is exactly the benched one.
+    func describe(paragraphs: [String], locale recordingLocale: Locale, writer: any TextWriter, bookmarked: Bool = false,
                   partial: (@Sendable (String) -> Void)? = nil) async throws -> Description? {
         // The app's language, not the transcript's: the summary is read in the app, next to its German or English
         // labels (an English recording on a German iPhone gets a German summary).
         let locale = Self.appLocale
-        return try await describe(paragraphs, locale: locale, writer: writer,
+        return try await describe(paragraphs, locale: locale, writer: writer, bookmarked: bookmarked,
                                   limit: Self.chunkCharacters(contextSize: LocalLanguageModel.contextTokens), partial: partial)
     }
 
-    private func describe(_ paragraphs: [String], locale: Locale, writer: any TextWriter, limit: Int,
+    private func describe(_ paragraphs: [String], locale: Locale, writer: any TextWriter, bookmarked: Bool, limit: Int,
                           partial: (@Sendable (String) -> Void)?) async throws -> Description? {
         let german = Self.isGerman(locale)
+        let bookmarkNote = bookmarked ? "\n" + Self.bookmarkNote(german: german) : ""
         let language = Self.languageName(locale)
         var parts = Self.chunks(paragraphs, limit: limit)
         guard !parts.isEmpty else { return nil }
@@ -78,7 +81,8 @@ final class TranscriptTitler {
             var summaries: [String] = []
             for part in parts {
                 if let summary = try await summarize(part, language: language, german: german,
-                                                     fromSummaries: fromSummaries, writer: writer) {
+                                                     fromSummaries: fromSummaries,
+                                                     note: fromSummaries ? "" : bookmarkNote, writer: writer) {
                     summaries.append(summary)
                 }
             }
@@ -92,8 +96,11 @@ final class TranscriptTitler {
             ? (fromSummaries ? "Zusammenfassungen der aufeinanderfolgenden Teile eines langen Gesprächs:\n" : "Transkript:\n")
             : (fromSummaries ? "Summaries of the consecutive parts of one long conversation:\n" : "Transcript:\n")
         let prompt = heading + parts[0]
-        let instructions = german ? Self.germanTitleInstructions(fromSummaries: fromSummaries)
-                                  : Self.localTitleInstructions(language: language, locale: locale, fromSummaries: fromSummaries)
+        // The bookmarks' note only where the marked lines are read: the parts' summaries carry no markers.
+        let instructions = (german ? Self.germanTitleInstructions(fromSummaries: fromSummaries)
+                                   : Self.localTitleInstructions(language: language, locale: locale,
+                                                                 fromSummaries: fromSummaries))
+            + (fromSummaries ? "" : bookmarkNote)
         // The task again after the transcript: without it Gemma went on with the transcript ("Anna Schmidt: …").
         let request = prompt + "\n\n" + (german ? Self.germanReminder : Self.localReminder)
         let text = try await Self.local {
@@ -116,13 +123,13 @@ final class TranscriptTitler {
     }
 
     /// A part's summary as plain text.
-    private func summarize(_ text: String, language: String, german: Bool, fromSummaries: Bool,
+    private func summarize(_ text: String, language: String, german: Bool, fromSummaries: Bool, note: String,
                            writer: any TextWriter) async throws -> String? {
         let heading = german
             ? (fromSummaries ? "Zusammenfassungen aufeinanderfolgender Teile eines langen Gesprächs:\n" : "Teil eines Transkripts:\n")
             : (fromSummaries ? "Summaries of consecutive parts of one long conversation:\n" : "Part of a transcript:\n")
         let prompt = heading + text
-        let instructions = german ? Self.germanPartInstructions : Self.partInstructions(language: language)
+        let instructions = (german ? Self.germanPartInstructions : Self.partInstructions(language: language)) + note
         let answer = try await Self.local {
             try await writer.respond(instructions: instructions, prompt: prompt,
                                      maxTokens: 400, temperature: 0, partial: nil)
@@ -153,9 +160,23 @@ final class TranscriptTitler {
 
     /// A transcript paragraph as the model reads it: "Name: text" ("Speaker 2" while unnamed), the text alone without
     /// a speaker.
-    nonisolated static func paragraph(_ text: String, speaker: String?) -> String {
-        guard let speaker else { return text }
-        return "\(speaker): \(text)"
+    nonisolated static func paragraph(_ text: String, speaker: String?, bookmarked: Bool = false) -> String {
+        let line = speaker.map { "\($0): \(text)" } ?? text
+        return bookmarked ? bookmarkMarker + " " + line : line
+    }
+
+    /// What starts a paragraph with a bookmark (moments marked while recording, Bookmarks), in the instructions'
+    /// language: a word in brackets the small model reads as a label, not as speech.
+    nonisolated static var bookmarkMarker: String { isGerman(appLocale) ? "[Lesezeichen]" : "[Bookmarked]" }
+
+    /// The instructions' sentence for a transcript with bookmarks: cover the marked lines, never write the marker. Not
+    /// benched yet on real meetings (FED-69); without bookmarks nothing changes.
+    nonisolated static func bookmarkNote(german: Bool) -> String {
+        german
+            ? "Zeilen, die mit \(bookmarkMarker) beginnen, hat die aufnehmende Person als wichtig markiert: Die " +
+              "Zusammenfassung muss ihren Inhalt enthalten. Schreib nie \(bookmarkMarker)."
+            : "Lines that begin with \(bookmarkMarker) were marked as important by the person who recorded: the summary " +
+              "must cover what they say. Never write \(bookmarkMarker)."
     }
 
     /// Names the app gives a transcript itself; only these are replaced by an automatic title. The name is stored in the

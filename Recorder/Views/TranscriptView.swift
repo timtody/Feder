@@ -50,6 +50,9 @@ struct TranscriptView: View {
     /// Artist). nil: no such item.
     var people: Set<Int> = []
     var showPerson: ((Int) -> Void)? = nil
+    /// The bookmarks set while recording, by paragraph (Bookmarks.byParagraph): a line above each paragraph that has
+    /// any ("Bookmark · 3:21").
+    var bookmarks: [UUID: [TimeInterval]] = [:]
 
     enum SpeakerEdit {
         case assign(turnStartingAt: UUID, to: Int?)       // nil: a new speaker
@@ -90,6 +93,9 @@ struct TranscriptView: View {
                                 .transition(.opacity)
                                 .accessibilityIdentifier("SpeakerNotice")
                         }
+                    }
+                    if let times = bookmarks[segment.id] {
+                        BookmarkLine(times: times)
                     }
                     paragraph(index: index, segment: segment)
                 }
@@ -261,6 +267,25 @@ struct TranscriptView: View {
 /// A speaker's name and the turn's start time. A name the search matched sits on a capsule of the speaker's colour
 /// (the name keeps its x position); while the row is pressed a band of that colour lies behind the line. The naming tip
 /// hangs on the name itself, so its arrow points at the name.
+/// A paragraph's bookmarks, above it in the tint ("Bookmark · 3:21"): the moments marked while recording (FED-14). A
+/// row rather than a `Label`: on iOS 27 a Label's symbol stayed an element of its own ("Bookmark") even with the
+/// children ignored or the symbol hidden, so VoiceOver read the line twice.
+private struct BookmarkLine: View {
+    let times: [TimeInterval]
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 5) {
+            Image(systemName: "bookmark.fill")
+                .accessibilityHidden(true)
+            Text(Bookmarks.line(times))
+                .accessibilityIdentifier("Bookmark")
+        }
+        .font(.footnote.weight(.medium))
+        .foregroundStyle(.tint)
+        .padding(.bottom, 4)
+    }
+}
+
 private struct SpeakerNameLine: View {
     let name: String
     let color: Color

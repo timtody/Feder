@@ -29,6 +29,7 @@ struct RecordView: View {
     @ScaledMetric(relativeTo: .subheadline) private var dateLineSize: CGFloat = 15   // .subheadline's size
     @State private var timerFrames = TimerFrames()
     @State private var stopPresses = 0        // haptic on the press itself
+    @State private var bookmarkPresses = 0    // haptic when a bookmark was set
     @State private var showsPreparing = false // "Preparing…" only once preparing has taken a moment
     @Environment(AppServices.self) private var services
     /// Models for better transcripts are still downloading (AppServices.awaitsTranscriptModels): a line under the
@@ -277,9 +278,18 @@ struct RecordView: View {
                 }
             }
             .opacity(opacity)
-            // Melting: gone in the frame the melt's identical glass appears, not faded out over it.
-            stopControl
-                .opacity(melts ? (turning ? 0 : 1) : opacity)
+            // The bookmark on the Stop's left (as in the Live Activity: away from Stop, FED-14), a stand-in of its size
+            // on the right, so the Stop stays centred where the melt expects it.
+            HStack(spacing: 28) {
+                bookmarkControl
+                    .opacity(opacity)
+                // Melting: gone in the frame the melt's identical glass appears, not faded out over it.
+                stopControl
+                    .opacity(melts ? (turning ? 0 : 1) : opacity)
+                BookmarkButtonLabel(count: 0)
+                    .hidden()
+                    .accessibilityHidden(true)
+            }
         }
         .padding(.bottom, 12)
         .frame(maxWidth: .infinity)
@@ -310,6 +320,33 @@ struct RecordView: View {
             .accessibilityHidden(turning)
         default:
             StopButtonLabel()
+                .hidden()
+        }
+    }
+
+    /// Marks this moment (RecordingSession.addBookmark): a light tap and the count on the button. Only while recording
+    /// (a stand-in of its size otherwise, so nothing moves).
+    @ViewBuilder
+    private var bookmarkControl: some View {
+        if isRecording || turning {
+            let count = session.bookmarks.count
+            Button {
+                InteractionTrace.begin("bookmark")
+                if session.addBookmark() { bookmarkPresses += 1 }
+                InteractionTrace.shown("bookmark")
+            } label: {
+                BookmarkButtonLabel(count: count)
+            }
+            .buttonStyle(.plain)
+            .disabled(!isRecording)
+            .allowsHitTesting(!turning)
+            .accessibilityHidden(turning)
+            .accessibilityLabel("Add Bookmark")
+            .accessibilityValue(count > 0 ? Text("^[\(count) bookmark](inflect: true)") : Text(verbatim: ""))
+            .accessibilityIdentifier("AddBookmark")
+            .sensoryFeedback(.impact(weight: .medium), trigger: bookmarkPresses)
+        } else {
+            BookmarkButtonLabel(count: 0)
                 .hidden()
         }
     }
@@ -406,3 +443,38 @@ struct RecordView: View {
         .environment(services)
 }
 #endif
+
+/// The recording card's bookmark button: a smaller glass disc than the Stop's, the bookmark filled once there is one,
+/// its count in a badge.
+private struct BookmarkButtonLabel: View {
+    let count: Int
+
+    @ScaledMetric(relativeTo: .title) private var size: CGFloat = 52
+
+    var body: some View {
+        ZStack {
+            Color.clear
+                .glassEffect(.regular.interactive(), in: Circle())
+            Image(systemName: count > 0 ? "bookmark.fill" : "bookmark")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(count > 0 ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+                .contentTransition(.symbolEffect(.replace))
+        }
+        .frame(width: size, height: size)
+        .overlay(alignment: .topTrailing) {
+            if count > 0 {
+                Text(verbatim: "\(count)")
+                    .font(.caption2.weight(.bold))
+                    .monospacedDigit()
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 5)
+                    .frame(minWidth: 18, minHeight: 18)
+                    .background(.tint, in: Capsule())
+                    .offset(x: 4, y: -4)
+                    .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .animation(.snappy, value: count)
+        .contentShape(Circle())
+    }
+}

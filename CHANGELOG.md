@@ -19,6 +19,9 @@ release carries a later version's features, its notes are the 1.0 text plus thos
 - Action items: on an iPhone that writes summaries, tap the new checklist button in a transcript, and Feder lists who
   does what by when. Add one to Reminders or Calendar with a tap, or all of them to Reminders at once, or share the
   list. A reminder links back to its transcript.
+- Bookmark a moment while recording: tap the bookmark next to Stop, or the one on the Lock Screen or in the Dynamic
+  Island, or press the Action Button. The bookmark shows above that part of the transcript and in its exports, and
+  the summary makes sure to cover it.
 - Person pages: open someone in Settings › People, or touch and hold their name in a transcript and choose Go to
   Person. You see when you last spoke, the topics that keep coming up, and what they said in each transcript. Tap a
   transcript to open it where they speak and step through everything they said; tap a topic to search for it.
@@ -46,6 +49,9 @@ release carries a later version's features, its notes are the 1.0 text plus thos
 - Aufgaben: Tippe auf einem iPhone, das Zusammenfassungen schreibt, in einem Transkript auf die neue Checklisten-Taste,
   und Feder zeigt, wer was bis wann erledigt. Füge eine Aufgabe mit einem Tipp zu Erinnerungen oder zum Kalender hinzu,
   alle auf einmal zu Erinnerungen, oder teile die Liste. Eine Erinnerung führt zurück zu ihrem Transkript.
+- Setze beim Aufnehmen ein Lesezeichen: Tippe auf das Lesezeichen neben „Stoppen“ oder auf das auf dem
+  Sperrbildschirm oder in der Dynamic Island, oder drücke die Aktionstaste. Das Lesezeichen erscheint über dieser
+  Stelle des Transkripts und in seinen Exporten, und die Zusammenfassung geht darauf ein.
 - Personenseiten: Öffne jemanden unter Einstellungen › Personen, oder halte den Namen in einem Transkript gedrückt und
   wähle „Zur Person“. Du siehst, wann ihr zuletzt gesprochen habt, welche Themen immer wieder vorkommen und was die
   Person in jedem Transkript gesagt hat. Tippe auf ein Transkript, um es dort zu öffnen, wo sie spricht, und alles

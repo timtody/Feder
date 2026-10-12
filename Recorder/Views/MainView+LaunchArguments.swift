@@ -45,6 +45,12 @@ extension MainView {
                 }
                 try? modelContext.save()
             }
+            // `-seedBookmarks`: Budget Review with two bookmarks, in Anna's first turn (0:09) and her second (0:24).
+            if arguments.contains("-seedBookmarks"),
+               let budget = try? modelContext.fetch(FetchDescriptor<Recording>()).first(where: { $0.id == PreviewData.budgetID }) {
+                budget.bookmarks = [9, 24]
+                try? modelContext.save()
+            }
             do { try await Task.sleep(for: .milliseconds(300)) } catch { return }   // @Query catches up first
         }
         #endif
@@ -120,6 +126,15 @@ extension MainView {
             // As if the first Spotlight result for `text` were tapped: once the launch's index sync has run (5 s).
             do { try await Task.sleep(for: .seconds(7)) } catch { return }
             if let id = await SpotlightIndex.debugQuery(text).first.flatMap(UUID.init(uuidString:)) { openFromOutside(id) }
+        }
+        // `-fakeOutsidePressAfter <s>`: a start from outside that long after launch, as the Action Button's (the
+        // simulator has none): while a recording runs it adds a bookmark (FED-14).
+        let outside = UserDefaults.standard.double(forKey: "fakeOutsidePressAfter")
+        if outside > 0 {
+            Task {
+                try? await Task.sleep(for: .seconds(outside))
+                RecordingControl.shared.requestStart()
+            }
         }
         guard arguments.contains("-autoRecord") else { return }
         await services.prepareLiveDiarizer()           // live labels need the model loaded before the session is made
