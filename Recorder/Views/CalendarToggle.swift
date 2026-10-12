@@ -13,7 +13,10 @@ import UIKit
 /// While it is on, "Preferred Calendar" sits below it: the calendar whose events win when several run at a press (the
 /// work meeting over the private block in the same hour; `CalendarRules.pick`), None by default. iOS Settings' own
 /// Calendar › Default Calendar page: the system's navigation-link picker, the calendars by account with their colours
-/// and a checkmark, plus None. The list comes from the cache's last read (no EventKit call in the tap or the body).
+/// and a checkmark, plus None. It lists every calendar but Birthdays, those subscribed on this iPhone last under
+/// "Subscribed Calendars" (an Outlook calendar published as a link): a subscribed calendar's events, and someone else's
+/// in a calendar the user can only read, count only while it is chosen here (`CalendarRules.event`). The list comes
+/// from the cache's last read (no EventKit call in the tap or the body).
 struct CalendarToggle: View {
     @Environment(AppServices.self) private var services
     @Environment(\.openURL) private var openURL

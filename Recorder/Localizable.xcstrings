@@ -2895,6 +2895,16 @@
         }
       }
     },
+    "Subscribed Calendars": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonnierte Kalender"
+          }
+        }
+      }
+    },
     "Subtitles": {
       "localizations": {
         "de": {

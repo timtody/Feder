@@ -11,20 +11,23 @@ nonisolated struct CalendarEvent: Sendable, Equatable {
     var end: Date
     /// Display names (`CalendarRules.attendees`): not the user, no rooms, no addresses, at most 30.
     var attendees: [String]
-    /// The user is an attendee or the organizer, or the event has no attendees: their own. False only in a calendar they
-    /// can change (someone else's event in one they can only read isn't kept at all: `CalendarRules.event`).
+    /// The user is an attendee or the organizer, or the event has no attendees: their own.
     var userTakesPart: Bool
     /// `EKCalendar.calendarIdentifier` of the calendar it is in: its events come first when it is the preferred one.
     var calendarID = ""
+    /// It counts only while its calendar is the Preferred Calendar: every event of a subscribed calendar, and someone
+    /// else's in a calendar the user can only read (`CalendarRules.event`).
+    var onlyWhenPreferred = false
 }
 
-/// A calendar whose events can name a transcript, as Settings' Preferred Calendar lists it: by account, with its colour,
-/// as the Calendar app shows it (`CalendarContext.calendars`, read with the events).
+/// A calendar Settings' Preferred Calendar lists: by account, with its colour, as the Calendar app shows it
+/// (`CalendarContext.calendars`, read with the events).
 nonisolated struct CalendarChoice: Sendable, Equatable, Identifiable {
     /// `EKCalendar.calendarIdentifier`.
     var id: String
     var title: String
-    /// Its account's name ("iCloud", "Exchange", "Gmail"; "On My iPhone" for local calendars).
+    /// Its account's name ("iCloud", "Exchange", "Gmail"; "On My iPhone" for local calendars, "Subscribed Calendars"
+    /// for those subscribed on this iPhone).
     var account: String
     /// sRGB, 0...1: the dot in front of its name.
     var red = 0.5, green = 0.5, blue = 0.5
@@ -70,27 +73,34 @@ nonisolated enum CalendarRules {
     static let maxTitleLength = 100
 
     /// The event as Feder keeps it, or nil when it can't name a transcript: all-day, cancelled, declined by the user,
-    /// without a title, someone else's in a calendar the user can only read, or Feder's own (`isFeders`: an action
-    /// item added with Add to Calendar, which carries the transcript's feder:// link; prefilled on the full hour
-    /// without attendees, it counted as the user's own and, shorter, beat the meeting starting with it, so the
-    /// transcript got the to-do's name and none of the invitees).
+    /// without a title, or Feder's own (`isFeders`: an action item added with Add to Calendar, which carries the
+    /// transcript's feder:// link; prefilled on the full hour without attendees, it counted as the user's own and,
+    /// shorter, beat the meeting starting with it, so the transcript got the to-do's name and none of the invitees).
+    /// Someone else's in a calendar the user can only read, and every event of a subscribed calendar, is kept but
+    /// counts only while that calendar is the Preferred Calendar (`onlyWhenPreferred`).
     static func event(title rawTitle: String?, start: Date, end: Date, isAllDay: Bool, isCanceled: Bool,
                       attendees: [CalendarParticipant], organizer: CalendarParticipant?,
-                      calendarIsWritable: Bool, isFeders: Bool = false, calendarID: String = "") -> CalendarEvent? {
+                      calendarIsWritable: Bool, calendarIsSubscribed: Bool = false, isFeders: Bool = false,
+                      calendarID: String = "") -> CalendarEvent? {
         guard !isAllDay, !isCanceled, !isFeders, end > start, let title = title(rawTitle) else { return nil }
         if attendees.contains(where: { $0.isCurrentUser && $0.declined }) { return nil }
         // An event the user is invited to or organizes is theirs. One they aren't on, in a calendar they can only read
-        // (a partner's calendar shared view-only, a colleague's delegated Exchange or Google calendar), is dropped
-        // here, not merely ranked last: whenever nothing of the user's own ran, its "Therapy" or "1:1 HR" named their
-        // private conversation (also on the Lock Screen) and its invitees were stored with it. In a calendar the user
-        // can change it stays, after their own: there it is theirs when it has no attendees, and Google and CalDAV
-        // don't always mark the user (`isCurrentUser`), so their own invitation can look like someone else's.
-        // (Calendars hidden in the Calendar app are read like the others: EventKit doesn't say which are hidden.)
+        // (a partner's calendar shared view-only, a colleague's delegated Exchange or Google calendar), counts only
+        // while that calendar is the Preferred Calendar (`pick`), not merely ranked last: whenever nothing of the
+        // user's own ran, its "Therapy" or "1:1 HR" named their private conversation (also on the Lock Screen) and its
+        // invitees were stored with it. The same holds for every event of a subscribed calendar (an Outlook calendar
+        // published as a link, holidays, sports fixtures; read-only, the user never marked): counted always, a match
+        // on TV would name the user's own conversation. Choosing such a calendar is the user's word that its events
+        // are theirs, so a work calendar that reaches the iPhone read-only (FED-65: Outlook's) can name their meetings.
+        // In a calendar the user can change it counts, after their own: there it is theirs when it has no attendees,
+        // and Google and CalDAV don't always mark the user (`isCurrentUser`), so their own invitation can look like
+        // someone else's. (Calendars hidden in the Calendar app are read like the others: EventKit doesn't say which
+        // are hidden.)
         let isUser = attendees.contains(where: \.isCurrentUser) || organizer?.isCurrentUser == true
-        guard isUser || calendarIsWritable else { return nil }
         return CalendarEvent(title: title, start: start, end: end,
                              attendees: self.attendees(attendees, organizer: organizer),
-                             userTakesPart: isUser || attendees.isEmpty, calendarID: calendarID)
+                             userTakesPart: isUser || attendees.isEmpty, calendarID: calendarID,
+                             onlyWhenPreferred: calendarIsSubscribed || !(isUser || calendarIsWritable))
     }
 
     /// Trimmed, one line, at most `maxTitleLength` characters; nil when nothing is left.
@@ -141,15 +151,17 @@ nonisolated enum CalendarRules {
             && part.allSatisfy { $0.isLetter || $0 == " " || $0 == "-" || $0 == "'" || $0 == "’" || $0 == "." }
     }
 
-    /// The event that names a transcript started at `date`: one running then or starting within `lead` after it;
-    /// events in the preferred calendar first (`preferring`, Settings' Preferred Calendar: the work calendar's meeting,
-    /// not the private reminder block over it), then those the user takes part in, then the one starting closest to the
-    /// press (at 10:01 the 10:00 meeting, not the 9:00-17:00 workshop around it), then the shorter one. nil when none
+    /// The event that names a transcript started at `date`: one running then or starting within `lead` after it, and
+    /// one that counts only in the preferred calendar (`onlyWhenPreferred`) only when it is in that one; events in the
+    /// preferred calendar first (`preferring`, Settings' Preferred Calendar: the work calendar's meeting, not the
+    /// private reminder block over it), then those the user takes part in, then the one starting closest to the press
+    /// (at 10:01 the 10:00 meeting, not the 9:00-17:00 workshop around it), then the shorter one. nil when none
     /// qualifies; with nothing of the preferred calendar running, the others count as before.
     static func pick(_ events: [CalendarEvent], at date: Date, lead: TimeInterval = lead,
                      preferring calendarID: String? = nil) -> CalendarEvent? {
         events
-            .filter { $0.start <= date.addingTimeInterval(lead) && $0.end > date }
+            .filter { $0.start <= date.addingTimeInterval(lead) && $0.end > date
+                && (!$0.onlyWhenPreferred || $0.calendarID == calendarID) }
             .min { a, b in
                 if let calendarID, (a.calendarID == calendarID) != (b.calendarID == calendarID) {
                     return a.calendarID == calendarID

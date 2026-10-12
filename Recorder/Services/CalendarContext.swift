@@ -44,8 +44,8 @@ final class CalendarContext {
     private(set) var access: CalendarAccess = .unknown
     /// The switch may show on: access is given, or not known yet this launch (so it doesn't flicker off at launch).
     var isUsable: Bool { access == .unknown || access == .granted }
-    /// The calendars whose events can name a transcript, sorted by account and name: Preferred Calendar's list, read
-    /// with the events (one call more, a few dozen at most); empty while off or without access.
+    /// Every event calendar but Birthdays, sorted by account and name, the subscribed ones last: Preferred Calendar's
+    /// list, read with the events (one call more, a few dozen at most); empty while off or without access.
     private(set) var calendars: [CalendarChoice] = []
     /// The preferred calendar as the last read found it (`CalendarRules.preferred`); nil for None, before the first
     /// read, and while it isn't there any more (it then counts as None).
@@ -85,8 +85,9 @@ final class CalendarContext {
         }
         // `-preferFakeCalendar Work`: stores the fake's "Work" (iCloud) as preferred, as Settings would before a resync.
         if let title = UserDefaults.standard.string(forKey: "preferFakeCalendar") {
+            let account = CalendarFake.calendars.first { $0.title == title }?.account ?? "iCloud"
             UserDefaults.standard.set(CalendarFake.id(of: title, resynced: false), forKey: Self.preferredIDKey)
-            UserDefaults.standard.set(CalendarRules.fingerprint(title: title, account: "iCloud"),
+            UserDefaults.standard.set(CalendarRules.fingerprint(title: title, account: account),
                                       forKey: Self.preferredFingerprintKey)
         }
         #endif
@@ -321,7 +322,7 @@ actor CalendarReader {
     }
 
     /// The events overlapping `window` that can name a transcript (CalendarRules.event), with the access they were read
-    /// with, and the calendars they can come from (Preferred Calendar's list). Nothing without full access.
+    /// with, and the calendars Preferred Calendar lists. Nothing without full access.
     func events(in window: DateInterval) async -> (CalendarAccess, [CalendarEvent], [CalendarChoice]) {
         #if DEBUG && targetEnvironment(simulator)
         if CalendarFake.isActive {
@@ -338,10 +339,16 @@ actor CalendarReader {
         let store = self.store ?? EKEventStore()
         self.store = store
         let predicate = store.predicateForEvents(withStart: window.start, end: window.end, calendars: nil)
-        let calendars = store.calendars(for: .event).compactMap(Self.choice).sorted { a, b in
-            a.account != b.account ? a.account.localizedStandardCompare(b.account) == .orderedAscending
-                : a.title.localizedStandardCompare(b.title) == .orderedAscending
-        }
+        // By account and name, the calendars subscribed on this iPhone last, as the Calendar app lists them.
+        let calendars = store.calendars(for: .event).filter(Self.isListed)
+            .map { (choice: Self.choice($0), last: $0.source?.sourceType == .subscribed) }
+            .sorted { a, b in
+                if a.last != b.last { return b.last }
+                return a.choice.account != b.choice.account
+                    ? a.choice.account.localizedStandardCompare(b.choice.account) == .orderedAscending
+                    : a.choice.title.localizedStandardCompare(b.choice.title) == .orderedAscending
+            }
+            .map(\.choice)
         return (access, store.events(matching: predicate).compactMap(Self.event), calendars)
     }
 
@@ -362,16 +369,27 @@ actor CalendarReader {
         (try? await EKEventStore().requestFullAccessToEvents()) ?? false
     }
 
-    /// Birthdays and subscribed calendars (holidays, sports) never name a transcript.
-    nonisolated private static func counts(_ calendar: EKCalendar) -> Bool {
-        calendar.type != .birthday && calendar.type != .subscription && !calendar.isSubscribed
+    /// Every event calendar but Birthdays (its events are all-day, which never name a transcript) is read and listed.
+    /// Subscribed ones too (FED-65: a work calendar from Outlook can reach the iPhone only as a published link),
+    /// but their events count only while one is the Preferred Calendar (`CalendarRules.event`).
+    nonisolated private static func isListed(_ calendar: EKCalendar) -> Bool {
+        calendar.type != .birthday
     }
 
-    /// A calendar Preferred Calendar offers: one whose events count. Its colour as the Calendar app's dot; local
-    /// calendars under "On My iPhone", as the Calendar app lists them.
-    nonisolated private static func choice(_ calendar: EKCalendar) -> CalendarChoice? {
-        guard counts(calendar) else { return nil }
-        let account = calendar.source?.sourceType == .local ? String(localized: "On My iPhone") : calendar.source?.title ?? ""
+    /// Subscribed on this iPhone (`.subscription`) or in iCloud (CalDAV with `isSubscribed`, EKCalendar.h).
+    nonisolated private static func isSubscribed(_ calendar: EKCalendar) -> Bool {
+        calendar.type == .subscription || calendar.isSubscribed
+    }
+
+    /// A calendar Preferred Calendar offers. Its colour as the Calendar app's dot; local calendars under "On My iPhone",
+    /// as the Calendar app lists them, and those subscribed on this iPhone under "Subscribed Calendars", as iOS
+    /// Settings' Calendar Accounts names them, both in the app's language.
+    nonisolated private static func choice(_ calendar: EKCalendar) -> CalendarChoice {
+        let account = switch calendar.source?.sourceType {
+        case .local: String(localized: "On My iPhone")
+        case .subscribed: String(localized: "Subscribed Calendars")
+        default: calendar.source?.title ?? ""
+        }
         var choice = CalendarChoice(id: calendar.calendarIdentifier, title: calendar.title, account: account)
         if let srgb = CGColorSpace(name: CGColorSpace.sRGB),
            let color = calendar.cgColor?.converted(to: srgb, intent: .defaultIntent, options: nil),
@@ -382,13 +400,14 @@ actor CalendarReader {
     }
 
     nonisolated private static func event(_ event: EKEvent) -> CalendarEvent? {
-        guard let calendar = event.calendar, counts(calendar), let start = event.startDate, let end = event.endDate
+        guard let calendar = event.calendar, isListed(calendar), let start = event.startDate, let end = event.endDate
         else { return nil }
         return CalendarRules.event(title: event.title, start: start, end: end, isAllDay: event.isAllDay,
                                    isCanceled: event.status == .canceled,
                                    attendees: (event.attendees ?? []).map(participant),
                                    organizer: event.organizer.map(participant),
                                    calendarIsWritable: calendar.allowsContentModifications,
+                                   calendarIsSubscribed: isSubscribed(calendar),
                                    isFeders: event.url?.scheme == FederURL.scheme,
                                    calendarID: calendar.calendarIdentifier)
     }
@@ -409,8 +428,9 @@ actor CalendarReader {
 /// user can change, organized by them. Flags: `allday`; `canceled`; `declined` (the user declined it); `others`
 /// (someone else's: not organized by the user, who is on it only when an attendee is marked `*`); `shared` (someone
 /// else's in a calendar shared with the user read-only); `cal=Work`: in the calendar "Work" (else "Home"). The calendars
-/// are iCloud's Home and Work and Exchange's Calendar (`calendars`); `-fakeCalendarResynced`: their identifiers changed
-/// since launch (a full sync), and `-preferFakeCalendar <name>` stores one as preferred under its old identifier.
+/// are iCloud's Home and Work, Exchange's Calendar and "Outlook" under Subscribed Calendars (`calendars`; `cal=Outlook`:
+/// subscribed and read-only, as an Outlook calendar published as a link); `-fakeCalendarResynced`: their identifiers
+/// changed since launch (a full sync), and `-preferFakeCalendar <name>` stores one as preferred under its old identifier.
 /// Everything runs through the same CalendarRules as EventKit's, the attendees too: a leading `*` marks the user, `#`
 /// a room, `-` someone who declined, `~` a non-participant ("Design Review|Maria Lopez|Berger, Tom|tom@example.com|
 /// *Julius Taylor|#Room 4.12|-Paul Declined"). `-fakeCalendarEventLater <events>` with `-fakeCalendarLaterAfter <s>`:
@@ -432,11 +452,12 @@ nonisolated enum CalendarFake {
     }
     static var isActive: Bool { spec != nil || access != nil }
 
-    /// Two accounts, as in Settings' Preferred Calendar: iCloud's Home (blue) and Work (orange), Exchange's Calendar
-    /// (purple).
+    /// Two accounts and a subscription, as in Settings' Preferred Calendar: Exchange's Calendar (purple), iCloud's Home
+    /// (blue) and Work (orange), then Outlook (teal) under Subscribed Calendars.
     static var calendars: [CalendarChoice] {
         let resynced = UserDefaults.standard.bool(forKey: "fakeCalendarResynced")
-        return [("Calendar", "Exchange", 0.69, 0.32, 0.87), ("Home", "iCloud", 0.0, 0.48, 1.0), ("Work", "iCloud", 1.0, 0.58, 0.0)]
+        return [("Calendar", "Exchange", 0.69, 0.32, 0.87), ("Home", "iCloud", 0.0, 0.48, 1.0), ("Work", "iCloud", 1.0, 0.58, 0.0),
+                ("Outlook", String(localized: "Subscribed Calendars"), 0.19, 0.69, 0.78)]
             .map { CalendarChoice(id: id(of: $0.0, resynced: resynced), title: $0.0, account: $0.1, red: $0.2, green: $0.3,
                                   blue: $0.4) }
     }
@@ -482,10 +503,12 @@ nonisolated enum CalendarFake {
         if flags.contains("declined") { attendees.append(CalendarParticipant(name: "Me", isCurrentUser: true, declined: true)) }
         let shared = flags.contains("shared"), others = shared || flags.contains("others")
         let calendar = flags.first { $0.hasPrefix("cal=") }.map { String($0.dropFirst(4)) } ?? "Home"
+        let subscribed = calendar == "Outlook"
         return CalendarRules.event(title: head, start: start, end: end, isAllDay: flags.contains("allday"),
                                    isCanceled: flags.contains("canceled"), attendees: attendees,
                                    organizer: others ? nil : CalendarParticipant(name: "Me", isCurrentUser: true),
-                                   calendarIsWritable: !shared, isFeders: flags.contains("feder"), calendarID: id(of: calendar))
+                                   calendarIsWritable: !shared && !subscribed, calendarIsSubscribed: subscribed,
+                                   isFeders: flags.contains("feder"), calendarID: id(of: calendar))
     }
 }
 #endif

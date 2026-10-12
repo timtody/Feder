@@ -179,10 +179,10 @@ final class CalendarTests: ScribeUITestCase {
     /// Which event names a transcript, one launch per calendar: the one starting closest to the press, also up to
     /// 5 minutes before it starts, not the all-day workshop around it; never an all-day, cancelled or declined one,
     /// nor one starting in 6 minutes, though each would be closer; someone else's event in a calendar shared with the
-    /// user read-only never, even when nothing else runs (a partner's "Therapy" naming the user's own memo); the user's
-    /// own events first, also in a shared calendar they are invited in, before a closer one they aren't on. (No
-    /// apostrophes in the titles: XCUITest's launch arguments mangle them, "Partner's Therapy@…" arrived without its
-    /// flags.)
+    /// user read-only never, even when nothing else runs (a partner's "Therapy" naming the user's own memo), nor one in
+    /// a subscribed calendar (the fake's Outlook) while it isn't the Preferred Calendar; the user's own events first,
+    /// also in a shared calendar they are invited in, before a closer one they aren't on. (No apostrophes in the titles:
+    /// XCUITest's launch arguments mangle them, "Partner's Therapy@…" arrived without its flags.)
     @MainActor
     func testWhichEventNames() throws {
         let cases: [(calendar: String, name: String?, not: [String])] = [
@@ -190,6 +190,7 @@ final class CalendarTests: ScribeUITestCase {
             ("Workshop@-60+420;Too Early@+6+30;Offsite@-1+600!allday;Cancelled@-1+30!canceled;Declined@-1+30!declined",
              "Workshop", ["Too Early", "Offsite", "Cancelled", "Declined"]),
             ("Therapy@-1+60!shared", nil, ["Therapy"]),
+            ("Client Call@-1+60!cal=Outlook", nil, ["Client Call"]),
             ("Therapy@-1+60!shared;Board Meeting@-2+60!others|Anna Schmidt|Tom Berger;Team Sync@-3+30!shared|*Julius Taylor|Maria Lopez",
              "Team Sync", ["Therapy", "Board Meeting"]),
         ]
@@ -317,10 +318,11 @@ final class CalendarTests: ScribeUITestCase {
         XCTAssertTrue(waitFor { (toggle.value as? String) == "0" }, "off again")
     }
 
-    /// Settings' Preferred Calendar (the fake's calendars: iCloud's Home and Work, Exchange's Calendar): below the switch
-    /// while it is on, None by default. Its page lists None, then the calendars by account; Work chosen there names the
-    /// transcript after "Planning" in Work, though "Standup" in Home started closer to the press (without a preference
-    /// Standup names it: testWhichEventNames). None again at the end.
+    /// Settings' Preferred Calendar (the fake's calendars: iCloud's Home and Work, Exchange's Calendar, the subscribed
+    /// Outlook: testSubscribedCalendarCountsWhenPreferred): below the switch while it is on, None by default. Its page
+    /// lists None, then the calendars by account; Work chosen there names the transcript after "Planning" in Work,
+    /// though "Standup" in Home started closer to the press (without a preference Standup names it:
+    /// testWhichEventNames). None again at the end.
     @MainActor
     func testPreferredCalendarWins() throws {
         let app = launch(["-resetCalendar", "-calendarContext", "YES",
@@ -369,6 +371,64 @@ final class CalendarTests: ScribeUITestCase {
         none.tap()
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         XCTAssertTrue(waitFor { self.shown(row).contains("None") }, "None again: \(shown(row))")
+    }
+
+    /// A subscribed calendar (the fake's "Outlook": an Outlook calendar published as a link, read-only, whose events
+    /// don't mark the user) is on Preferred Calendar's page, last, under Subscribed Calendars, and counts only once it is
+    /// chosen there: with None the closer "Standup" in Work names the transcript, not "Client Call" in Outlook; with
+    /// Outlook chosen, "Client Call" does. Someone else's event in a calendar the user can only read counts the same
+    /// way: "Therapy" (shared with the user in Home) names it once Home is chosen. None again at the end.
+    @MainActor
+    func testSubscribedCalendarCountsWhenPreferred() throws {
+        let app = launch(["-resetCalendar", "-calendarContext", "YES", "-fakeCalendarEvent",
+                          "Client Call@-30+90!cal=Outlook;Therapy@-20+60!shared;Standup@-1+15!cal=Work", "-fakeSilence"])
+        record(named: "Standup", not: ["Client Call", "Therapy"], app)
+
+        app.buttons["Settings"].firstMatch.tap()
+        let row = preferredRow(app)
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(app.navigationBars["Preferred Calendar"].waitForExistence(timeout: 5), "its own page")
+        let work = app.buttons["Work"].firstMatch, outlook = app.buttons["Outlook"].firstMatch
+        let section = app.staticTexts.matching(NSPredicate(format: "label ==[c] %@", "Subscribed Calendars")).firstMatch
+        XCTAssertTrue(outlook.waitForExistence(timeout: 5) && section.exists, "Outlook under Subscribed Calendars")
+        XCTAssertLessThan(work.frame.maxY, section.frame.minY, "after the accounts")
+        XCTAssertLessThan(section.frame.maxY, outlook.frame.minY)
+        shot("Preferred Calendar with a subscription", app)
+        outlook.tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "back in Settings")
+        XCTAssertTrue(waitFor { self.shown(row).contains("Outlook") }, "Outlook chosen: \(shown(row))")
+        shot("Preferred Calendar: Outlook", app)
+        record(named: "Client Call", not: ["Standup", "Therapy"], app)
+
+        choose("Home", row, app)
+        record(named: "Therapy", not: ["Standup", "Client Call"], app)
+        choose("None", row, app)
+    }
+
+    /// Transcribe; the card is named `name`, not any of `others`; Stop (`-fakeSilence`: nothing saved, the card closes).
+    @MainActor
+    private func record(named name: String, not others: [String], _ app: XCUIApplication) {
+        startRecording(app)
+        let title = app.staticTexts[name]
+        XCTAssertTrue(title.waitForExistence(timeout: 10) && waitFor { title.isHittable }, name)
+        for other in others { XCTAssertFalse(app.staticTexts[other].exists, "\(name), not \(other)") }
+        app.buttons["Stop"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10), "the card closes")
+    }
+
+    /// Settings › Preferred Calendar › `calendar`, back in Settings with it shown.
+    @MainActor
+    private func choose(_ calendar: String, _ row: XCUIElement, _ app: XCUIApplication) {
+        app.buttons["Settings"].firstMatch.tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(app.navigationBars["Preferred Calendar"].waitForExistence(timeout: 5), "its own page")
+        let option = app.buttons[calendar].firstMatch
+        XCTAssertTrue(option.waitForExistence(timeout: 5), calendar)
+        option.tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "back in Settings")
+        XCTAssertTrue(waitFor { self.shown(row).contains(calendar) }, "\(calendar) chosen: \(shown(row))")
     }
 
     /// The preferred calendar's identifier changed since it was chosen (`-fakeCalendarResynced`: a full sync; Apple says
