@@ -6,8 +6,10 @@ import SwiftData
 extension MainView {
     /// Screenshot hooks for simulator QA and the UI tests: `-seedSamples` puts two sample transcripts with named
     /// speakers into the store (`-seedPendingSample`: also a newest one whose speakers are still being identified;
-    /// `-seedFiller <n>`: n older ones, a list long enough to scroll; all simulator only, never into an iPhone's real
-    /// store); `-showSettings` / `-showPeople` select the Settings tab;
+    /// `-seedFiller <n>`: n older ones, a list long enough to scroll; `-seedPersonTopics`: a third transcript of Anna's
+    /// and topics, so her page has recurring topics; all simulator only, never into an iPhone's real
+    /// store); `-showSettings` / `-showPeople` select the Settings tab; `-showPerson <name>` opens that person's page
+    /// in Settings › People;
     /// `-openFirstTranscript` opens the newest transcript's card; `-autoRecord` starts recording (the simulator's fakes
     /// then stream text and live speaker labels), and with `-autoStopAfter <seconds>` stops it again, which saves it
     /// and turns the card into it; `-minimizeAfter <seconds>` minimizes the card into the accessory after that long
@@ -20,7 +22,8 @@ extension MainView {
         if arguments.contains("-seedSamples") {
             PreviewData.seed(into: modelContext, people: services.people, identifier: services.identifier,
                              pending: arguments.contains("-seedPendingSample"),
-                             filler: UserDefaults.standard.integer(forKey: "seedFiller"))
+                             filler: UserDefaults.standard.integer(forKey: "seedFiller"),
+                             personTopics: arguments.contains("-seedPersonTopics"))
             // `-seedInvitees "Maria Lopez|Jonas Weber"`: Project Kickoff as if started during the calendar event
             // "Kickoff Meeting" with those invitees (the rename sheet's Invitees section, without recording).
             if let invitees = UserDefaults.standard.string(forKey: "seedInvitees"),
@@ -35,6 +38,12 @@ extension MainView {
         let newest = (try? modelContext.fetch(FetchDescriptor<Recording>(sortBy: [SortDescriptor(\.createdAt,
                                                                                                   order: .reverse)])))?.first
         if arguments.contains("-showSettings") || arguments.contains("-showPeople") { tab = .settings }
+        if let name = UserDefaults.standard.string(forKey: "showPerson"),   // `-showPerson "Anna Schmidt"`: her page
+           let person = try? modelContext.fetch(FetchDescriptor<Person>(predicate: #Predicate { $0.name == name })).first {
+            tab = .settings
+            navigation.settings = NavigationPath([SettingsRoute.people])
+            navigation.settings.append(PersonRoute(id: person.id))
+        }
         if let name = UserDefaults.standard.string(forKey: "nameFirstSpeaker"), let newest {
             services.people.name(name, speaker: 0, in: newest)        // `-nameFirstSpeaker Julius`: as if typed
         }

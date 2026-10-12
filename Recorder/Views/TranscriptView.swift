@@ -45,6 +45,11 @@ struct TranscriptView: View {
     /// A tap on a word (its paragraph and index as WordText splits it): RecordingDetailView plays from it. nil: the
     /// paragraphs are plain text (no audio, editing).
     var onWordTap: ((TranscriptSegment, Int) -> Void)? = nil
+    /// The speakers linked to a person (named, or recognized by voice): their name rows' long-press menu has "Go to
+    /// Person", which calls `showPerson` with the speaker (RecordingDetailView: the person's page, Apple Music's Go to
+    /// Artist). nil: no such item.
+    var people: Set<Int> = []
+    var showPerson: ((Int) -> Void)? = nil
 
     enum SpeakerEdit {
         case assign(turnStartingAt: UUID, to: Int?)       // nil: a new speaker
@@ -233,6 +238,11 @@ struct TranscriptView: View {
                                     Button(speakerName?(other) ?? "") { correctSpeaker(.merge(speaker, into: other)) }
                                 }
                             }
+                        }
+                    }
+                    if let showPerson, people.contains(speaker) {
+                        Section {
+                            Button("Go to Person", systemImage: "person.crop.circle") { showPerson(speaker) }
                         }
                     }
                 }

@@ -44,6 +44,7 @@ final class TranscriptTitler {
     nonisolated struct Description: Sendable, Equatable {
         var title: String?      // nil when the model's title failed the checks: the name stays
         var summary: String
+        var topics: [String] = []   // the "Topics:" line's items (person pages); empty when the answer had none
     }
 
     /// describe() throws this when the model can't answer now but may later (stopped because the app left the
@@ -111,7 +112,7 @@ final class TranscriptTitler {
         #if DEBUG
         if title == nil { print("[Scribe] title rejected: \(answer.title)") }
         #endif
-        return Description(title: title, summary: first.uppercased() + summary.dropFirst())
+        return Description(title: title, summary: first.uppercased() + summary.dropFirst(), topics: answer.topics)
     }
 
     /// A part's summary as plain text.
@@ -215,14 +216,25 @@ final class TranscriptTitler {
     }
 
     nonisolated static func parseLabelled(_ text: String) -> TitleAndSummary? {
-        var title: String?, summary: String?
+        var title: String?, summary: String?, topics: [String] = []
         for line in text.split(whereSeparator: \.isNewline) {
             let trimmed = line.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "*")))
             if let match = trimmed.firstMatch(of: /^(?i:title|titel)\s*\**:\s*\**(.*)/) { title = String(match.1) }
             if let match = trimmed.firstMatch(of: /^(?i:summary|zusammenfassung)\s*\**:\s*\**(.*)/) { summary = String(match.1) }
+            if let match = trimmed.firstMatch(of: /^(?i:topics|themen)\s*\**:\s*\**(.*)/) { topics = topicList(String(match.1)) }
         }
         guard let title, let summary else { return nil }
-        return TitleAndSummary(topics: [], summary: summary, title: title)
+        return TitleAndSummary(topics: topics, summary: summary, title: title)
+    }
+
+    /// The Topics line's items (kept for person pages): split at semicolons, Markdown and end punctuation removed, at
+    /// most 12 of at most 60 characters (a longer item is a sentence, not a topic).
+    nonisolated static func topicList(_ line: String) -> [String] {
+        let trim = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ".,*_\"„“”"))
+        return Array(line.split(separator: ";")
+            .map { $0.trimmingCharacters(in: trim) }
+            .filter { !$0.isEmpty && $0.count <= 60 }
+            .prefix(12))
     }
 
     /// A plain-text answer as one paragraph: Markdown emphasis, headings and list markers removed.

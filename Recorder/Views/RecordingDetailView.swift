@@ -27,6 +27,7 @@ struct RecordingDetailView: View {
 
     @Environment(AppServices.self) private var services
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.openPerson) private var openPerson     // a name row's "Go to Person"
 
     @State private var confirmDelete = false
     @State private var pendingSpeakerCount: Int??    // a count waiting for "names will be reset" confirmation
@@ -531,12 +532,16 @@ struct RecordingDetailView: View {
         let words = listening && wordsShown && hasAudio && !isEditingText
         let onWordTap: ((TranscriptSegment, Int) -> Void)? = words ? { playWord($0, $1) } : nil
         let playing: ((UUID) -> Range<Int>?)? = words ? { playingTokens(in: $0) } : nil
+        let people = Set(recording.speakerPeople.keys)
+        let showPerson: ((Int) -> Void)? = openPerson.map { open in
+            { [recording] speaker in if let id = recording.speakerPeople[speaker] { open(id) } }
+        }
         return TranscriptView(segments: segments, speakerName: recording.speakerName(_:),
                               preliminary: recording.speakerStatus != .done, preliminaryNotice: preliminaryNotice,
                               renameSpeaker: renameAction, search: search, currentHit: currentHit, hitFrame: hitFrame,
                               flashes: changes, showsNameTip: showsTip, correctSpeaker: speakerCorrection,
                               edits: textEditsBinding, speakerEdits: speakerEdits, playing: playing,
-                              onWordTap: onWordTap)
+                              onWordTap: onWordTap, people: people, showPerson: showPerson)
     }
 
     // MARK: Playback

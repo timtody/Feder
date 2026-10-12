@@ -14,7 +14,7 @@
         },
         {
           "heading": "What Feder Stores on Your iPhone",
-          "body": "Feder keeps everything it creates in its own storage on your iPhone:\n• the audio of your recordings,\n• transcripts, titles and summaries,\n• speaker names, people and their voice profiles,\n• tags and the words you add to your vocabulary,\n• where a recording was made (coordinates and place name), if you allow it,\n• the name of the calendar event a recording was started in and the names of its invitees, if you turn on Name from Calendar,\n• your settings.\n\nTranscription, speaker identification, titles and summaries run on your iPhone. None of this data is sent to us or to anyone else. It leaves your iPhone only when you share a transcript yourself, for example with the share sheet, and as part of your iPhone’s backups (see “Backups”)."
+          "body": "Feder keeps everything it creates in its own storage on your iPhone:\n• the audio of your recordings,\n• transcripts, titles, summaries and their topics,\n• speaker names, people and their voice profiles,\n• tags and the words you add to your vocabulary,\n• where a recording was made (coordinates and place name), if you allow it,\n• the name of the calendar event a recording was started in and the names of its invitees, if you turn on Name from Calendar,\n• your settings.\n\nTranscription, speaker identification, titles and summaries run on your iPhone. None of this data is sent to us or to anyone else. It leaves your iPhone only when you share a transcript yourself, for example with the share sheet, and as part of your iPhone’s backups (see “Backups”)."
         },
         {
           "heading": "Microphone",
@@ -50,7 +50,7 @@
         },
         {
           "heading": "Titles, Summaries and Mistakes",
-          "body": "On iPhones with 8 GB of memory or more, Feder can write titles and summaries with Gemma, an AI model that runs on your iPhone. Your transcript is not sent anywhere for this.\n\nTranscripts, speaker names, titles and summaries are created automatically and can contain mistakes. Check important details against the recording or the transcript."
+          "body": "On iPhones with 8 GB of memory or more, Feder can write titles and summaries with Gemma, an AI model that runs on your iPhone. Your transcript is not sent anywhere for this.\n\nTranscripts, speaker names, titles, summaries and their topics (on a person’s page and in search) are created automatically and can contain mistakes. Check important details against the recording or the transcript."
         },
         {
           "heading": "Recording Other People",
@@ -92,7 +92,7 @@
         },
         {
           "heading": "Was Feder auf deinem iPhone speichert",
-          "body": "Feder bewahrt alles, was es erstellt, in seinem eigenen Speicher auf deinem iPhone auf:\n• den Ton deiner Aufnahmen,\n• Transkripte, Titel und Zusammenfassungen,\n• Sprechernamen, Personen und ihre Stimmprofile,\n• Tags und die Wörter, die du deinem Vokabular hinzufügst,\n• wo eine Aufnahme entstand (Koordinaten und Ortsname), wenn du es erlaubst,\n• den Namen des Kalenderereignisses, in dem eine Aufnahme gestartet wurde, und die Namen seiner Eingeladenen, wenn du „Nach Kalender benennen“ einschaltest,\n• deine Einstellungen.\n\nTranskription, Sprechererkennung, Titel und Zusammenfassungen laufen auf deinem iPhone. Nichts davon wird an uns oder an andere gesendet. Die Daten verlassen dein iPhone nur, wenn du selbst ein Transkript teilst, zum Beispiel über „Teilen“, und als Teil der Backups deines iPhone (siehe „Backups“)."
+          "body": "Feder bewahrt alles, was es erstellt, in seinem eigenen Speicher auf deinem iPhone auf:\n• den Ton deiner Aufnahmen,\n• Transkripte, Titel, Zusammenfassungen und ihre Themen,\n• Sprechernamen, Personen und ihre Stimmprofile,\n• Tags und die Wörter, die du deinem Vokabular hinzufügst,\n• wo eine Aufnahme entstand (Koordinaten und Ortsname), wenn du es erlaubst,\n• den Namen des Kalenderereignisses, in dem eine Aufnahme gestartet wurde, und die Namen seiner Eingeladenen, wenn du „Nach Kalender benennen“ einschaltest,\n• deine Einstellungen.\n\nTranskription, Sprechererkennung, Titel und Zusammenfassungen laufen auf deinem iPhone. Nichts davon wird an uns oder an andere gesendet. Die Daten verlassen dein iPhone nur, wenn du selbst ein Transkript teilst, zum Beispiel über „Teilen“, und als Teil der Backups deines iPhone (siehe „Backups“)."
         },
         {
           "heading": "Mikrofon",
@@ -128,7 +128,7 @@
         },
         {
           "heading": "Titel, Zusammenfassungen und Fehler",
-          "body": "Auf iPhones mit mindestens 8 GB Arbeitsspeicher kann Feder Titel und Zusammenfassungen mit Gemma schreiben, einem KI-Modell, das auf deinem iPhone läuft. Dein Transkript wird dafür nirgendwohin gesendet.\n\nTranskripte, Sprechernamen, Titel und Zusammenfassungen entstehen automatisch und können Fehler enthalten. Prüfe wichtige Details anhand der Aufnahme oder des Transkripts."
+          "body": "Auf iPhones mit mindestens 8 GB Arbeitsspeicher kann Feder Titel und Zusammenfassungen mit Gemma schreiben, einem KI-Modell, das auf deinem iPhone läuft. Dein Transkript wird dafür nirgendwohin gesendet.\n\nTranskripte, Sprechernamen, Titel, Zusammenfassungen und ihre Themen (auf der Seite einer Person und in der Suche) entstehen automatisch und können Fehler enthalten. Prüfe wichtige Details anhand der Aufnahme oder des Transkripts."
         },
         {
           "heading": "Andere Menschen aufnehmen",

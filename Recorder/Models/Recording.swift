@@ -86,6 +86,8 @@ final class Recording {
     var editCount: Int = 0               // the user corrected words or speakers this often (search and Spotlight re-read)
     var calendarEventTitle: String? = nil // the calendar event running at Record whose title named it (CalendarContext); nil: none
     var calendarAttendees: [String] = [] // that event's invitees' names (no addresses, not the user, at most 30): the rename sheet offers them
+    var topics: [String] = []            // Gemma's "Topics:" line (TranscriptTitler), written with the summary; empty for
+                                         // transcripts described before it was kept (their summary stands in: person pages)
 
     init(name: String, audioFileName: String, localeIdentifier: String) {
         self.id = UUID()
