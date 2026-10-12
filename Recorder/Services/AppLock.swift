@@ -117,14 +117,14 @@ final class AppLock {
 
     /// The iPhone locked: Feder locks whatever the grace period (it is for switching apps, not for a phone left on a
     /// table). Usually Feder is in the background by then; a recording keeps it running. A suspended Feder gets this
-    /// notification queued at its return, possibly after the return's activation: then nothing else would ask, so the
-    /// prompt is due and Unlock shows (never the bare lock symbol with nothing to tap).
+    /// notification queued at its return, possibly after the return's activation (which found it unlocked, within the
+    /// grace period): then this is the return's prompt, asked at once, and never the bare lock symbol with nothing to tap.
     private func iPhoneLocked() {
         guard Self.isEnabled, !isLocked else { return }
         isLocked = true
         promptDue = true
         cover()
-        if UIApplication.shared.applicationState == .active { showsPrompt = true }
+        if UIApplication.shared.applicationState == .active { Task { await authenticate() } }
     }
 
     private func enteringForeground() {
