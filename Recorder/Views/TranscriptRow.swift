@@ -105,6 +105,14 @@ struct TranscriptRow: View {
                     .foregroundStyle(.secondary)
             }
         }
+        // The list's separator starts at the text, as in Voice Memos and Settings. Without this it followed the hidden
+        // "+n" counters (FED-74): the layout parks what doesn't fit 10 000 pt to the left, and a Layout without
+        // `explicitAlignment` merges its subviews' guides, `listRowSeparatorLeading` too (parked at -10 pt instead, the
+        // separator started 10 pt left of the text). So the person page's separators ran from off-screen across its
+        // card's edge, and the Transcripts and Search lists' from the screen's edge. Parking elsewhere would only move
+        // the problem (to the right, onto the trailing guide; at the origin they are drawn). The closure captures
+        // nothing: SwiftUI may lay out off the main thread.
+        .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(metaAccessibilityLabel(people: people))
         .accessibilityActions {

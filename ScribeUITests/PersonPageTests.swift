@@ -32,6 +32,8 @@ final class PersonPageTests: ScribeUITestCase {
         XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'PersonTopic.'")).firstMatch.exists,
                        "no topics: her transcripts share none")
         shot("Person page", app)
+        // The separator between her transcripts starts at their text, inside the card (FED-74).
+        assertSeparatorStartsAtText(under: "Project Kickoff", app)
 
         app.staticTexts["Budget Review"].tap()
         assertCard(app)

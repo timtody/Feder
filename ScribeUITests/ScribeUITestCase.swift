@@ -169,4 +169,51 @@ class ScribeUITestCase: XCTestCase {
         let crisp = gray.filter { abs(Int($0) - median) > 178 }.count
         return Double(crisp) / Double(max(gray.count, 1))
     }
+
+    /// How strongly a horizontal line crosses `rect` (points): per pixel row, the share of its columns whose brightness
+    /// differs by more than 10/255 from the same column 2 pt higher; the largest share. A separator across the rect gives
+    /// about 1. Comparing each column with itself keeps vertical edges (an inset grouped card's side) and plain
+    /// backgrounds at about 0. XCUITest can't see separators, so the pixels have to tell.
+    @MainActor
+    func lineShare(in rect: CGRect, _ app: XCUIApplication) -> Double {
+        guard let image = app.screenshot().image.cgImage else { return 0 }
+        let scale = CGFloat(image.width) / app.windows.firstMatch.frame.width
+        let lift = Int((2 * scale).rounded())
+        let pixels = CGRect(x: rect.minX * scale, y: rect.minY * scale - CGFloat(lift), width: rect.width * scale,
+                            height: rect.height * scale + CGFloat(lift)).integral
+        guard let cropped = image.cropping(to: pixels) else { return 0 }
+        let width = cropped.width, height = cropped.height
+        var gray = [UInt8](repeating: 0, count: width * height)
+        guard width > 0, height > lift,
+              let context = CGContext(data: &gray, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width,
+                                      space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue)
+        else { return 0 }
+        context.draw(cropped, in: CGRect(x: 0, y: 0, width: width, height: height))
+        var best = 0.0
+        for y in lift..<height {
+            let differing = (0..<width).count(where: { x in
+                abs(Int(gray[y * width + x]) - Int(gray[(y - lift) * width + x])) > 10
+            })
+            best = max(best, Double(differing) / Double(width))
+        }
+        return best
+    }
+
+    /// The separator under the row titled `title` starts at the row's text, as in Voice Memos, Settings and Contacts:
+    /// nothing between the screen's edge and the title's leading edge, the line from there on. (FED-74: the person page's
+    /// separators started off-screen and crossed its inset grouped card's edge; the Transcripts list's started at the
+    /// screen's edge.)
+    @MainActor
+    func assertSeparatorStartsAtText(under title: String, _ app: XCUIApplication,
+                                     file: StaticString = #filePath, line: UInt = #line) {
+        let row = app.cells.containing(.staticText, identifier: title).firstMatch
+        let textX = app.staticTexts[title].firstMatch.frame.minX
+        let y = row.frame.maxY
+        let left = lineShare(in: CGRect(x: 1, y: y - 2, width: textX - 4, height: 4), app)
+        let right = lineShare(in: CGRect(x: textX + 2, y: y - 2, width: 120, height: 4), app)
+        note("Separator under \(title)",
+             "row \(row.frame), text at x \(textX): line share left of the text \(left), right of it \(right)")
+        XCTAssertLessThan(left, 0.2, "\(title): no separator left of the text (x 1-\(textX - 3))", file: file, line: line)
+        XCTAssertGreaterThan(right, 0.8, "\(title): the separator from the text on", file: file, line: line)
+    }
 }

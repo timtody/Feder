@@ -5,7 +5,8 @@ import SwiftUI
 /// one counter per possible hidden count ("+1" … "+chips"; at least one). Preference: everything; without the place;
 /// fewer chips (with the counter); at last no chips with the place truncated into what is left. Subviews not shown are
 /// placed far off-screen, where they stay in the accessibility tree: the row gives VoiceOver the line as one element
-/// (see `RecordingsListView.metaLine`). `nonisolated`, no captured state: safe wherever SwiftUI measures it.
+/// (see `TranscriptRow.metaLine`). They keep their alignment guides too, which the layout merges into its own, so the
+/// row pins the list separator's guide (FED-74). `nonisolated`, no captured state: safe wherever SwiftUI measures it.
 nonisolated struct MetaLineLayout: Layout {
     var chips: Int
     var hasPlace: Bool

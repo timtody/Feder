@@ -86,13 +86,15 @@ final class TranscriptListTests: ScribeUITestCase {
 
     /// Voice Memos' look, with and without tags: iOS draws wide pills with the title under them only for rows about
     /// 62-70 pt tall (shorter: capsules with the title inside; from 76 pt: round buttons), so every row is two lines
-    /// (tags on the date line) and at least 62 pt, Voice Memos' height, whose pills are about 60 × 33 pt.
+    /// (tags on the date line) and at least 62 pt, Voice Memos' height, whose pills are about 60 × 33 pt. As in Voice
+    /// Memos, the separators start at the text (FED-74).
     @MainActor
     func testSwipePillsOnRowsWithAndWithoutTags() throws {
         let app = launch(["-seedPendingSample", "-fakeDiarizeSeconds", "60"])
         for title in ["Weekly Sync", "Project Kickoff"] {                   // no tags; two tags
             let row = app.cells.containing(.staticText, identifier: title).firstMatch
             XCTAssertTrue(row.waitForExistence(timeout: 5))
+            assertSeparatorStartsAtText(under: title, app)
             XCTAssertEqual(row.frame.height, 62, accuracy: 3, "\(title): a two-line row like Voice Memos': \(row.frame)")
             row.swipeLeft()
             let delete = app.buttons["Delete"]
