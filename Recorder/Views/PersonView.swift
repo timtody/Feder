@@ -13,11 +13,15 @@ import SwiftData
 /// tab is under the card; the person is looked up here, and a person deleted meanwhile shows "Person Deleted" (reading
 /// a deleted @Model traps).
 /// Every press answers in its frame: the body reads only the store's cheap attributes; the topics and quotes come
-/// from `PersonPageModel` after the push (placeholders meanwhile, the size of the quote they stand for).
+/// from `PersonPageModel` after the push (placeholders meanwhile, the size of the quote they stand for; on a second
+/// visit the page as last shown, brought up to date).
 struct PersonView: View {
     let personID: UUID
-    /// The stack it is in ("settings", "transcripts", "search"): the rows' zoom source ids include it and the person,
-    /// since every tab stays alive and the same transcript can be a row on two person pages, or on one in two tabs.
+    /// The stack it is in ("settings", "transcripts", "search"): the rows' zoom source ids include it, the person and
+    /// `instance`, since every tab stays alive and the same transcript can be a row on two person pages, on one in two
+    /// tabs, or on the same person's page twice in one stack (Go to Person from a card opened on another person's page
+    /// pushes, as Music's Go to Artist does: Anna, Lena, Anna). A source id shared by two rows zoomed the card out of a
+    /// hidden one (`OpenTranscriptAction.rowSource`).
     let stack: String
 
     @Environment(AppServices.self) private var services
@@ -27,13 +31,19 @@ struct PersonView: View {
     @Query private var found: [Person]
     @Query(sort: \Recording.createdAt, order: .reverse) private var recordings: [Recording]
     @Query(sort: \Person.name) private var people: [Person]
-    @State private var model = PersonPageModel()
+    @State private var model: PersonPageModel
+    /// This page, apart from another page of the same person in the same stack (see `stack`).
+    @State private var instance = UUID()
     @State private var confirmDelete = false
+    /// Delete Person on this page: done once the page has gone (onDisappear). Deleted while it slid away, the page turned
+    /// into "Person Deleted" (the id-filtered @Query emptied) in the middle of the pop.
+    @State private var deletesOnDisappear = false
 
     init(personID: UUID, stack: String) {
         self.personID = personID
         self.stack = stack
         _found = Query(filter: #Predicate<Person> { $0.id == personID })
+        _model = State(initialValue: PersonPageModel(personID: personID))
     }
 
     /// The person, unless deleted meanwhile (never read a deleted model).
@@ -51,6 +61,11 @@ struct PersonView: View {
         }
         .toolbar(.visible, for: .navigationBar)             // the Transcripts and Search roots hide theirs
         .onAppear { InteractionTrace.shown("person") }
+        .onDisappear {
+            guard deletesOnDisappear else { return }
+            deletesOnDisappear = false
+            if let person { services.people.delete(person) }
+        }
     }
 
     private func page(name: String) -> some View {
@@ -102,22 +117,22 @@ struct PersonView: View {
         }
         .confirmationDialog("Delete \(name)?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
+                deletesOnDisappear = true
                 dismiss()
-                if let person { services.people.delete(person) }
             }
         } message: {
             Text("Their voice will no longer be recognized. Names already in transcripts stay.")
         }
         .task(id: PersonPageModel.Input(personID: personID, keys: recordings.map(\.personPageKey),
                                         names: people.map(\.name))) {
-            await model.update(personID: personID, recordings: recordings, people: people.map(\.name))
+            await model.update(recordings: recordings, people: people.map(\.name))
         }
     }
 
     // MARK: Transcripts
 
     private func row(_ recording: Recording, name: String) -> some View {
-        let sourceID = OpenTranscriptAction.rowSource("person.\(stack).\(personID)", recording)
+        let sourceID = OpenTranscriptAction.rowSource("person.\(stack).\(personID).\(instance)", recording)
         let quote = model.quotes[recording.id]                // nil: not read yet; .some(nil): no turn of theirs
         return Button {
             open(recording, at: quote ?? nil, sourceID: sourceID)
@@ -221,7 +236,7 @@ struct PersonView: View {
     }
 
     /// A fresh search in the Search tab (its close button comes back here): the person and the tag, or the person and
-    /// the word (the search also reads summaries and titles, where the topics came from).
+    /// the word (the search reads the topics, summaries and titles the words came from).
     private func search(_ topic: PersonTopic, name: String) {
         let person = SearchToken(kind: .person, value: name)
         switch topic.kind {

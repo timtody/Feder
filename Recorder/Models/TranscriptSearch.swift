@@ -87,6 +87,7 @@ nonisolated struct SearchDocument: Sendable {
         var title: String
         var place: String?
         var summary: String?
+        var topics: [String] = []
         var tags: [String]
         var speakerNames: [Int: String]
         var segments: [Segment]
@@ -97,6 +98,9 @@ nonisolated struct SearchDocument: Sendable {
     let title: String
     let place: String?
     let summary: String?                     // the automatic 1-2 sentence summary (TranscriptTitler)
+    /// Gemma's topics (`Recording.topics`), as one line: a person page's topic chips come from them, so their search
+    /// must find them (in no other text when Gemma named a topic with a word nobody said or wrote in the summary).
+    let topics: String
     let tags: [String]
     let speakerNames: [Int: String]          // only names the user gave or recognition set (not "Speaker N")
     let segments: [Segment]
@@ -106,28 +110,31 @@ nonisolated struct SearchDocument: Sendable {
     // Precomputed folds.
     fileprivate let foldedPlace: String
     fileprivate let foldedSummary: String
+    fileprivate let foldedTopics: String
     fileprivate let foldedTags: [String]
     fileprivate let foldedSpeakers: [(index: Int, folded: String)]
     fileprivate let body: [UInt8]            // folded segment texts, UTF-8, each followed by "\n"
     fileprivate let segmentOffsets: [Int]    // byte offset of each segment in `body`
 
     init(_ source: Source) {
-        self.init(id: source.id, title: source.title, place: source.place, summary: source.summary, tags: source.tags,
-                  speakerNames: source.speakerNames, segments: source.segments, key: source.key)
+        self.init(id: source.id, title: source.title, place: source.place, summary: source.summary, topics: source.topics,
+                  tags: source.tags, speakerNames: source.speakerNames, segments: source.segments, key: source.key)
     }
 
-    init(id: UUID, title: String, place: String?, summary: String? = nil, tags: [String], speakerNames: [Int: String],
-         segments: [Segment], key: Int) {
+    init(id: UUID, title: String, place: String?, summary: String? = nil, topics: [String] = [], tags: [String],
+         speakerNames: [Int: String], segments: [Segment], key: Int) {
         self.id = id
         self.title = title
         self.place = place
         self.summary = summary
+        self.topics = topics.joined(separator: " · ")
         self.tags = tags
         self.speakerNames = speakerNames
         self.segments = segments
         self.key = key
         foldedPlace = place.map(SearchFolding.fold) ?? ""
         foldedSummary = summary.map(SearchFolding.fold) ?? ""
+        foldedTopics = SearchFolding.fold(self.topics)
         foldedTags = tags.map(SearchFolding.fold)
         foldedSpeakers = speakerNames.sorted { $0.key < $1.key }.map { ($0.key, SearchFolding.fold($0.value)) }
         var body: [UInt8] = []
@@ -211,7 +218,7 @@ nonisolated struct SearchResult: Sendable, Identifiable {
     var matchedSpeakers: [Int] = []                   // speaker indices whose name matched a token or term
     var matchedTags: [String] = []                    // tags (original spelling) that matched a token or term
     var snippet: Snippet?
-    var summaryExcerpt: String?                       // when only the summary matched a term: an excerpt of it
+    var summaryExcerpt: String?                       // when only the summary (or the topics) matched a term: an excerpt
     var summaryHighlights: [Range<String.Index>] = [] // ranges in `summaryExcerpt`
 }
 
@@ -228,6 +235,7 @@ nonisolated enum TranscriptSearch {
         guard !query.isEmpty else { return SearchResult(id: doc.id, title: doc.title) }
         var result = SearchResult(id: doc.id, title: doc.title)
         var summaryAnchor: Range<String.Index>?
+        var topicsAnchor: Range<String.Index>?
 
         // Tokens: exact (folded) equality.
         for person in query.people {
@@ -270,6 +278,10 @@ nonisolated enum TranscriptSearch {
                 found = true
                 if summaryAnchor == nil { summaryAnchor = first }
             }
+            if doc.foldedTopics.contains(f), let first = hit(doc.topics).first {
+                found = true
+                if topicsAnchor == nil { topicsAnchor = first }
+            }
             for (i, ft) in doc.foldedTags.enumerated() where ft.contains(f) && !hit(doc.tags[i]).isEmpty {
                 found = true
                 result.matchedTags.append(doc.tags[i])
@@ -299,6 +311,11 @@ nonisolated enum TranscriptSearch {
         } else if let summary = doc.summary, let summaryAnchor {
             // Found in the summary only: show that part of it.
             let text = Snippets.excerpt(of: summary, around: summaryAnchor)
+            result.summaryExcerpt = text
+            result.summaryHighlights = Snippets.highlightRanges(terms: query.terms, in: text)
+        } else if let topicsAnchor {
+            // Found in Gemma's topics only: show them, so the row says why it is a result (the card doesn't show them).
+            let text = Snippets.excerpt(of: doc.topics, around: topicsAnchor)
             result.summaryExcerpt = text
             result.summaryHighlights = Snippets.highlightRanges(terms: query.terms, in: text)
         }

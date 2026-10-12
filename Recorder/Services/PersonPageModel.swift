@@ -7,7 +7,10 @@ import SwiftData
 /// are the SwiftData load, read 8 transcripts per turn of the main actor with a frame between the batches, as the
 /// search index does (TranscriptSearchModel), and cut off it. Both are cached for the process (static): a transcript's
 /// words by its topic text, its quote by its `searchKey` (which changes whenever the segments are rewritten) and the
-/// person's speakers there, so a second visit, or another person's page, shows them at once.
+/// person's speakers there, so another person's page reads only what is new. A person's page as last shown (topics and
+/// quotes) is kept too and is the next page's start, so a second visit draws them in its first frame (each page has
+/// its own model; started empty, the Topics section came in after the push on every visit and pushed the rows down),
+/// then the update brings it up to date.
 @MainActor @Observable
 final class PersonPageModel {
     /// Recordings whose segments are read per turn of the main actor.
@@ -16,6 +19,17 @@ final class PersonPageModel {
     private(set) var topics: [PersonTopic] = []
     /// The quote per transcript of theirs, once read (nil inside: they have no turn there).
     private(set) var quotes: [UUID: PersonQuote?] = [:]
+
+    private let personID: UUID
+
+    /// Starts as the person's page was last shown (a dictionary lookup: PersonView makes one per init).
+    init(personID: UUID) {
+        self.personID = personID
+        if let shown = Self.lastShown[personID] {
+            topics = shown.topics
+            quotes = shown.quotes
+        }
+    }
 
     /// What the page depends on, compared to run `update` again only when one changed (`PersonView`'s task id).
     struct Input: Equatable {
@@ -37,6 +51,11 @@ final class PersonPageModel {
 
     @ObservationIgnored private static var quoteCache: [UUID: QuoteEntry] = [:]
     @ObservationIgnored private static var termCache: [UUID: TermEntry] = [:]
+    @ObservationIgnored private static var lastShown: [UUID: (topics: [PersonTopic], quotes: [UUID: PersonQuote?])] = [:]
+
+    private func remember() {
+        Self.lastShown[personID] = (topics, quotes)
+    }
 
     /// The person's speakers in `recording` (usually one; two when they were split).
     static func speakers(of personID: UUID, in recording: Recording) -> Set<Int> {
@@ -44,7 +63,7 @@ final class PersonPageModel {
     }
 
     /// Call from the view's task whenever `Input` changes; returns early when cancelled (a newer input).
-    func update(personID: UUID, recordings: [Recording], people: [String]) async {
+    func update(recordings: [Recording], people: [String]) async {
         #if DEBUG
         let started = ContinuousClock.now
         #endif
@@ -96,6 +115,7 @@ final class PersonPageModel {
         let found = await PersonDigest.topicsInBackground(ranked, excluding: PersonDigest.nameWords(people))
         guard !Task.isCancelled else { return }
         if found != topics { topics = found }
+        remember()
         #if DEBUG
         let topicsDone = ContinuousClock.now
         #endif
@@ -115,6 +135,7 @@ final class PersonPageModel {
                 guard !Task.isCancelled else { return }
                 quotes[id] = .some(quote)
             }
+            remember()
             await Task.yield()                                // a frame between the batches
         }
         #if DEBUG
@@ -134,11 +155,10 @@ final class PersonPageModel {
 
 extension Recording {
     /// Changes whenever something a person's page reads changes: what search reads (`searchKey`, which changes with
-    /// the segments), the topics and the links to people.
+    /// the segments and the topics) and the links to people.
     var personPageKey: Int {
         var hasher = Hasher()
         hasher.combine(searchKey)
-        hasher.combine(topics)
         hasher.combine(speakerPeople)
         return hasher.finalize()
     }

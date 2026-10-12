@@ -21,6 +21,9 @@ enum AppTab: Hashable {
 @MainActor @Observable
 final class SearchState {
     var query = ""
+    /// What is searched: `query` after a typing pause (the Search list's debounce), or at once when the app sets it
+    /// (a person page's topic set only `query`, and the list showed the person's results with the old text first).
+    var appliedQuery = ""
     var tokens: [SearchToken] = []
     /// Bumped on every tap on Search (also when it is the current tab already): the field takes the focus again.
     var focusRequest = 0
@@ -45,6 +48,10 @@ struct MainView: View {
     /// The tabs' navigation stacks (person pages; Settings' pages), so "Go to Person" can push onto the tab under the card.
     @State var navigation = AppNavigation()
     @State private var tabBeforeSearch: AppTab = .transcripts
+    /// A topic or tag tapped on a person's page in the Search tab itself: that page and the search under it, which the
+    /// fresh search replaced (its results show only with the page popped) and Close brings back, the latest first.
+    /// Cleared when Search is left or started anew; empty, Close goes back to `tabBeforeSearch`.
+    @State private var searchReturns: [SearchReturn] = []
     /// The accessory is inline (the bar minimized): Search shows as its own circle (`Tab(role: .search)`). It starts
     /// `true` and the accessory sets it right on its first appearance (before the first frame): the Search circle
     /// then exists from launch. Created only at the first collapse, the circle came late to the minimized bar's
@@ -145,7 +152,10 @@ struct MainView: View {
         .environment(\.openPerson, OpenPersonAction { openPerson($0) })
         .onChange(of: tab) { old, new in
             if new == .search, old != .search { tabBeforeSearch = old }
-            if old == .search, new != .search { endEditing() }   // the keyboard goes with the Search tab
+            if old == .search, new != .search {
+                endEditing()                                     // the keyboard goes with the Search tab
+                searchReturns = []
+            }
         }
         .onChange(of: card.session?.state) { _, state in
             guard let state else { return }
@@ -167,7 +177,10 @@ struct MainView: View {
             if new == .search {
                 // Tapped again: back to its results from a person page. The field only takes the focus where it is
                 // on screen, not under a person page kept from before.
-                if tab == .search { navigation.search = [] }
+                if tab == .search {
+                    navigation.search = []
+                    searchReturns = []
+                }
                 if navigation.search.isEmpty { searchState.focusRequest += 1 }
             }
             tab = new
@@ -209,7 +222,8 @@ struct MainView: View {
         var transcript: Recording?
         var search: TranscriptSearchContext?
         var sourceID: String
-        /// A transcript just saved: the Transcripts tab goes behind the card, where it tops the list when it closes.
+        /// A transcript just saved, or opened from outside: the Transcripts list goes behind the card (when it opens),
+        /// where it tops the list when it closes.
         var showsList = false
         /// Presented on the next turn of the main actor (see openRecorder).
         var deferred = false
@@ -223,15 +237,19 @@ struct MainView: View {
     }
 
     /// A transcript asked for from outside the app (Spotlight): the Transcripts list goes behind the card, and the card
-    /// opens out of its row. A recording going on stays in the accessory.
+    /// opens out of its row. A recording going on stays in the accessory. A card that is up shrinks back into its own
+    /// row first: the list is shown (a person page there popped) only when the new card opens (`showsList`), as Go to
+    /// Person waits, since switching under the shrinking card took its zoom target away.
     func openFromOutside(_ id: UUID) {
         var descriptor = FetchDescriptor<Recording>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
         guard let recording = try? modelContext.fetch(descriptor).first else { return }
-        showList()
         if cardPhase == .open { closeCard() }
-        openCard(recording, search: nil,
-                 sourceID: OpenTranscriptAction.rowSource(RecordingsListView.transcriptsList, recording))
+        InteractionTrace.begin("open")
+        endEditing()
+        present(CardRequest(transcript: recording,
+                            sourceID: OpenTranscriptAction.rowSource(RecordingsListView.transcriptsList, recording),
+                            showsList: true))
     }
 
     /// Opens the card on `request`, or, while the last card is still shrinking away, once it is gone (cardDismissed).
@@ -399,7 +417,8 @@ struct MainView: View {
                 return
             }
             guard let last else { return }
-            showList()
+            // The card in Edit Text and the tab under it (a person page) stay as they are; otherwise the list is shown
+            // when the new card opens (`showsList`), after the open one has shrunk back into its row.
             guard services.identifier.editingText.isEmpty else { return }
             if cardPhase == .open { closeCard() }
             present(CardRequest(transcript: last, sourceID: TranscriptCardContent.recorderSource, showsList: true,
@@ -414,24 +433,54 @@ struct MainView: View {
     private func openSearch(_ token: SearchToken?) {
         if let token {
             searchState.query = ""
+            searchState.appliedQuery = ""
             searchState.add(token)
         }
+        searchReturns = []
         navigation.search = []                       // the results, not a person page left in the Search tab
         tab = .search
         searchState.focusRequest += 1
     }
 
-    /// A person page's topic: the Search tab with exactly these tokens and text (replacing what was searched before).
+    /// What Close brings back after a topic tapped on a person's page in the Search tab (`searchReturns`).
+    private struct SearchReturn {
+        var path: [PersonRoute]
+        var query: String
+        var appliedQuery: String
+        var tokens: [SearchToken]
+    }
+
+    /// A person page's topic or tag: the Search tab with exactly these tokens and text (replacing what was searched
+    /// before), applied at once (not after the typing pause: the person's results with the old text showed first).
+    /// From a page in the Search tab itself, that page and its search are kept for Close.
     private func freshSearch(_ tokens: [SearchToken], _ text: String) {
+        if tab == .search, !navigation.search.isEmpty {
+            searchReturns.append(SearchReturn(path: navigation.search, query: searchState.query,
+                                              appliedQuery: searchState.appliedQuery, tokens: searchState.tokens))
+        } else {
+            searchReturns = []
+        }
         searchState.tokens = tokens
         searchState.query = text
+        searchState.appliedQuery = text
         navigation.search = []
         tab = .search
         searchState.focusRequest += 1
     }
 
-    /// The search bar's close button: back to the tab Search was opened from (text and tokens are kept).
+    /// The search bar's close button: back to the tab Search was opened from (text and tokens are kept), or to the
+    /// person's page in the Search tab whose topic started this search, with the search it was over.
     private func closeSearch() {
-        tab = tabBeforeSearch == .search ? .transcripts : tabBeforeSearch
+        guard let back = searchReturns.popLast() else {
+            tab = tabBeforeSearch == .search ? .transcripts : tabBeforeSearch
+            return
+        }
+        endEditing()
+        searchState.tokens = back.tokens
+        searchState.query = back.query
+        searchState.appliedQuery = back.appliedQuery
+        // Pushed again, with the push's slide over the search it was on (that is where its Back leads). The slide
+        // stayed under `withTransaction(\.disablesAnimations, true)` too (iOS 27 simulator, frame by frame).
+        navigation.search = back.path
     }
 }

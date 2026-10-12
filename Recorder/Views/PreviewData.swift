@@ -45,7 +45,9 @@ enum PreviewData {
     /// unnamed speakers) make the list long enough to scroll: the UI tests of the headings and the minimized tab bar.
     /// With `personTopics`, also "Licence Planning" (two days old; Anna Schmidt and Jonas Weber, tagged "finance", with
     /// Gemma's topics), and Budget Review gets topics too, so Anna's page has recurring topics: the tag "finance", then
-    /// "travel", "licences" and "forecast" (a separate flag: the other tests' lists and counts stay as they are).
+    /// "travel", "licences", "forecast" and "procurement", a word only in the topics (nobody says it, and neither summary
+    /// has it), which her page's search must still find (a separate flag: the other tests' lists and counts stay as
+    /// they are).
     static func seed(into context: ModelContext, people: PeopleDirectory, identifier: SpeakerIdentifier, pending: Bool,
                      filler: Int = 0, personTopics: Bool = false) {
         let seeded = Set([kickoffID, budgetID, pendingID, licenceID] + (0..<maxFiller).map(fillerID))
@@ -84,11 +86,11 @@ enum PreviewData {
         people.name("Anna Schmidt", speaker: 1, in: budget)
 
         if personTopics {
-            budget.topics = ["travel", "licences", "forecast"]
+            budget.topics = ["travel", "licences", "forecast", "procurement"]
             let licence = transcript(name: "Licence Planning", lines: licenceLines, id: licenceID,
                                      createdAt: .now.addingTimeInterval(-2 * 86_400))
             licence.tags = ["finance"]
-            licence.topics = ["licences", "travel", "forecast"]
+            licence.topics = ["licences", "travel", "forecast", "procurement"]
             licence.summary = "Anna renews the design licences before the end of the month and Jonas checks their "
                 + "prices. Travel to the workshops is booked early, so it stays within the forecast."
             licence.speakerVoices = [0: VoiceMatch.unit(zip(anna, voice(seed: 5)).map { $0 + 0.4 * $1 }), 1: voice(seed: 2)]

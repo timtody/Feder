@@ -17,8 +17,11 @@ nonisolated struct PersonTopic: Sendable, Hashable, Identifiable {
     var kind: Kind
     var name: String                 // the spelling shown: the one most of their transcripts use
     var count: Int
-    /// What a word's search looks for: its shortest form, in the shown spelling's case ("licence" for "licences", the
-    /// lemma "Lizenz" for "Lizenzen"), since the search matches inside words and the plural would miss the singular.
+    /// What a word's search looks for, in the shown spelling's case: a form that starts a spelling in each of the
+    /// transcripts counted (the search matches inside words), the shortest such base form ("licence" for "licences",
+    /// the lemma "Lizenz" for "Lizenzen": the plural would miss the singular), else the start all their spellings share
+    /// ("strateg" for "strategies" and "Strategy"); never a lemma spelled differently ("Firma" for "Firmen" finds
+    /// neither). `PersonDigest.query`.
     var query: String
     var id: String { "\(kind == .tag ? "tag" : "word"):\(SearchFolding.fold(name))" }
 }
@@ -31,7 +34,8 @@ nonisolated struct PersonTopic: Sendable, Hashable, Identifiable {
 /// **Topics** come from what Gemma already writes (no model runs for the page): each transcript's "Topics:" line
 /// (`Recording.topics`; for transcripts described before it was kept, their summary) plus its title when the user or
 /// Gemma gave it one. NLTagger takes the nouns and names out of that text (the Topics line's phrases differ from one
-/// transcript to the next, so recurrence is counted on words, not phrases): a noun by its lemma, folded; names are
+/// transcript to the next, so recurrence is counted on words, not phrases): a noun by its lemma when the two share
+/// their start (`base`; "Daten" stays "Daten", not "Datum", a different word), folded; names are
 /// kept, since NLTagger calls some nouns names (measured on macOS 27: "Lizenzbudget" at the start of a topic line was a
 /// PersonalName), but the words of people's and speakers' names are dropped. Short, numeric and generic words go (a
 /// small English and German stoplist), and a plural NLTagger has no lemma for ("licences", genitive "Lizenzbudgets",
@@ -164,7 +168,7 @@ nonisolated enum PersonDigest {
                 let surface = String(text[range])
                 var base = surface
                 if tag == .noun, let lemma = tagger.tag(at: range.lowerBound, unit: .word, scheme: .lemma).0?.rawValue,
-                   !lemma.isEmpty {
+                   sharesStart(surface, lemma) {
                     base = lemma
                 }
                 let key = SearchFolding.fold(base)
@@ -193,6 +197,17 @@ nonisolated enum PersonDigest {
             return true
         }
         return result
+    }
+
+    /// The lemma stands for the word when it starts it ("Lizenz" for "Lizenzen", "Vertrag" for "Verträge", folded) or
+    /// the two share at least 4 letters ("strategy"/"strategies", "Firma"/"Firmen", "Risiko"/"Risiken"; the chip then
+    /// searches what they share). Measured on macOS 27: NLTagger's lemma of "Daten" is "Datum" (date), and of "data" in
+    /// a topic line it took for French, "dater"; such a lemma would merge different words and give the chip a search
+    /// that finds neither, so the word keeps its own spelling.
+    static func sharesStart(_ surface: String, _ lemma: String) -> Bool {
+        let word = SearchFolding.fold(surface), base = SearchFolding.fold(lemma)
+        guard !base.isEmpty else { return false }
+        return word.hasPrefix(base) || word.commonPrefix(with: base).count >= 4
     }
 
     @concurrent static func termsInBackground(_ sources: [TermSource]) async -> [(id: UUID, terms: [Term])] {
@@ -265,14 +280,16 @@ nonisolated enum PersonDigest {
         struct Tally {
             var theirs = 0, others = 0
             var spellings: [String: Int] = [:]
-            var shortest: String?                      // the shortest base form: what the word's search looks for
+            var bases = Set<String>()                  // their base forms: what the word's search can look for
+            var forms: [[String]] = []                 // per transcript of theirs: its spellings of the word
             var firstSeen = Int.max                    // newest first: the earliest of their transcripts, then position
         }
-        func count(_ tally: inout Tally, _ source: TopicSource, spelling: String, base: String, order: Int) {
+        func count(_ tally: inout Tally, _ source: TopicSource, terms: [Term], order: Int) {
             if source.isTheirs {
                 tally.theirs += 1
-                tally.spellings[spelling, default: 0] += 1
-                if base.count < tally.shortest?.count ?? .max { tally.shortest = base }
+                tally.spellings[terms[0].surface, default: 0] += 1
+                tally.bases.formUnion(terms.map(\.base))     // "licences" in the Topics line, "Licence" in the title
+                tally.forms.append(terms.map(\.surface))
                 tally.firstSeen = min(tally.firstSeen, order)
             } else {
                 tally.others += 1
@@ -284,22 +301,25 @@ nonisolated enum PersonDigest {
         for (index, source) in sources.enumerated() {
             guard !source.terms.isEmpty || !source.tags.isEmpty else { continue }
             if source.isTheirs { p += 1 } else { o += 1 }
-            var seen = Set<String>()
+            var found: [(key: String, terms: [Term], position: Int)] = []   // each key once, in order
             for (position, term) in source.terms.enumerated() {
                 let key = merged(term.key)
                 guard !isName(key, names, source.names) else { continue }
-                if seen.insert(key).inserted {
-                    count(&words[key, default: Tally()], source, spelling: term.surface, base: term.base,
-                          order: index * 1_000 + position)
-                } else if source.isTheirs, term.base.count < words[key]?.shortest?.count ?? .max {
-                    words[key]?.shortest = term.base       // "licences" in the Topics line, "Licence" in the title
+                if let i = found.firstIndex(where: { $0.key == key }) {
+                    found[i].terms.append(term)
+                } else {
+                    found.append((key, [term], position))
                 }
+            }
+            for (key, terms, position) in found {
+                count(&words[key, default: Tally()], source, terms: terms, order: index * 1_000 + position)
             }
             var seenTags = Set<String>()
             for (position, tag) in source.tags.enumerated() {
                 let key = SearchFolding.fold(tag.trimmingCharacters(in: .whitespaces))
                 guard !key.isEmpty, seenTags.insert(key).inserted else { continue }
-                count(&tags[key, default: Tally()], source, spelling: tag, base: tag, order: index * 1_000 + position)
+                count(&tags[key, default: Tally()], source, terms: [Term(key: key, surface: tag, base: tag)],
+                      order: index * 1_000 + position)
             }
         }
         typealias Ranked = (key: String, topic: PersonTopic, score: Double, first: Int)
@@ -314,7 +334,7 @@ nonisolated enum PersonDigest {
                 }
                 let spelling = tally.spellings.max { ($0.value, $1.key) < ($1.value, $0.key) }!.key
                 // The search's text in the shown spelling's case ("licence", not the title's "Licence").
-                var query = tally.shortest ?? spelling
+                var query = kind == .tag ? spelling : Self.query(bases: tally.bases, forms: tally.forms) ?? spelling
                 if spelling.first?.isLowercase == true { query = query.lowercased() }
                 return (key, PersonTopic(kind: kind, name: spelling, count: tally.theirs, query: query), score,
                         tally.firstSeen)
@@ -325,6 +345,25 @@ nonisolated enum PersonDigest {
         let tagKeys = Set(shownTags.map(\.key))
         let shownWords = ranked(words, .word).filter { !tagKeys.contains($0.key) }
         return Array((shownTags.map(\.topic) + shownWords.map(\.topic)).prefix(maxTopics))
+    }
+
+    /// What a word chip searches (`PersonTopic.query`): the search finds a text inside words, so a form is right when it
+    /// starts one of the spellings in every transcript of theirs (`forms`, one list per transcript); the shortest such
+    /// base form, else the longest start of the shortest spelling that is ("Strateg" for "Strategy" and "strategies",
+    /// "Firm" for "Firma" and "Firmen"). `base` and the plural merge keep that at 3 letters or more; nil if not.
+    static func query(bases: Set<String>, forms: [[String]]) -> String? {
+        let folded = forms.map { $0.map(SearchFolding.fold) }
+        func startsEach(_ candidate: String) -> Bool {
+            let start = SearchFolding.fold(candidate)
+            return folded.allSatisfy { spellings in spellings.contains { $0.hasPrefix(start) } }
+        }
+        if let base = bases.sorted(by: { ($0.count, $0) < ($1.count, $1) }).first(where: startsEach) { return base }
+        guard let shortest = forms.joined().min(by: { ($0.count, $0) < ($1.count, $1) }) else { return nil }
+        for length in stride(from: shortest.count, through: 3, by: -1) {
+            let start = String(shortest.prefix(length))
+            if startsEach(start) { return start }
+        }
+        return nil
     }
 
     @concurrent static func topicsInBackground(_ sources: [TopicSource], excluding names: Set<String>) async -> [PersonTopic] {

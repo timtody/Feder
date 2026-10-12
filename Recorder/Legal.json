@@ -46,7 +46,7 @@
         },
         {
           "heading": "Titles, Summaries and Mistakes",
-          "body": "On iPhones with 8 GB of memory or more, Feder can write titles and summaries with Gemma, an AI model that runs on your iPhone. Your transcript is not sent anywhere for this.\n\nTranscripts, speaker names, titles, summaries and the topics on a person’s page are created automatically and can contain mistakes. Check important details against the recording or the transcript."
+          "body": "On iPhones with 8 GB of memory or more, Feder can write titles and summaries with Gemma, an AI model that runs on your iPhone. Your transcript is not sent anywhere for this.\n\nTranscripts, speaker names, titles, summaries and their topics (on a person’s page and in search) are created automatically and can contain mistakes. Check important details against the recording or the transcript."
         },
         {
           "heading": "Recording Other People",
@@ -120,7 +120,7 @@
         },
         {
           "heading": "Titel, Zusammenfassungen und Fehler",
-          "body": "Auf iPhones mit mindestens 8 GB Arbeitsspeicher kann Feder Titel und Zusammenfassungen mit Gemma schreiben, einem KI-Modell, das auf deinem iPhone läuft. Dein Transkript wird dafür nirgendwohin gesendet.\n\nTranskripte, Sprechernamen, Titel, Zusammenfassungen und die Themen auf der Seite einer Person entstehen automatisch und können Fehler enthalten. Prüfe wichtige Details anhand der Aufnahme oder des Transkripts."
+          "body": "Auf iPhones mit mindestens 8 GB Arbeitsspeicher kann Feder Titel und Zusammenfassungen mit Gemma schreiben, einem KI-Modell, das auf deinem iPhone läuft. Dein Transkript wird dafür nirgendwohin gesendet.\n\nTranskripte, Sprechernamen, Titel, Zusammenfassungen und ihre Themen (auf der Seite einer Person und in der Suche) entstehen automatisch und können Fehler enthalten. Prüfe wichtige Details anhand der Aufnahme oder des Transkripts."
         },
         {
           "heading": "Andere Menschen aufnehmen",

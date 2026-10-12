@@ -105,6 +105,7 @@ extension Recording {
         hasher.combine(tags)
         hasher.combine(placeName)
         hasher.combine(summary)
+        hasher.combine(topics)                       // written with the summary, but searched on their own
         hasher.combine(speakerStatusRaw)
         hasher.combine(wordsRefined)
         hasher.combine(vocabularyPending)
@@ -116,7 +117,7 @@ extension Recording {
 
     fileprivate func searchSource(key: Int) -> SearchDocument.Source {
         SearchDocument.Source(
-            id: id, title: name, place: placeName, summary: summary, tags: tags, speakerNames: speakerNames,
+            id: id, title: name, place: placeName, summary: summary, topics: topics, tags: tags, speakerNames: speakerNames,
             segments: segments.map { .init(id: $0.id, text: $0.text, speakerIndex: $0.speakerIndex) },
             key: key)
     }

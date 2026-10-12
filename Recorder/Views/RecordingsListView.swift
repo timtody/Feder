@@ -18,7 +18,6 @@ struct RecordingsListView: View {
     @Environment(AppNavigation.self) private var navigation
     @Query(sort: \Recording.createdAt, order: .reverse) private var recordings: [Recording]
     @Query(sort: \Person.name) private var people: [Person]
-    @State private var appliedQuery = ""                 // what is searched: the typed text after a typing pause
     @State private var isDraggingList = false            // the finger is on the list
     @State private var pullArmed = false                 // dragging, pulled past the threshold: letting go opens search
     @State private var search = TranscriptSearchModel()
@@ -39,6 +38,11 @@ struct RecordingsListView: View {
     static let transcriptsList = "transcripts", searchList = "search"
 
     private var query: String { searchState.query }
+    /// What is searched: the typed text after a typing pause (in SearchState, so a search the app starts applies at once).
+    private var appliedQuery: String {
+        get { searchState.appliedQuery }
+        nonmutating set { searchState.appliedQuery = newValue }
+    }
     private var tokens: [SearchToken] { searchState.tokens }
 
     /// The Transcripts tab never filters (its own search state is the Search tab's).
@@ -161,6 +165,7 @@ struct RecordingsListView: View {
                 }
             }
             .task(id: isSearch ? query : "") {                 // debounce: search once typing pauses (Search tab only)
+                guard isSearch, query != appliedQuery else { return }      // set by the app: applied already
                 guard !query.isEmpty else { appliedQuery = ""; return }   // cleared: at once
                 try? await Task.sleep(for: Self.typingPause)
                 guard !Task.isCancelled else { return }        // typed again meanwhile
