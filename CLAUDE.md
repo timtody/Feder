@@ -1,6 +1,6 @@
 # Feder — notes for Claude
 
-Feder is a local-only iPhone transcription app: SwiftUI, Swift 6, iOS 26+, built with Xcode 27 / iOS 27 SDK. It does live transcription, speaker identification, people, tags, search and on-device summaries. The README is the detailed reference for architecture, measurements and every design decision. Read the section you are touching before changing it, and keep it in sync afterwards (Look, Search, UI tests and the file list in particular).
+Feder is a local-only iPhone transcription app: SwiftUI, Swift 6, iOS 26+, built with Xcode 27 / iOS 27 SDK. It does live transcription, speaker identification, people, tags, search and on-device summaries. The README is the detailed reference for architecture, measurements and every design decision. Read the section you are touching before changing it, and keep it in sync afterwards (Look, Search, UI tests and the file list in particular). Open work and the roadmap are issues in Linear (see Planning in Linear).
 
 ## Hard rules
 
@@ -9,6 +9,13 @@ Feder is a local-only iPhone transcription app: SwiftUI, Swift 6, iOS 26+, built
 - **UI tests and the `-seedSamples` launch hooks are simulator only.** They must never touch an iPhone's store.
 - **Keep `CHANGELOG.md` current.** Every change a user would notice gets a line under the version in progress, in English and German, written for users (what they can do now, not how it is built); fixes the user never saw (inside one unreleased version) need none.
 - **A local git repo, no remote.** Commit after each step with a clear message, so steps can be reverted; still look before you overwrite or delete. `build/`, DerivedData and `*.xcresult` are ignored.
+
+## Planning in Linear
+
+- **The roadmap, open tasks, device checks and product decisions are issues in Linear** (workspace outerspace, team Feder, `FED`), reached through the `linear` MCP server. `ROADMAP.md` and `TASKS.md` only point there; don't add items to them. If the Linear tools are missing (not connected or logged out), say so and ask the user to run `/mcp`; don't fall back to the markdown files.
+- **Keep the issues current as part of the work.** Read the issue before starting on it; when a step finishes it, set it to Done with a short comment on what was verified. Anything a step leaves open (a check only the iPhone can do, a follow-up, a known gap, a measurement still to take) becomes a new issue in the matching project, not a note in a file. Measurements and design reasons still go into the README.
+- **Labels:** `Feature`, `Improvement` or `Bug`; `Device-only` for what only a real iPhone can check; `Differentiator`, `P3` or `Moonshot` for roadmap ideas; `Decision` for product decisions. Releases are projects (`Feder 1.2`). Where a feature touches the network, iCloud or another app, its issue says so, since that is a product decision.
+- **Create and update issues freely; ask before deleting** or archiving issues and projects, or regrouping them.
 
 ## Build & test
 
