@@ -183,9 +183,11 @@ struct ActionItemUndoToast: ViewModifier {
             }
             .animation(.snappy, value: undo.toast?.id)
             .task(id: undo.toast?.id) {
-                guard undo.toast != nil else { return }
+                guard let shown = undo.toast else { return }
                 do { try await Task.sleep(for: .seconds(6)) } catch { return }
-                undo.toast = nil
+                // Only its own: a Remove just as the last one's 6 s ran out had its toast cleared by that one's wait,
+                // before the new id cancelled it (testRemoveItem, a second Remove 6.0 s after the first).
+                if undo.toast === shown { undo.toast = nil }
             }
     }
 }

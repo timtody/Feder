@@ -701,7 +701,8 @@ struct RecordingDetailView: View {
                          passRunning: services.identifier.vocabularyRunning.contains(recording.id),
                          alert: vocabularyOffer != nil, shakeUndos: shakeUndos, shakeOffered: offeredUndo != nil,
                          actionItemUndo: actionItemUndo, keysElsewhere: keysElsewhere, undo: undoCorrection,
-                         timedOut: { undoToast = nil }, withdraw: withdrawUndo, passChanged: vocabularyPassChanged)
+                         timedOut: { if undoToast == $0 { undoToast = nil } }, withdraw: withdrawUndo,
+                         passChanged: vocabularyPassChanged)
     }
 
     private func registerShakeUndo(_ correction: SpeakerIdentifier.UndoableCorrection) {
@@ -1061,7 +1062,8 @@ private struct UndoOffer: ViewModifier {
     let actionItemUndo: ActionItemUndo
     let keysElsewhere: Bool
     let undo: () -> Void
-    let timedOut: () -> Void
+    /// The toast's 6 s are over (its id: only that toast goes).
+    let timedOut: (UUID) -> Void
     let withdraw: () -> Void
     let passChanged: (Bool) -> Void
 
@@ -1083,9 +1085,11 @@ private struct UndoOffer: ViewModifier {
             }
             .animation(.snappy, value: toast)
             .task(id: UndoTimer(toast: toast, alert: alert, waits: passRunning)) {
-                guard toast != nil, !alert, !passRunning else { return }
+                guard let toast, !alert, !passRunning else { return }
                 do { try await Task.sleep(for: .seconds(6)) } catch { return }
-                timedOut()
+                // Only its own toast: a newer one could be cleared by this wait ending just before the new id cancelled
+                // it (seen with two Removes 6.0 s apart in Action Items, ActionItemUndoToast).
+                timedOut(toast)
             }
             .onChange(of: correctionID) { _, id in
                 if id == nil || !correctionHere { withdraw() }
