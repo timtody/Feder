@@ -1,9 +1,10 @@
+import CryptoKit
 import Foundation
 
 /// A calendar event as Feder keeps it in memory (`CalendarContext`): the title that names a transcript started during it
 /// and its invitees' names, which the rename sheet offers. Made from EventKit's `EKEvent` inside `CalendarReader` (and
 /// from the simulator's fake), so only these values cross actors. Nothing else of the event is kept: no identifier,
-/// location, notes, URL or e-mail address.
+/// location, notes, URL or e-mail address; only its calendar's identifier, in memory, for the Preferred Calendar.
 nonisolated struct CalendarEvent: Sendable, Equatable {
     var title: String
     var start: Date
@@ -13,6 +14,36 @@ nonisolated struct CalendarEvent: Sendable, Equatable {
     /// The user is an attendee or the organizer, or the event has no attendees: their own. False only in a calendar they
     /// can change (someone else's event in one they can only read isn't kept at all: `CalendarRules.event`).
     var userTakesPart: Bool
+    /// `EKCalendar.calendarIdentifier` of the calendar it is in: its events come first when it is the preferred one.
+    var calendarID = ""
+}
+
+/// A calendar whose events can name a transcript, as Settings' Preferred Calendar lists it: by account, with its colour,
+/// as the Calendar app shows it (`CalendarContext.calendars`, read with the events).
+nonisolated struct CalendarChoice: Sendable, Equatable, Identifiable {
+    /// `EKCalendar.calendarIdentifier`.
+    var id: String
+    var title: String
+    /// Its account's name ("iCloud", "Exchange", "Gmail"; "On My iPhone" for local calendars).
+    var account: String
+    /// sRGB, 0...1: the dot in front of its name.
+    var red = 0.5, green = 0.5, blue = 0.5
+
+    /// How the preference finds it again under a new identifier (`CalendarRules.preferred`).
+    var fingerprint: String { CalendarRules.fingerprint(title: title, account: account) }
+
+    /// The calendars by account, in their order (`calendars` comes sorted by account): Settings' sections.
+    static func byAccount(_ calendars: [CalendarChoice]) -> [(account: String, calendars: [CalendarChoice])] {
+        var groups: [(account: String, calendars: [CalendarChoice])] = []
+        for calendar in calendars {
+            if groups.last?.account == calendar.account {
+                groups[groups.count - 1].calendars.append(calendar)
+            } else {
+                groups.append((calendar.account, [calendar]))
+            }
+        }
+        return groups
+    }
 }
 
 /// An attendee or the organizer as EventKit describes them, reduced to what `CalendarRules` decides on.
@@ -45,7 +76,7 @@ nonisolated enum CalendarRules {
     /// transcript got the to-do's name and none of the invitees).
     static func event(title rawTitle: String?, start: Date, end: Date, isAllDay: Bool, isCanceled: Bool,
                       attendees: [CalendarParticipant], organizer: CalendarParticipant?,
-                      calendarIsWritable: Bool, isFeders: Bool = false) -> CalendarEvent? {
+                      calendarIsWritable: Bool, isFeders: Bool = false, calendarID: String = "") -> CalendarEvent? {
         guard !isAllDay, !isCanceled, !isFeders, end > start, let title = title(rawTitle) else { return nil }
         if attendees.contains(where: { $0.isCurrentUser && $0.declined }) { return nil }
         // An event the user is invited to or organizes is theirs. One they aren't on, in a calendar they can only read
@@ -59,7 +90,7 @@ nonisolated enum CalendarRules {
         guard isUser || calendarIsWritable else { return nil }
         return CalendarEvent(title: title, start: start, end: end,
                              attendees: self.attendees(attendees, organizer: organizer),
-                             userTakesPart: isUser || attendees.isEmpty)
+                             userTakesPart: isUser || attendees.isEmpty, calendarID: calendarID)
     }
 
     /// Trimmed, one line, at most `maxTitleLength` characters; nil when nothing is left.
@@ -111,16 +142,40 @@ nonisolated enum CalendarRules {
     }
 
     /// The event that names a transcript started at `date`: one running then or starting within `lead` after it;
-    /// events the user takes part in first, then the one starting closest to the press (at 10:01 the 10:00 meeting,
-    /// not the 9:00-17:00 workshop around it), then the shorter one. nil when none qualifies.
-    static func pick(_ events: [CalendarEvent], at date: Date, lead: TimeInterval = lead) -> CalendarEvent? {
+    /// events in the preferred calendar first (`preferring`, Settings' Preferred Calendar: the work calendar's meeting,
+    /// not the private reminder block over it), then those the user takes part in, then the one starting closest to the
+    /// press (at 10:01 the 10:00 meeting, not the 9:00-17:00 workshop around it), then the shorter one. nil when none
+    /// qualifies; with nothing of the preferred calendar running, the others count as before.
+    static func pick(_ events: [CalendarEvent], at date: Date, lead: TimeInterval = lead,
+                     preferring calendarID: String? = nil) -> CalendarEvent? {
         events
             .filter { $0.start <= date.addingTimeInterval(lead) && $0.end > date }
             .min { a, b in
+                if let calendarID, (a.calendarID == calendarID) != (b.calendarID == calendarID) {
+                    return a.calendarID == calendarID
+                }
                 if a.userTakesPart != b.userTakesPart { return a.userTakesPart }
                 let da = abs(a.start.timeIntervalSince(date)), db = abs(b.start.timeIntervalSince(date))
                 if da != db { return da < db }
                 return a.end.timeIntervalSince(a.start) < b.end.timeIntervalSince(b.start)
             }
+    }
+
+    /// The preferred calendar among `calendars`: by its identifier; else the one calendar with its name in an account of
+    /// its name (`fingerprint`): Apple's advice, as a full sync can change an identifier, and an account added again
+    /// gets new ones. nil when it isn't there any more, or when more than one match (two accounts both called
+    /// "Exchange" with a "Calendar" each): the preference then counts as None and stays stored, so it is found again
+    /// when the calendar comes back.
+    static func preferred(id: String, fingerprint: String, in calendars: [CalendarChoice]) -> CalendarChoice? {
+        if let calendar = calendars.first(where: { $0.id == id }) { return calendar }
+        let matches = calendars.filter { $0.fingerprint == fingerprint }
+        return matches.count == 1 ? matches[0] : nil
+    }
+
+    /// A hash of a calendar's name and its account's name: what the preference keeps of them instead of the names. Google
+    /// names the main calendar after the address, an Exchange account is often called by it, and Feder keeps no e-mail
+    /// addresses (privacy policy, Calendar).
+    static func fingerprint(title: String, account: String) -> String {
+        SHA256.hash(data: Data("\(title)\u{1F}\(account)".utf8)).prefix(12).map { String(format: "%02x", $0) }.joined()
     }
 }

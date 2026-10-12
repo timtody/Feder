@@ -1544,12 +1544,12 @@
         }
       }
     },
-    "Live Speaker Labels show who is speaking as you record. Name from Calendar names a transcript after the calendar event running when you start it and offers its invitees as speaker names. Save Location keeps where a recording was made; the place name comes from Apple Maps. After you stop, each recording is transcribed again and its speakers are identified more accurately.": {
+    "Live Speaker Labels show who is speaking as you record. Name from Calendar names a transcript after the calendar event running when you start it, one in the Preferred Calendar first, and offers its invitees as speaker names. Save Location keeps where a recording was made; the place name comes from Apple Maps. After you stop, each recording is transcribed again and its speakers are identified more accurately.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "„Sprecher live anzeigen“ zeigt beim Aufnehmen, wer spricht. „Nach Kalender benennen“ gibt einem Transkript den Namen des Kalenderereignisses, das beim Start der Aufnahme läuft, und schlägt die Eingeladenen als Sprechernamen vor. „Ort speichern“ merkt sich, wo eine Aufnahme entstanden ist; den Ortsnamen liefert Apple Karten. Nach dem Stoppen wird jede Aufnahme noch einmal genauer transkribiert, und die Sprecher werden genauer erkannt."
+            "value": "„Sprecher live anzeigen“ zeigt beim Aufnehmen, wer spricht. „Nach Kalender benennen“ gibt einem Transkript den Namen des Kalenderereignisses, das beim Start der Aufnahme läuft, eines im bevorzugten Kalender zuerst, und schlägt die Eingeladenen als Sprechernamen vor. „Ort speichern“ merkt sich, wo eine Aufnahme entstanden ist; den Ortsnamen liefert Apple Karten. Nach dem Stoppen wird jede Aufnahme noch einmal genauer transkribiert, und die Sprecher werden genauer erkannt."
           }
         }
       }
@@ -1914,6 +1914,16 @@
         }
       }
     },
+    "None": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keiner"
+          }
+        }
+      }
+    },
     "Not Available on This Device": {
       "localizations": {
         "de": {
@@ -2000,6 +2010,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aus: Deine Transkripte sind nicht in der iPhone-Suche."
+          }
+        }
+      }
+    },
+    "On My iPhone": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf meinem iPhone"
           }
         }
       }
@@ -2183,6 +2203,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Wiedergabeposition"
+          }
+        }
+      }
+    },
+    "Preferred Calendar": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bevorzugter Kalender"
           }
         }
       }

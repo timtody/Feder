@@ -317,6 +317,91 @@ final class CalendarTests: ScribeUITestCase {
         XCTAssertTrue(waitFor { (toggle.value as? String) == "0" }, "off again")
     }
 
+    /// Settings' Preferred Calendar (the fake's calendars: iCloud's Home and Work, Exchange's Calendar): below the switch
+    /// while it is on, None by default. Its page lists None, then the calendars by account; Work chosen there names the
+    /// transcript after "Planning" in Work, though "Standup" in Home started closer to the press (without a preference
+    /// Standup names it: testWhichEventNames). None again at the end.
+    @MainActor
+    func testPreferredCalendarWins() throws {
+        let app = launch(["-resetCalendar", "-calendarContext", "YES",
+                          "-fakeCalendarEvent", "Planning@-30+90!cal=Work;Standup@-1+15", "-fakeSilence"])
+        app.buttons["Settings"].firstMatch.tap()
+        let toggle = app.switches["Name from Calendar"].firstMatch
+        let row = preferredRow(app)
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "below the switch while it is on")
+        XCTAssertTrue(shown(row).contains("None"), "None by default: \(shown(row))")
+        XCTAssertLessThanOrEqual(toggle.frame.maxY, row.frame.minY + 1, "below Name from Calendar")
+        XCTAssertLessThanOrEqual(row.frame.maxY, app.switches["Save Location"].firstMatch.frame.minY + 1, "above Save Location")
+        row.tap()
+
+        XCTAssertTrue(app.navigationBars["Preferred Calendar"].waitForExistence(timeout: 5), "its own page")
+        let none = app.buttons["None"].firstMatch, calendar = app.buttons["Calendar"].firstMatch
+        let home = app.buttons["Home"].firstMatch, work = app.buttons["Work"].firstMatch
+        XCTAssertTrue(none.exists && calendar.exists && home.exists && work.exists, "None and the three calendars")
+        XCTAssertTrue(none.isSelected, "None checked")
+        XCTAssertLessThan(none.frame.minY, calendar.frame.minY, "None first")
+        XCTAssertLessThan(calendar.frame.minY, home.frame.minY, "by account: Exchange, then iCloud")
+        XCTAssertLessThan(home.frame.minY, work.frame.minY)
+        for account in ["Exchange", "iCloud"] {
+            XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label ==[c] %@", account)).firstMatch.exists,
+                          "\(account)'s section")
+        }
+        shot("Preferred Calendar", app)
+        note("Preferred Calendar tree", app.debugDescription)
+        work.tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "back in Settings")
+        XCTAssertTrue(waitFor { self.shown(row).contains("Work") }, "Work chosen: \(shown(row))")
+        shot("Preferred Calendar: Work", app)
+
+        startRecording(app)
+        XCTAssertTrue(app.staticTexts["Planning"].waitForExistence(timeout: 10) && waitFor { app.staticTexts["Planning"].isHittable },
+                      "the event in the preferred calendar")
+        XCTAssertFalse(app.staticTexts["Standup"].exists, "not the closer one in Home")
+        shot("Named after the preferred calendar's event", app)
+        app.buttons["Stop"].firstMatch.tap()                // -fakeSilence: nothing saved, the card closes
+        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10), "the card closes")
+
+        app.buttons["Settings"].firstMatch.tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(none.waitForExistence(timeout: 5))
+        XCTAssertTrue(work.isSelected, "Work checked")
+        none.tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitFor { self.shown(row).contains("None") }, "None again: \(shown(row))")
+    }
+
+    /// The preferred calendar's identifier changed since it was chosen (`-fakeCalendarResynced`: a full sync; Apple says
+    /// identifiers can change then): it is found again by its name and account, and its event still wins. A preferred
+    /// calendar that is gone counts as None: the closer Standup names it, and Settings says None.
+    @MainActor
+    func testPreferredCalendarAfterResync() throws {
+        let events = "Planning@-30+90!cal=Work;Standup@-1+15"
+        for (preferred, name) in [("Work", "Planning"), ("Gone", "Standup")] {
+            let app = launch(["-resetCalendar", "-calendarContext", "YES", "-preferFakeCalendar", preferred,
+                              "-fakeCalendarResynced", "YES", "-fakeCalendarEvent", events, "-fakeSilence"])
+            startRecording(app)
+            let title = app.staticTexts[name]
+            XCTAssertTrue(title.waitForExistence(timeout: 10) && waitFor { title.isHittable }, "\(preferred): \(name)")
+            app.buttons["Stop"].firstMatch.tap()
+            XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10), "the card closes")
+            app.buttons["Settings"].firstMatch.tap()
+            let row = preferredRow(app)
+            XCTAssertTrue(row.waitForExistence(timeout: 5))
+            XCTAssertTrue(shown(row).contains(preferred == "Gone" ? "None" : "Work"), "\(preferred): \(shown(row))")
+            shot("Preferred \(preferred) after a resync", app)
+        }
+    }
+
+    /// Settings' Preferred Calendar row (a navigation-link picker: a button labelled with its name, the choice its value).
+    private func preferredRow(_ app: XCUIApplication) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Preferred Calendar'")).firstMatch
+    }
+
+    private func shown(_ row: XCUIElement) -> String {
+        "\(row.label) \(row.value as? String ?? "")"
+    }
+
     private func waitFor(timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
         let end = Date().addingTimeInterval(timeout)
         while Date() < end {

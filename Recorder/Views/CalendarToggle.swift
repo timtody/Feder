@@ -9,6 +9,11 @@ import UIKit
 /// back having allowed it (`enableWhenAllowed`). On only while access is given: taken back in the iPhone's Settings, it
 /// shows off. Off: nothing is read; transcripts keep the names and invitees they have. The only place that asks for
 /// calendar access (not the onboarding: CalendarContext).
+///
+/// While it is on, "Preferred Calendar" sits below it: the calendar whose events win when several run at a press (the
+/// work meeting over the private block in the same hour; `CalendarRules.pick`), None by default. iOS Settings' own
+/// Calendar › Default Calendar page: the system's navigation-link picker, the calendars by account with their colours
+/// and a checkmark, plus None. The list comes from the cache's last read (no EventKit call in the tap or the body).
 struct CalendarToggle: View {
     @Environment(AppServices.self) private var services
     @Environment(\.openURL) private var openURL
@@ -17,8 +22,8 @@ struct CalendarToggle: View {
     @State private var asksForSettings = false
 
     var body: some View {
-        Toggle("Name from Calendar", isOn: Binding(get: { isAsking || (isStoredOn && services.calendar.isUsable) },
-                                                   set: { on in set(on) }))
+        let isOn = isAsking || (isStoredOn && services.calendar.isUsable)
+        Toggle("Name from Calendar", isOn: Binding(get: { isOn }, set: { on in set(on) }))
             .alert("Allow Calendar Access", isPresented: $asksForSettings) {
                 Button("Open Settings") {
                     services.calendar.enableWhenAllowed()
@@ -28,6 +33,32 @@ struct CalendarToggle: View {
             } message: {
                 Text("Feder can't read your calendar. You can allow it in the iPhone's Settings under Apps › Feder › Calendars.")
             }
+        if isOn && !isAsking {
+            preferredCalendar
+        }
+    }
+
+    private var preferredCalendar: some View {
+        let calendar = services.calendar
+        return Picker("Preferred Calendar", selection: Binding(get: { calendar.preferred?.id }, set: { id in
+            calendar.prefer(calendar.calendars.first { $0.id == id })
+        })) {
+            Text("None").tag(String?.none)
+            ForEach(CalendarChoice.byAccount(calendar.calendars), id: \.account) { group in
+                Section(group.account) {
+                    ForEach(group.calendars) { choice in
+                        Label {
+                            Text(verbatim: choice.title)
+                        } icon: {
+                            Image(systemName: "circle.fill")
+                                .foregroundStyle(Color(.sRGB, red: choice.red, green: choice.green, blue: choice.blue))
+                        }
+                        .tag(Optional(choice.id))
+                    }
+                }
+            }
+        }
+        .pickerStyle(.navigationLink)
     }
 
     private func set(_ on: Bool) {

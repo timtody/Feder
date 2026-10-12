@@ -35,11 +35,23 @@ final class CalendarContext {
     /// UserDefaults: "Name from Calendar"; absent means off.
     nonisolated static let enabledKey = "calendarContext"
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: enabledKey) }
+    /// UserDefaults: Settings' Preferred Calendar, absent for None: its identifier and its fingerprint (a hash of its name
+    /// and its account's, `CalendarRules.fingerprint`), no names. Kept while the switch is off, as it was chosen.
+    nonisolated static let preferredIDKey = "calendarPreferredID"
+    nonisolated static let preferredFingerprintKey = "calendarPreferredFingerprint"
 
     /// Read off the main actor at every refresh, after a request and when the switch is turned on; Settings reads it.
     private(set) var access: CalendarAccess = .unknown
     /// The switch may show on: access is given, or not known yet this launch (so it doesn't flicker off at launch).
     var isUsable: Bool { access == .unknown || access == .granted }
+    /// The calendars whose events can name a transcript, sorted by account and name: Preferred Calendar's list, read
+    /// with the events (one call more, a few dozen at most); empty while off or without access.
+    private(set) var calendars: [CalendarChoice] = []
+    /// The preferred calendar as the last read found it (`CalendarRules.preferred`); nil for None, before the first
+    /// read, and while it isn't there any more (it then counts as None).
+    private(set) var preferred: CalendarChoice?
+    /// A read with access has filled `calendars` (a stored preference not found then is gone, not just unread).
+    private(set) var hasReadCalendars = false
 
     /// The events of `window`; empty and nil while off or without access.
     @ObservationIgnored private var events: [CalendarEvent] = []
@@ -65,9 +77,17 @@ final class CalendarContext {
         // UI tests: `-calendarOn` stores the switch on, `-resetCalendar` removes it (a new install's state). Tests that
         // only need it on pass `-calendarContext YES` instead (the argument domain), which doesn't outlast the launch.
         if ProcessInfo.processInfo.arguments.contains("-resetCalendar") {
-            UserDefaults.standard.removeObject(forKey: Self.enabledKey)
+            for key in [Self.enabledKey, Self.preferredIDKey, Self.preferredFingerprintKey] {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
         } else if ProcessInfo.processInfo.arguments.contains("-calendarOn") {
             UserDefaults.standard.set(true, forKey: Self.enabledKey)
+        }
+        // `-preferFakeCalendar Work`: stores the fake's "Work" (iCloud) as preferred, as Settings would before a resync.
+        if let title = UserDefaults.standard.string(forKey: "preferFakeCalendar") {
+            UserDefaults.standard.set(CalendarFake.id(of: title, resynced: false), forKey: Self.preferredIDKey)
+            UserDefaults.standard.set(CalendarRules.fingerprint(title: title, account: "iCloud"),
+                                      forKey: Self.preferredFingerprintKey)
         }
         #endif
         observe()
@@ -80,7 +100,7 @@ final class CalendarContext {
     /// access, or when the cache doesn't cover `date` (not read yet, or stale).
     func event(at date: Date) -> CalendarEvent? {
         guard Self.isEnabled, let window, window.contains(date) else { return nil }
-        return CalendarRules.pick(events, at: date)
+        return CalendarRules.pick(events, at: date, preferring: preferred?.id)
     }
 
     /// What a recheck after preparing found: `.unchanged` when no read has filled the cache since the press (its pick
@@ -152,6 +172,20 @@ final class CalendarContext {
         UserDefaults.standard.set(true, forKey: Self.enabledKey)
     }
 
+    /// Settings' Preferred Calendar (nil: None): stored at once, used from the next press; nothing is read again (the
+    /// events already carry their calendar).
+    func prefer(_ calendar: CalendarChoice?) {
+        let defaults = UserDefaults.standard
+        if let calendar {
+            defaults.set(calendar.id, forKey: Self.preferredIDKey)
+            defaults.set(calendar.fingerprint, forKey: Self.preferredFingerprintKey)
+        } else {
+            defaults.removeObject(forKey: Self.preferredIDKey)
+            defaults.removeObject(forKey: Self.preferredFingerprintKey)
+        }
+        preferred = calendar
+    }
+
     /// The switch off: nothing is read any more and the cache is emptied. Transcripts keep the names and invitees they
     /// have, as Save Location keeps places.
     func disable() {
@@ -174,11 +208,14 @@ final class CalendarContext {
                 #if DEBUG
                 let started = ContinuousClock.now
                 #endif
-                let (access, events) = await reader.events(in: window)
+                let (access, events, calendars) = await reader.events(in: window)
                 guard Self.isEnabled else { clear(); break }           // turned off during the read
                 self.access = access
                 self.events = events
                 self.window = access == .granted ? window : nil
+                if self.calendars != calendars { self.calendars = calendars }
+                hasReadCalendars = access == .granted
+                findPreferred()
                 generation += 1
                 #if DEBUG
                 print("[Scribe] calendar: \(events.count) events in \((ContinuousClock.now - started).formatted(.units(allowed: [.milliseconds])))")
@@ -195,6 +232,25 @@ final class CalendarContext {
     private func clear() {
         events = []
         window = nil
+        calendars = []
+        preferred = nil
+        hasReadCalendars = false
+    }
+
+    /// The stored preference in the calendars just read. Found under another identifier (a resync) or renamed, it is
+    /// stored as it is now, so the next change finds it too.
+    private func findPreferred() {
+        let defaults = UserDefaults.standard
+        guard let id = defaults.string(forKey: Self.preferredIDKey) else {
+            preferred = nil
+            return
+        }
+        let found = CalendarRules.preferred(id: id, fingerprint: defaults.string(forKey: Self.preferredFingerprintKey) ?? "",
+                                            in: calendars)
+        if let found, found.id != id || found.fingerprint != defaults.string(forKey: Self.preferredFingerprintKey) {
+            prefer(found)
+        }
+        if preferred != found { preferred = found }
     }
 
     /// The start of today to the start of the day after tomorrow: EventKit returns the events overlapping it, so one
@@ -265,24 +321,28 @@ actor CalendarReader {
     }
 
     /// The events overlapping `window` that can name a transcript (CalendarRules.event), with the access they were read
-    /// with. Nothing without full access.
-    func events(in window: DateInterval) async -> (CalendarAccess, [CalendarEvent]) {
+    /// with, and the calendars they can come from (Preferred Calendar's list). Nothing without full access.
+    func events(in window: DateInterval) async -> (CalendarAccess, [CalendarEvent], [CalendarChoice]) {
         #if DEBUG && targetEnvironment(simulator)
         if CalendarFake.isActive {
             if CalendarFake.delay > 0 { try? await Task.sleep(for: .seconds(CalendarFake.delay)) }
             let access = status()
-            return (access, access == .granted ? CalendarFake.events(now: .now) : [])
+            return access == .granted ? (access, CalendarFake.events(now: .now), CalendarFake.calendars) : (access, [], [])
         }
         #endif
         let access = status()
         guard access == .granted else {
             store = nil
-            return (access, [])
+            return (access, [], [])
         }
         let store = self.store ?? EKEventStore()
         self.store = store
         let predicate = store.predicateForEvents(withStart: window.start, end: window.end, calendars: nil)
-        return (access, store.events(matching: predicate).compactMap(Self.event))
+        let calendars = store.calendars(for: .event).compactMap(Self.choice).sorted { a, b in
+            a.account != b.account ? a.account.localizedStandardCompare(b.account) == .orderedAscending
+                : a.title.localizedStandardCompare(b.title) == .orderedAscending
+        }
+        return (access, store.events(matching: predicate).compactMap(Self.event), calendars)
     }
 
     /// The system's full-access alert (iOS 17+; asked once, also to upgrade write-only access). Asked on a store of
@@ -303,15 +363,34 @@ actor CalendarReader {
     }
 
     /// Birthdays and subscribed calendars (holidays, sports) never name a transcript.
+    nonisolated private static func counts(_ calendar: EKCalendar) -> Bool {
+        calendar.type != .birthday && calendar.type != .subscription && !calendar.isSubscribed
+    }
+
+    /// A calendar Preferred Calendar offers: one whose events count. Its colour as the Calendar app's dot; local
+    /// calendars under "On My iPhone", as the Calendar app lists them.
+    nonisolated private static func choice(_ calendar: EKCalendar) -> CalendarChoice? {
+        guard counts(calendar) else { return nil }
+        let account = calendar.source?.sourceType == .local ? String(localized: "On My iPhone") : calendar.source?.title ?? ""
+        var choice = CalendarChoice(id: calendar.calendarIdentifier, title: calendar.title, account: account)
+        if let srgb = CGColorSpace(name: CGColorSpace.sRGB),
+           let color = calendar.cgColor?.converted(to: srgb, intent: .defaultIntent, options: nil),
+           let parts = color.components, parts.count >= 3 {
+            (choice.red, choice.green, choice.blue) = (Double(parts[0]), Double(parts[1]), Double(parts[2]))
+        }
+        return choice
+    }
+
     nonisolated private static func event(_ event: EKEvent) -> CalendarEvent? {
-        guard let calendar = event.calendar, calendar.type != .birthday, calendar.type != .subscription,
-              !calendar.isSubscribed, let start = event.startDate, let end = event.endDate else { return nil }
+        guard let calendar = event.calendar, counts(calendar), let start = event.startDate, let end = event.endDate
+        else { return nil }
         return CalendarRules.event(title: event.title, start: start, end: end, isAllDay: event.isAllDay,
                                    isCanceled: event.status == .canceled,
                                    attendees: (event.attendees ?? []).map(participant),
                                    organizer: event.organizer.map(participant),
                                    calendarIsWritable: calendar.allowsContentModifications,
-                                   isFeders: event.url?.scheme == FederURL.scheme)
+                                   isFeders: event.url?.scheme == FederURL.scheme,
+                                   calendarID: calendar.calendarIdentifier)
     }
 
     nonisolated private static func participant(_ participant: EKParticipant) -> CalendarParticipant {
@@ -329,7 +408,9 @@ actor CalendarReader {
 /// (`@-60+420`: from an hour before for seven hours; `@+4+30`: in four minutes for half an hour), in a calendar the
 /// user can change, organized by them. Flags: `allday`; `canceled`; `declined` (the user declined it); `others`
 /// (someone else's: not organized by the user, who is on it only when an attendee is marked `*`); `shared` (someone
-/// else's in a calendar shared with the user read-only).
+/// else's in a calendar shared with the user read-only); `cal=Work`: in the calendar "Work" (else "Home"). The calendars
+/// are iCloud's Home and Work and Exchange's Calendar (`calendars`); `-fakeCalendarResynced`: their identifiers changed
+/// since launch (a full sync), and `-preferFakeCalendar <name>` stores one as preferred under its old identifier.
 /// Everything runs through the same CalendarRules as EventKit's, the attendees too: a leading `*` marks the user, `#`
 /// a room, `-` someone who declined, `~` a non-participant ("Design Review|Maria Lopez|Berger, Tom|tom@example.com|
 /// *Julius Taylor|#Room 4.12|-Paul Declined"). `-fakeCalendarEventLater <events>` with `-fakeCalendarLaterAfter <s>`:
@@ -350,6 +431,19 @@ nonisolated enum CalendarFake {
         }
     }
     static var isActive: Bool { spec != nil || access != nil }
+
+    /// Two accounts, as in Settings' Preferred Calendar: iCloud's Home (blue) and Work (orange), Exchange's Calendar
+    /// (purple).
+    static var calendars: [CalendarChoice] {
+        let resynced = UserDefaults.standard.bool(forKey: "fakeCalendarResynced")
+        return [("Calendar", "Exchange", 0.69, 0.32, 0.87), ("Home", "iCloud", 0.0, 0.48, 1.0), ("Work", "iCloud", 1.0, 0.58, 0.0)]
+            .map { CalendarChoice(id: id(of: $0.0, resynced: resynced), title: $0.0, account: $0.1, red: $0.2, green: $0.3,
+                                  blue: $0.4) }
+    }
+
+    static func id(of calendar: String, resynced: Bool = UserDefaults.standard.bool(forKey: "fakeCalendarResynced")) -> String {
+        (resynced ? "fake.resynced." : "fake.") + calendar
+    }
 
     static func events(now: Date) -> [CalendarEvent] {
         let defaults = UserDefaults.standard
@@ -387,10 +481,11 @@ nonisolated enum CalendarFake {
         }
         if flags.contains("declined") { attendees.append(CalendarParticipant(name: "Me", isCurrentUser: true, declined: true)) }
         let shared = flags.contains("shared"), others = shared || flags.contains("others")
+        let calendar = flags.first { $0.hasPrefix("cal=") }.map { String($0.dropFirst(4)) } ?? "Home"
         return CalendarRules.event(title: head, start: start, end: end, isAllDay: flags.contains("allday"),
                                    isCanceled: flags.contains("canceled"), attendees: attendees,
                                    organizer: others ? nil : CalendarParticipant(name: "Me", isCurrentUser: true),
-                                   calendarIsWritable: !shared, isFeders: flags.contains("feder"))
+                                   calendarIsWritable: !shared, isFeders: flags.contains("feder"), calendarID: id(of: calendar))
     }
 }
 #endif
