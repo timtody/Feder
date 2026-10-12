@@ -90,6 +90,16 @@
         }
       }
     },
+    "%@, Topic": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, Thema"
+          }
+        }
+      }
+    },
     "%lld": {
       "shouldTranslate": false
     },
@@ -211,12 +221,42 @@
         }
       }
     },
+    "Action Item Removed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgabe entfernt"
+          }
+        }
+      }
+    },
+    "Action Items": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgaben"
+          }
+        }
+      }
+    },
     "Add": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Hinzufügen"
+          }
+        }
+      }
+    },
+    "Add All to Reminders": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle zu Erinnerungen hinzufügen"
           }
         }
       }
@@ -237,6 +277,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Wort oder Namen hinzufügen"
+          }
+        }
+      }
+    },
+    "Add to Calendar": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zum Kalender hinzufügen"
+          }
+        }
+      }
+    },
+    "Add to Reminders": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu Erinnerungen hinzufügen"
+          }
+        }
+      }
+    },
+    "Add to Reminders Again": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut zu Erinnerungen hinzufügen"
           }
         }
       }
@@ -281,12 +351,72 @@
         }
       }
     },
+    "After 1 Minute": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach 1 Minute"
+          }
+        }
+      }
+    },
+    "After 15 Minutes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach 15 Minuten"
+          }
+        }
+      }
+    },
+    "After 5 Minutes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach 5 Minuten"
+          }
+        }
+      }
+    },
+    "Allow Access to Reminders": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zugriff auf Erinnerungen erlauben"
+          }
+        }
+      }
+    },
+    "Allow Calendar Access": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kalenderzugriff erlauben"
+          }
+        }
+      }
+    },
     "Already in this transcript": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Bereits in diesem Transkript"
+          }
+        }
+      }
+    },
+    "App Lock": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App-Sperre"
           }
         }
       }
@@ -520,6 +650,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Weiter"
+          }
+        }
+      }
+    },
+    "Copy": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopieren"
+          }
+        }
+      }
+    },
+    "Couldn't Add to Reminders": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hinzufügen zu Erinnerungen nicht möglich"
           }
         }
       }
@@ -834,6 +984,16 @@
         }
       }
     },
+    "Enter your passcode to see your transcripts.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gib deinen Code ein, um deine Transkripte zu sehen."
+          }
+        }
+      }
+    },
     "Everything happens on this iPhone: recording, transcription, speakers and summaries. We never upload your recordings or transcripts.": {
       "localizations": {
         "de": {
@@ -854,12 +1014,62 @@
         }
       }
     },
+    "Feder Is Locked": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder ist gesperrt"
+          }
+        }
+      }
+    },
+    "Feder asks for Face ID when it opens and when you come back. Recording from Control Center, the Action Button or Siri starts at once, and the Lock Screen and Dynamic Island show the time but no words.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder fragt nach Face ID, wenn du die App öffnest und wenn du zurückkommst. Eine Aufnahme aus dem Kontrollzentrum, mit der Aktionstaste oder über Siri startet sofort, und Sperrbildschirm und Dynamic Island zeigen die Zeit, aber keine Wörter."
+          }
+        }
+      }
+    },
+    "Feder asks for Touch ID when it opens and when you come back. Recording from Control Center, the Action Button or Siri starts at once, and the Lock Screen and Dynamic Island show the time but no words.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder fragt nach Touch ID, wenn du die App öffnest und wenn du zurückkommst. Eine Aufnahme aus dem Kontrollzentrum, mit der Aktionstaste oder über Siri startet sofort, und Sperrbildschirm und Dynamic Island zeigen die Zeit, aber keine Wörter."
+          }
+        }
+      }
+    },
+    "Feder asks for your passcode when it opens and when you come back. Recording from Control Center, the Action Button or Siri starts at once, and the Lock Screen and Dynamic Island show the time but no words.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder fragt nach deinem Code, wenn du die App öffnest und wenn du zurückkommst. Eine Aufnahme aus dem Kontrollzentrum, mit der Aktionstaste oder über Siri startet sofort, und Sperrbildschirm und Dynamic Island zeigen die Zeit, aber keine Wörter."
+          }
+        }
+      }
+    },
     "Feder can keep a voice profile of each speaker and recognize people you've named in later recordings.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Feder kann von jedem Sprecher ein Stimmprofil anlegen und Personen, die du benannt hast, in späteren Aufnahmen wiedererkennen."
+          }
+        }
+      }
+    },
+    "Feder can't read your calendar. You can allow it in the iPhone's Settings under Apps › Feder › Calendars.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder kann deinen Kalender nicht lesen. Du kannst das in den Einstellungen des iPhone unter „Apps“ › „Feder“ › „Kalender“ erlauben."
           }
         }
       }
@@ -944,12 +1154,42 @@
         }
       }
     },
+    "Finding action items…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufgaben werden gesucht …"
+          }
+        }
+      }
+    },
     "From the Home Screen": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Vom Home-Bildschirm aus"
+          }
+        }
+      }
+    },
+    "From the calendar event “%@”.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus dem Kalenderereignis „%@“."
+          }
+        }
+      }
+    },
+    "From “%@”, %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus „%@“, %@"
           }
         }
       }
@@ -1024,12 +1264,42 @@
         }
       }
     },
+    "Go to Person": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zur Person"
+          }
+        }
+      }
+    },
     "Google's Gemma 4 E2B writes a title and a short summary of every transcript, on this iPhone: it reads a whole meeting at once and keeps who said what. It needs a one-time 3.6 GB download over Wi-Fi, which goes on in the background, also when Feder is closed. Existing transcripts get summaries too; titles you typed stay.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Googles Gemma 4 E2B schreibt für jedes Transkript einen Titel und eine kurze Zusammenfassung, auf diesem iPhone: Es liest ein ganzes Meeting auf einmal und weiß, wer was gesagt hat. Dafür ist ein einmaliger Download von 3,6 GB über WLAN nötig, der im Hintergrund weiterläuft, auch wenn Feder geschlossen ist. Bestehende Transkripte bekommen ebenfalls Zusammenfassungen; eingegebene Titel bleiben erhalten."
+          }
+        }
+      }
+    },
+    "Google's Gemma 4 E2B writes a title, a short summary and the action items of every transcript, on this iPhone: it reads a whole meeting at once and keeps who said what. It needs a one-time 3.6 GB download over Wi-Fi, which goes on in the background, also when Feder is closed. Existing transcripts get them too; titles you typed stay.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Googles Gemma 4 E2B schreibt für jedes Transkript einen Titel, eine kurze Zusammenfassung und die Aufgaben, auf diesem iPhone: Es liest ein ganzes Meeting auf einmal und weiß, wer was gesagt hat. Dafür ist ein einmaliger Download von 3,6 GB über WLAN nötig, der im Hintergrund weiterläuft, auch wenn Feder geschlossen ist. Bestehende Transkripte bekommen sie ebenfalls; eingegebene Titel bleiben erhalten."
+          }
+        }
+      }
+    },
+    "Hide Transcripts from iPhone Search?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkripte in der iPhone-Suche ausblenden?"
           }
         }
       }
@@ -1064,6 +1334,16 @@
         }
       }
     },
+    "Immediately": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sofort"
+          }
+        }
+      }
+    },
     "Import Audio": {
       "localizations": {
         "de": {
@@ -1084,12 +1364,62 @@
         }
       }
     },
+    "In Calendar": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Kalender"
+          }
+        }
+      }
+    },
+    "In Reminders": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Erinnerungen"
+          }
+        }
+      }
+    },
+    "Invited": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eingeladen"
+          }
+        }
+      }
+    },
+    "Invitees": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eingeladene"
+          }
+        }
+      }
+    },
     "Jump to Live": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Zum Live-Text"
+          }
+        }
+      }
+    },
+    "Keep in iPhone Search": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In der iPhone-Suche behalten"
           }
         }
       }
@@ -1130,6 +1460,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@"
+          }
+        }
+      }
+    },
+    "Last Conversation": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Letztes Gespräch"
           }
         }
       }
@@ -1194,6 +1534,16 @@
         }
       }
     },
+    "Live Speaker Labels show who is speaking as you record. Name from Calendar names a transcript after the calendar event running when you start it and offers its invitees as speaker names. Save Location keeps where a recording was made; the place name comes from Apple Maps. After you stop, each recording is transcribed again and its speakers are identified more accurately.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„Sprecher live anzeigen“ zeigt beim Aufnehmen, wer spricht. „Nach Kalender benennen“ gibt einem Transkript den Namen des Kalenderereignisses, das beim Start der Aufnahme läuft, und schlägt die Eingeladenen als Sprechernamen vor. „Ort speichern“ merkt sich, wo eine Aufnahme entstanden ist; den Ortsnamen liefert Apple Karten. Nach dem Stoppen wird jede Aufnahme noch einmal genauer transkribiert, und die Sprecher werden genauer erkannt."
+          }
+        }
+      }
+    },
     "Live Speaker Labels show who is speaking as you record. Save Location keeps where a recording was made; the place name comes from Apple Maps. After you stop, each recording is transcribed again and its speakers are identified more accurately.": {
       "localizations": {
         "de": {
@@ -1220,6 +1570,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zusammenfassungsmodell wird geladen …"
+          }
+        }
+      }
+    },
+    "Lock": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sperren"
           }
         }
       }
@@ -1344,6 +1704,16 @@
         }
       }
     },
+    "More for “%@”": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mehr zu „%@“"
+          }
+        }
+      }
+    },
     "NVIDIA Nemotron tells speakers apart on this iPhone after you stop, much more reliably than the standard model, also when people talk in quick succession. It downloads once (100 MB), by itself on Wi-Fi, together with the model for live speaker labels (45 MB). Until then the standard model is used.": {
       "localizations": {
         "de": {
@@ -1380,6 +1750,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Benenne einen Sprecher in einem Transkript, um ihn hier hinzuzufügen. Seine Stimme wird dann in neuen Aufnahmen erkannt."
+          }
+        }
+      }
+    },
+    "Name from Calendar": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach Kalender benennen"
           }
         }
       }
@@ -1584,6 +1964,16 @@
         }
       }
     },
+    "Off: anyone using this iPhone can open Feder.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus: Wer dieses iPhone benutzt, kann Feder öffnen."
+          }
+        }
+      }
+    },
     "Off: we keep no voice profiles and recognize no one. Speakers are still told apart.": {
       "localizations": {
         "de": {
@@ -1747,6 +2137,16 @@
         }
       }
     },
+    "Person Deleted": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Person gelöscht"
+          }
+        }
+      }
+    },
     "Person filter": {
       "localizations": {
         "de": {
@@ -1877,12 +2277,32 @@
         }
       }
     },
+    "Remove": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entfernen"
+          }
+        }
+      }
+    },
     "Remove %@": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ entfernen"
+          }
+        }
+      }
+    },
+    "Remove from iPhone Search": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus der iPhone-Suche entfernen"
           }
         }
       }
@@ -1913,6 +2333,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Benennt diesen Sprecher überall in diesem Transkript um."
+          }
+        }
+      }
+    },
+    "Require Face ID": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Face ID anfordern"
+          }
+        }
+      }
+    },
+    "Require Passcode": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code anfordern"
+          }
+        }
+      }
+    },
+    "Require Touch ID": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touch ID anfordern"
           }
         }
       }
@@ -1973,6 +2423,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Durchsuche jedes Wort, jede Person und jedes Tag in deinen Transkripten."
+          }
+        }
+      }
+    },
+    "Searches your transcripts with %@ for this topic.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sucht in deinen Transkripten mit %@ nach diesem Thema."
+          }
+        }
+      }
+    },
+    "Set a passcode in the iPhone's Settings to lock Feder.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lege in den Einstellungen des iPhone einen Code fest, um Feder zu sperren."
           }
         }
       }
@@ -2617,6 +3087,16 @@
         }
       }
     },
+    "There's no list in Reminders to add to.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Erinnerungen gibt es keine Liste zum Hinzufügen."
+          }
+        }
+      }
+    },
     "This file can't be read as audio.": {
       "localizations": {
         "de": {
@@ -2687,6 +3167,16 @@
         }
       }
     },
+    "To add action items, allow Feder full access to Reminders in Settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erlaube Feder in den Einstellungen vollen Zugriff auf Erinnerungen, um Aufgaben hinzuzufügen."
+          }
+        }
+      }
+    },
     "To tell speakers apart, Feder downloads its speaker models once: 21 MB now and 145 MB more on Wi-Fi.": {
       "localizations": {
         "de": {
@@ -2703,6 +3193,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Heute"
+          }
+        }
+      }
+    },
+    "Topics": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Themen"
+          }
+        }
+      }
+    },
+    "Topics that come up in more than one transcript with %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Themen, die in mehr als einem Transkript mit %@ vorkommen."
           }
         }
       }
@@ -2837,6 +3347,16 @@
         }
       }
     },
+    "Turn on App Lock.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App-Sperre einschalten."
+          }
+        }
+      }
+    },
     "Turning this off deletes the voice profiles of your people and of the speakers in your transcripts. Names stay. Turned on again, it works from the next recording.": {
       "localizations": {
         "de": {
@@ -2867,6 +3387,26 @@
         }
       }
     },
+    "Unlock": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entsperren"
+          }
+        }
+      }
+    },
+    "Unlock your transcripts.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Transkripte entsperren."
+          }
+        }
+      }
+    },
     "Untitled Transcript": {
       "localizations": {
         "de": {
@@ -2883,6 +3423,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Standardnamen verwenden"
+          }
+        }
+      }
+    },
+    "Use Face ID to see your transcripts.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verwende Face ID, um deine Transkripte zu sehen."
+          }
+        }
+      }
+    },
+    "Use Touch ID to see your transcripts.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verwende Touch ID, um deine Transkripte zu sehen."
           }
         }
       }
@@ -2997,6 +3557,16 @@
         }
       }
     },
+    "Writes a title, a short summary and the action items for each transcript.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schreibt für jedes Transkript einen Titel, eine kurze Zusammenfassung und die Aufgaben."
+          }
+        }
+      }
+    },
     "Writing summaries…": {
       "localizations": {
         "de": {
@@ -3043,6 +3613,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Deine Wörter"
+          }
+        }
+      }
+    },
+    "Your transcripts can be found in the iPhone's search, also while Feder is locked. The index stays on this iPhone and can be read only while the iPhone is unlocked. What you type there can go to Apple for suggestions; that is set in the iPhone's Settings › Search.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Transkripte lassen sich in der iPhone-Suche finden, auch während Feder gesperrt ist. Der Index bleibt auf diesem iPhone und ist nur lesbar, solange das iPhone entsperrt ist. Was du dort eingibst, kann für Vorschläge an Apple gehen; das stellst du in den Einstellungen des iPhone unter „Suche“ ein."
           }
         }
       }
@@ -3095,6 +3675,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "iPhone-Suche"
+          }
+        }
+      }
+    },
+    "iPhone Search can show their titles, summaries and words while Feder is locked.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die iPhone-Suche kann ihre Titel, Zusammenfassungen und Wörter zeigen, während Feder gesperrt ist."
           }
         }
       }

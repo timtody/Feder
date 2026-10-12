@@ -1,12 +1,22 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "NSMicrophoneUsageDescription": {
+    "NSCalendarsFullAccessUsageDescription": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Feder verwendet das Mikrofon, um Audio aufzunehmen und zu transkribieren. Alles bleibt auf diesem iPhone."
+            "value": "Feder gibt einem Transkript den Namen des Kalenderereignisses, das beim Start der Aufnahme läuft, und schlägt die Eingeladenen als Sprechernamen vor. Alles bleibt auf diesem iPhone."
+          }
+        }
+      }
+    },
+    "NSFaceIDUsageDescription": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder verwendet Face ID, um deine Transkripte zu entsperren, wenn die App-Sperre an ist."
           }
         }
       }
@@ -17,6 +27,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Feder speichert, wo ein Transkript begonnen wurde, damit du es später sehen und danach suchen kannst."
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder verwendet das Mikrofon, um Audio aufzunehmen und zu transkribieren. Alles bleibt auf diesem iPhone."
+          }
+        }
+      }
+    },
+    "NSRemindersFullAccessUsageDescription": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder fügt die Aufgaben, die du auswählst, zu Erinnerungen hinzu und liest keine deiner anderen Erinnerungen."
           }
         }
       }

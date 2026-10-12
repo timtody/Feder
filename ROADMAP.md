@@ -27,22 +27,30 @@ Word, Markdown and subtitles; iPhone Search (opt-in); titles and summaries in th
 5. **A paragraph to another speaker:** Edit Text has a speaker chip above each paragraph.
 6. **The rename tip in one tap:** the first tap on a name renames, with the tip still showing.
 
+From P2 (October 12, 2026):
+
+- **#8 Action items to Reminders and Calendar:** Gemma lists who does what by when under the summary (also for older
+  transcripts); one tap adds an item to Reminders (asks for access the first time) or opens Apple's New Event screen,
+  prefilled (no access needed); "Add All to Reminders"; a reminder links back to its transcript; Markdown, PDF and Word
+  exports list them.
+- **#11 Name from Calendar:** opt-in in Settings › Recording (no onboarding page: a page before a system prompt is an
+  App Review risk); a transcript started during a calendar event gets its name, and the rename sheet offers its
+  invitees (names only, no addresses).
+- **#12 Person pages:** the contact-card page in Settings › People and "Go to Person" from a name row: last
+  conversation, recurring topics (from Gemma's topics, tags and summaries), one quote per transcript that opens the card
+  where they speak; search also finds the topics.
+- **#13 App Lock:** optional, off by default ("Require Face ID", locks at once or after 1, 5 or 15 minutes, and when the
+  iPhone locks); recording from outside still starts, the Live Activity shows no words; iOS's own "Require Face ID"
+  (touch and hold the icon) is the alternative.
+
 ## P2: features that set Feder apart (1.x)
 
 7. **Bookmarks while recording.** A mark button in the card and the Live Activity (or a squeeze of the Action Button)
    flags a moment; the marks show in the transcript, in exports and in the summary.
-8. **Action items to Reminders and Calendar.** Gemma pulls out to-dos ("Anna sends the numbers by Friday"); one tap
-   adds them to Reminders or Calendar (EventKit, on the iPhone; needs permission).
 9. **Summary styles.** Meeting (decisions, to-dos, open questions), lecture (key ideas), interview (questions and
    answers), or bullet points; a style per tag.
 10. **Chapters.** Gemma splits long recordings into topics with timestamps; a chapter list jumps around, and the
     exports get headings.
-11. **Calendar context.** A calendar event running when Transcribe is pressed names the transcript and offers its
-    attendees as speaker names (needs calendar permission; names only, nothing leaves the iPhone).
-12. **Person pages.** What a person said across all transcripts, when you last spoke, recurring topics. Builds on
-    People and voice recognition.
-13. **App lock.** Face ID to open Feder, and optionally to hide transcripts from the share sheet and iPhone Search
-    while locked. Fits a privacy-first app and costs little.
 
 ## P3: bigger bets
 
@@ -80,11 +88,14 @@ Word, Markdown and subtitles; iPhone Search (opt-in); titles and summaries in th
 The real Spotlight results, the Control Center control with the feather, the Live Activity on the actual lock screen,
 German summaries from Gemma, and the iPhone-only items in TASKS.md (live labels on a real conversation, the search
 keyboard test on the software keyboard). From 1.2: Listen's Now Playing on the lock screen and the AirPods, Import from
-Voice Memos' share sheet, and Sortformer on the iPhone (see Done in 1.2, item 1).
+Voice Memos' share sheet, and Sortformer on the iPhone (see Done in 1.2, item 1); App Lock's real Face ID and passcode
+fallback, one scan when recording starts from a locked iPhone, and the iPhone locking during a grace period; Name from
+Calendar with real iCloud, Exchange and Google calendars (read-only calendars, invitations); Reminders and the New Event
+screen with real lists and calendars; the person pages' topics on a real German archive; shake to undo Remove.
 
 ## Suggested next
 
-Sortformer as the default once the iPhone check holds (item 1 above), then #7 (bookmarks while recording) and #13 (app
-lock): both small, and both fit the recording and privacy promise. A small follow-up to Import: "Transcribe Again in…"
-for a transcript, since an import's language is detected (three windows vote) and a recording that mixes languages can
-still come out in the wrong one; today its words are written once.
+Sortformer as the default once the iPhone check holds (Done in 1.2, item 1), then #7 (bookmarks while recording) and #9
+(summary styles, which can build on the action items). A small follow-up to Import: "Transcribe Again in…" for a
+transcript, since an import's language is detected (three windows vote) and a recording that mixes languages can still
+come out in the wrong one; today its words are written once.

@@ -16,6 +16,20 @@ release carries a later version's features, its notes are the 1.0 text plus thos
 - Undo a correction: after you change a speaker, merge two speakers or edit the text, tap Undo, or shake your iPhone.
 - Give a single paragraph to another speaker: in Edit Text, each paragraph has its speaker above it to change.
 - Naming a speaker from the tip takes one tap.
+- Action items: under a transcript's summary, Feder lists who does what by when, also for your earlier transcripts.
+  Add one to Reminders or Calendar with a tap, or all of them to Reminders at once. A reminder links back to its
+  transcript.
+- Person pages: open someone in Settings › People, or touch and hold their name in a transcript and choose Go to
+  Person. You see when you last spoke, the topics that keep coming up, and what they said in each transcript. Tap a
+  transcript to open it where they speak and step through everything they said; tap a topic to search for it.
+- Search also finds the topics Feder notes with each summary, even when nobody said the word.
+- Name transcripts from your calendar: turn on Name from Calendar in Settings › Recording, and a transcript you start
+  during a meeting gets the meeting's name, and its invitees are offered when you name the speakers. Everything stays
+  on your iPhone.
+- Lock Feder with Face ID: turn on Require Face ID in Settings, and Feder asks for it when it opens and when you come
+  back, at once or after a minute or more, as you choose. Anything you had open is there again after Face ID.
+  Recording from Control Center, the Action Button or Siri still starts right away, and the Lock Screen and Dynamic
+  Island then show the time but no words.
 
 ### Deutsch
 
@@ -29,6 +43,21 @@ release carries a later version's features, its notes are the 1.0 text plus thos
 - Ordne einen einzelnen Absatz einem anderen Sprecher zu: Beim Bearbeiten steht über jedem Absatz sein Sprecher zum
   Ändern.
 - Einen Sprecher aus dem Tipp heraus zu benennen, braucht nur noch einen Tipp.
+- Aufgaben: Unter der Zusammenfassung zeigt Feder, wer was bis wann erledigt, auch bei deinen früheren Transkripten.
+  Füge eine Aufgabe mit einem Tipp zu Erinnerungen oder zum Kalender hinzu oder alle auf einmal zu Erinnerungen. Eine
+  Erinnerung führt zurück zu ihrem Transkript.
+- Personenseiten: Öffne jemanden unter Einstellungen › Personen, oder halte den Namen in einem Transkript gedrückt und
+  wähle „Zur Person“. Du siehst, wann ihr zuletzt gesprochen habt, welche Themen immer wieder vorkommen und was die
+  Person in jedem Transkript gesagt hat. Tippe auf ein Transkript, um es dort zu öffnen, wo sie spricht, und alles
+  durchzugehen, was sie gesagt hat; tippe auf ein Thema, um danach zu suchen.
+- Die Suche findet auch die Themen, die Feder zu jeder Zusammenfassung notiert, selbst wenn niemand das Wort gesagt hat.
+- Benenne Transkripte nach deinem Kalender: Schalte „Nach Kalender benennen“ in den Einstellungen unter „Aufnahme“
+  ein, und ein Transkript, das du während eines Termins startest, bekommt dessen Namen; beim Benennen der Sprecher
+  werden dir die Eingeladenen vorgeschlagen. Alles bleibt auf deinem iPhone.
+- Sperre Feder mit Face ID: Schalte in den Einstellungen „Face ID anfordern“ ein, und Feder fragt beim Öffnen und bei
+  deiner Rückkehr danach, sofort oder nach einer Minute oder mehr, wie du möchtest. Was du offen hattest, ist nach
+  Face ID wieder da. Eine Aufnahme aus dem Kontrollzentrum, mit der Aktionstaste oder über Siri startet weiterhin
+  sofort, und Sperrbildschirm und Dynamic Island zeigen dann die Zeit, aber keine Wörter.
 
 ## 1.1
 
