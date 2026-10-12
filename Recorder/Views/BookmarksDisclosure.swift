@@ -1,15 +1,14 @@
 import SwiftUI
 
 /// The transcript's bookmarks (FED-14) folded into one "Bookmarks" row under the Summary row, in its style (the system's
-/// `DisclosureGroup`, subheadline, the count in secondary); only with bookmarks. Opened, a row per bookmark: its time,
-/// Gemma's short title when there is one (BookmarkTitler, an experiment), and the bookmarked sentence under it, at
-/// most two lines. A tap scrolls to the sentence, which the transcript highlights (BookmarkHighlight); nothing plays.
+/// `DisclosureGroup`, subheadline, the count in secondary); only with bookmarks. Opened, a row per bookmark: its time
+/// and the bookmarked sentence, at most two lines (Gemma's short title above it was tried and removed: the titles
+/// didn't work, FED-77). A tap scrolls to the sentence, which the transcript highlights (BookmarkHighlight); nothing
+/// plays.
 /// Bookmarks on one sentence are one row (Bookmarks.places), with a small "×2" under its time: the recording's button
 /// counted each press, and the list would otherwise seem to have lost one.
 struct BookmarksDisclosure: View {
     let places: [Bookmarks.Place]
-    /// Gemma's title per place ("": none; Bookmarks.titles).
-    let titles: [String]
     let onSelect: (Bookmarks.Place) -> Void
 
     @State private var isExpanded = false
@@ -18,7 +17,7 @@ struct BookmarksDisclosure: View {
         DisclosureGroup(isExpanded: $isExpanded) {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(Array(places.enumerated()), id: \.element.id) { index, place in
-                    row(place, title: index < titles.count ? titles[index] : "", index: index)
+                    row(place, index: index)
                 }
             }
             .padding(.top, 6)
@@ -35,7 +34,7 @@ struct BookmarksDisclosure: View {
         .font(.subheadline)
     }
 
-    private func row(_ place: Bookmarks.Place, title: String, index: Int) -> some View {
+    private func row(_ place: Bookmarks.Place, index: Int) -> some View {
         Button {
             onSelect(place)
         } label: {
@@ -51,17 +50,10 @@ struct BookmarksDisclosure: View {
                             .accessibilityLabel(Text("^[\(place.marks.count) bookmark](inflect: true)"))
                     }
                 }
-                VStack(alignment: .leading, spacing: 2) {
-                    if !title.isEmpty {
-                        Text(verbatim: title)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.primary)
-                    }
-                    Text(verbatim: place.sentence)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Text(verbatim: place.sentence)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .contentShape(Rectangle())
         }

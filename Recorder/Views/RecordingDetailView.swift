@@ -140,10 +140,7 @@ struct RecordingDetailView: View {
                         }
                         // The bookmarks under the summary: a tap scrolls to the highlighted sentence (FED-14).
                         if !bookmarkPlaces.isEmpty {
-                            BookmarksDisclosure(places: bookmarkPlaces,
-                                                titles: Bookmarks.titles(of: bookmarkPlaces, stored: recording.bookmarkTitles,
-                                                                         marks: recording.bookmarks),
-                                                onSelect: reveal)
+                            BookmarksDisclosure(places: bookmarkPlaces, onSelect: reveal)
                                 .opacity(bodyShown ? 1 : 0)
                         }
                         // HIG › Generative AI: say that AI made it and can be wrong. For the whole transcript, not only

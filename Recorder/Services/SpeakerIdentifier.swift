@@ -833,30 +833,7 @@ final class SpeakerIdentifier {
         }
         recording.summaryVersion = max(recording.summaryVersion, version)
         try? modelContext.save()
-        await titleBookmarks(recording)                    // Gemma still loaded; within the summary's step
         track(id) { $0.finish(.summary) }
-    }
-
-    /// Gemma's short title per bookmarked sentence (BookmarkTitler, FED-14's experiment), right after the summary: only
-    /// for a transcript with bookmarks and not titled yet. Stored per bookmark (`bookmarkTitles` is aligned with
-    /// `bookmarks`), each sentence's title for every bookmark on it, so a later correction that joins or splits
-    /// sentences still finds them (Bookmarks.titles). Anything that stops it leaves the Bookmarks row with the sentences
-    /// alone; the titles are not looked for again later.
-    private func titleBookmarks(_ recording: Recording) async {
-        guard !isGone(recording), !recording.bookmarks.isEmpty,
-              recording.bookmarkTitles.count != recording.bookmarks.count,
-              betterSummaries.activeModel != nil, !isRecording else { return }
-        let places = Bookmarks.places(recording.bookmarks, words: recording.words, segments: recording.segments)
-        guard !places.isEmpty else { return }
-        let locale = TranscriptTitler.appLocale
-        let german = TranscriptTitler.isGerman(locale), language = TranscriptTitler.languageName(locale)
-        guard let titles = try? await betterSummaries.run({ model in
-            try await BookmarkTitler.titles(for: places, german: german, language: language, writer: model)
-        }), titles.count == places.count, !isGone(recording) else { return }
-        let byMark = Dictionary(zip(places, titles).flatMap { place, title in place.marks.map { ($0, title) } },
-                                uniquingKeysWith: { first, _ in first })
-        recording.bookmarkTitles = recording.bookmarks.map { byMark[$0] ?? "" }
-        try? modelContext.save()
     }
 
     // MARK: Action items (the card's button)

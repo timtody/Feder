@@ -1,7 +1,7 @@
 import XCTest
 
 /// Bookmarks (FED-14): moments marked while recording. The transcript highlights each one's sentence and lists them
-/// in a folded "Bookmarks" row under the summary (time, Gemma's title, the sentence; a tap scrolls there). The card's
+/// in a folded "Bookmarks" row under the summary (time and sentence; a tap scrolls there). The card's
 /// bookmark button (left of the Stop) counts them; a start from outside while recording (the Action Button: the
 /// simulator has none, so `-fakeOutsidePressAfter` asks as it does) adds one; `-seedBookmarks` gives Budget Review
 /// four on three sentences (9.6 s and 10.5 s on one, 17 s, 25.5 s). Recordings are made with `-resetVoiceRecognition`,
@@ -12,7 +12,7 @@ final class BookmarkTests: ScribeUITestCase {
         app.buttons["AddBookmark"]
     }
 
-    /// The folded Bookmarks row, opened; its rows' labels (time, title, sentence).
+    /// The folded Bookmarks row, opened; its rows' labels (time, sentence).
     @MainActor
     private func openBookmarks(_ app: XCUIApplication, count: Int, file: StaticString = #filePath,
                                line: UInt = #line) -> [String] {
@@ -36,8 +36,8 @@ final class BookmarkTests: ScribeUITestCase {
     /// The card's bookmark button sits left of the Stop, the Stop still centred; each press counts (VoiceOver: "1
     /// bookmark", "2 bookmarks"), a second press within a second doesn't. After Stop no Bookmarks row while the words
     /// and speakers are still being found (FED-73: placed only on the final paragraphs; the vocabulary check after them
-    /// keeps the sentences); then it lists both, each with its time and sentence, and with the fake Gemma (`-fakeGemma`)
-    /// each gets a title after the summary.
+    /// keeps the sentences); then it lists both, each with its time and sentence, also once the fake Gemma
+    /// (`-fakeGemma`) has written the summary.
     @MainActor
     func testBookmarkWhileRecording() throws {
         let app = launch(["-resetVoiceRecognition", "-fakeGemma"])
@@ -63,8 +63,7 @@ final class BookmarkTests: ScribeUITestCase {
         XCTAssertTrue(app.textFields["Title"].waitForExistence(timeout: 15), "the transcript")
         XCTAssertFalse(app.staticTexts["Bookmark"].exists, "no line above the paragraph any more")
         // While the steps after Stop still rewrite the paragraphs, no Bookmarks row (FED-73: it jumped from pass to
-        // pass); it comes once they are final, during the vocabulary check at the latest. Gemma's titles come with the
-        // summary.
+        // pass); it comes once they are final, during the vocabulary check at the latest.
         let status = app.staticTexts["PipelineStatus"]
         let textSteps: Set<String> = ["Transcribing…", "Identifying speakers…", "Refining speakers…",
                                       "Preparing speaker model…"]
@@ -81,7 +80,6 @@ final class BookmarkTests: ScribeUITestCase {
         XCTAssertFalse(bookmarksDuringText, "no Bookmarks row while the paragraphs are being found")
         XCTAssertTrue(app.buttons["Summary"].exists, "the summary")
         let rows = openBookmarks(app, count: 2)
-        XCTAssertTrue(rows[0].contains("Bookmark title 1") && rows[1].contains("Bookmark title 2"), "titled: \(rows)")
         XCTAssertTrue(rows.allSatisfy { $0.contains("0:") }, "with their times: \(rows)")
         shot("Transcript with bookmarks", app)
         deleteTranscript(app)

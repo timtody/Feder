@@ -4,7 +4,8 @@ import Foundation
 /// or the Action Button (any start from outside the app) pressed while a recording runs. Stored as seconds from the
 /// recording's start (`Recording.bookmarks`, the words' scale). The transcript highlights each one's sentence (`places`)
 /// and lists them in a folded Bookmarks row; the exports write a line above the paragraph; Gemma is told which
-/// paragraphs they are, so the summary covers them, and titles each (BookmarkTitler).
+/// paragraphs they are, so the summary covers them. (Gemma also titled each one until October 2026; the titles didn't
+/// work, FED-77.)
 nonisolated enum Bookmarks {
     /// Presses closer than this are one bookmark: a double press, or the card's and the Live Activity's at once.
     static let minimumGap: TimeInterval = 1
@@ -29,7 +30,7 @@ nonisolated enum Bookmarks {
     }
 
     /// A bookmarked sentence: the one being spoken at the press, in its paragraph (`segmentID`), as character offsets
-    /// into that paragraph's text (`range`), and its text (the Bookmarks row's snippet, Gemma's title's source).
+    /// into that paragraph's text (`range`), and its text (the Bookmarks row's snippet).
     struct Place: Sendable, Equatable, Identifiable {
         var time: TimeInterval          // the first bookmark on the sentence
         /// Every bookmark on the sentence, in time order: a long one pressed twice is one place (FED-73).
@@ -37,8 +38,6 @@ nonisolated enum Bookmarks {
         var segmentID: UUID
         var range: Range<Int>?          // nil: the sentence wasn't found in the paragraph's text (no highlight)
         var sentence: String
-        /// The sentence before it (also across a speaker change), "" for the first: context for Gemma's title.
-        var before: String = ""
         /// Where the sentence starts in its paragraph, 0...1 (the Bookmarks row scrolls a long paragraph that far).
         var position: Double
         var id: TimeInterval { time }
@@ -101,7 +100,7 @@ nonisolated enum Bookmarks {
             let position = range.map { Double($0.lowerBound) / Double(max(1, paragraph.text.count)) } ?? 0
             placeOf[sentence] = places.count
             places.append(Place(time: mark, marks: [mark], segmentID: paragraph.id, range: range, sentence: text,
-                                before: sentence > 0 ? joined(sentences[sentence - 1]) : "", position: position))
+                                position: position))
         }
         return places
     }
@@ -116,14 +115,6 @@ nonisolated enum Bookmarks {
         guard let found = paragraph.range(of: sentence) else { return nil }
         let lower = paragraph.distance(from: paragraph.startIndex, to: found.lowerBound)
         return lower..<lower + paragraph.distance(from: found.lowerBound, to: found.upperBound)
-    }
-
-    /// Gemma's title per place (`Recording.bookmarkTitles` is aligned with the bookmarks): its first bookmark's, "" for
-    /// none.
-    static func titles(of places: [Place], stored: [String], marks: [TimeInterval]) -> [String] {
-        guard stored.count == marks.count else { return places.map { _ in "" } }
-        let byMark = Dictionary(zip(marks, stored), uniquingKeysWith: { first, _ in first })
-        return places.map { byMark[$0.time] ?? "" }
     }
 
     /// The paragraphs the bookmarks' sentences are found in are final: the full-accuracy words pass has run and the
