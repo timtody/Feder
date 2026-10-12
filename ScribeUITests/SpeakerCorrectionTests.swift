@@ -123,9 +123,9 @@ final class SpeakerCorrectionTests: ScribeUITestCase {
         XCTAssertNil(shake(app, timeout: 2), "nothing left to undo")
     }
 
-    /// A merge (after its question) and an Edit Text's Done (a chip and a typed word, the field ended by Done) are
-    /// undone by shaking too: "Undo Speakers Merged", "Undo Transcript Edited". The typing left nothing of its own to
-    /// undo once the fields were gone.
+    /// A merge (after its question) and an Edit Text's Done (a chip and a word typed in place of another, the field
+    /// ended by Done, then "Add to Your Words?" answered Not Now) are undone by shaking too: "Undo Speakers Merged",
+    /// "Undo Transcript Edited". The typing left nothing of its own to undo once the fields were gone.
     @MainActor
     func testShakeUndoesMergeAndEdit() throws {
         let app = launch()
@@ -153,18 +153,22 @@ final class SpeakerCorrectionTests: ScribeUITestCase {
                                                               : app.textViews["ParagraphField.0"]
         field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.88)).tap()
         sleep(1)
-        field.typeText(" Danke.")
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "what.".count) + "Wotan.")
         let done = app.buttons.matching(NSPredicate(format: "label == 'Done Editing'")).allElementsBoundByIndex
             .filter(\.isHittable).min { $0.frame.minY < $1.frame.minY } ?? app.buttons["Done Editing"].firstMatch
         done.tap()
+        let notNow = app.buttons["Not Now"]                       // the question holds the keys until it is answered
+        XCTAssertTrue(notNow.waitForExistence(timeout: 5), "Wotan offered for Your Words")
+        notNow.tap()
+        XCTAssertTrue(notNow.waitForNonExistence(timeout: 3))
         XCTAssertTrue(waitFor { self.names(app) == ["Anna Schmidt", "Jonas Weber"] }, "\(names(app))")
         // Anna's paragraphs are one now, the typed word inside it.
-        XCTAssertTrue(app.staticTexts["Paragraph.0"].label.contains("Danke."), app.staticTexts["Paragraph.0"].label)
+        XCTAssertTrue(app.staticTexts["Paragraph.0"].label.contains("owns Wotan."), app.staticTexts["Paragraph.0"].label)
         let edited = try XCTUnwrap(shake(app), "a shake after Edit Text's Done")
         XCTAssertEqual(edited.label, "Undo Transcript Edited")
         edited.buttons["Undo"].tap()
         XCTAssertTrue(waitFor { self.names(app) == four }, "edit undone: \(names(app))")
-        XCTAssertFalse(app.staticTexts["Paragraph.0"].label.contains("Danke."), "the word went with it")
+        XCTAssertTrue(app.staticTexts["Paragraph.0"].label.hasSuffix("owns what."), "the word went with it")
         XCTAssertNil(shake(app, timeout: 2), "nothing left to undo, no typing of gone fields")
     }
 
