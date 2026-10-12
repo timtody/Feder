@@ -1,8 +1,30 @@
 # Build products and Xcode state
-build/
+build/*
 DerivedData/
 *.xcuserstate
 xcuserdata/
 .DS_Store
 *.xcresult
 Recorder.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+
+# build/qa holds the QA scripts and the measuring tools that CLAUDE.md and the README name: their code is tracked (a
+# cleaned build/ lost them, and worktrees had none: FED-61), their data (audio, models, results, SwiftPM builds) is not.
+!build/qa/
+build/qa/*
+!build/qa/*.sh
+!build/qa/perf/
+!build/qa/diarbench/
+!build/qa/langprobe/
+!build/qa/livebench/
+!build/qa/sortformer/
+!build/qa/icon/
+build/qa/*/**
+!build/qa/*/**/
+!build/qa/*/**/*.sh
+!build/qa/*/**/*.py
+!build/qa/*/**/*.swift
+!build/qa/*/**/README.txt
+build/qa/*/**/.build/
+build/qa/*/**/.venv/
+build/qa/*/**/.swiftpm/
+build/qa/*/**/__pycache__/
