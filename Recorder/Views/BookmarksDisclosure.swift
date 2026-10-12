@@ -78,8 +78,11 @@ enum BookmarkHighlight {
         var cursor = 0
         for mark in marks {
             pieces.append(Text(slice(attributed, cursor..<mark.lowerBound)))
+            // A narrow no-break space, not a thin one: the line could break after the bookmark, leaving it alone at
+            // a line's end with its sentence on the next (seen on the iPhone; Core Text on a Mac broke the thin space
+            // and moved the bookmark down with the sentence after the no-break one).
             let symbol = Text(Image(systemName: "bookmark.fill")).foregroundStyle(.tint)
-            pieces.append(Text("\(symbol)\(Text(verbatim: "\u{2009}"))"))
+            pieces.append(Text("\(symbol)\(Text(verbatim: "\u{202F}"))"))
             cursor = mark.lowerBound
         }
         pieces.append(Text(slice(attributed, cursor..<string.count)))
