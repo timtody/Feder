@@ -72,10 +72,18 @@ extension MainView {
                 closeCard()
             }
         }
-        if arguments.contains("-exportAllFormats"), let newest {
-            // QA: every export format of the newest transcript into tmp/ExportQA (with timestamps), to inspect
-            // the files from the simulator's container.
-            let snapshot = newest.exportSnapshot(names: true, timestamps: true, withWords: true)
+        #if targetEnvironment(simulator)
+        if arguments.contains("-federRemindersReport") {      // the UI tests: what reached Reminders, then removed
+            EventEditor.debugAlert("Feder Reminders", await ReminderWriter.shared.debugTakeFederReminders())
+        }
+        #endif
+        if arguments.contains("-exportAllFormats"),
+           let exported = UserDefaults.standard.string(forKey: "exportTitle").flatMap({ title in
+               try? modelContext.fetch(FetchDescriptor<Recording>(predicate: #Predicate { $0.name == title })).first
+           }) ?? newest {
+            // QA: every export format of the newest transcript (or `-exportTitle <name>`'s: Budget Review has action
+            // items) into tmp/ExportQA (with timestamps), to inspect the files from the simulator's container.
+            let snapshot = exported.exportSnapshot(names: true, timestamps: true, withWords: true)
             let folder = FileManager.default.temporaryDirectory.appending(path: "ExportQA")
             try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             for format in TranscriptExport.Format.allCases {

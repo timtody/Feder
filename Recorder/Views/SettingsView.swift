@@ -425,7 +425,7 @@ struct SummariesModelView: View {
                 Text("Titles and Summaries")
             } footer: {
                 Text(BetterSummaries.isSupported
-                     ? "Google's Gemma 4 E2B writes a title and a short summary of every transcript, on this iPhone: it reads a whole meeting at once and keeps who said what. It needs a one-time 3.6 GB download over Wi-Fi, which goes on in the background, also when Feder is closed. Existing transcripts get summaries too; titles you typed stay."
+                     ? "Google's Gemma 4 E2B writes a title, a short summary and the action items of every transcript, on this iPhone: it reads a whole meeting at once and keeps who said what. It needs a one-time 3.6 GB download over Wi-Fi, which goes on in the background, also when Feder is closed. Existing transcripts get them too; titles you typed stay."
                      : "Automatic titles and summaries need an iPhone with at least 8 GB of memory.")
             }
         }

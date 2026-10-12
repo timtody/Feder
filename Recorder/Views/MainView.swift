@@ -130,6 +130,10 @@ struct MainView: View {
         }
         .onOpenURL { url in
             if url.scheme == FederURL.scheme, url.host() == "record" { startRecording() }
+            // An action item's link in Reminders or Calendar: its transcript's card, as from Spotlight.
+            if url.scheme == FederURL.scheme, url.host() == "transcript", let id = UUID(uuidString: url.lastPathComponent) {
+                openFromOutside(id)
+            }
             if url.isFileURL { importAudio(from: url) }          // "Feder" in another app's share sheet
         }
         .fileImporter(isPresented: $showsImporter, allowedContentTypes: [.audio]) { result in
@@ -239,7 +243,8 @@ struct MainView: View {
         present(CardRequest(transcript: recording, search: search, sourceID: sourceID))
     }
 
-    /// A transcript asked for from outside the app (Spotlight): the Transcripts list goes behind the card, and the card
+    /// A transcript asked for from outside the app (Spotlight, an action item's link in Reminders or Calendar; a deleted
+    /// one: nothing happens): the Transcripts list goes behind the card, and the card
     /// opens out of its row. A recording going on stays in the accessory. A card that is up shrinks back into its own
     /// row first: the list is shown (a person page there popped) only when the new card opens (`showsList`), as Go to
     /// Person waits, since switching under the shrinking card took its zoom target away.

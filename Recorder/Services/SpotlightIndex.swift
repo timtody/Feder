@@ -4,8 +4,8 @@ import Foundation
 import SwiftData
 import UniformTypeIdentifiers
 
-/// The transcripts in the iPhone's own search (Spotlight): title, summary, tags, speaker names and the words, so a
-/// search on the home screen for "budget" finds the transcript and opens its card (MainView's
+/// The transcripts in the iPhone's own search (Spotlight): title, summary, tags, speaker names, the words and the
+/// action items, so a search on the home screen for "budget" finds the transcript and opens its card (MainView's
 /// `onContinueUserActivity`). The index is Core Spotlight's on the device; it never leaves the iPhone (not eligible for
 /// public indexing), and with `.complete` protection it is readable only while the iPhone is unlocked. Opt-in
 /// (`enabledKey`, off until the user turns it on in the onboarding or Settings, October 2026): the transcripts then
@@ -14,10 +14,11 @@ import UniformTypeIdentifiers
 /// deleted.
 ///
 /// Kept in step by `sync`: at launch and whenever the app goes to the background (before the user can use Spotlight).
-/// It compares a key per transcript (`indexKey`: title, tags, summary, speakers, edits; not the words, which are the
-/// expensive SwiftData read) with what was indexed (`keysKey`), reads the changed ones' paragraphs a few per turn of
-/// the main actor (as the in-app search does), and hands them to Core Spotlight off the main actor; ids that are gone
-/// leave the index. A deleted transcript leaves it at once (`remove`), not only at the next sync.
+/// It compares a key per transcript (`indexKey`: title, tags, summary, speakers, edits, the action items' tasks; not
+/// the words, which are the expensive SwiftData read) with what was indexed (`keysKey`), reads the changed ones'
+/// paragraphs a few per turn of the main actor (as the in-app search does), and hands them to Core Spotlight off the
+/// main actor; ids that are gone leave the index. A deleted transcript leaves it at once (`remove`), not only at the
+/// next sync.
 enum SpotlightIndex {
     nonisolated static let domain = "transcripts"
     /// UserDefaults: `[id: indexKey]` of what is in the index.
@@ -99,7 +100,7 @@ enum SpotlightIndex {
                                recording.speakerStatusRaw, String(recording.wordsRefined),
                                String(recording.vocabularyPending), String(recording.speakerCountOverride ?? 0),
                                speakers.joined(separator: ","), String(recording.createdAt.timeIntervalSince1970),
-                               String(recording.duration), String(recording.editCount)]
+                               String(recording.duration), String(recording.editCount), tasks(of: recording)]
         let digest = SHA256.hash(data: Data(parts.joined(separator: "\u{1F}").utf8))
         return digest.map { String(format: "%02x", $0) }.joined()
     }
@@ -143,9 +144,17 @@ enum SpotlightIndex {
             return segment.text
         }.joined(separator: "\n")
         let speakers = named ? Set(recording.segments.compactMap(\.speakerIndex)).compactMap { recording.speakerNames[$0] } : []
-        return Entry(id: recording.id.uuidString, title: recording.name, summary: recording.summary, text: text,
+        // The action items as words of the transcript's own entry (items of their own would look like reminders).
+        let tasks = tasks(of: recording)
+        return Entry(id: recording.id.uuidString, title: recording.name, summary: recording.summary,
+                     text: tasks.isEmpty ? text : text + "\n" + tasks,
                      keywords: recording.tags + speakers.sorted(), created: recording.createdAt,
                      duration: recording.duration)
+    }
+
+    /// The tasks the user didn't remove, one per line (a small decode per transcript; added flags don't re-index).
+    private static func tasks(of recording: Recording) -> String {
+        recording.actionItems.filter { !$0.isRemoved }.map(\.task).joined(separator: "\n")
     }
 
     nonisolated private static func item(_ entry: Entry) -> CSSearchableItem {

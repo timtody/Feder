@@ -39,7 +39,7 @@ enum PreviewData {
     /// each) and "Budget Review" (a day earlier; Lena Vogel and Anna Schmidt), their speakers named as if typed, so the
     /// people and their voice fingerprints exist. The voices are made up: Anna's two are alike (cosine about 0.93),
     /// all others unlike each other and unlike FakeDiarizer's, so nothing else in the store is recognized as them.
-    /// Budget Review has a summary of five lines (Project Kickoff none).
+    /// Budget Review has a summary of five lines and two action items (Project Kickoff neither).
     /// With `pending`, also "Weekly Sync" (newest, live labels only), queued for speaker identification: combine it
     /// with `-fakeDiarizeSeconds` to keep its speakers preliminary. `filler` older transcripts ("Archive 1"…, no tags,
     /// unnamed speakers) make the list long enough to scroll: the UI tests of the headings and the minimized tab bar.
@@ -65,9 +65,11 @@ enum PreviewData {
         let kickoff = transcript(name: "Project Kickoff", lines: kickoffLines, id: kickoffID, createdAt: .now)
         kickoff.tags = ["work", "planning"]
         kickoff.speakerVoices = [0: anna, 1: voice(seed: 2)]
+        budget.actionItems = budgetActionItems(recordedAt: budget.createdAt)
         for recording in [budget, kickoff] {
             recording.voicesVersion = SpeakerIdentifier.voicesVersion     // nothing left to do after Stop
             recording.summaryVersion = TranscriptTitler.version
+            recording.actionItemsVersion = ActionItemExtractor.version   // -fakeGemma's sweep adds no canned items
             recording.diarizer = .nemotron
             context.insert(recording)
         }
@@ -76,6 +78,7 @@ enum PreviewData {
                                  createdAt: .now.addingTimeInterval(-86_400 * Double(index + 2)))
             old.voicesVersion = SpeakerIdentifier.voicesVersion
             old.summaryVersion = TranscriptTitler.version
+            old.actionItemsVersion = ActionItemExtractor.version
             old.diarizer = .nemotron
             context.insert(old)
         }
@@ -117,6 +120,14 @@ enum PreviewData {
     static let budgetSummary = "Travel for the two customer workshops is over plan and licences are under, so part of the "
         + "licence budget moves to travel once finance agrees. The numbers go to finance by Friday, together with the "
         + "third-quarter forecast for the whole year."
+
+    /// Budget Review's action items, as Gemma would find them (the UI tests read them back): Anna sends the numbers by
+    /// Friday (the Friday after the meeting) and adds the forecast.
+    static func budgetActionItems(recordedAt: Date) -> [ActionItem] {
+        [ActionItem(task: "Send the numbers to finance", owner: "Anna Schmidt", duePhrase: "by Friday",
+                    due: DueDate.resolve("by Friday", recordedAt: recordedAt)?.date),
+         ActionItem(task: "Add the third-quarter forecast", owner: "Anna Schmidt")]
+    }
 
     /// A made-up unit "voice" of 256 values (a linear congruential sequence): different seeds are nearly orthogonal.
     private static func voice(seed: UInt64) -> [Float] {

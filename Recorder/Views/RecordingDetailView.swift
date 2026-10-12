@@ -44,6 +44,8 @@ struct RecordingDetailView: View {
     @AppStorage(TranscriptExport.namesKey) private var exportNames = true
     @AppStorage(TranscriptExport.timestampsKey) private var exportTimestamps = false
     @State private var keepsStatusRow = false           // the status line was shown: its place stays (see body)
+    @State private var keepsActionsRow = false          // the action items' place was held: it stays (ActionItemsSlot)
+    @State private var actionItemUndo = ActionItemUndo()   // Undo of a removed action item: toast and shake
     @State private var pendingMerge: SpeakerMerge?
     /// Edit Text: the paragraphs' text and speaker-chip drafts while editing (by segment id), nil otherwise.
     @State private var textEdits: [UUID: String]?
@@ -133,6 +135,10 @@ struct RecordingDetailView: View {
                             .animation(.easeInOut(duration: 0.25), value: statusText == nil)
                             .opacity(bodyShown ? 1 : 0)
                         }
+                        // The action items under the summary, their place held while they are being found.
+                        ActionItemsSlot(recording: recording, statusShown: statusText != nil, keepsRow: keepsActionsRow,
+                                        undo: actionItemUndo)
+                            .opacity(bodyShown ? 1 : 0)
                         // HIG › Generative AI: say that AI made it and can be wrong. For the whole transcript, not only
                         // the summary: the words, the speakers and the names recognized by voice are all generated (a
                         // caption under the summary alone implied the rest was not).
@@ -215,6 +221,8 @@ struct RecordingDetailView: View {
         .onChange(of: segments) { findHits() }              // the vocabulary pass or a new speaker count rewrote them
         .modifier(PlaybackFollowing(card: self, segments: segments))
         .onChange(of: statusText != nil, initial: true) { _, shown in if shown { keepsStatusRow = true } }
+        .onChange(of: ActionItemsSlot.reserves(recording, statusShown: statusText != nil, identifier: services.identifier),
+                  initial: true) { _, held in if held { keepsActionsRow = true } }
         .onChange(of: recording.speakerStatusRaw) {        // "Speakers: n" re-runs identification: numbers change
             if recording.speakerStatus != .done { renaming = nil }
         }
@@ -283,6 +291,7 @@ struct RecordingDetailView: View {
             if services.player.recordingID == recording.id { services.player.unload() } // the card closed
             if isEditingText { services.identifier.endEditingText(recording) }           // its drafts are gone
             undoManager?.removeAllActions(withTarget: services.identifier)                // no shake-undo of an unseen card
+            actionItemUndo.withdraw(from: undoManager)
             // Delete only once the card has closed: this view keeps re-reading the model while the card shrinks away,
             // and reading a deleted-and-saved (detached) @Model traps.
             guard deleteOnDisappear, !recording.isDeleted else { return }
@@ -662,6 +671,7 @@ struct RecordingDetailView: View {
     /// or the correction's Undo going (SpeakerIdentifier.lastCorrection: the transcript changed in another way).
     private func offerUndo() {
         guard let correction = services.identifier.lastCorrection, correction.recordingID == recording.id else { return }
+        actionItemUndo.toast = nil                          // its toast's place (the item's shake Undo stays)
         undoToast = correction.id
         offeredUndo = correction.id
         registerShakeUndo(correction)
@@ -676,7 +686,9 @@ struct RecordingDetailView: View {
                          correctionHere: correction?.recordingID == recording.id,
                          passRunning: services.identifier.vocabularyRunning.contains(recording.id),
                          alert: vocabularyOffer != nil, undo: undoCorrection, timedOut: { undoToast = nil },
-                         withdraw: withdrawUndo, passChanged: vocabularyPassChanged)
+                         withdraw: withdrawUndo, passChanged: vocabularyPassChanged,
+                         // A removed action item's toast; a correction's goes meanwhile (one toast at a time).
+                         actionItems: ActionItemUndoToast(undo: actionItemUndo, shown: { undoToast = nil }))
     }
 
     private func registerShakeUndo(_ correction: SpeakerIdentifier.UndoableCorrection) {
@@ -907,12 +919,14 @@ private final class HitGeometry {
 }
 #endif
 
-/// "Speakers Merged · Undo": a glass capsule with what was done and an Undo button.
-private struct UndoToast: View {
+/// "Speakers Merged · Undo": a glass capsule with what was done and an Undo button (also for a removed action item:
+/// ActionItemUndoToast).
+struct UndoToast: View {
     let title: String
     let undo: () -> Void
     /// Not while the transcript's vocabulary pass runs (SpeakerIdentifier.undoLastCorrection waits for it).
     var isEnabled = true
+    var identifier = "UndoCorrection"
 
     var body: some View {
         HStack(spacing: 14) {
@@ -921,7 +935,7 @@ private struct UndoToast: View {
             Button("Undo", action: undo)
                 .font(.subheadline.weight(.semibold))
                 .disabled(!isEnabled)
-                .accessibilityIdentifier("UndoCorrection")
+                .accessibilityIdentifier(identifier)
         }
         .padding(.leading, 18)
         .padding(.trailing, 14)
@@ -1010,7 +1024,8 @@ private struct PlaybackFollowing: ViewModifier {
 /// The last correction's Undo, above the bottom toolbar for a few seconds (like Mail's Undo after a delete): the toast,
 /// its 6 s (counted once "Add to Your Words?" after an edit is answered, behind which it can't be tapped, and once the
 /// vocabulary pass is over, meanwhile it is greyed: Undo waits for it), and the Undo going when the correction does
-/// (the transcript changed in another way, or another correction replaced it).
+/// (the transcript changed in another way, or another correction replaced it). A removed action item's toast comes
+/// along (ActionItemUndoToast), here rather than in the card's modifier chain, which the type checker gave up on.
 private struct UndoOffer: ViewModifier {
     let toast: UUID?
     let shownKind: SpeakerIdentifier.UndoableCorrection.Kind?
@@ -1022,9 +1037,11 @@ private struct UndoOffer: ViewModifier {
     let timedOut: () -> Void
     let withdraw: () -> Void
     let passChanged: (Bool) -> Void
+    let actionItems: ActionItemUndoToast
 
     func body(content: Content) -> some View {
         content
+            .modifier(actionItems)
             .overlay(alignment: .bottom) {
                 if let shownKind {
                     UndoToast(title: RecordingDetailView.undoTitle(shownKind), undo: undo, isEnabled: !passRunning)

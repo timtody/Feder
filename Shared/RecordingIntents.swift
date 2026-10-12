@@ -95,4 +95,9 @@ nonisolated struct LiveWord: Codable, Hashable, Sendable, Identifiable {
 nonisolated enum FederURL {
     static let scheme = "feder"
     static let record = URL(string: "feder://record")!
+
+    /// A transcript's card (the link of an action item added to Reminders or Calendar).
+    static func transcript(_ id: UUID) -> URL {
+        URL(string: "feder://transcript/\(id.uuidString)")!
+    }
 }

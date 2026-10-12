@@ -221,12 +221,24 @@ nonisolated struct FakeLiveDiarizer: LiveDiarizer {
 }
 
 /// Simulator stand-in for Gemma (`-fakeGemma`): answers the title request with three canned lines after a second,
-/// streamed word by word like Gemma's tokens, and a part request with one sentence. Proves the pipeline's summary
-/// step, the card's streamed summary and the automatic title without MLX (which the simulator has no GPU for).
+/// streamed word by word like Gemma's tokens, a part request with one sentence, and the action items' request with two
+/// items. Proves the pipeline's summary and action-items steps, the card's streamed summary and the automatic title
+/// without MLX (which the simulator has no GPU for).
 nonisolated final class FakeTextWriter: TextWriter, @unchecked Sendable {
     func respond(instructions: String, prompt: String, maxTokens: Int, temperature: Float,
                  partial: (@Sendable (String) -> Void)?) async throws -> String {
         try await Task.sleep(for: .seconds(1))
+        // The action items (ActionItemExtractor), checked first: its instructions have no "Title:". The seeded Budget
+        // Review's, else two of the test recording: one due on a day, one at a time (a reminder with an alarm).
+        if instructions.contains("Task:") || instructions.contains("Aufgabe:") {
+            try await Task.sleep(for: .seconds(2))           // long enough for a UI test to see the step's status line
+            if prompt.contains("numbers by Friday") {
+                return "Task: Send the numbers to finance | Who: Anna Schmidt | Due: by Friday\n" +
+                    "Task: Add the third-quarter forecast | Who: Anna Schmidt | Due: -"
+            }
+            return "Task: Send the test results to the team | Who: - | Due: by Friday\n" +
+                "Task: Check the provisional words | Who: - | Due: tomorrow at 10:00"
+        }
         guard instructions.contains("Title:") else { return "A part of the test conversation about the live transcript." }
         let answer = "Topics: live transcript; provisional words\nSummary: The test checks the live transcript; new words " +
             "show at once and provisional ones stay lighter until final.\nTitle: Live Transcript Test"

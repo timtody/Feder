@@ -135,7 +135,8 @@ final class TranscriptTitler {
     }
 
     /// Runs a Gemma request: stopped (the app left the foreground) = RetryLater, any other failure = LocalModelFailed.
-    private static func local<T>(_ request: () async throws -> T) async throws -> T {
+    /// (Also ActionItemExtractor's.)
+    static func local<T>(_ request: () async throws -> T) async throws -> T {
         do {
             return try await request()
         } catch is CancellationError {
