@@ -4,8 +4,8 @@ import XCTest
 /// in a folded "Bookmarks" row under the summary (time, Gemma's title, the sentence; a tap scrolls there). The card's
 /// bookmark button (left of the Stop) counts them; a start from outside while recording (the Action Button: the
 /// simulator has none, so `-fakeOutsidePressAfter` asks as it does) adds one; `-seedBookmarks` gives Budget Review
-/// three (10.5 s, 17 s, 25.5 s). Recordings are made with `-resetVoiceRecognition`, so their fake speakers store no
-/// voices, and are deleted again.
+/// four on three sentences (9.6 s and 10.5 s on one, 17 s, 25.5 s). Recordings are made with `-resetVoiceRecognition`,
+/// so their fake speakers store no voices, and are deleted again.
 final class BookmarkTests: ScribeUITestCase {
     @MainActor
     private func bookmarkButton(_ app: XCUIApplication) -> XCUIElement {
@@ -34,9 +34,10 @@ final class BookmarkTests: ScribeUITestCase {
     }
 
     /// The card's bookmark button sits left of the Stop, the Stop still centred; each press counts (VoiceOver: "1
-    /// bookmark", "2 bookmarks"), a second press within a second doesn't. After Stop no Bookmarks row while the text is
-    /// still being finished (FED-73); then it lists both, each with its time and sentence, and with the fake Gemma
-    /// (`-fakeGemma`) each gets a title after the summary.
+    /// bookmark", "2 bookmarks"), a second press within a second doesn't. After Stop no Bookmarks row while the words
+    /// and speakers are still being found (FED-73: placed only on the final paragraphs; the vocabulary check after them
+    /// keeps the sentences); then it lists both, each with its time and sentence, and with the fake Gemma (`-fakeGemma`)
+    /// each gets a title after the summary.
     @MainActor
     func testBookmarkWhileRecording() throws {
         let app = launch(["-resetVoiceRecognition", "-fakeGemma"])
@@ -61,11 +62,12 @@ final class BookmarkTests: ScribeUITestCase {
 
         XCTAssertTrue(app.textFields["Title"].waitForExistence(timeout: 15), "the transcript")
         XCTAssertFalse(app.staticTexts["Bookmark"].exists, "no line above the paragraph any more")
-        // While the steps after Stop still rewrite the text, no Bookmarks row (FED-73: it jumped from pass to pass);
-        // it comes once the text is final. Gemma's titles come with the summary.
+        // While the steps after Stop still rewrite the paragraphs, no Bookmarks row (FED-73: it jumped from pass to
+        // pass); it comes once they are final, during the vocabulary check at the latest. Gemma's titles come with the
+        // summary.
         let status = app.staticTexts["PipelineStatus"]
         let textSteps: Set<String> = ["Transcribing…", "Identifying speakers…", "Refining speakers…",
-                                      "Checking vocabulary…", "Preparing speaker model…"]
+                                      "Preparing speaker model…"]
         var textStepSeen = false, bookmarksDuringText = false
         let end = Date.now.addingTimeInterval(60)
         while !app.buttons["Summary"].exists, Date.now < end {
@@ -76,7 +78,7 @@ final class BookmarkTests: ScribeUITestCase {
             RunLoop.current.run(until: .now.addingTimeInterval(0.2))
         }
         XCTAssertTrue(textStepSeen, "the steps after Stop were seen")
-        XCTAssertFalse(bookmarksDuringText, "no Bookmarks row while the text is being finished")
+        XCTAssertFalse(bookmarksDuringText, "no Bookmarks row while the paragraphs are being found")
         XCTAssertTrue(app.buttons["Summary"].exists, "the summary")
         let rows = openBookmarks(app, count: 2)
         XCTAssertTrue(rows[0].contains("Bookmark title 1") && rows[1].contains("Bookmark title 2"), "titled: \(rows)")
@@ -134,17 +136,20 @@ final class BookmarkTests: ScribeUITestCase {
         XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10))
     }
 
-    /// Budget Review's three bookmarks (`-seedBookmarks`, no Gemma: no titles): each row has its time and the sentence
-    /// at the press; the one 0.7 s into Lena's reply has the sentence that had just ended (Anna's, across the speaker
-    /// change). A tap scrolls; the highlighted sentences are seen in the screenshot.
+    /// Budget Review's four bookmarks (`-seedBookmarks`, no Gemma: no titles): two on one sentence are one row, at the
+    /// first one's time, with a small ×2 (FED-73); each row has its time and the sentence at the press; the one 0.7 s
+    /// into Lena's reply has the sentence that had just ended (Anna's, across the speaker change). A tap scrolls; the
+    /// highlighted sentences, each with one bookmark, are seen in the screenshot.
     @MainActor
     func testSeededBookmarksList() throws {
         let app = launch(["-seedBookmarks"])
         open("Budget Review", in: app)
         XCTAssertFalse(app.staticTexts["Bookmark"].exists, "no line above the paragraph")
         let rows = openBookmarks(app, count: 3)
-        XCTAssertTrue(rows[0].contains("0:11") && rows[0].contains("The travel overrun comes from the two customer workshops."),
-                      rows[0])
+        XCTAssertTrue(rows[0].contains("0:10") && rows[0].contains("The travel overrun comes from the two customer workshops."),
+                      "one row for the two on this sentence, at the first: \(rows[0])")
+        XCTAssertTrue(rows[0].contains("2 bookmarks"), "its small ×2 says so: \(rows[0])")
+        XCTAssertFalse(rows[1].contains("bookmarks"), "one bookmark: no ×: \(rows[1])")
         XCTAssertTrue(rows[1].contains("0:17") && rows[1].contains("I'd move part of the licence budget to cover it."),
                       "the sentence that just ended: \(rows[1])")
         XCTAssertTrue(rows[2].contains("0:26") && rows[2].contains("I'll also add the forecast"), rows[2])

@@ -28,10 +28,12 @@ nonisolated enum Bookmarks {
         return result
     }
 
-    /// A bookmark's sentence: the one being spoken at the press, in its paragraph (`segmentID`), as character offsets
+    /// A bookmarked sentence: the one being spoken at the press, in its paragraph (`segmentID`), as character offsets
     /// into that paragraph's text (`range`), and its text (the Bookmarks row's snippet, Gemma's title's source).
     struct Place: Sendable, Equatable, Identifiable {
-        var time: TimeInterval
+        var time: TimeInterval          // the first bookmark on the sentence
+        /// Every bookmark on the sentence, in time order: a long one pressed twice is one place (FED-73).
+        var marks: [TimeInterval]
         var segmentID: UUID
         var range: Range<Int>?          // nil: the sentence wasn't found in the paragraph's text (no highlight)
         var sentence: String
@@ -46,20 +48,27 @@ nonisolated enum Bookmarks {
     /// hearing what matters, and the next sentence has barely begun.
     static let justEnded: TimeInterval = 1.5
 
-    /// Each bookmark's sentence (`Place`), in time order. A sentence ends at a word ending in ".", "?", "!" or "…", or
-    /// at its paragraph's end (it never spans two speakers); the bookmark takes the sentence whose words were being
-    /// said (the last word starting at or before it), or the one before when the press came within `justEnded` of
-    /// that sentence's start (also across a speaker change). Paragraphs are their words joined by single spaces
-    /// (TranscriptAligner.fold), so a sentence is found in its paragraph's text by its words; when Edit Text or a pass
-    /// left them apart, there is no highlight, and the list still shows the sentence.
+    /// The bookmarked sentences (`Place`), in time order, each once: two bookmarks on one sentence (a long one, pressed
+    /// twice) are one place at the first one's time; the list showed the same sentence twice (FED-73). A sentence ends
+    /// at a word ending in ".", "?", "!" or "…", or at its paragraph's end (it never spans two speakers); a bookmark
+    /// takes the sentence whose words were being said (the last word starting at or before it), or the one before when
+    /// the press came within `justEnded` of that sentence's start (also across a speaker change). Paragraphs are their
+    /// words joined by single spaces (TranscriptAligner.fold), so a sentence's offsets are its words' (a short one said
+    /// twice in a paragraph, "Okay.", is the bookmarked one, not the first); when Edit Text or a pass left the text and
+    /// the words apart, the sentence is searched for, and without a match there is no highlight; the list still shows it.
     static func places(_ marks: [TimeInterval], words: [TranscriptWord], segments: [TranscriptSegment]) -> [Place] {
         guard !marks.isEmpty, !words.isEmpty, !segments.isEmpty else { return [] }
-        // Each word's paragraph, walking both in time order (as the exports do).
+        // Each word's paragraph, walking both in time order (as the exports do), and its offset in the paragraph's text.
         var paragraphOf: [Int] = []
-        var segment = 0
+        var offsetOf: [Int] = []
+        var segment = 0, offset = 0
         for word in words {
+            let before = segment
             while segment + 1 < segments.count, word.start >= segments[segment + 1].start - 0.001 { segment += 1 }
+            if segment != before { offset = 0 }
             paragraphOf.append(segment)
+            offsetOf.append(offset)
+            offset += word.text.count + 1
         }
         // Sentences as word index ranges.
         var sentences: [ClosedRange<Int>] = []
@@ -72,32 +81,59 @@ nonisolated enum Bookmarks {
                 start = index + 1
             }
         }
-        return marks.sorted().map { mark in
+        func joined(_ span: ClosedRange<Int>) -> String {
+            words[span].map { $0.text.trimmingCharacters(in: .whitespaces) }.joined(separator: " ")
+        }
+        var places: [Place] = []
+        var placeOf: [Int: Int] = [:]                       // sentence index → its place
+        for mark in marks.sorted() {
             let word = words.lastIndex { $0.start <= mark } ?? 0
             var sentence = sentences.firstIndex { $0.contains(word) } ?? 0
             if sentence > 0, mark - words[sentences[sentence].lowerBound].start < justEnded { sentence -= 1 }
-            func text(_ span: ClosedRange<Int>) -> String {
-                words[span].map { $0.text.trimmingCharacters(in: .whitespaces) }.joined(separator: " ")
+            if let index = placeOf[sentence] {
+                places[index].marks.append(mark)
+                continue
             }
             let span = sentences[sentence]
             let paragraph = segments[paragraphOf[span.lowerBound]]
-            let before = sentence > 0 ? text(sentences[sentence - 1]) : ""
-            let text = text(span)
-            let found = paragraph.text.range(of: text)
-            let range = found.map { paragraph.text.distance(from: paragraph.text.startIndex, to: $0.lowerBound)
-                ..< paragraph.text.distance(from: paragraph.text.startIndex, to: $0.upperBound) }
+            let text = joined(span)
+            let range = Self.range(of: text, in: paragraph.text, at: offsetOf[span.lowerBound])
             let position = range.map { Double($0.lowerBound) / Double(max(1, paragraph.text.count)) } ?? 0
-            return Place(time: mark, segmentID: paragraph.id, range: range, sentence: text, before: before,
-                         position: position)
+            placeOf[sentence] = places.count
+            places.append(Place(time: mark, marks: [mark], segmentID: paragraph.id, range: range, sentence: text,
+                                before: sentence > 0 ? joined(sentences[sentence - 1]) : "", position: position))
         }
+        return places
     }
 
-    /// The text the bookmarks' sentences are found in is final: the full-accuracy words pass has run, the speakers are
-    /// final, and the vocabulary pass is done. Before that each step after Stop rewrites the paragraphs; afterwards
-    /// only the user's own corrections do (FED-73).
+    /// `sentence` in `paragraph` as character offsets: at its words' offset when it is there, else the first match.
+    private static func range(of sentence: String, in paragraph: String, at offset: Int) -> Range<Int>? {
+        if offset + sentence.count <= paragraph.count {
+            let start = paragraph.index(paragraph.startIndex, offsetBy: offset)
+            let end = paragraph.index(start, offsetBy: sentence.count)
+            if paragraph[start..<end] == sentence { return offset..<offset + sentence.count }
+        }
+        guard let found = paragraph.range(of: sentence) else { return nil }
+        let lower = paragraph.distance(from: paragraph.startIndex, to: found.lowerBound)
+        return lower..<lower + paragraph.distance(from: found.lowerBound, to: found.upperBound)
+    }
+
+    /// Gemma's title per place (`Recording.bookmarkTitles` is aligned with the bookmarks): its first bookmark's, "" for
+    /// none.
+    static func titles(of places: [Place], stored: [String], marks: [TimeInterval]) -> [String] {
+        guard stored.count == marks.count else { return places.map { _ in "" } }
+        let byMark = Dictionary(zip(marks, stored), uniquingKeysWith: { first, _ in first })
+        return places.map { byMark[$0.time] ?? "" }
+    }
+
+    /// The paragraphs the bookmarks' sentences are found in are final: the full-accuracy words pass has run and the
+    /// speakers are final. Before that each step after Stop rewrites them, and the highlights jumped from the live
+    /// words to each pass's (FED-73). The vocabulary pass after them only swaps words in place: the sentences are found
+    /// again by time, the same ones, and their highlight stays through it (RecordingDetailView.bookmarkRanges,
+    /// ChangeFlashText); afterwards only the user's own corrections rewrite the text.
     @MainActor
-    static func textIsFinal(_ recording: Recording) -> Bool {
-        recording.wordsRefined && recording.speakerStatus == .done && !recording.vocabularyPending
+    static func paragraphsAreFinal(_ recording: Recording) -> Bool {
+        recording.wordsRefined && recording.speakerStatus == .done
     }
 
     /// "Bookmark · 3:21", "Bookmarks · 3:21, 7:05": the line above a paragraph, in the exports.

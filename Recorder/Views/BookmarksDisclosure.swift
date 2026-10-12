@@ -4,9 +4,11 @@ import SwiftUI
 /// `DisclosureGroup`, subheadline, the count in secondary); only with bookmarks. Opened, a row per bookmark: its time,
 /// Gemma's short title when there is one (BookmarkTitler, an experiment), and the bookmarked sentence under it, at
 /// most two lines. A tap scrolls to the sentence, which the transcript highlights (BookmarkHighlight); nothing plays.
+/// Bookmarks on one sentence are one row (Bookmarks.places), with a small "×2" under its time: the recording's button
+/// counted each press, and the list would otherwise seem to have lost one.
 struct BookmarksDisclosure: View {
     let places: [Bookmarks.Place]
-    /// Gemma's titles in the bookmarks' order ([] or "": none).
+    /// Gemma's title per place ("": none; Bookmarks.titles).
     let titles: [String]
     let onSelect: (Bookmarks.Place) -> Void
 
@@ -38,9 +40,17 @@ struct BookmarksDisclosure: View {
             onSelect(place)
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(verbatim: TranscriptExport.clock(place.time))
-                    .monospacedDigit()
-                    .foregroundStyle(.tint)
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(verbatim: TranscriptExport.clock(place.time))
+                        .monospacedDigit()
+                        .foregroundStyle(.tint)
+                    if place.marks.count > 1 {
+                        Text(verbatim: "×\(place.marks.count)")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .accessibilityLabel(Text("^[\(place.marks.count) bookmark](inflect: true)"))
+                    }
+                }
                 VStack(alignment: .leading, spacing: 2) {
                     if !title.isEmpty {
                         Text(verbatim: title)
@@ -78,15 +88,19 @@ enum BookmarkHighlight {
         var cursor = 0
         for mark in marks {
             pieces.append(Text(slice(attributed, cursor..<mark.lowerBound)))
-            // A narrow no-break space, not a thin one: the line could break after the bookmark, leaving it alone at
-            // a line's end with its sentence on the next (seen on the iPhone; Core Text on a Mac broke the thin space
-            // and moved the bookmark down with the sentence after the no-break one).
-            let symbol = Text(Image(systemName: "bookmark.fill")).foregroundStyle(.tint)
-            pieces.append(Text("\(symbol)\(Text(verbatim: "\u{202F}"))"))
+            pieces.append(symbol)
             cursor = mark.lowerBound
         }
         pieces.append(Text(slice(attributed, cursor..<string.count)))
         return pieces.dropFirst().reduce(pieces[0]) { Text("\($0)\($1)") }
+    }
+
+    /// The bookmark in front of a sentence. Followed by a narrow no-break space, not a thin one: the line could break
+    /// after the bookmark, leaving it alone at a line's end with its sentence on the next (seen on the iPhone; Core Text
+    /// on a Mac broke the thin space and moved the bookmark down with the sentence after the no-break one).
+    static var symbol: Text {
+        let image = Text(Image(systemName: "bookmark.fill")).foregroundStyle(.tint)
+        return Text("\(image)\(Text(verbatim: "\u{202F}"))")
     }
 
     /// The tint behind `range`, except where a search hit's tint already is.

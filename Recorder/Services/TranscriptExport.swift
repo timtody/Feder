@@ -416,7 +416,13 @@ extension Recording {
             let name = segments.indices.contains(segment) ? speaker(segments[segment].speakerIndex) : nil
             words.append(.init(speaker: name, start: word.start, end: word.end, text: word.text))
         }
-        let bookmarks = Bookmarks.byParagraph(self.bookmarks, in: segments)
+        var bookmarks = Bookmarks.byParagraph(self.bookmarks, in: segments)
+        // Two in one paragraph may be on one sentence: written once, as the card lists it (Bookmarks.places). The words
+        // are read only then, a large read.
+        if bookmarks.values.contains(where: { $0.count > 1 }) {
+            let marks = Bookmarks.places(self.bookmarks, words: self.words, segments: segments).map(\.time)
+            bookmarks = Bookmarks.byParagraph(marks, in: segments)
+        }
         var meta = [createdAt.formatted(date: .long, time: .shortened), duration.clockFormatted]
         if let placeName { meta.append(placeName) }
         var snapshot = TranscriptExport.Snapshot(

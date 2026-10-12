@@ -45,8 +45,9 @@ struct RecordingDetailView: View {
     @State private var keepsStatusRow = false           // the status line was shown: its place stays (see body)
     @State private var showsActionItems = false         // the toolbar's Action Items: Gemma's to-dos in a sheet
     @State private var actionItemUndo = ActionItemUndo()   // Undo of an item removed in that sheet: toast and shake
-    /// Each bookmark's sentence (Bookmarks.places), found once the text is final (Bookmarks.textIsFinal), after the first
-    /// frame (it reads the words), and again when a correction rewrites the paragraphs; none before (FED-73).
+    /// The bookmarked sentences (Bookmarks.places), found once the paragraphs are final (Bookmarks.paragraphsAreFinal),
+    /// after the first frame (it reads the words), and again when the vocabulary pass or a correction rewrites them; none
+    /// before (FED-73).
     @State private var bookmarkPlaces: [Bookmarks.Place] = []
     @State private var pendingMerge: SpeakerMerge?
     /// Edit Text: the paragraphs' text and speaker-chip drafts while editing (by segment id), nil otherwise.
@@ -139,7 +140,9 @@ struct RecordingDetailView: View {
                         }
                         // The bookmarks under the summary: a tap scrolls to the highlighted sentence (FED-14).
                         if !bookmarkPlaces.isEmpty {
-                            BookmarksDisclosure(places: bookmarkPlaces, titles: recording.bookmarkTitles,
+                            BookmarksDisclosure(places: bookmarkPlaces,
+                                                titles: Bookmarks.titles(of: bookmarkPlaces, stored: recording.bookmarkTitles,
+                                                                         marks: recording.bookmarks),
                                                 onSelect: reveal)
                                 .opacity(bodyShown ? 1 : 0)
                         }
@@ -173,11 +176,11 @@ struct RecordingDetailView: View {
                 // No spacing above: the first name row brings its own (the space above a name is part of its target).
                 transcript(segments)
                     .opacity(bodyShown ? 1 : 0)
-                    .task(id: BookmarkSource(segments: segments, isFinal: Bookmarks.textIsFinal(recording))) {
+                    .task(id: BookmarkSource(segments: segments, isFinal: Bookmarks.paragraphsAreFinal(recording))) {
                         guard !recording.bookmarks.isEmpty, !recording.isDeleted else { return }
-                        // Not on text the steps after Stop still rewrite: placed on the live words, then on each
+                        // Not on paragraphs the steps after Stop still rewrite: placed on the live words, then on each
                         // pass's, the highlights vanished and came back on other words until the end (FED-73).
-                        guard Bookmarks.textIsFinal(recording) else { bookmarkPlaces = []; return }
+                        guard Bookmarks.paragraphsAreFinal(recording) else { bookmarkPlaces = []; return }
                         bookmarkPlaces = Bookmarks.places(recording.bookmarks, words: recording.words, segments: segments)
                     }
                 // An imported file in which the transcriber found no words (a recording without any is discarded
@@ -798,17 +801,17 @@ struct RecordingDetailView: View {
         withAnimation { reveal(hits[hitIndex]) }
     }
 
-    /// The bookmarked sentences' ranges by paragraph, each only while its paragraph still has that sentence there: a
-    /// pass that rewrote the paragraph leaves it unhighlighted until the places are found again (`bookmarkPlaces`).
+    /// The bookmarked sentences' ranges by paragraph. Also when the paragraph's text no longer matches (the vocabulary
+    /// pass or Edit Text changed a word): the highlight stays where it was, clamped to the text
+    /// (BookmarkHighlight.merged), until the places are found again a moment later (`bookmarkPlaces`); dropping it
+    /// made it blink at each change.
     static func bookmarkRanges(_ places: [Bookmarks.Place], in segments: [TranscriptSegment]) -> [UUID: [Range<Int>]] {
         guard !places.isEmpty else { return [:] }
-        let texts = Dictionary(segments.map { ($0.id, $0.text) }, uniquingKeysWith: { first, _ in first })
+        let ids = Set(segments.map(\.id))
         var result: [UUID: [Range<Int>]] = [:]
         for place in places {
-            guard let range = place.range, let text = texts[place.segmentID], range.upperBound <= text.count else { continue }
-            let start = text.index(text.startIndex, offsetBy: range.lowerBound)
-            let end = text.index(start, offsetBy: range.count)
-            if text[start..<end] == place.sentence { result[place.segmentID, default: []].append(range) }
+            guard let range = place.range, ids.contains(place.segmentID) else { continue }
+            result[place.segmentID, default: []].append(range)
         }
         return result
     }

@@ -45,12 +45,12 @@ extension MainView {
                 }
                 try? modelContext.save()
             }
-            // `-seedBookmarks`: Budget Review with three bookmarks (its words are 0.38 s apart): 10.5 s, in the middle of
-            // Anna's first sentence; 17 s, 0.7 s into Lena's reply, so the sentence that just ended counts (Anna's
-            // second, across the speaker change); 25.5 s, in Anna's last sentence.
+            // `-seedBookmarks`: Budget Review with four bookmarks on three sentences (its words are 0.38 s apart): 9.6 s
+            // and 10.5 s, both in Anna's first sentence (one place, FED-73); 17 s, 0.7 s into Lena's reply, so the
+            // sentence that just ended counts (Anna's second, across the speaker change); 25.5 s, in Anna's last sentence.
             if arguments.contains("-seedBookmarks"),
                let budget = try? modelContext.fetch(FetchDescriptor<Recording>()).first(where: { $0.id == PreviewData.budgetID }) {
-                budget.bookmarks = [10.5, 17, 25.5]
+                budget.bookmarks = [9.6, 10.5, 17, 25.5]
                 try? modelContext.save()
             }
             do { try await Task.sleep(for: .milliseconds(300)) } catch { return }   // @Query catches up first

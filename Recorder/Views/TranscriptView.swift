@@ -186,7 +186,7 @@ struct TranscriptView: View {
     @ViewBuilder
     private func paragraphText(_ segment: TranscriptSegment) -> some View {
         if search == nil, let flashes = flashes?(segment), !flashes.isEmpty {
-            ChangeFlashText(text: segment.text, flashes: flashes)
+            ChangeFlashText(text: segment.text, flashes: flashes, marks: bookmarks[segment.id] ?? [])
         } else if let onWordTap {
             WordParagraph(text: segment.text, highlights: search?.highlights(in: segment.text) ?? [],
                           marks: bookmarks[segment.id] ?? [],

@@ -14,6 +14,9 @@ nonisolated struct ChangeFlash: Equatable, Sendable {
 struct ChangeFlashText: View {
     let text: String
     let flashes: [ChangeFlash]
+    /// The paragraph's bookmarked sentences, as BookmarkHighlight draws them: without them here a bookmark's highlight
+    /// vanished for the seconds the vocabulary pass's changes flash (FED-73).
+    var marks: [Range<Int>] = []
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -24,17 +27,32 @@ struct ChangeFlashText: View {
         }
     }
 
-    /// Runs tagged with their flash, plain text between them.
+    /// Runs tagged with their flash, plain text between them; a bookmarked sentence tinted, its bookmark in front.
     private var styled: Text {
+        // The flashes as character offsets (one overlapping an earlier one is left out), and the cuts between runs.
+        var changed: [(range: Range<Int>, flash: ChangeFlash)] = []
+        for flash in flashes.sorted(by: { $0.range.lowerBound < $1.range.lowerBound }) {
+            let lower = text.distance(from: text.startIndex, to: flash.range.lowerBound)
+            guard lower >= changed.last?.range.upperBound ?? 0 else { continue }
+            changed.append((lower..<lower + text.distance(from: flash.range.lowerBound, to: flash.range.upperBound), flash))
+        }
+        let marks = BookmarkHighlight.merged(marks, length: text.count)
+        let cuts = Set([0, text.count] + changed.flatMap { [$0.range.lowerBound, $0.range.upperBound] }
+                       + marks.flatMap { [$0.lowerBound, $0.upperBound] }).sorted()
         var result = Text(verbatim: "")
         var cursor = text.startIndex
-        for flash in flashes.sorted(by: { $0.range.lowerBound < $1.range.lowerBound }) where flash.range.lowerBound >= cursor {
-            if cursor < flash.range.lowerBound { result = Text("\(result)\(Text(verbatim: String(text[cursor..<flash.range.lowerBound])))") }
-            let run = Text(verbatim: String(text[flash.range])).customAttribute(ChangedRun(at: flash.at, vocabulary: flash.vocabulary))
+        for (lower, upper) in zip(cuts, cuts.dropFirst()) {
+            if marks.contains(where: { $0.lowerBound == lower }) { result = Text("\(result)\(BookmarkHighlight.symbol)") }
+            let end = text.index(cursor, offsetBy: upper - lower)
+            var piece = AttributedString(text[cursor..<end])
+            if marks.contains(where: { $0.contains(lower) }) { piece.backgroundColor = BookmarkHighlight.tint }
+            var run = Text(piece)
+            if let flash = changed.first(where: { $0.range.contains(lower) })?.flash {
+                run = run.customAttribute(ChangedRun(at: flash.at, vocabulary: flash.vocabulary))
+            }
             result = Text("\(result)\(run)")
-            cursor = flash.range.upperBound
+            cursor = end
         }
-        if cursor < text.endIndex { result = Text("\(result)\(Text(verbatim: String(text[cursor...])))") }
         return result
     }
 }
