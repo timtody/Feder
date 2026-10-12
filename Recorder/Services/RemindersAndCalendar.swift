@@ -119,9 +119,13 @@ enum EventEditor {
         if store == nil { store = made }
     }
 
+    /// Also makes one event: the store's first `EKEvent` took 76 ms on the main actor in the press (the next 1 ms;
+    /// iOS 27 simulator), here it is off it.
     @concurrent
     nonisolated private static func makeStore() async -> sending EKEventStore {
-        EKEventStore()
+        let store = EKEventStore()
+        _ = EKEvent(eventStore: store)
+        return store
     }
 
     /// Presents Apple's New Event editor prefilled with `draft`, at once over whatever is frontmost (the card's full-screen
