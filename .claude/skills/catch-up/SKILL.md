@@ -9,7 +9,7 @@ The user steers Feder but doesn't read the code line by line. Afterwards they sh
 
 ## 1. The range
 
-- A date as argument ("monday", "2026-10-10"): the commits since then (`git log --since`).
+- A date as argument ("monday", "2026-10-10"): turn it into a calendar date first ("monday" is the most recent Monday, today if today is one), then `git log --since=YYYY-MM-DD`. Don't hand git a weekday: on a Monday, `--since=monday` finds nothing.
 - A commit: `<commit>..HEAD`.
 - An issue (`FED-12`): the commits that name it (`git log --grep='FED-12'`), plus the issue and its comments.
 - No argument: `refs/catch-up/last..HEAD` (`git rev-parse -q --verify refs/catch-up/last`); if that ref doesn't exist yet, the last 7 days.
