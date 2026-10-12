@@ -1,4 +1,4 @@
-# Build products and Xcode state (local-only repo, no remote)
+# Build products and Xcode state
 build/
 DerivedData/
 *.xcuserstate

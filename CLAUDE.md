@@ -8,7 +8,7 @@ Feder is a local-only iPhone transcription app: SwiftUI, Swift 6, iOS 26+, built
 - **Nothing leaves the phone.** Do not add network calls except the existing, user-initiated model downloads: Parakeet, Nemotron, the live-label models (LS-EEND; Sortformer only in Debug builds) and Gemma via pinned Hugging Face revisions. No analytics and no cloud models.
 - **UI tests and the `-seedSamples` launch hooks are simulator only.** They must never touch an iPhone's store.
 - **Keep `CHANGELOG.md` current.** Every change a user would notice gets a line under the version in progress, in English and German, written for users (what they can do now, not how it is built); fixes the user never saw (inside one unreleased version) need none.
-- **A local git repo, no remote.** Commit after each step with a clear message, so steps can be reverted; still look before you overwrite or delete. `build/`, DerivedData and `*.xcresult` are ignored.
+- **Git, with GitHub as the remote** (`origin`: `timtody/Feder`). Commit after each step with a clear message, so steps can be reverted; still look before you overwrite or delete. `build/`, DerivedData and `*.xcresult` are ignored, so nothing under `build/` reaches GitHub (the `build/qa/` scripts included: FED-61).
 
 ## Planning in Linear
 
