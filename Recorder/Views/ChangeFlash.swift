@@ -36,7 +36,7 @@ struct ChangeFlashText: View {
             guard lower >= changed.last?.range.upperBound ?? 0 else { continue }
             changed.append((lower..<lower + text.distance(from: flash.range.lowerBound, to: flash.range.upperBound), flash))
         }
-        let marks = BookmarkHighlight.merged(marks, length: text.count)
+        let marks = Bookmarks.merged(marks, length: text.count)
         let cuts = Set([0, text.count] + changed.flatMap { [$0.range.lowerBound, $0.range.upperBound] }
                        + marks.flatMap { [$0.lowerBound, $0.upperBound] }).sorted()
         var result = Text(verbatim: "")

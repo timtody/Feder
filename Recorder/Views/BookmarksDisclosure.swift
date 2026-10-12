@@ -70,7 +70,7 @@ enum BookmarkHighlight {
 
     /// The paragraph with its search hits (SearchHighlight) and its bookmarked sentences.
     static func text(_ string: String, search: [Range<String.Index>], marks: [Range<Int>]) -> Text {
-        let marks = merged(marks, length: string.count)
+        let marks = Bookmarks.merged(marks, length: string.count)
         guard !marks.isEmpty else { return SearchHighlight.text(string, search) }
         var attributed = SearchHighlight.attributed(string, search)
         for mark in marks { tintBackground(&attributed, mark) }
@@ -102,23 +102,6 @@ enum BookmarkHighlight {
         for run in attributed[start..<end].runs where run.backgroundColor == nil {
             attributed[run.range].backgroundColor = tint
         }
-    }
-
-    /// Sorted, overlapping ones joined, clamped to the text; one past its end dropped (a pass rewrote the paragraph
-    /// before the places were found again: a shorter text trapped building the clamped range).
-    static func merged(_ ranges: [Range<Int>], length: Int) -> [Range<Int>] {
-        var result: [Range<Int>] = []
-        for range in ranges.sorted(by: { $0.lowerBound < $1.lowerBound }) {
-            let lower = max(0, range.lowerBound), upper = min(length, range.upperBound)
-            guard lower < upper else { continue }
-            let clamped = lower..<upper
-            if let last = result.last, clamped.lowerBound <= last.upperBound {
-                result[result.count - 1] = last.lowerBound..<max(last.upperBound, clamped.upperBound)
-            } else {
-                result.append(clamped)
-            }
-        }
-        return result
     }
 
     private static func slice(_ attributed: AttributedString, _ range: Range<Int>) -> AttributedString {

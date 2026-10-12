@@ -419,8 +419,10 @@ struct RecordingDetailView: View {
     }
 
     private func share(_ format: TranscriptExport.Format) {
+        // The bookmarked sentences the card has found: the words aren't read again in the press.
         let snapshot = recording.exportSnapshot(names: exportNames, timestamps: exportTimestamps,
-                                                withWords: format.isSubtitles)
+                                                withWords: format.isSubtitles,
+                                                places: bookmarkPlaces.isEmpty ? nil : bookmarkPlaces)
         guard format != .text else {
             ShareSheet.present(text: TranscriptExport.plainText(snapshot), title: recording.name)
             return
@@ -800,7 +802,7 @@ struct RecordingDetailView: View {
 
     /// The bookmarked sentences' ranges by paragraph. Also when the paragraph's text no longer matches (the vocabulary
     /// pass or Edit Text changed a word): the highlight stays where it was, clamped to the text
-    /// (BookmarkHighlight.merged), until the places are found again a moment later (`bookmarkPlaces`); dropping it
+    /// (Bookmarks.merged), until the places are found again a moment later (`bookmarkPlaces`); dropping it
     /// made it blink at each change.
     static func bookmarkRanges(_ places: [Bookmarks.Place], in segments: [TranscriptSegment]) -> [UUID: [Range<Int>]] {
         guard !places.isEmpty else { return [:] }

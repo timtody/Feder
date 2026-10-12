@@ -34,9 +34,16 @@ nonisolated enum TranscriptExport {
         var speaker: String?
         var start: TimeInterval
         var text: String
-        /// "🔖 Bookmark · 3:21": the moments marked in it while recording (Bookmarks), written above it as the card
-        /// shows them; nil: none. Not in subtitles.
-        var bookmark: String? = nil
+        /// Its bookmarked sentences (Bookmarks.places), as character offsets into `text`: each written as the card shows
+        /// it, a bookmark at its start and the sentence highlighted (`runs`). Until October 2026 a line above the
+        /// paragraph, "🔖 Bookmark · 3:21", said when but not what (FED-76). Not in subtitles.
+        var marks: [Range<Int>] = []
+    }
+
+    /// A bookmark in the list under the summary, as the card's Bookmarks row has it.
+    struct Bookmark: Sendable {
+        var time: TimeInterval
+        var sentence: String
     }
 
     struct Word: Sendable {
@@ -61,7 +68,16 @@ nonisolated enum TranscriptExport {
         /// summary; plain text and subtitles stay the transcript alone.
         var actionItemsHeading = ""
         var actionItems: [String] = []
+        /// The bookmarks under their heading right after the summary (before the action items), as the card lists them
+        /// under its Summary row; plain text and subtitles stay the transcript alone.
+        var bookmarksHeading = ""
+        var bookmarks: [Bookmark] = []
     }
+
+    /// The app's accent (AccentColor, light): the bookmark and the list's times. The highlight behind a bookmarked
+    /// sentence is it at 12 % over white, as the card's (BookmarkHighlight.tint).
+    static var accent: UIColor { UIColor(red: 0, green: 108 / 255, blue: 1, alpha: 1) }
+    static let accentHex = "006CFF", tintHex = "E0EDFF"
 
     // MARK: Writing
 
@@ -128,35 +144,111 @@ nonisolated enum TranscriptExport {
                                                   timestamps: defaults.bool(forKey: timestampsKey)))
     }
 
+    /// The paragraph's text in runs, in order, each bookmarked sentence one of its own (`marked`).
+    static func runs(_ paragraph: Paragraph) -> [(text: String, marked: Bool)] {
+        let text = paragraph.text
+        func slice(_ range: Range<Int>) -> String {
+            let start = text.index(text.startIndex, offsetBy: range.lowerBound)
+            return String(text[start..<text.index(start, offsetBy: range.count)])
+        }
+        var runs: [(text: String, marked: Bool)] = []
+        var cursor = 0
+        for mark in Bookmarks.merged(paragraph.marks, length: text.count) {
+            if cursor < mark.lowerBound { runs.append((slice(cursor..<mark.lowerBound), false)) }
+            runs.append((slice(mark), true))
+            cursor = mark.upperBound
+        }
+        if cursor < text.count { runs.append((slice(cursor..<text.count), false)) }
+        return runs
+    }
+
+    /// The turns alone; a bookmarked sentence starts with "🔖", the card's bookmark (plain text has no highlight).
     static func plainText(_ snapshot: Snapshot) -> String {
         snapshot.paragraphs.enumerated().map { index, paragraph in
-            let bookmark = paragraph.bookmark.map { $0 + "\n" } ?? ""
+            let text = runs(paragraph).map { $0.marked ? "🔖 " + $0.text : $0.text }.joined()
             if let lead = lead(paragraph, snapshot), startsTurn(index, snapshot.paragraphs) {
-                return bookmark + "\(lead): \(paragraph.text)"
+                return "\(lead): \(text)"
             }
-            return bookmark + paragraph.text
+            return text
         }
         .joined(separator: "\n\n")
     }
 
+    /// CommonMark, so every Markdown app reads it as meant: the transcript's own text escaped (a paragraph starting
+    /// with "1." or "- " became a list, "*" italics), the summary quoted line by line (only its first line was, and a
+    /// blank line in it ended the quote). A bookmarked sentence is `🔖 <mark>…</mark>`: inline HTML is CommonMark, and
+    /// GitHub (whose filter keeps `mark`), Obsidian, Typora and VS Code show it highlighted; where an app draws no HTML,
+    /// the sentence stays readable after its bookmark. (`==…==` is no CommonMark: GitHub shows the equals signs.) The
+    /// bookmarks' list and the action items are lists under their headings; the action items a GitHub task list, a
+    /// plain list where there are no checkboxes.
     static func markdown(_ snapshot: Snapshot) -> String {
-        var lines = ["# \(snapshot.title)", "", "_\(snapshot.metaLine)_"]
-        if !snapshot.tags.isEmpty { lines += ["", snapshot.tags.map { "#\($0.replacingOccurrences(of: " ", with: "-"))" }.joined(separator: " ")] }
-        if let summary = snapshot.summary { lines += ["", "> \(summary)"] }
+        var lines = ["# \(markdownInline(snapshot.title))", "", "_\(markdownInline(snapshot.metaLine))_"]
+        if !snapshot.tags.isEmpty {
+            lines += ["", snapshot.tags.map { "#" + markdownInline($0.replacingOccurrences(of: " ", with: "-")) }
+                .joined(separator: " ")]
+        }
+        if let summary = snapshot.summary {
+            lines.append("")
+            lines += summary.components(separatedBy: .newlines).map { line in
+                let line = markdownLineStarts(markdownInline(line))
+                return line.isEmpty ? ">" : "> " + line
+            }
+        }
+        if !snapshot.bookmarks.isEmpty {
+            lines += ["", "## \(markdownInline(snapshot.bookmarksHeading))", ""]
+                + snapshot.bookmarks.map { "- **\(clock($0.time))** \(markdownInline($0.sentence))" }
+        }
         // A task list: Notes, Obsidian and GitHub show checkboxes.
         if !snapshot.actionItems.isEmpty {
-            lines += ["", "## \(snapshot.actionItemsHeading)", ""] + snapshot.actionItems.map { "- [ ] \($0)" }
+            lines += ["", "## \(markdownInline(snapshot.actionItemsHeading))", ""]
+                + snapshot.actionItems.map { "- [ ] \(markdownInline($0))" }
         }
         lines.append("")
         for (index, paragraph) in snapshot.paragraphs.enumerated() {
             if let lead = lead(paragraph, snapshot), startsTurn(index, snapshot.paragraphs) {
-                lines += ["**\(lead)**", ""]
+                lines += ["**\(markdownInline(lead))**", ""]
             }
-            if let bookmark = paragraph.bookmark { lines += ["_\(bookmark)_", ""] }
-            lines += [paragraph.text, ""]
+            let text = runs(paragraph).map { run in
+                run.marked ? "🔖 <mark>\(markdownInline(run.text))</mark>" : markdownInline(run.text)
+            }
+            lines += [markdownLineStarts(text.joined()), ""]
         }
-        lines += ["---", "", "_\(snapshot.aiNote)_", ""]
+        lines += ["---", "", "_\(markdownInline(snapshot.aiNote))_", ""]
         return lines.joined(separator: "\n")
+    }
+
+    /// Text that stays text in Markdown: a character that would start emphasis, code, a link, HTML, a heading or
+    /// GitHub's strikethrough backslash-escaped (CommonMark allows it before any ASCII punctuation), and an "&" that
+    /// would read as an entity ("&amp;"). Rare in speech, so the file reads as typed.
+    static func markdownInline(_ text: String) -> String {
+        var out = ""
+        var index = text.startIndex
+        while index < text.endIndex {
+            let character = text[index]
+            if "\\`*_[]<#~".contains(character)
+                || character == "&" && text[index...].prefixMatch(of: /&(#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});/) != nil {
+                out.append("\\")
+            }
+            out.append(character)
+            index = text.index(after: index)
+        }
+        return out
+    }
+
+    /// Each line's start, so the line stays a paragraph's text: leading spaces dropped (four made a code block), a ">",
+    /// "-", "+" or "=" (a quote, list, rule or heading underline) escaped, and a number's "." or ")" (a numbered
+    /// list). "#", "*" and "_" are escaped everywhere (`markdownInline`).
+    static func markdownLineStarts(_ text: String) -> String {
+        text.components(separatedBy: "\n").map { line in
+            var line = String(line.drop { $0 == " " || $0 == "\t" })
+            if let first = line.first, ">-+=".contains(first) {
+                line.insert("\\", at: line.startIndex)
+            } else if let number = line.prefixMatch(of: /[0-9]{1,9}[.)]/) {
+                line.insert("\\", at: line.index(before: number.range.upperBound))
+            }
+            return line
+        }
+        .joined(separator: "\n")
     }
 
     // MARK: Subtitles
@@ -215,12 +307,18 @@ nonisolated enum TranscriptExport {
 
     // MARK: PDF
 
-    /// A4 pages with the card's order: title, date line, tags, summary, action items, the turns, and the AI note at the end; page
-    /// numbers at the foot. Laid out with Core Text (`CTFramesetter`), page by page.
+    /// A4 pages with the card's order: title, date line, tags, summary, bookmarks, action items, the turns, and the AI
+    /// note at the end; page numbers at the foot. Laid out with Core Text (`CTFramesetter`), page by page. A bookmarked
+    /// sentence has the card's tint behind it (Core Text's background colour) and its bookmark, the SF Symbol the card
+    /// shows, in a gap the text leaves for it (a run delegate), drawn after each page's text at the text's size.
     static func pdf(_ snapshot: Snapshot) -> Data {
         let page = CGRect(x: 0, y: 0, width: 595, height: 842)
         let body = page.insetBy(dx: 56, dy: 64)
-        let text = attributed(snapshot)
+        let symbol = snapshot.paragraphs.contains { !$0.marks.isEmpty } ? bookmarkImage() : nil
+        let scale = textFont.pointSize / (symbol?.pointSize ?? 1)
+        let symbolSize = CGSize(width: (symbol?.image.size.width ?? 0) * scale, height: (symbol?.image.size.height ?? 0) * scale)
+        let symbolBaseline = (symbol?.baseline ?? 0) * scale
+        let text = attributed(snapshot, symbol: symbolSize, symbolBaseline: symbolBaseline)
         let setter = CTFramesetterCreateWithAttributedString(text)
         let renderer = UIGraphicsPDFRenderer(bounds: page, format: {
             let format = UIGraphicsPDFRendererFormat()
@@ -243,6 +341,23 @@ nonisolated enum TranscriptExport {
                 CTFrameDraw(frame, cg)
                 let visible = CTFrameGetVisibleStringRange(frame)
                 cg.restoreGState()
+                if let symbol = symbol?.image {
+                    // The bookmarks' gaps, from Core Text's coordinates (y up from the page's foot) to UIKit's.
+                    let lines = CTFrameGetLines(frame) as? [CTLine] ?? []
+                    var origins = [CGPoint](repeating: .zero, count: lines.count)
+                    CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0), &origins)
+                    for (line, origin) in zip(lines, origins) {
+                        for run in CTLineGetGlyphRuns(line) as? [CTRun] ?? []
+                        where (CTRunGetAttributes(run) as NSDictionary)[bookmarkGap] != nil {
+                            var position = CGPoint.zero
+                            CTRunGetPositions(run, CFRange(location: 0, length: 1), &position)
+                            let baseline = body.minY + body.height - origin.y      // UIKit: the frame's top is body.minY
+                            symbol.draw(in: CGRect(x: body.minX + origin.x + position.x,
+                                                   y: baseline + symbolBaseline - symbolSize.height,
+                                                   width: symbolSize.width, height: symbolSize.height))
+                        }
+                    }
+                }
                 let footer = NSAttributedString(string: "\(number)", attributes: [
                     .font: UIFont.systemFont(ofSize: 9), .foregroundColor: UIColor.gray])
                 footer.draw(at: CGPoint(x: page.midX - footer.size().width / 2, y: page.height - 40))
@@ -253,20 +368,64 @@ nonisolated enum TranscriptExport {
         }
     }
 
-    private static func attributed(_ snapshot: Snapshot) -> NSAttributedString {
+    /// The transcript's text size in the PDF.
+    private static var textFont: UIFont { .systemFont(ofSize: 11) }
+
+    /// Marks the placeholder a bookmark is drawn over (`pdf`).
+    private static let bookmarkGap = NSAttributedString.Key("FederBookmarkGap")
+
+    /// A run delegate's size: the symbol's width, its height above and below the baseline.
+    private struct GapSize { var width, ascent, descent: CGFloat }
+
+    private static func attributed(_ snapshot: Snapshot, symbol: CGSize, symbolBaseline: CGFloat) -> NSAttributedString {
         let out = NSMutableAttributedString()
-        func add(_ string: String, _ font: UIFont, _ color: UIColor = .black, before: CGFloat = 0, after: CGFloat = 0) {
+        func style(before: CGFloat, after: CGFloat, indent: CGFloat = 0) -> NSParagraphStyle {
             let style = NSMutableParagraphStyle()
             style.paragraphSpacingBefore = before
             style.paragraphSpacing = after
             style.lineHeightMultiple = 1.15
-            out.append(NSAttributedString(string: string + "\n", attributes: [
-                .font: font, .foregroundColor: color, .paragraphStyle: style]))
+            if indent > 0 {                                  // a list's hanging indent: wrapped lines under the text
+                style.tabStops = [NSTextTab(textAlignment: .left, location: indent)]
+                style.headIndent = indent
+            }
+            return style
         }
+        func add(_ string: String, _ font: UIFont, _ color: UIColor = .black, before: CGFloat = 0, after: CGFloat = 0) {
+            out.append(NSAttributedString(string: string + "\n", attributes: [
+                .font: font, .foregroundColor: color, .paragraphStyle: style(before: before, after: after)]))
+        }
+        // The bookmark's gap in the text: an object replacement character, invisible, as wide as the symbol.
+        let size = UnsafeMutablePointer<GapSize>.allocate(capacity: 1)
+        size.initialize(to: GapSize(width: symbol.width, ascent: symbol.height - symbolBaseline, descent: symbolBaseline))
+        var callbacks = CTRunDelegateCallbacks(
+            version: kCTRunDelegateVersion1,
+            dealloc: { $0.assumingMemoryBound(to: GapSize.self).deallocate() },
+            getAscent: { $0.assumingMemoryBound(to: GapSize.self).pointee.ascent },
+            getDescent: { $0.assumingMemoryBound(to: GapSize.self).pointee.descent },
+            getWidth: { $0.assumingMemoryBound(to: GapSize.self).pointee.width })
+        let delegate = CTRunDelegateCreate(&callbacks, size)
+        let tint = accent.withAlphaComponent(0.12).cgColor
         add(snapshot.title, .systemFont(ofSize: 22, weight: .bold), after: 4)
         add(snapshot.metaLine, .systemFont(ofSize: 10), .darkGray, after: 4)
         if !snapshot.tags.isEmpty { add(snapshot.tags.map { "#\($0)" }.joined(separator: "  "), .systemFont(ofSize: 10), .darkGray, after: 4) }
         if let summary = snapshot.summary { add(summary, .italicSystemFont(ofSize: 11), .darkGray, before: 6, after: 6) }
+        if !snapshot.bookmarks.isEmpty {
+            add(snapshot.bookmarksHeading, .systemFont(ofSize: 10.5, weight: .semibold), UIColor(white: 0.12, alpha: 1),
+                before: 8, after: 2)
+            let timeFont = UIFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+            let indent = ceil(snapshot.bookmarks.map {
+                NSAttributedString(string: clock($0.time), attributes: [.font: timeFont]).size().width
+            }.max() ?? 0) + 10
+            for bookmark in snapshot.bookmarks {
+                let entry = NSMutableAttributedString(string: clock(bookmark.time) + "\t",
+                                                      attributes: [.font: timeFont, .foregroundColor: accent])
+                entry.append(NSAttributedString(string: bookmark.sentence + "\n",
+                                                attributes: [.font: textFont, .foregroundColor: UIColor.darkGray]))
+                entry.addAttribute(.paragraphStyle, value: style(before: 0, after: 2, indent: indent),
+                                   range: NSRange(location: 0, length: entry.length))
+                out.append(entry)
+            }
+        }
         if !snapshot.actionItems.isEmpty {
             add(snapshot.actionItemsHeading, .systemFont(ofSize: 10.5, weight: .semibold), UIColor(white: 0.12, alpha: 1),
                 before: 8, after: 2)
@@ -280,11 +439,22 @@ nonisolated enum TranscriptExport {
                 add(lead, .systemFont(ofSize: 10.5, weight: .semibold), UIColor(white: 0.12, alpha: 1), before: 12, after: 2)
                 before = 0
             }
-            if let bookmark = paragraph.bookmark {
-                add(bookmark, .systemFont(ofSize: 9.5, weight: .medium), .systemBlue, before: before, after: 2)
-                before = 0
+            let text = NSMutableAttributedString()
+            for run in runs(paragraph) {
+                if run.marked, let delegate {
+                    text.append(NSAttributedString(string: "\u{FFFC}", attributes: [
+                        .font: textFont, .foregroundColor: UIColor.clear, bookmarkGap: true,
+                        NSAttributedString.Key(kCTRunDelegateAttributeName as String): delegate]))
+                    text.append(NSAttributedString(string: "\u{202F}", attributes: [.font: textFont]))   // as the card
+                }
+                var attributes: [NSAttributedString.Key: Any] = [.font: textFont, .foregroundColor: UIColor.black]
+                if run.marked { attributes[NSAttributedString.Key(kCTBackgroundColorAttributeName as String)] = tint }
+                text.append(NSAttributedString(string: run.text, attributes: attributes))
             }
-            add(paragraph.text, .systemFont(ofSize: 11), before: before, after: 4)
+            text.append(NSAttributedString(string: "\n", attributes: [.font: textFont]))
+            text.addAttribute(.paragraphStyle, value: style(before: before, after: 4),
+                              range: NSRange(location: 0, length: text.length))
+            out.append(text)
         }
         add(snapshot.aiNote, .systemFont(ofSize: 8), .gray, before: 18)
         return out
@@ -293,25 +463,62 @@ nonisolated enum TranscriptExport {
     // MARK: Word
 
     /// A minimal Office Open XML document (Word, Pages and Google Docs open it): the same order as the PDF, direct
-    /// formatting, no styles part. Zipped without compression (`StoredZip`).
+    /// formatting, no styles part. Zipped without compression (`StoredZip`). A bookmarked sentence is shaded in the
+    /// card's tint, after its bookmark: the SF Symbol as a small PNG, inline (an emoji's bookmark looked nothing like the
+    /// card's, and Word has no symbol for it).
     static func docx(_ snapshot: Snapshot) throws -> Data {
         func escaped(_ text: String) -> String {
             text.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
                 .replacingOccurrences(of: ">", with: "&gt;").replacingOccurrences(of: "\"", with: "&quot;")
         }
+        // Run properties in the schema's order (b, i, color, sz, shd): Word reads elements out of order as damage.
+        func run(_ text: String, size: Int, bold: Bool = false, italic: Bool = false, color: String? = nil,
+                 shade: String? = nil) -> String {
+            var properties = bold ? "<w:b/>" : ""
+            if italic { properties += "<w:i/>" }
+            if let color { properties += "<w:color w:val=\"\(color)\"/>" }
+            properties += "<w:sz w:val=\"\(size)\"/>"
+            if let shade { properties += "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"\(shade)\"/>" }
+            return "<w:r><w:rPr>\(properties)</w:rPr><w:t xml:space=\"preserve\">\(escaped(text))</w:t></w:r>"
+        }
+        func paragraph(runs: String, before: Int = 0, after: Int = 120, hanging: Int = 0) -> String {
+            let indent = hanging > 0 ? "<w:ind w:left=\"\(hanging)\" w:hanging=\"\(hanging)\"/>" : ""
+            return "<w:p><w:pPr><w:spacing w:before=\"\(before)\" w:after=\"\(after)\"/>\(indent)</w:pPr>\(runs)</w:p>"
+        }
         func paragraph(_ text: String, size: Int, bold: Bool = false, italic: Bool = false, color: String? = nil,
                        before: Int = 0, after: Int = 120) -> String {
-            var run = "<w:sz w:val=\"\(size)\"/>"
-            if bold { run = "<w:b/>" + run }
-            if italic { run = "<w:i/>" + run }
-            if let color { run += "<w:color w:val=\"\(color)\"/>" }
-            return "<w:p><w:pPr><w:spacing w:before=\"\(before)\" w:after=\"\(after)\"/></w:pPr>"
-                + "<w:r><w:rPr>\(run)</w:rPr><w:t xml:space=\"preserve\">\(escaped(text))</w:t></w:r></w:p>"
+            paragraph(runs: run(text, size: size, bold: bold, italic: italic, color: color), before: before, after: after)
+        }
+        // The bookmark as large as the symbol at the text's 11 pt (drawn at 88 pt and scaled down).
+        let symbol = snapshot.paragraphs.contains { !$0.marks.isEmpty } ? bookmarkImage() : nil
+        let png = symbol?.image.pngData()
+        var drawings = 0
+        func bookmark() -> String {
+            guard let symbol, png != nil else { return "" }
+            drawings += 1
+            let scale = 11 / symbol.pointSize * 12_700        // EMU per pixel: 12 700 per point
+            let (cx, cy) = (Int(symbol.image.size.width * scale), Int(symbol.image.size.height * scale))
+            return "<w:r><w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\">"
+                + "<wp:extent cx=\"\(cx)\" cy=\"\(cy)\"/><wp:docPr id=\"\(drawings)\" name=\"Bookmark \(drawings)\"/>"
+                + "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic>"
+                + "<pic:nvPicPr><pic:cNvPr id=\"\(drawings)\" name=\"bookmark.png\"/><pic:cNvPicPr/></pic:nvPicPr>"
+                + "<pic:blipFill><a:blip r:embed=\"rIdBookmark\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>"
+                + "<pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"\(cx)\" cy=\"\(cy)\"/></a:xfrm>"
+                + "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>"
+                + "</wp:inline></w:drawing></w:r>"
         }
         var body = paragraph(snapshot.title, size: 40, bold: true, after: 80)
         body += paragraph(snapshot.metaLine, size: 18, color: "666666", after: 80)
         if !snapshot.tags.isEmpty { body += paragraph(snapshot.tags.map { "#\($0)" }.joined(separator: "  "), size: 18, color: "666666") }
         if let summary = snapshot.summary { body += paragraph(summary, size: 21, italic: true, color: "555555", before: 120, after: 200) }
+        if !snapshot.bookmarks.isEmpty {
+            body += paragraph(snapshot.bookmarksHeading, size: 21, bold: true, color: "1F1F1F", before: 120, after: 40)
+            let hanging = snapshot.bookmarks.contains { $0.time >= 3600 } ? 1000 : 720   // "1:02:03" is wider
+            for item in snapshot.bookmarks {
+                body += paragraph(runs: run(clock(item.time), size: 22, color: accentHex) + "<w:r><w:tab/></w:r>"
+                                  + run(item.sentence, size: 22, color: "555555"), after: 40, hanging: hanging)
+            }
+        }
         if !snapshot.actionItems.isEmpty {
             body += paragraph(snapshot.actionItemsHeading, size: 21, bold: true, color: "1F1F1F", before: 120, after: 40)
             for item in snapshot.actionItems { body += paragraph("• " + item, size: 22, after: 40) }
@@ -321,13 +528,19 @@ nonisolated enum TranscriptExport {
             if let lead = lead(item, snapshot), turn {
                 body += paragraph(lead, size: 20, bold: true, color: "1F1F1F", before: 240, after: 40)
             }
-            if let bookmark = item.bookmark { body += paragraph(bookmark, size: 19, color: "1F5FBF", after: 40) }
-            body += paragraph(item.text, size: 22)
+            body += paragraph(runs: runs(item).map { piece in
+                piece.marked ? bookmark() + run("\u{202F}", size: 22) + run(piece.text, size: 22, shade: tintHex)
+                             : run(piece.text, size: 22)
+            }.joined())
         }
         body += paragraph(snapshot.aiNote, size: 16, color: "888888", before: 360)
         let document = """
             <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-            <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>\(body)\
+            <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" \
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" \
+            xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" \
+            xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" \
+            xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>\(body)\
             <w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1418" w:right="1134" w:bottom="1418" \
             w:left="1134" w:header="709" w:footer="709" w:gutter="0"/></w:sectPr></w:body></w:document>
             """
@@ -336,6 +549,7 @@ nonisolated enum TranscriptExport {
             <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">\
             <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>\
             <Default Extension="xml" ContentType="application/xml"/>\
+            <Default Extension="png" ContentType="image/png"/>\
             <Override PartName="/word/document.xml" \
             ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>
             """
@@ -346,8 +560,33 @@ nonisolated enum TranscriptExport {
             Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" \
             Target="word/document.xml"/></Relationships>
             """
-        return StoredZip.archive([("[Content_Types].xml", Data(types.utf8)), ("_rels/.rels", Data(relations.utf8)),
-                                  ("word/document.xml", Data(document.utf8))])
+        var files = [("[Content_Types].xml", Data(types.utf8)), ("_rels/.rels", Data(relations.utf8)),
+                     ("word/document.xml", Data(document.utf8))]
+        if let png {
+            let images = """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">\
+                <Relationship Id="rIdBookmark" \
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" \
+                Target="media/bookmark.png"/></Relationships>
+                """
+            files += [("word/_rels/document.xml.rels", Data(images.utf8)), ("word/media/bookmark.png", png)]
+        }
+        return StoredZip.archive(files)
+    }
+
+    /// The card's bookmark (the SF Symbol, in the accent) as a bitmap drawn at `pointSize` (88: sharp when printed at
+    /// 11 pt), with its baseline's height. A bitmap also in the PDF: the symbol drawn straight into the PDF became a
+    /// plain block without its notch (Preview, Quick Look).
+    static func bookmarkImage() -> (image: UIImage, baseline: CGFloat, pointSize: CGFloat)? {
+        let pointSize: CGFloat = 88
+        guard let symbol = UIImage(systemName: "bookmark.fill",
+                                   withConfiguration: UIImage.SymbolConfiguration(pointSize: pointSize))?
+            .withTintColor(accent, renderingMode: .alwaysOriginal) else { return nil }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(size: symbol.size, format: format).image { _ in symbol.draw(at: .zero) }
+        return (image, symbol.baselineOffsetFromBottom ?? 0, pointSize)
     }
 }
 
@@ -404,24 +643,25 @@ extension Recording {
     /// What an export of this transcript needs (TranscriptExport), read on the main actor. Speaker names only once the
     /// speakers are final, as in the plain text: live labels' numbers are unrelated to the final ones.
     /// `withWords`: the words with their speakers, for subtitles only (a second large SwiftData read).
-    func exportSnapshot(names: Bool, timestamps: Bool, withWords: Bool = false) -> TranscriptExport.Snapshot {
+    /// `places`: the card's bookmarked sentences (Bookmarks.places), found already; nil: found here, from the words.
+    func exportSnapshot(names: Bool, timestamps: Bool, withWords: Bool = false,
+                        places: [Bookmarks.Place]? = nil) -> TranscriptExport.Snapshot {
         let labelled = speakerStatus == .done
         let segments = self.segments
         func speaker(_ index: Int?) -> String? { labelled ? index.map(speakerName) : nil }
+        // The words: for subtitles, and for the bookmarked sentences when the card hasn't found them (the list's Share,
+        // a card still finishing its text): a second large read, so only then.
+        let marks = bookmarks
+        let allWords = withWords || !marks.isEmpty && places == nil ? self.words : []
+        let found = marks.isEmpty ? [] : places ?? Bookmarks.places(marks, words: allWords, segments: segments)
+        let ranges = Dictionary(grouping: found, by: \.segmentID).mapValues { $0.compactMap(\.range) }
         // Each word takes its paragraph's speaker: the paragraphs are folds of consecutive words, so one walk does it.
         var words: [TranscriptExport.Word] = []
         var segment = 0
-        for word in withWords ? self.words : [] {
+        for word in withWords ? allWords : [] {
             while segment + 1 < segments.count, word.start >= segments[segment + 1].start - 0.001 { segment += 1 }
             let name = segments.indices.contains(segment) ? speaker(segments[segment].speakerIndex) : nil
             words.append(.init(speaker: name, start: word.start, end: word.end, text: word.text))
-        }
-        var bookmarks = Bookmarks.byParagraph(self.bookmarks, in: segments)
-        // Two in one paragraph may be on one sentence: written once, as the card lists it (Bookmarks.places). The words
-        // are read only then, a large read.
-        if bookmarks.values.contains(where: { $0.count > 1 }) {
-            let marks = Bookmarks.places(self.bookmarks, words: self.words, segments: segments).map(\.time)
-            bookmarks = Bookmarks.byParagraph(marks, in: segments)
         }
         var meta = [createdAt.formatted(date: .long, time: .shortened), duration.clockFormatted]
         if let placeName { meta.append(placeName) }
@@ -430,12 +670,14 @@ extension Recording {
             summary: summary?.isEmpty == false ? summary : nil, tags: tags,
             paragraphs: segments.map { segment in
                 .init(speaker: speaker(segment.speakerIndex), start: segment.start, text: segment.text,
-                      bookmark: bookmarks[segment.id].map { "🔖 " + Bookmarks.line($0) })
+                      marks: ranges[segment.id] ?? [])
             },
             words: words, aiNote: String(localized: "AI-generated content can contain mistakes."),
             names: names && labelled, timestamps: timestamps)
         snapshot.actionItemsHeading = String(localized: "Action Items")
         snapshot.actionItems = actionItems.filter { !$0.isRemoved }.map(ActionItemText.line)
+        snapshot.bookmarksHeading = String(localized: "Bookmarks")
+        snapshot.bookmarks = found.map { .init(time: $0.time, sentence: $0.sentence) }
         return snapshot
     }
 }

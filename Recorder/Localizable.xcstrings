@@ -502,32 +502,12 @@
         }
       }
     },
-    "Bookmark · %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lesezeichen · %@"
-          }
-        }
-      }
-    },
     "Bookmarks": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Lesezeichen"
-          }
-        }
-      }
-    },
-    "Bookmarks · %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lesezeichen · %@"
           }
         }
       }

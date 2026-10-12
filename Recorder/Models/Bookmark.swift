@@ -3,7 +3,7 @@ import Foundation
 /// Bookmarks (FED-14): moments the user marks while recording, with the card's bookmark button, the Live Activity's,
 /// or the Action Button (any start from outside the app) pressed while a recording runs. Stored as seconds from the
 /// recording's start (`Recording.bookmarks`, the words' scale). The transcript highlights each one's sentence (`places`)
-/// and lists them in a folded Bookmarks row; the exports write a line above the paragraph; Gemma is told which
+/// and lists them in a folded Bookmarks row; the exports do both (TranscriptExport); Gemma is told which
 /// paragraphs they are, so the summary covers them. (Gemma also titled each one until October 2026; the titles didn't
 /// work, FED-77.)
 nonisolated enum Bookmarks {
@@ -127,9 +127,21 @@ nonisolated enum Bookmarks {
         recording.wordsRefined && recording.speakerStatus == .done
     }
 
-    /// "Bookmark · 3:21", "Bookmarks · 3:21, 7:05": the line above a paragraph, in the exports.
-    static func line(_ times: [TimeInterval]) -> String {
-        let clocks = times.map(TranscriptExport.clock).joined(separator: ", ")
-        return times.count == 1 ? String(localized: "Bookmark · \(clocks)") : String(localized: "Bookmarks · \(clocks)")
+    /// Bookmarked sentences' ranges in a text of `length` characters: sorted, overlapping ones joined, clamped to the
+    /// text; one past its end dropped (a pass rewrote the paragraph before the places were found again: a shorter text
+    /// trapped building the clamped range).
+    static func merged(_ ranges: [Range<Int>], length: Int) -> [Range<Int>] {
+        var result: [Range<Int>] = []
+        for range in ranges.sorted(by: { $0.lowerBound < $1.lowerBound }) {
+            let lower = max(0, range.lowerBound), upper = min(length, range.upperBound)
+            guard lower < upper else { continue }
+            let clamped = lower..<upper
+            if let last = result.last, clamped.lowerBound <= last.upperBound {
+                result[result.count - 1] = last.lowerBound..<max(last.upperBound, clamped.upperBound)
+            } else {
+                result.append(clamped)
+            }
+        }
+        return result
     }
 }
