@@ -25,7 +25,7 @@ struct ActionItemsSlot: View {
     /// the step only then): their place is held.
     static func reserves(_ recording: Recording, statusShown: Bool, identifier: SpeakerIdentifier) -> Bool {
         statusShown && identifier.progress[recording.id]?.state(of: .actions) != nil
-            && recording.actionItemsVersion < ActionItemExtractor.version
+            && SpeakerIdentifier.actionItemsDue(recording)
     }
 
     var body: some View {

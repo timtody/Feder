@@ -416,6 +416,7 @@ struct MainView: View {
                                               localeIdentifier: locale.identifier(.bcp47))
                     recording.createdAt = converted.created ?? .now
                     recording.duration = converted.duration
+                    recording.actionItemsDue = true           // new to Feder: its action items are looked for once
                     modelContext.insert(recording)
                     try? modelContext.save()
                     services.identifier.enqueue(recording)

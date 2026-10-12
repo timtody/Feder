@@ -435,6 +435,31 @@ final class ActionItemsTests: ScribeUITestCase {
         XCTAssertEqual(note.frame.minY, before, accuracy: 1, "no blank row: \(note.frame.minY) \(before)")
     }
 
+    /// Gemma's background work never reaches into the archive (`-seedOldTranscripts`: the samples from before the
+    /// feature, their summaries due again; Budget Review ten days old). With Gemma there (`-fakeGemma`) the launch sweep
+    /// writes Project Kickoff's summary again (made today) but looks for no action items in it (FakeTextWriter would
+    /// answer with two), and Budget Review, beyond the three days, gets nothing: no status line, its own two items. A
+    /// whole archive, or one restored onto a new iPhone, would otherwise keep Gemma busy for hours.
+    @MainActor
+    func testOlderTranscriptsGetNoActionItems() throws {
+        let app = launch(["-fakeGemma", "-seedOldTranscripts"])
+        open("Project Kickoff", in: app)
+        // Seeded without a summary: one appears once the sweep has described it (it may be done before the card is up).
+        XCTAssertTrue(app.buttons["Summary"].waitForExistence(timeout: 40), "the launch sweep wrote its summary")
+        let status = app.staticTexts["PipelineStatus"]
+        XCTAssertTrue(status.waitForNonExistence(timeout: 30), "and is done")
+        sleep(2)
+        XCTAssertFalse(app.buttons["ActionItems"].exists, "no action items looked for in an older transcript")
+        shot("Older transcript, summary only", app)
+        closeCard(app)
+        open("Budget Review", in: app)
+        XCTAssertFalse(status.waitForExistence(timeout: 10), "ten days old: nothing written again")
+        XCTAssertEqual(app.buttons["Summary"].value as? String, SummaryTests.summary, "its own summary stays")
+        let row = app.buttons["ActionItems"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue((row.value as? String ?? "").hasPrefix("2"), "only its own two: \(row.value ?? "")")
+    }
+
     /// feder://transcript/<id> (the link of an item added to Reminders or Calendar) opens that transcript's card.
     @MainActor
     func testDeepLinkOpensTranscript() throws {

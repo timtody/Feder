@@ -29,8 +29,8 @@ Word, Markdown and subtitles; iPhone Search (opt-in); titles and summaries in th
 
 From P2 (October 12, 2026):
 
-- **#8 Action items to Reminders and Calendar:** Gemma lists who does what by when under the summary (also for older
-  transcripts); one tap adds an item to Reminders (asks for access the first time) or opens Apple's New Event screen,
+- **#8 Action items to Reminders and Calendar:** Gemma lists who does what by when under the summary (new transcripts
+  only, never older ones: an archive would keep Gemma busy for hours); one tap adds an item to Reminders (asks for access the first time) or opens Apple's New Event screen,
   prefilled (no access needed); "Add All to Reminders"; a reminder links back to its transcript; Markdown, PDF and Word
   exports list them.
 - **#11 Name from Calendar:** opt-in in Settings › Recording (no onboarding page: a page before a system prompt is an

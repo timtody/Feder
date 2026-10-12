@@ -20,6 +20,23 @@ final class SpeakerIdentifier {
     /// Version of Recording.speakerVoices: 1 = VoiceWindows + VoiceEmbedder from the final labels (0: the offline
     /// diarizer's centroids, or no voices after the old live fallback). Older voices are recomputed once (refreshVoices).
     nonisolated static let voicesVersion = 1
+    /// How far back Gemma's background work reaches (summaries, titles, action items): transcripts made in the last three
+    /// days, so one recorded while Gemma was still downloading gets its summary and action items once Gemma is there.
+    /// Never the whole archive: on a new iPhone with thousands of transcripts, after Gemma's first download, or with a
+    /// new summary version, it kept Gemma (3.7 GB, the GPU) busy for hours, the phone warm (the user's decision). A
+    /// transcript whose speakers are identified again by hand ("Speakers: n") is still described when its summary is
+    /// out of date: one transcript, asked for.
+    nonisolated static let gemmaLookBack: TimeInterval = 3 * 86_400
+
+    /// Whether Gemma's background work reaches `recording` (made within `gemmaLookBack`).
+    static func isRecent(_ recording: Recording) -> Bool {
+        recording.createdAt >= .now.addingTimeInterval(-gemmaLookBack)
+    }
+
+    /// Its action items are still to be looked for (new since the feature, recent).
+    static func actionItemsDue(_ recording: Recording) -> Bool {
+        recording.actionItemsDue && isRecent(recording)
+    }
 
     private(set) var modelError: RecorderError?      // last prepare() failure (typically: offline on first launch)
     private(set) var inFlight: Set<UUID> = []        // Recording.ids queued or being identified (or getting new voices)
@@ -104,12 +121,14 @@ final class SpeakerIdentifier {
         for recording in (try? modelContext.fetch(unfinished)) ?? [] {     // a kill or the background interrupted it
             enqueueBackgroundPass(recording, fresh: true)
         }
-        if betterSummaries.activeModel != nil {                       // also the sweep of older ones, newest first
+        if betterSummaries.activeModel != nil {                       // also the sweep of recent ones, newest first
             let version = summaryVersion
-            let actions = ActionItemExtractor.version                  // and their action items (a version of their own)
+            // Only the last days (`gemmaLookBack`), never the archive; action items only where still due.
+            let since = Date.now.addingTimeInterval(-Self.gemmaLookBack)
             let undescribed = FetchDescriptor<Recording>(
                 predicate: #Predicate {
-                    $0.speakerStatusRaw == done && ($0.summaryVersion < version || $0.actionItemsVersion < actions)
+                    $0.speakerStatusRaw == done && $0.createdAt >= since
+                        && ($0.summaryVersion < version || $0.actionItemsDue == true)
                 },
                 sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
             for recording in (try? modelContext.fetch(undescribed)) ?? [] {
@@ -149,7 +168,7 @@ final class SpeakerIdentifier {
             if canDescribe { progress.expect(.summary) }
             // Only when they will be looked for: listed, the card holds their place, and a re-run ("Speakers: n") of a
             // transcript whose items are current left a blank row (ActionItemsSlot).
-            if canDescribe, recording.actionItemsVersion < ActionItemExtractor.version { progress.expect(.actions) }
+            if canDescribe, Self.actionItemsDue(recording) { progress.expect(.actions) }
         }
         enqueueJob(for: recording) { await self.identify(recording) }
     }
@@ -631,7 +650,7 @@ final class SpeakerIdentifier {
         }
         try? modelContext.save()
         if recording.speakerStatus == .done, recording.vocabularyPending || recording.summaryVersion < summaryVersion
-            || recording.actionItemsVersion < ActionItemExtractor.version {
+            || Self.actionItemsDue(recording) {
             enqueueBackgroundPass(recording, fresh: true)
         } else if recording.speakerStatus == .done {
             track(id) { $0.drop(.vocabulary); $0.drop(.summary); $0.drop(.actions) }
@@ -770,7 +789,7 @@ final class SpeakerIdentifier {
         // The action items come next in this pass. On a transcript without a summary (the sweep's older ones) the
         // status line takes a new place: listed now, their place is held in that same move rather than inserted when
         // they begin. Under a summary the line only covers it, and they follow quietly (findActionItems).
-        let actionsFollow = recording.actionItemsVersion < ActionItemExtractor.version && (recording.summary ?? "").isEmpty
+        let actionsFollow = Self.actionItemsDue(recording) && (recording.summary ?? "").isEmpty
         track(id) { progress in
             progress.begin(.summary)
             if actionsFollow { progress.expect(.actions) }
@@ -824,15 +843,17 @@ final class SpeakerIdentifier {
         track(id) { $0.finish(.summary) }
     }
 
-    /// The action items (ActionItemExtractor), right after the summary: once per transcript (`actionItemsVersion`), by
-    /// Gemma only, the same rules as `describe` (nothing without Gemma; while recording, right after Stop; stopped
-    /// because the app left the foreground, the next return tries again). A new extraction keeps what the user did with
-    /// the items found before (`ActionItem.merged`: added, removed).
+    /// The action items (ActionItemExtractor), right after the summary: once, for a new transcript only
+    /// (`actionItemsDue`, set when a recording is saved or a file imported) and only within `gemmaLookBack` of it, by
+    /// Gemma only. Without Gemma yet (still downloading) it stays due, and the sweep looks once Gemma is there, while
+    /// the transcript is recent; never later. While recording, right after Stop; stopped because the app left the
+    /// foreground, the next return tries again. A new extraction keeps what the user did with the items found before
+    /// (`ActionItem.merged`: added, removed).
     private func findActionItems(_ recording: Recording) async {
         let target = ActionItemExtractor.version
         guard !isGone(recording) else { return }
         let id = recording.id
-        guard recording.speakerStatus == .done, recording.actionItemsVersion < target else {
+        guard recording.speakerStatus == .done, Self.actionItemsDue(recording) else {
             track(id) { $0.drop(.actions) }
             return
         }
@@ -852,7 +873,7 @@ final class SpeakerIdentifier {
         let paragraphs = recording.segments.map { segment in
             TranscriptTitler.paragraph(segment.text, speaker: segment.speakerIndex.map(recording.speakerName))
         }
-        guard betterSummaries.activeModel != nil else { return }
+        guard betterSummaries.activeModel != nil else { return }   // still due: once Gemma is there, while recent
         guard !isRecording else {                                   // Gemma never runs while recording: after Stop
             waitForGemma(recording, id: id)
             return
@@ -864,17 +885,19 @@ final class SpeakerIdentifier {
                 try await extractor.extract(paragraphs: paragraphs, recordedAt: recordedAt, writer: model)
             }
         } catch {
-            // As in describe: RetryLater stores nothing (again later, or right after the recording that stopped it);
-            // LocalModelFailed: once Gemma is downloaded again.
+            // As in describe: RetryLater stores nothing (still due: again later, or right after the recording that
+            // stopped it); LocalModelFailed: once Gemma is downloaded again, while the transcript is recent.
             if isRecording, !isGone(recording) { waitForGemma(recording, id: id) }
             return
         }
         guard !isGone(recording) else { return }
         recording.actionItems = ActionItem.merged(found, keepingFlagsOf: recording.actionItems)
         recording.actionItemsVersion = max(recording.actionItemsVersion, target)
+        recording.actionItemsDue = false
         try? modelContext.save()
         if shown { track(id) { $0.finish(.actions) } }
     }
+
 
     /// Gemma can't run while a recording is made: described right after Stop (setRecording). Ids, not
     /// models, are compared: a transcript deleted meanwhile is detached, and reading it traps.

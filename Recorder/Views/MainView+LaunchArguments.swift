@@ -32,6 +32,18 @@ extension MainView {
                 kickoff.calendarAttendees = invitees.split(separator: "|").map(String.init)
                 try? modelContext.save()
             }
+            // `-seedOldTranscripts`: the samples as transcripts from before action items existed (their summaries due
+            // again, never looked for action items), Budget Review ten days old: the launch sweep must write Project
+            // Kickoff's summary only, and leave Budget Review, beyond `SpeakerIdentifier.gemmaLookBack`, alone.
+            if arguments.contains("-seedOldTranscripts") {
+                for recording in (try? modelContext.fetch(FetchDescriptor<Recording>())) ?? []
+                where [PreviewData.kickoffID, PreviewData.budgetID].contains(recording.id) {
+                    recording.actionItemsVersion = 0
+                    recording.summaryVersion = 0
+                    if recording.id == PreviewData.budgetID { recording.createdAt = .now.addingTimeInterval(-10 * 86_400) }
+                }
+                try? modelContext.save()
+            }
             do { try await Task.sleep(for: .milliseconds(300)) } catch { return }   // @Query catches up first
         }
         #endif

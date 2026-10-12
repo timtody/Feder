@@ -83,6 +83,10 @@ final class Recording {
     var automaticTitle: String? = nil    // the last title TranscriptTitler gave it: a better model may replace that one
     var actionItems: [ActionItem] = []   // Gemma's to-dos (ActionItemExtractor); []: none found, or not looked for yet
     var actionItemsVersion: Int = 0      // ActionItemExtractor.version once Gemma looked (answered or failed for good)
+    /// Action items are to be looked for: set only when a recording is saved or a file imported (never for transcripts
+    /// that existed before, nor by a later extractor version), cleared once Gemma looked. Looked for only within
+    /// `SpeakerIdentifier.gemmaLookBack` of the recording (one made while Gemma downloaded gets them once it's there).
+    var actionItemsDue: Bool = false
     var diarizerRaw: String? = nil       // DiarizerKind.rawValue of speakerTurns' model; nil: diarized before it was kept
                                          // (the app before Scribe: pyannote, or the live labels)
     var editCount: Int = 0               // the user corrected words or speakers this often (search and Spotlight re-read)

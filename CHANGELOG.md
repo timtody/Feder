@@ -16,7 +16,7 @@ release carries a later version's features, its notes are the 1.0 text plus thos
 - Undo a correction: after you change a speaker, merge two speakers or edit the text, tap Undo, or shake your iPhone.
 - Give a single paragraph to another speaker: in Edit Text, each paragraph has its speaker above it to change.
 - Naming a speaker from the tip takes one tap.
-- Action items: under a transcript's summary, Feder lists who does what by when, also for your earlier transcripts.
+- Action items: under the summary of a transcript you record or import from now on, Feder lists who does what by when.
   Add one to Reminders or Calendar with a tap, or all of them to Reminders at once. A reminder links back to its
   transcript.
 - Person pages: open someone in Settings › People, or touch and hold their name in a transcript and choose Go to
@@ -43,9 +43,9 @@ release carries a later version's features, its notes are the 1.0 text plus thos
 - Ordne einen einzelnen Absatz einem anderen Sprecher zu: Beim Bearbeiten steht über jedem Absatz sein Sprecher zum
   Ändern.
 - Einen Sprecher aus dem Tipp heraus zu benennen, braucht nur noch einen Tipp.
-- Aufgaben: Unter der Zusammenfassung zeigt Feder, wer was bis wann erledigt, auch bei deinen früheren Transkripten.
-  Füge eine Aufgabe mit einem Tipp zu Erinnerungen oder zum Kalender hinzu oder alle auf einmal zu Erinnerungen. Eine
-  Erinnerung führt zurück zu ihrem Transkript.
+- Aufgaben: Unter der Zusammenfassung eines Transkripts, das du ab jetzt aufnimmst oder importierst, zeigt Feder, wer
+  was bis wann erledigt. Füge eine Aufgabe mit einem Tipp zu Erinnerungen oder zum Kalender hinzu oder alle auf einmal
+  zu Erinnerungen. Eine Erinnerung führt zurück zu ihrem Transkript.
 - Personenseiten: Öffne jemanden unter Einstellungen › Personen, oder halte den Namen in einem Transkript gedrückt und
   wähle „Zur Person“. Du siehst, wann ihr zuletzt gesprochen habt, welche Themen immer wieder vorkommen und was die
   Person in jedem Transkript gesagt hat. Tippe auf ein Transkript, um es dort zu öffnen, wo sie spricht, und alles
@@ -67,7 +67,7 @@ release carries a later version's features, its notes are the 1.0 text plus thos
   transcribed, running past from right to left, and a Stop button; the Dynamic Island also shows the sound level.
 - Start a transcript from anywhere: from Control Center (look for the feather), with the Action Button, by asking Siri ("Transcribe with
   Feder"), from Shortcuts, or with the new Lock Screen widget.
-- Titles and summaries are written in your iPhone's language. Existing ones are written again once.
+- Titles and summaries are written in your iPhone's language.
 - Share a transcript as a PDF, a Word document, Markdown or subtitles (SRT, WebVTT), or as text, with or without speaker
   names and timestamps.
 - Find your transcripts in the iPhone's search, if you turn it on: type a word from a conversation on the Home Screen
@@ -84,7 +84,7 @@ release carries a later version's features, its notes are the 1.0 text plus thos
   außerdem den Pegel.
 - Starte ein Transkript von überall: im Kontrollzentrum (mit der Feder), mit der Aktionstaste, über Siri („Mit Feder transkribieren“),
   in Kurzbefehlen oder mit dem neuen Widget für den Sperrbildschirm.
-- Titel und Zusammenfassungen entstehen in der Sprache deines iPhones. Bestehende werden einmal neu geschrieben.
+- Titel und Zusammenfassungen entstehen in der Sprache deines iPhones.
 - Teile ein Transkript als PDF, Word-Dokument, Markdown oder Untertitel (SRT, WebVTT) oder als Text, mit oder ohne
   Sprechernamen und Zeitangaben.
 - Finde deine Transkripte in der iPhone-Suche, wenn du sie einschaltest: Tippe auf dem Home-Bildschirm ein Wort aus
