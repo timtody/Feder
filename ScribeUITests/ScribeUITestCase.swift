@@ -142,6 +142,9 @@ class ScribeUITestCase: XCTestCase {
     /// and takes the iPhone's path from it (`motionEnded`, the key window's first responder's UndoManager, iOS's "Undo …"
     /// alert). Returns that alert when it comes within `timeout`, nil otherwise. (A shake did reach the iOS 27
     /// simulator all along: with nothing first responder it found no UndoManager, as on the iPhone, FED-7.)
+    /// On a simulator that never showed iOS's one-time editing-gestures tutorial (a new one), the alert's first Undo
+    /// never reached the app's UndoManager, so the first shake test there failed ("undone: …"); the simulator needs
+    /// `KeyboardDidShowProductivityTutorial` set once (README › UI tests, `build/qa/uitests.sh`).
     @MainActor
     func shake(_ app: XCUIApplication, timeout: TimeInterval = 3) -> XCUIElement? {
         notify_post("com.apple.UIKit.SimulatorShake")
