@@ -62,6 +62,12 @@ nonisolated enum SummaryStyles {
         UserDefaults.standard.set(map, forKey: key)
     }
 
+    /// The tags (lowercased) that have a style. Styles for Tags lists them with the tags in use, so a style whose tag
+    /// is on no transcript any more can still be set back to None, and the Summaries page's count is what it lists.
+    static var styledTags: [String] {
+        byTag.compactMap { tag, style in SummaryStyle(rawValue: style) == nil ? nil : tag }
+    }
+
     /// How many tags have a style (the Summaries page's row value).
-    static var count: Int { byTag.count }
+    static var count: Int { styledTags.count }
 }

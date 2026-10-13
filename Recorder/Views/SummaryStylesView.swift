@@ -1,15 +1,18 @@
 import SwiftData
 import SwiftUI
 
-/// Settings › Summaries › Styles for Tags (FED-15): a summary style per tag, one row per tag in use (a Form's menu
-/// picker: None or one of the five styles). Stored in UserDefaults (SummaryStyles: tags are plain strings on the
-/// transcripts). A transcript with such a tag gets its summary in that style when it is written, and when the tag is
-/// added to it later (RecordingDetailView), unless a style was chosen for it by hand; changing a style here rewrites
-/// nothing that exists (never the archive). The tags are read after the first frame, in batches.
+/// Settings › Summaries › Styles for Tags (FED-15): a summary style per tag, one row per tag in use and per tag with a
+/// style (a Form's menu picker: None or one of the five styles). Stored in UserDefaults (SummaryStyles: tags are plain
+/// strings on the transcripts), so a style outlives its tag's last transcript: it is listed (lowercased, as stored)
+/// until set back to None, else the Summaries page would count a style that shows nowhere, and it would come back
+/// unseen with the next transcript given that tag. A transcript with such a tag gets its summary in that style when it
+/// is written, and when the tag is added to it later (RecordingDetailView), unless a style was chosen for it by hand;
+/// changing a style here rewrites nothing that exists (never the archive). The tags are read after the first frame,
+/// in batches.
 struct SummaryStylesView: View {
     @Environment(\.modelContext) private var modelContext
-    /// The tags of every transcript, case-insensitively unique (the newest transcript's spelling), sorted as Finder
-    /// sorts; nil while they are read.
+    /// The tags of every transcript and those with a style, case-insensitively unique (the newest transcript's
+    /// spelling), sorted as Finder sorts; nil while they are read.
     @State private var tags: [String]?
     @State private var styles = SummaryStyles.byTag
 
@@ -72,6 +75,7 @@ struct SummaryStylesView: View {
             offset += batch.count
             if batch.count < Self.batch { break }
         }
+        for tag in SummaryStyles.styledTags where seen.insert(tag).inserted { found.append(tag) }   // on no transcript
         tags = found.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
 }

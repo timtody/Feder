@@ -47,7 +47,9 @@ final class SummaryTests: ScribeUITestCase {
     /// brings a paragraph back.
     @MainActor
     func testStyleRewritesSummary() throws {
-        let app = launch(["-fakeGemma", "-seedStyledSummary", "-interactionTrace"])   // the "style" press's log line
+        // -interactionTrace: the "style" press's timing, for `log stream` (README › Summary styles); nothing to assert
+        // here, the test process can't read the app's log.
+        let app = launch(["-fakeGemma", "-seedStyledSummary", "-interactionTrace"])
         open("Budget Review", in: app)
         let summary = app.buttons["Summary"]
         XCTAssertTrue(summary.waitForExistence(timeout: 5))
@@ -184,9 +186,9 @@ final class SummaryTests: ScribeUITestCase {
         XCTAssertFalse(app.buttons["StylesForTags"].exists, "no Styles for Tags")
     }
 
-    /// Settings › Summaries › Styles for Tags lists the tags in use; "work" gets Meeting. Adding "work" to Budget
-    /// Review (whose style was never chosen) writes its summary again as a meeting; a tag without a style ("planning")
-    /// rewrites nothing.
+    /// Settings › Summaries › Styles for Tags lists the tags in use; "work" gets Meeting. On Budget Review (whose style
+    /// was never chosen) a tag without a style ("planning") rewrites nothing, and "work" then writes its summary again
+    /// as a meeting. Changing work's style in Settings afterwards leaves that summary as it is.
     @MainActor
     func testTagStyle() throws {
         let app = launch(["-fakeGemma"])
@@ -214,20 +216,92 @@ final class SummaryTests: ScribeUITestCase {
         // -fakeGemma's sweep writes the seeded summary again first (Brief: the fake's paragraph).
         XCTAssertTrue(waitFor(timeout: 20) { (summary.value as? String ?? "").hasPrefix("The test checks") },
                       "the swept summary: \(summary.value ?? "")")
+        // Before "work", while no style was chosen: the tag's style is looked up (RecordingDetailView.takeStyle), and
+        // a tag without one changes nothing (the fake writes a rewrite after 3 s).
+        addTag("planning", app)
+        summary.tap()
+        let picker = styleMenu(app)
+        XCTAssertTrue(picker.waitForExistence(timeout: 3))
+        XCTAssertFalse(waitFor(timeout: 5) { app.staticTexts["SummaryRewriting"].exists
+                || !(summary.value as? String ?? "").hasPrefix("The test checks") },
+                       "no rewrite for a tag without a style: \(summary.value ?? "")")
+        XCTAssertEqual(picker.value as? String, "Brief", "no style taken from planning")
+        summary.tap()                                       // folded again: the tag line stays in view
+
         addTag("work", app)
         XCTAssertTrue(waitFor(timeout: 15) { (summary.value as? String ?? "").contains("Anna Schmidt sends the numbers") },
                       "written again as a meeting: \(summary.value ?? "")")
         XCTAssertTrue((summary.value as? String ?? "").hasPrefix("Decisions"))
 
-        summary.tap()
-        let picker = styleMenu(app)
-        XCTAssertTrue(picker.waitForExistence(timeout: 3))
-        choose("Brief", in: picker, app)
-        XCTAssertTrue(waitFor(timeout: 15) { (summary.value as? String ?? "").hasPrefix("The test checks") }, "Brief")
-        addTag("planning", app)
-        sleep(4)
-        XCTAssertTrue((summary.value as? String ?? "").hasPrefix("The test checks"), "no rewrite for a tag without a style")
-        XCTAssertFalse(app.staticTexts["SummaryRewriting"].exists)
+        // A style changed in Settings rewrites nothing that exists.
+        closeCard(app)
+        app.buttons["Settings"].firstMatch.tap()
+        XCTAssertTrue(stylesRow.waitForExistence(timeout: 5), "Settings › Summaries is still open")
+        stylesRow.tap()
+        XCTAssertTrue(work.waitForExistence(timeout: 5))
+        work.tap()
+        let bullets = app.buttons["Bullet Points"].firstMatch
+        XCTAssertTrue(bullets.waitForExistence(timeout: 3), "the styles' menu")
+        bullets.tap()
+        XCTAssertTrue(waitFor { (work.value as? String) == "Bullet Points" }, "work: Bullet Points (\(work.value ?? ""))")
+        app.buttons["Transcripts"].firstMatch.tap()
+        open("Budget Review", in: app)
+        XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        XCTAssertFalse(waitFor(timeout: 5) { !(summary.value as? String ?? "").hasPrefix("Decisions") },
+                       "still the meeting: \(summary.value ?? "")")
+    }
+
+    /// A style whose tag is on no transcript any more (finance, removed from Budget Review, its only transcript) is
+    /// still listed in Styles for Tags, so it can be set back to None, and the Summaries page counts what is listed.
+    @MainActor
+    func testStyleOfUnusedTagCanBeCleared() throws {
+        let app = launch(["-fakeGemma"])
+        open("Budget Review", in: app)
+        let summary = app.buttons["Summary"]
+        // -fakeGemma's sweep writes the seeded summary first: done before finance gets a style, so it stays Brief.
+        XCTAssertTrue(waitFor(timeout: 20) { (summary.value as? String ?? "").hasPrefix("The test checks") },
+                      "the swept summary: \(summary.value ?? "")")
+        closeCard(app)
+        app.buttons["Settings"].firstMatch.tap()
+        app.buttons["Summaries"].firstMatch.tap()
+        let stylesRow = app.buttons["StylesForTags"]
+        XCTAssertTrue(stylesRow.waitForExistence(timeout: 5), "Styles for Tags")
+        stylesRow.tap()
+        let finance = app.buttons["TagStyle.finance"]
+        XCTAssertTrue(finance.waitForExistence(timeout: 5), "the tags in use")
+        finance.tap()
+        let lecture = app.buttons["Lecture"].firstMatch
+        XCTAssertTrue(lecture.waitForExistence(timeout: 3), "the styles' menu")
+        lecture.tap()
+        XCTAssertTrue(waitFor { (finance.value as? String) == "Lecture" }, "finance: Lecture (\(finance.value ?? ""))")
+        app.navigationBars.buttons.firstMatch.tap()        // back to Summaries
+        XCTAssertTrue(waitFor { app.staticTexts["1"].exists }, "one tag with a style")
+
+        app.buttons["Transcripts"].firstMatch.tap()
+        open("Budget Review", in: app)
+        let pill = app.buttons["Remove finance"]
+        XCTAssertTrue(pill.waitForExistence(timeout: 5))
+        pill.tap()
+        XCTAssertTrue(pill.waitForNonExistence(timeout: 5), "finance is on no transcript now")
+        closeCard(app)
+
+        app.buttons["Settings"].firstMatch.tap()
+        XCTAssertTrue(stylesRow.waitForExistence(timeout: 5), "Settings › Summaries is still open")
+        XCTAssertTrue(app.staticTexts["1"].exists, "its style still counts")
+        stylesRow.tap()
+        XCTAssertTrue(finance.waitForExistence(timeout: 5), "so it is listed")
+        XCTAssertEqual(finance.value as? String, "Lecture")
+        shot("Style of an unused tag", app)
+        finance.tap()
+        let none = app.buttons["None"].firstMatch
+        XCTAssertTrue(none.waitForExistence(timeout: 3), "the styles' menu")
+        none.tap()
+        XCTAssertTrue(waitFor { (finance.value as? String) == "None" }, "finance: None (\(finance.value ?? ""))")
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(waitFor { !app.staticTexts["1"].exists }, "no tag with a style")
+        stylesRow.tap()
+        XCTAssertTrue(app.buttons["TagStyle.work"].waitForExistence(timeout: 5), "the tags in use")
+        XCTAssertFalse(finance.exists, "a tag on no transcript and without a style is gone")
     }
 
     @MainActor
