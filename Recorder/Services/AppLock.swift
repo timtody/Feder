@@ -18,12 +18,13 @@ import notify
 /// takes the app switcher's snapshot (SwiftUI's `.background` phase can arrive after it), also within a grace period
 /// (the switcher shows no transcript). Coming back unlocked, it goes in `willEnterForeground`, as the return begins:
 /// waiting for `didActivate` kept it up for the system's whole animation and a little after (about 0.45 s from
-/// `willEnterForeground` to the uncovered frame on the simulator, against 0.04 s now, and the live content then
-/// replaces the covered snapshot from the animation's first frames). Nothing happens on `willResignActive`: the Face ID
-/// sheet itself, the microphone and location alerts, Control Center and Notification Center all make the app inactive,
-/// so covering there would flash over the card at every system alert and loop with the lock's own prompt. The prompt
-/// comes by itself once per return (like Journal and banking apps); after a cancel the Unlock button stays, and nothing
-/// asks again by itself.
+/// `willEnterForeground` to the uncovered frame on the simulator, against 0.04 s now). The return still starts from the
+/// covered snapshot, which the system cross-fades to the live content during its animation (the blue gone about 0.27 s
+/// after the slide began on the simulator). Nothing happens on `willResignActive`: the Face ID sheet itself, the
+/// microphone and location alerts, Control Center and Notification Center all make the app inactive, so covering there
+/// would flash over the card at every system alert and loop with the lock's own prompt. The prompt comes by itself
+/// once per return (like Journal and banking apps); after a cancel the Unlock button stays, and nothing asks again by
+/// itself.
 ///
 /// A recording started from outside while locked (Control Center, the Action Button, Siri, the Lock Screen widget)
 /// starts at once behind the lock, whose view shows its time, level and Stop; Face ID is asked once it records, so the
@@ -46,9 +47,8 @@ final class AppLock {
     private(set) var isLocked = false
     /// The lock's window is up (locked, or only covering the app switcher's snapshot within the grace period).
     private(set) var isCovered = false
-    /// The whole lock view ("Feder Is Locked", Unlock), not only the lock symbol: after a cancel or a failure. While
-    /// the automatic prompt runs, and in the snapshot, only the symbol shows, so the text doesn't flash as the cover
-    /// drops.
+    /// The whole lock view ("Feder Is Locked", Unlock), not only Feder's icon: after a cancel or a failure. While the
+    /// automatic prompt runs, and in the snapshot, only the icon shows, so the text doesn't flash as the cover drops.
     private(set) var showsPrompt = false
     private(set) var isAuthenticating = false
     private(set) var method = Method.faceID
@@ -195,14 +195,16 @@ final class AppLock {
         // sends the user) enables the switch at once, or one removed.
         Task { await refreshMethod() }
         guard isCovered else { return }                 // App Lock was off when Feder was left
-        InteractionTrace.begin("return")                // until the cover's gone (`uncover`)
         if !isLocked, let leftAt, ContinuousClock.now - leftAt >= Self.grace { isLocked = true }
         if isLocked {
             promptDue = true
             showsPrompt = false                         // a prompt interrupted by leaving set it meanwhile
             checkWithoutPrompt()
         } else {
+            // Until the uncovered frame (README › Performance); only here: a locked return's cover waits for Face ID.
+            InteractionTrace.begin("return")
             uncover()
+            InteractionTrace.shown("return")
         }
     }
 
@@ -371,7 +373,6 @@ final class AppLock {
         guard isCovered else { return }
         isCovered = false
         present?(false)
-        InteractionTrace.shown("return")
     }
 
     // MARK: LocalAuthentication
