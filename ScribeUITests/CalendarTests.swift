@@ -155,6 +155,45 @@ final class CalendarTests: ScribeUITestCase {
         deleteOpenTranscript(app)
     }
 
+    /// ⊗ before Use as Title while recording only hides the offer: the name stays "New Transcript N", and the saved
+    /// transcript shows no row either, also once the fake Gemma has titled it and after closing and opening it again.
+    /// The event itself was saved (its invitee is offered in the rename sheet): the dismissal hides only the title.
+    @MainActor
+    func testDismissBeforeTakingWhileRecordingLasts() throws {
+        let app = launch(["-calendarContext", "YES", "-fakeCalendarEvent", "Design Review|Maria Lopez", "-fakeGemma",
+                          "-resetVoiceRecognition"])
+        startRecording(app)
+        let row = calendarRow(app)
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "the event is offered")
+        let before = recordingTitle(app).label
+        XCTAssertTrue(before.hasPrefix("New Transcript "), before)
+        app.buttons["DismissCalendarTitle"].tap()
+        XCTAssertTrue(row.waitForNonExistence(timeout: 3), "⊗ hides the offer")
+        XCTAssertEqual(recordingTitle(app).label, before, "the name stays")
+        shot("Dismissed before taking, while recording", app)
+        sleep(5)
+        app.buttons["Stop"].firstMatch.tap()
+
+        let field = app.textFields["Title"]
+        XCTAssertTrue(field.waitForExistence(timeout: 15), "the transcript in the card")
+        XCTAssertEqual(field.value as? String, before, "saved with the app's own name")
+        XCTAssertFalse(row.waitForExistence(timeout: 2), "not offered in the transcript")
+        XCTAssertTrue(app.buttons["Summary"].waitForExistence(timeout: 40), "the summary is written")
+        XCTAssertTrue(waitFor { (field.value as? String) == "Live Transcript Test" }, "Gemma titles it")
+        XCTAssertFalse(row.exists, "still not offered next to Gemma's title")
+        app.buttons["SpeakerHeader.0"].tap()
+        XCTAssertTrue(nameField(app).waitForExistence(timeout: 5), "the rename sheet")
+        dismissKeyboardTip(app)
+        XCTAssertTrue(app.buttons["PersonChoice.Maria Lopez"].waitForExistence(timeout: 3), "the event was saved")
+        app.buttons["CancelRename"].tap()
+        XCTAssertTrue(nameField(app).waitForNonExistence(timeout: 5))
+        closeCard(app)
+        open("Live Transcript Test", in: app)
+        XCTAssertFalse(row.waitForExistence(timeout: 2), "for good")
+        shot("Saved after ⊗ before taking: no row", app)
+        deleteOpenTranscript(app)
+    }
+
     /// The meeting's name taken while recording that Gemma then chooses as its title too (an event named like the fake
     /// Gemma's "Live Transcript Test"): the name stays, and Gemma's same words are not kept aside as its title, where
     /// the taken name would count as Gemma's own (a better model's title would replace it, person pages would take it
@@ -332,7 +371,7 @@ final class CalendarTests: ScribeUITestCase {
     /// Which event is offered, one launch per calendar: the one starting closest to the press, also up to
     /// 5 minutes before it starts, not the all-day workshop around it; never an all-day, cancelled or declined one,
     /// nor one starting in 6 minutes, though each would be closer; someone else's event in a calendar shared with the
-    /// user read-only never, even when nothing else runs (a partner's "Therapy" naming the user's own memo), nor one in
+    /// user read-only never, even when nothing else runs (a partner's "Therapy" offered for the user's own memo), nor one in
     /// a subscribed calendar (the fake's Outlook) while it isn't the Preferred Calendar; the user's own events first,
     /// also in a shared calendar they are invited in, before a closer one they aren't on. (No apostrophes in the titles:
     /// XCUITest's launch arguments mangle them, "Partner's Therapy@…" arrived without its flags.) In the first, ⊗ before

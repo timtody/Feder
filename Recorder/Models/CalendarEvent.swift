@@ -100,8 +100,8 @@ nonisolated enum CalendarRules {
         // user's own ran, its "Therapy" or "1:1 HR" named their private conversation (also on the Lock Screen) and its
         // invitees were stored with it. The same holds for every event of a subscribed calendar (an Outlook calendar
         // published as a link, holidays, sports fixtures; read-only, the user never marked): counted always, a match
-        // on TV would name the user's own conversation. Choosing such a calendar is the user's word that its events
-        // are theirs, so a work calendar that reaches the iPhone read-only (FED-65: Outlook's) can name their meetings.
+        // on TV would be offered for the user's own conversation. Choosing such a calendar is the user's word that its
+        // events are theirs, so a work calendar reaching the iPhone read-only (FED-65: Outlook's) offers their meetings.
         // In a calendar the user can change it counts, after their own: there it is theirs when it has no attendees,
         // and Google and CalDAV don't always mark the user (`isCurrentUser`), so their own invitation can look like
         // someone else's. (Calendars hidden in the Calendar app are read like the others: EventKit doesn't say which
