@@ -174,6 +174,25 @@ final class AppLockTests: ScribeUITestCase {
         XCTAssertFalse(kickoff.exists)
     }
 
+    /// Within 10 s of unlocking the iPhone with Face ID, LocalAuthentication answers without a sheet, and Feder asks it
+    /// so as each locked launch or return begins (`-fakeQuietUnlock` stands in for it: the simulator's Lock Screen has
+    /// no Face ID): Feder opens without its prompt, which would be cancelled here.
+    @MainActor
+    func testJustUnlockedOpensWithoutAsking() throws {
+        let app = launch(["-appLockOn", "-fakeAuthentication", "cancel", "-fakeQuietUnlock"], waitsForList: false)
+        let kickoff = app.staticTexts["Project Kickoff"]
+        XCTAssertTrue(kickoff.waitForExistence(timeout: 15), "opened at the launch without asking")
+        sleep(2)                                            // the prompt would have come by now
+        XCTAssertFalse(app.buttons["Unlock"].exists, "nothing asked at the launch")
+        XCUIDevice.shared.press(.home)
+        sleep(1)
+        app.activate()
+        XCTAssertTrue(kickoff.waitForExistence(timeout: 5), "opened at the return (Lock: Immediately)")
+        sleep(2)
+        XCTAssertFalse(app.buttons["Unlock"].exists, "nothing asked at the return")
+        XCTAssertTrue(isOnScreen(transcribe(app), app))
+    }
+
     /// A recording started from outside while Feder is locked (the Lock Screen widget's link here; Control Center, the
     /// Action Button and Siri go the same way) starts at once behind the lock, whose view shows its time, level and
     /// Stop. Face ID is asked once it records, and only once (on the simulator the activation can come seconds after
