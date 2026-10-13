@@ -15,11 +15,15 @@ import notify
 /// the tabs would sit under the card's full-screen cover, the sheets and the share sheet.
 ///
 /// Events come from UIKit's notifications, which are synchronous: the cover goes up in `didEnterBackground`, before iOS
-/// takes the app switcher's snapshot (SwiftUI's `.background` phase can arrive after it). Nothing happens on
-/// `willResignActive`: the Face ID sheet itself, the microphone and location alerts, Control Center and Notification
-/// Center all make the app inactive, so covering there would flash over the card at every system alert and loop with
-/// the lock's own prompt. The prompt comes by itself once per return (like Journal and banking apps); after a cancel
-/// the Unlock button stays, and nothing asks again by itself.
+/// takes the app switcher's snapshot (SwiftUI's `.background` phase can arrive after it), also within a grace period
+/// (the switcher shows no transcript). Coming back unlocked, it goes in `willEnterForeground`, as the return begins:
+/// waiting for `didActivate` kept it up for the system's whole animation and a little after (about 0.45 s from
+/// `willEnterForeground` to the uncovered frame on the simulator, against 0.04 s now, and the live content then
+/// replaces the covered snapshot from the animation's first frames). Nothing happens on `willResignActive`: the Face ID
+/// sheet itself, the microphone and location alerts, Control Center and Notification Center all make the app inactive,
+/// so covering there would flash over the card at every system alert and loop with the lock's own prompt. The prompt
+/// comes by itself once per return (like Journal and banking apps); after a cancel the Unlock button stays, and nothing
+/// asks again by itself.
 ///
 /// A recording started from outside while locked (Control Center, the Action Button, Siri, the Lock Screen widget)
 /// starts at once behind the lock, whose view shows its time, level and Stop; Face ID is asked once it records, so the
@@ -133,8 +137,10 @@ final class AppLock {
     /// the time; Apple lists both protected-data notifications among those queued for an app's return, coalesced to the
     /// net change, and after a lock and an unlock that is `protectedDataDidBecomeAvailable` at most (or nothing: then
     /// only the grace period counts; unverified on an iPhone). So that one counts too: data becomes available only
-    /// after the iPhone was locked. Arriving after the return's activation (which found Feder unlocked, within the grace
-    /// period), it covers again and asks as an activation does, so a recording that is starting still comes first.
+    /// after the iPhone was locked. Arriving after the return began (which found Feder unlocked, within the grace
+    /// period, and dropped the cover), it covers again and asks as an activation does, so a recording that is starting
+    /// still comes first. Whether UIKit delivers it before `willEnterForeground` (nothing shows) or after (the
+    /// transcript for a moment) is unverified on an iPhone.
     private func iPhoneLocked() {
         endStayingAwake()
         guard Self.isEnabled, !isLocked else { return }
@@ -182,10 +188,13 @@ final class AppLock {
         if isLocked {
             promptDue = true
             showsPrompt = false                         // a prompt interrupted by leaving set it meanwhile
+        } else {
+            uncover()
         }
     }
 
-    /// Unlocked (within the grace period): the cover goes. Locked: the prompt.
+    /// Locked: the prompt. Unlocked, the cover went at `enteringForeground` already (here only for a scene that
+    /// activates without it).
     private func activated() {
         guard isLocked else { uncover(); return }
         promptIfDue()
