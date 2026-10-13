@@ -64,8 +64,7 @@ struct SummaryDisclosure: View {
             }
         }
         .padding(.top, 6)
-        .animation(.snappy, value: summary)
-        .animation(.snappy, value: rewrite)
+        .animation(.snappy, value: rewrite)                 // the new text: RecordingDetailView animates the card
     }
 
     /// "Style" and the menu; while a rewrite is queued or running "Writing summary…" in its place (the menu stays

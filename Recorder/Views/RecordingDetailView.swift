@@ -204,6 +204,10 @@ struct RecordingDetailView: View {
                         .padding(.top, TranscriptStyle.turnSpacing)
                 }
             }
+            // A summary written again in another style (FED-15) is shorter or longer: the transcript below glides to
+            // its place with the new text. Animated only inside the summary row, the rows under it jumped there at
+            // once while the old text still faded out over them (iOS 27 simulator, frame by frame).
+            .animation(.snappy, value: recording.summary)
             .coordinateSpace(.named(TranscriptView.contentSpace))
             .padding(.horizontal, TranscriptStyle.margin)
             .padding(.bottom, 24)
