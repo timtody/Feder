@@ -22,17 +22,6 @@ nonisolated enum SummaryStyle: String, CaseIterable, Codable, Sendable, Identifi
         }
     }
 
-    /// What the style writes, under its name in the menus.
-    var detail: LocalizedStringResource {
-        switch self {
-        case .brief: "Two or three sentences"
-        case .meeting: "Decisions, to-dos, open questions"
-        case .lecture: "Key ideas"
-        case .interview: "Questions and answers"
-        case .bulletPoints: "The content as a list"
-        }
-    }
-
     var symbol: String {
         switch self {
         case .brief: "text.alignleft"

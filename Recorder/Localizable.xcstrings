@@ -782,16 +782,6 @@
         }
       }
     },
-    "Decisions, to-dos, open questions": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entscheidungen, Aufgaben, offene Fragen"
-          }
-        }
-      }
-    },
     "Delete": {
       "localizations": {
         "de": {
@@ -1578,16 +1568,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "In der iPhone-Suche behalten"
-          }
-        }
-      }
-    },
-    "Key ideas": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kernaussagen"
           }
         }
       }
@@ -2505,16 +2485,6 @@
         }
       }
     },
-    "Questions and answers": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fragen und Antworten"
-          }
-        }
-      }
-    },
     "Recognize People by Voice": {
       "localizations": {
         "de": {
@@ -3275,16 +3245,6 @@
         }
       }
     },
-    "The content as a list": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Der Inhalt als Liste"
-          }
-        }
-      }
-    },
     "The download server answered with error %lld. Try again later.": {
       "localizations": {
         "de": {
@@ -3671,16 +3631,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Beim Ausschalten werden die Stimmprofile deiner Personen und der Sprecher in deinen Transkripten gelöscht. Die Namen bleiben. Wieder eingeschaltet, wirkt es ab der nächsten Aufnahme."
-          }
-        }
-      }
-    },
-    "Two or three sentences": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zwei oder drei Sätze"
           }
         }
       }

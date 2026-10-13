@@ -36,7 +36,8 @@ class ScribeUITestCase: XCTestCase {
         // App Lock is off unless a test turns it on (`-appLockOn`): a test that turned it on in Settings would otherwise
         // leave every later one locked.
         let lock = arguments.contains("-appLockOn") ? [] : ["-resetAppLock"]
-        app.launchArguments = ["-seedSamples"] + language + onboarding + voices + lock + arguments
+        // No tag has a summary style (FED-15): one a test set in Settings would restyle the next test's summaries.
+        app.launchArguments = ["-seedSamples", "-resetSummaryStyles"] + language + onboarding + voices + lock + arguments
         app.launch()
         if waitsForList {
             XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15), "the seeded transcripts are listed")

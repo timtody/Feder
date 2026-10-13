@@ -435,8 +435,13 @@ struct SummariesModelView: View {
             if better.writesSummaries {
                 Section {
                     NavigationLink(value: SettingsRoute.summaryStyles) {
-                        LabeledContent("Styles for Tags", value: styledTags > 0 ? String(styledTags) : "")
+                        LabeledContent {
+                            if styledTags > 0 { Text(styledTags, format: .number) }
+                        } label: {
+                            Text("Styles for Tags")
+                        }
                     }
+                    .accessibilityIdentifier("StylesForTags")
                 } footer: {
                     Text("Choose how a summary is written while recording, or in the summary itself. A tag can have its own style.")
                 }

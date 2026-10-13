@@ -29,6 +29,7 @@ struct SummaryStylesView: View {
                             Text(verbatim: tag)
                         }
                         .pickerStyle(.menu)
+                        .accessibilityValue(binding(for: tag).wrappedValue.map { Text($0.name) } ?? Text("None"))
                         .accessibilityIdentifier("TagStyle.\(tag)")
                     }
                 } footer: {

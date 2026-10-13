@@ -379,19 +379,13 @@ struct RecordView: View {
         if showsStyleControl, isRecording || turning {
             let style = session.summaryStyle ?? .brief
             Menu {
-                Picker(selection: Binding(get: { session.summaryStyle ?? .brief },
-                                          set: { session.summaryStyle = $0 })) {
+                // Names and symbols only: a second Text in an option's label showed no subtitle in the menu, and
+                // neither the picker's label nor a Section's title showed as a header (iOS 27 simulator).
+                Picker("Summary Style", selection: Binding(get: { session.summaryStyle ?? .brief },
+                                                           set: { session.summaryStyle = $0 })) {
                     ForEach(SummaryStyle.allCases) { option in
-                        Label {
-                            Text(option.name)
-                            Text(option.detail)
-                        } icon: {
-                            Image(systemName: option.symbol)
-                        }
-                        .tag(option)
+                        Label(option.name, systemImage: option.symbol).tag(option)
                     }
-                } label: {
-                    Text("Summary Style")
                 }
                 .pickerStyle(.inline)
             } label: {

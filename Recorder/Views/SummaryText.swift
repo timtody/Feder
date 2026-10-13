@@ -75,20 +75,20 @@ struct SummaryDisclosure: View {
         let chosen = recording.summaryStyle ?? written
         return VStack(alignment: .leading, spacing: 6) {
             ZStack(alignment: .leading) {
-                LabeledContent("Style") {
+                HStack {
+                    Text("Style")
+                        .accessibilityHidden(true)              // the menu's label says it
+                    Spacer()
                     Picker("Summary Style", selection: Binding(get: { chosen }, set: choose)) {
                         ForEach(SummaryStyle.allCases) { style in
-                            Label {
-                                Text(style.name)
-                                Text(style.detail)
-                            } icon: {
-                                Image(systemName: style.symbol)
-                            }
-                            .tag(style)
+                            Label(style.name, systemImage: style.symbol).tag(style)
                         }
                     }
                     .pickerStyle(.menu)
                     .menuOrder(.fixed)
+                    .labelsHidden()
+                    .accessibilityLabel("Summary Style")
+                    .accessibilityValue(Text(chosen.name))
                     .accessibilityIdentifier("SummaryStyle")
                 }
                 .opacity(rewrite == nil ? 1 : 0)
