@@ -162,6 +162,15 @@ class ScribeUITestCase: XCTestCase {
         add(attachment)
     }
 
+    /// The next `weekday` (Sunday = 1) strictly after `day`, at its start (DueDate's rule for "by Friday": said on a
+    /// Friday, the one a week later).
+    func next(_ weekday: Int, after day: Date) -> Date {
+        let calendar = Calendar.current
+        var ahead = (weekday - calendar.component(.weekday, from: day) + 7) % 7
+        if ahead == 0 { ahead = 7 }
+        return calendar.date(byAdding: .day, value: ahead, to: calendar.startOfDay(for: day))!
+    }
+
     /// How much of `rect` (points) stands out sharply from its background: the share of pixels whose brightness differs
     /// from the region's median by more than 0.7 (crisp black text on white, or white on black, differs by about 1;
     /// text under the system's soft scroll edge is faded and blurred well below that).

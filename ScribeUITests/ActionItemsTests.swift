@@ -74,14 +74,6 @@ final class ActionItemsTests: ScribeUITestCase {
         return message.split(separator: "\n").map(String.init)
     }
 
-    /// The next `weekday` (Sunday = 1) strictly after `day`, as "yyyy-MM-dd" (DueDate's rule for "by Friday").
-    private func next(_ weekday: Int, after day: Date) -> String {
-        let calendar = Calendar.current
-        var ahead = (weekday - calendar.component(.weekday, from: day) + 7) % 7
-        if ahead == 0 { ahead = 7 }
-        return Self.ymd(calendar.date(byAdding: .day, value: ahead, to: calendar.startOfDay(for: day))!)
-    }
-
     private static func ymd(_ date: Date) -> String {
         let parts = Calendar.current.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", parts.year!, parts.month!, parts.day!)
@@ -176,7 +168,7 @@ final class ActionItemsTests: ScribeUITestCase {
         // What arrived in Reminders (read back and removed); the run's day decides the Friday: the seeded meeting
         // was a day ago.
         let reminders = takeReminders(app)
-        let friday = next(6, after: .now.addingTimeInterval(-86_400))
+        let friday = Self.ymd(next(6, after: .now.addingTimeInterval(-86_400)))
         XCTAssertTrue(reminders.contains { line in
             let fields = line.components(separatedBy: " | ")
             return fields.count == 5 && fields[0] == "Send the numbers to finance" && fields[1] == friday
@@ -393,9 +385,7 @@ final class ActionItemsTests: ScribeUITestCase {
         var calendar = Calendar.current
         calendar.locale = Locale(identifier: "en_US")
         let today = calendar.startOfDay(for: .now)
-        var ahead = (6 - calendar.component(.weekday, from: today) + 7) % 7
-        if ahead == 0 { ahead = 7 }
-        let friday = calendar.date(byAdding: .day, value: ahead, to: today)!
+        let friday = next(6, after: today)
         let day = calendar.component(.day, from: friday)
         XCTAssertTrue(first.label.contains("Fri") && first.label.contains("\(day)"),
                       "due the Friday after today (\(friday)): \(first.label)")

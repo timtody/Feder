@@ -70,6 +70,52 @@ final class ImportTests: ScribeUITestCase {
         XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
     }
 
+    /// An import's action items count their deadlines from the day its file says it was recorded (`originalDate`), not
+    /// from the import, which dates the transcript (FED-6): last month's "by Friday" is last month's Friday.
+    /// `-fakeGemma`: FakeTextWriter answers "by Friday" and "tomorrow at 10:00", so the first is due the Friday after the
+    /// file's day (30 days before the launch, `makeTestAudio`), the second at 10:00 the day after it. Counted from the
+    /// import, both were in the coming days. The import is deleted again.
+    @MainActor
+    func testImportDeadlinesCountFromTheFileDate() throws {
+        let app = launch(["-importTestAudio", "-fakeGemma", "-fakeWordChanges", "-fakeDiarizeSeconds", "1"])
+        let title = app.textFields["Title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 15), "the card on the imported transcript")
+        XCTAssertEqual(title.value as? String, "Interview Lena", "named after the file")
+        let button = app.buttons["Action Items"].firstMatch
+        XCTAssertTrue(button.waitForExistence(timeout: 5), "the Action Items button")
+        XCTAssertTrue(button.wait(for: \.isEnabled, toEqual: true, timeout: 30), "once the speakers are final")
+        button.tap()
+        let first = app.descendants(matching: .any)["ActionItem.0"].firstMatch
+        let second = app.descendants(matching: .any)["ActionItem.1"].firstMatch
+        XCTAssertTrue(first.waitForExistence(timeout: 30) && second.exists, "the items found")
+        XCTAssertTrue(first.label.contains("Send the test results to the team"), first.label)
+
+        // The dates as the sheet writes them (ActionItemText.due: the app's language, the region's formats).
+        let calendar = Calendar.current
+        let filed = calendar.startOfDay(for: .now.addingTimeInterval(-30 * 86_400))
+        let friday = next(6, after: filed)
+        let tomorrow = calendar.date(bySettingHour: 10, minute: 0, second: 0,
+                                     of: calendar.date(byAdding: .day, value: 1, to: filed)!)!
+        func shown(_ date: Date, time: Bool) -> String {
+            let locale = Locale(identifier: "en_" + (Locale.current.region?.identifier ?? "US"))
+            var style = Date.FormatStyle.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(locale)
+            if !calendar.isDate(date, equalTo: .now, toGranularity: .year) { style = style.year() }
+            if time { style = style.hour().minute() }
+            return date.formatted(style)
+        }
+        XCTAssertTrue(first.label.contains(shown(friday, time: false)),
+                      "due the Friday after the file's day, \(shown(friday, time: false)): \(first.label)")
+        XCTAssertTrue(second.label.contains(shown(tomorrow, time: true)),
+                      "due the day after the file's day, \(shown(tomorrow, time: true)): \(second.label)")
+        shot("Imported action items", app)
+
+        app.buttons["CloseActionItems"].tap()
+        XCTAssertTrue(first.waitForNonExistence(timeout: 5), "the sheet closed")
+        app.buttons["Delete Transcript"].tap()                   // the samples stay on top for the other tests
+        app.buttons["Delete"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
+    }
+
     /// A second file shared while the first is converting waits its turn: both become transcripts, and the card opens
     /// on the last one. (Dropped, the second was lost without a word.)
     @MainActor
