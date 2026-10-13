@@ -20,8 +20,9 @@ struct SpeakerNameSheet: View {
 
     @Environment(AppServices.self) private var services
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Person.name) private var people: [Person]
-    @Query private var recordings: [Recording]
+    @State private var transcriptCounts: [UUID: Int]?   // transcripts per person, read after the first frame (loadCounts)
     @State private var draft: String
     @State private var selection: TextSelection?
     @FocusState private var isFieldFocused: Bool
@@ -44,12 +45,8 @@ struct SpeakerNameSheet: View {
                                        typed: draft == initialName ? "" : draft)   // the prefilled name filters nothing
     }
 
-    /// Transcripts per person, counted once per body (not once per row per keystroke).
-    private var transcriptCounts: [UUID: Int] {
-        var counts: [UUID: Int] = [:]
-        for recording in recordings { for id in Set(recording.speakerPeople.values) { counts[id, default: 0] += 1 } }
-        return counts
-    }
+    /// How many transcripts are read per turn of the main actor (loadCounts).
+    private static let batch = 16
 
     var body: some View {
         let counts = transcriptCounts
@@ -114,6 +111,7 @@ struct SpeakerNameSheet: View {
         }
         .presentationDetents([.medium, .large])
         .onAppear { InteractionTrace.shown("rename") }        // the sheet starts to rise
+        .task { await loadCounts() }
         .task {
             isFieldFocused = true
             // The name gets selected once the field has focus: a selection set before that becomes a caret at the
@@ -153,15 +151,18 @@ struct SpeakerNameSheet: View {
         .frame(minHeight: 56)
     }
 
-    private func choiceButton(_ choice: SpeakerNameChoices.Choice, counts: [UUID: Int]) -> some View {
+    private func choiceButton(_ choice: SpeakerNameChoices.Choice, counts: [UUID: Int]?) -> some View {
         // Always names (so confirms) the speaker, also with its current name: a recognized speaker's voice then
         // becomes a sample of that person.
-        Button { name(choice.name) } label: { row(choice, transcripts: choice.personID.flatMap { counts[$0] } ?? 0) }
+        let transcripts = counts.map { counts in choice.personID.flatMap { counts[$0] } ?? 0 }
+        return Button { name(choice.name) } label: { row(choice, transcripts: transcripts) }
             .accessibilityIdentifier("PersonChoice.\(choice.name)")
     }
 
-    private func row(_ choice: SpeakerNameChoices.Choice, transcripts: Int) -> some View {
-        HStack(spacing: 12) {
+    /// `transcripts`: nil while the counts are read; the caption that needs them keeps its line, empty, meanwhile.
+    private func row(_ choice: SpeakerNameChoices.Choice, transcripts: Int?) -> some View {
+        let caption = caption(choice, transcripts: transcripts)
+        return HStack(spacing: 12) {
             Image(systemName: "person.crop.circle.fill")
                 .font(.title)
                 .foregroundStyle(.tint)
@@ -169,9 +170,10 @@ struct SpeakerNameSheet: View {
                 SearchHighlight.bold(choice.name, choice.matched)
                     .font(.body)
                     .foregroundStyle(Color.primary)                     // not the button's tint
-                Text(caption(choice, transcripts: transcripts))
+                Text(caption ?? " ")
                     .font(.footnote)
                     .foregroundStyle(Color.secondary)
+                    .accessibilityHidden(caption == nil)
             }
             Spacer(minLength: 0)
             if choice.reason == .current {
@@ -186,7 +188,7 @@ struct SpeakerNameSheet: View {
         .accessibilityAddTraits(choice.reason == .current ? .isSelected : [])
     }
 
-    private func caption(_ choice: SpeakerNameChoices.Choice, transcripts count: Int) -> String {
+    private func caption(_ choice: SpeakerNameChoices.Choice, transcripts count: Int?) -> String? {
         switch choice.reason {
         case .current: return String(localized: "This speaker")
         case .similarVoice: return String(localized: "Similar voice")
@@ -202,8 +204,31 @@ struct SpeakerNameSheet: View {
             if recording.speakerPeople.contains(where: { $0.value == id && $0.key != speaker }) {
                 return String(localized: "Already in this transcript")
             }
+            guard let count else { return nil }
             return count == 1 ? "1 transcript" : "\(count) transcripts"
         }
+    }
+
+    /// Transcripts per person, for the people's captions. Read after the sheet's first frame, `batch` transcripts per
+    /// turn of the main actor (`Recording` is a main-actor model), as TagEditor reads its suggestions. A `@Query` of
+    /// every transcript fetched them in the sheet's first body and decoded their speakers there, 10 ms of the press
+    /// with 70 transcripts (Time Profiler, iPhone 17 simulator, FED-9), the decoding again with every keystroke. The
+    /// captions come in while the sheet rises.
+    private func loadCounts() async {
+        var counts: [UUID: Int] = [:]
+        var offset = 0
+        while true {
+            await Task.yield()                    // the sheet's first frame first, then a frame between the batches
+            guard !Task.isCancelled else { return }
+            var descriptor = FetchDescriptor<Recording>(sortBy: [SortDescriptor(\.createdAt)])
+            descriptor.fetchOffset = offset
+            descriptor.fetchLimit = Self.batch
+            let batch = (try? modelContext.fetch(descriptor)) ?? []
+            for recording in batch { for id in Set(recording.speakerPeople.values) { counts[id, default: 0] += 1 } }
+            offset += batch.count
+            if batch.count < Self.batch { break }
+        }
+        transcriptCounts = counts
     }
 
     // MARK: Actions
