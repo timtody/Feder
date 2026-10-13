@@ -51,7 +51,7 @@ final class CalendarTests: ScribeUITestCase {
         app.buttons["UseCalendarTitle"].tap()
         XCTAssertTrue(waitFor { (field.value as? String) == "Design Review" }, "Use as Title names it after the event")
         XCTAssertTrue(waitFor { row.label == "From your calendar" }, row.label)
-        XCTAssertFalse(app.buttons["UseCalendarTitle"].exists, "nothing more to take")
+        XCTAssertTrue(app.buttons["UseCalendarTitle"].waitForNonExistence(timeout: 3), "nothing more to take")
         shot("Named after the event", app)
         app.buttons["DismissCalendarTitle"].tap()
         XCTAssertTrue(waitFor { (field.value as? String) == "Live Transcript Test" }, "⊗ gives Gemma's title back")
@@ -107,7 +107,9 @@ final class CalendarTests: ScribeUITestCase {
         XCTAssertTrue(waitFor(timeout: 2) { self.recordingTitle(app).label == "Design Review" },
                       "the card is named after the event at once")
         XCTAssertTrue(waitFor { row.label == "From your calendar" }, row.label)
-        XCTAssertFalse(app.buttons["UseCalendarTitle"].exists)
+        let use = app.buttons["UseCalendarTitle"]
+        if !use.waitForNonExistence(timeout: 3) { note("Recording card after Use as Title", app.debugDescription) }
+        XCTAssertFalse(use.exists, "nothing more to take")
         shot("Recording named after the event", app)
         sleep(5)
         app.buttons["Stop"].firstMatch.tap()

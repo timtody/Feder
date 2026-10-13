@@ -184,9 +184,7 @@ struct RecordView: View {
                 dateLine
                 if let offer = session.calendarTitleOffer {
                     CalendarTitleRow(offer: offer, onUse: { session.useCalendarTitle() },
-                                     onDismiss: { session.dismissCalendarTitle() })
-                        .allowsHitTesting(!turning)
-                        .accessibilityHidden(turning)
+                                     onDismiss: { session.dismissCalendarTitle() }, isActive: !turning)
                         .transition(.opacity)
                 }
             }

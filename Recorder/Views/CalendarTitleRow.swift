@@ -15,6 +15,9 @@ struct CalendarTitleRow: View {
     let offer: CalendarTitleOffer
     let onUse: @MainActor () -> Void
     let onDismiss: @MainActor () -> Void
+    /// False on the recording card while it turns into the transcript, whose own row takes over: no taps, and nothing
+    /// for VoiceOver.
+    var isActive = true
 
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -27,22 +30,33 @@ struct CalendarTitleRow: View {
                 .lineLimit(stacked ? 3 : 1)
                 .frame(maxWidth: .infinity, alignment: .leading)
             HStack(spacing: 10) {
-                // Taken, it fades out where it stands: removed, the row lost height (the pill is taller than the ⊗)
-                // and everything below moved up.
-                let isOffer = offer != .taken
-                Button("Use as Title", action: onUse)
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.capsule)
-                    .controlSize(.small)
-                    .font(.subheadline.weight(.semibold))
-                    .fixedSize()
-                    .opacity(isOffer ? 1 : 0)
-                    .disabled(!isOffer)
-                    .accessibilityHidden(!isOffer)
-                    .accessibilityIdentifier("UseCalendarTitle")
+                // Taken, it fades out where it stands, over a hidden stand-in that keeps its place: removed, the row
+                // lost height (the pill is taller than the ⊗) and everything below moved up. Not the pill itself kept
+                // at opacity 0 with `accessibilityHidden`: on the recording card it stayed in the accessibility tree,
+                // a dimmed "Use as Title" (CalendarTests).
+                ZStack {
+                    useButton(action: {})
+                        .hidden()
+                    if case .offer = offer {
+                        useButton(action: onUse)
+                            .accessibilityHidden(!isActive)
+                            .accessibilityIdentifier("UseCalendarTitle")
+                            .transition(.opacity)
+                    }
+                }
                 dismissButton
             }
         }
+        .allowsHitTesting(isActive)
+    }
+
+    private func useButton(action: @escaping @MainActor () -> Void) -> some View {
+        Button("Use as Title", action: action)
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .controlSize(.small)
+            .font(.subheadline.weight(.semibold))
+            .fixedSize()
     }
 
     private var label: some View {
@@ -59,6 +73,7 @@ struct CalendarTitleRow: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
         .accessibilityIdentifier("CalendarTitle")
+        .accessibilityHidden(!isActive)
     }
 
     private var accessibilityText: Text {
@@ -84,6 +99,7 @@ struct CalendarTitleRow: View {
         .accessibilityLabel("Dismiss")
         .accessibilityHint(offer == .taken ? Text("Gives the transcript back the name Feder gave it") : Text(verbatim: ""))
         .accessibilityIdentifier("DismissCalendarTitle")
+        .accessibilityHidden(!isActive)
     }
 }
 
