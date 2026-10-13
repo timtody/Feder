@@ -177,6 +177,7 @@ final class AppLock {
         // sends the user) enables the switch at once, or one removed.
         Task { await refreshMethod() }
         guard isCovered else { return }                 // App Lock was off when Feder was left
+        InteractionTrace.begin("return")                // until the cover's gone (`uncover`)
         if !isLocked, let leftAt, ContinuousClock.now - leftAt >= Self.grace { isLocked = true }
         if isLocked {
             promptDue = true
@@ -316,6 +317,7 @@ final class AppLock {
         guard isCovered else { return }
         isCovered = false
         present?(false)
+        InteractionTrace.shown("return")
     }
 
     // MARK: LocalAuthentication
