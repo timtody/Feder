@@ -260,6 +260,14 @@ final class SpeakerNamingTests: ScribeUITestCase {
         // The transcript just recorded (its speakers still unnamed), the newest row.
         app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'New Transcript'")).firstMatch.tap()
         XCTAssertTrue(tip.waitForExistence(timeout: 10), "the tip again after Reset Onboarding")
+
+        // The recording goes again: left behind, every run added a row above the seeded transcripts, until the list
+        // tests no longer found "Budget Review" or "Archive 1" on the first screen.
+        app.buttons["Delete Transcript"].tap()
+        let confirm = app.buttons["Delete"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "deleted: the card closed")
     }
 
     /// The name row's button is as wide as the name and its time (plus a little room), not the whole width: a tap on
