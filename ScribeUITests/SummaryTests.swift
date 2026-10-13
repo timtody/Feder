@@ -47,7 +47,7 @@ final class SummaryTests: ScribeUITestCase {
     /// brings a paragraph back.
     @MainActor
     func testStyleRewritesSummary() throws {
-        let app = launch(["-fakeGemma", "-seedStyledSummary"])
+        let app = launch(["-fakeGemma", "-seedStyledSummary", "-interactionTrace"])   // the "style" press's log line
         open("Budget Review", in: app)
         let summary = app.buttons["Summary"]
         XCTAssertTrue(summary.waitForExistence(timeout: 5))
@@ -86,6 +86,33 @@ final class SummaryTests: ScribeUITestCase {
             let value = summary.value as? String ?? ""
             return !value.isEmpty && !value.contains("•") && !value.contains("\n")
         }, "a paragraph again: \(summary.value ?? "")")
+    }
+
+    /// A rewrite stopped by leaving the app (iOS takes the GPU away: BetterSummaries cancels Gemma's request) keeps
+    /// the old summary and says it isn't finished, also with the card still open; Try Again writes it.
+    @MainActor
+    func testStoppedRewriteSaysNotFinished() throws {
+        let app = launch(["-fakeGemma", "-seedStyledSummary"])
+        open("Budget Review", in: app)
+        let summary = app.buttons["Summary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        summary.tap()
+        let picker = styleMenu(app)
+        XCTAssertTrue(picker.waitForExistence(timeout: 3))
+        choose("Interview", in: picker, app)
+        XCTAssertTrue(app.staticTexts["SummaryRewriting"].waitForExistence(timeout: 2), "writing")
+        XCUIDevice.shared.press(.home)                      // the fake Gemma's answer takes 3 s: stopped before it
+        sleep(2)
+        app.activate()
+        let notFinished = app.staticTexts["Not Finished"]
+        XCTAssertTrue(notFinished.waitForExistence(timeout: 5), "not finished")
+        XCTAssertTrue((summary.value as? String ?? "").hasPrefix("Decisions"), "the Meeting summary stays")
+        XCTAssertEqual(picker.value as? String, "Interview", "the chosen style stays")
+        shot("Not finished", app)
+        app.buttons["Try Again"].tap()
+        XCTAssertTrue(waitFor(timeout: 15) { (summary.value as? String ?? "").hasPrefix("Q: Why is travel over plan?") },
+                      "written as an interview: \(summary.value ?? "")")
+        XCTAssertFalse(notFinished.exists)
     }
 
     /// While recording, a disc right of the Stop (the bookmark stays left, the Stop centred) opens the styles' menu;

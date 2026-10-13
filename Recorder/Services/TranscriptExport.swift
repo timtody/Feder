@@ -189,9 +189,12 @@ nonisolated enum TranscriptExport {
         }
         if let summary = snapshot.summary {
             lines.append("")
-            lines += summary.components(separatedBy: .newlines).map { line in
+            // A styled summary's lines (FED-15) are paragraphs of the quote: lines quoted one after the other ran
+            // together into one paragraph in every Markdown app. A Brief summary has one line, as before.
+            for (index, line) in summary.components(separatedBy: .newlines).enumerated() {
                 let line = markdownLineStarts(markdownInline(line))
-                return line.isEmpty ? ">" : "> " + line
+                if index > 0, summary.contains("\n") { lines.append(">") }
+                lines.append(line.isEmpty ? ">" : "> " + line)
             }
         }
         if !snapshot.bookmarks.isEmpty {
@@ -408,7 +411,14 @@ nonisolated enum TranscriptExport {
         add(snapshot.title, .systemFont(ofSize: 22, weight: .bold), after: 4)
         add(snapshot.metaLine, .systemFont(ofSize: 10), .darkGray, after: 4)
         if !snapshot.tags.isEmpty { add(snapshot.tags.map { "#\($0)" }.joined(separator: "  "), .systemFont(ofSize: 10), .darkGray, after: 4) }
-        if let summary = snapshot.summary { add(summary, .italicSystemFont(ofSize: 11), .darkGray, before: 6, after: 6) }
+        if let summary = snapshot.summary {
+            // A styled summary's lines (FED-15) close together: as one string, each line got the paragraph's spacing.
+            let lines = summary.components(separatedBy: "\n")
+            for (index, line) in lines.enumerated() {
+                add(line, .italicSystemFont(ofSize: 11), .darkGray, before: index == 0 ? 6 : 0,
+                    after: index == lines.count - 1 ? 6 : 2)
+            }
+        }
         if !snapshot.bookmarks.isEmpty {
             add(snapshot.bookmarksHeading, .systemFont(ofSize: 10.5, weight: .semibold), UIColor(white: 0.12, alpha: 1),
                 before: 8, after: 2)
