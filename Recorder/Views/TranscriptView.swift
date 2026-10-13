@@ -69,6 +69,14 @@ struct TranscriptView: View {
     @State private var noticeRow: UUID?            // the name row showing the preliminary notice
     @State private var headerTaps = 0              // haptic trigger
     @State private var tipEnded = false            // the naming tip went with a rename (see rename)
+    #if DEBUG
+    /// UI tests with tips (`-showTips`): "Tip popover closed at once" as the first name row's accessibility value once
+    /// the rename took the tip's popover away itself (NameSpeakersTip.closePopoverAtOnce), since XCUITest can't time
+    /// the sheet. Empty when it found no popover: testNameSpeakersTip fails then, instead of an iOS that presents the
+    /// tip otherwise quietly bringing back the wait for its fade.
+    @State private var tipClose = ""
+    private static let marksTipClose = ProcessInfo.processInfo.arguments.contains("-showTips")
+    #endif
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
@@ -209,7 +217,11 @@ struct TranscriptView: View {
     private func rename(_ speaker: Int, with renameSpeaker: (Int) -> Void) {
         InteractionTrace.begin("rename")
         if showsNameTip, !tipEnded {
+            #if DEBUG
+            NameSpeakersTip.closePopoverAtOnce { if Self.marksTipClose { tipClose = "Tip popover closed at once" } }
+            #else
             NameSpeakersTip.closePopoverAtOnce()
+            #endif
             var transaction = Transaction()
             transaction.disablesAnimations = true
             withTransaction(transaction) { tipEnded = true }       // the popover modifier lets go of it in this update
@@ -272,6 +284,9 @@ struct TranscriptView: View {
             .accessibilityHint(preliminary ? "Speakers are still being identified."
                                            : "Renames this speaker everywhere in this transcript.")
             .accessibilityIdentifier("SpeakerHeader.\(index)")
+            #if DEBUG
+            .accessibilityValue(index == 0 ? tipClose : "")
+            #endif
             .frame(maxWidth: .infinity, alignment: .leading)      // the row keeps its place; only the button is narrow
         } else {
             line.frame(maxWidth: .infinity, alignment: .leading)

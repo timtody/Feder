@@ -186,7 +186,7 @@ final class SpeakerNamingTests: ScribeUITestCase {
 
     /// The first transcript with final speakers, all still "Speaker N", shows a tip on the first name row that names
     /// are tappable (TipKit; `-showTips -resetTips`, the other tests hide tips). Tapping the name opens the rename
-    /// sheet and ends the tip.
+    /// sheet and ends the tip; the tap takes the tip's popover away itself (FED-9).
     @MainActor
     func testNameSpeakersTip() throws {
         let app = launch(["-showTips", "-resetTips", "-autoRecord", "-autoStopAfter", "4"])
@@ -203,15 +203,20 @@ final class SpeakerNamingTests: ScribeUITestCase {
         header.tap()
         let cancel = app.buttons["CancelRename"]
         XCTAssertTrue(cancel.waitForExistence(timeout: 5), "the rename sheet on the first tap")
-        // The tip's popover goes in the tap's frame, without its animation, so the sheet doesn't wait for it (FED-9);
-        // SwiftUI, which presented the popover, must not take the sheet along when it lets go of it.
-        XCTAssertFalse(tip.exists, "and the tip went with the tap")
+        // The tip is gone once the sheet is up, and SwiftUI, which presented the tip's popover, doesn't take the sheet
+        // along when it lets go of the popover.
+        XCTAssertFalse(tip.exists, "and the tip is gone")
         sleep(1)
         XCTAssertTrue(cancel.exists, "the sheet stays")
-
-        // Debug builds: Settings › About › Reset Onboarding brings it back at once, without a relaunch.
         cancel.tap()
         XCTAssertTrue(cancel.waitForNonExistence(timeout: 5))
+        // The tap found the tip's popover and UIKit took it away without its animation: NameSpeakersTip's
+        // closePopoverAtOnce says so in the first name row's value (DEBUG, `-showTips`), so an iOS that presents the tip
+        // otherwise fails here. How soon the sheet then moves is not checked: XCUITest can't time it (README ›
+        // Performance, Rename).
+        XCTAssertEqual(header.value as? String, "Tip popover closed at once", "the tap took the tip's popover away")
+
+        // Debug builds: Settings › About › Reset Onboarding brings it back at once, without a relaunch.
         closeCard(app)
         app.buttons["Settings"].firstMatch.tap()
         let reset = app.buttons["Reset Onboarding"].firstMatch

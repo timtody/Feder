@@ -40,13 +40,16 @@ struct NameSpeakersTip: Tip {
 
     /// Takes the tip's popover away at once, without its animation, so a sheet can be presented in the same turn
     /// (TranscriptView.rename). The popover is the key window's topmost presented controller while the tip shows;
-    /// anything else (the tip already closed) is left alone.
-    @MainActor static func closePopoverAtOnce() {
+    /// anything else (the tip already closed) is left alone. `dismissed` runs once UIKit has taken it away (35 ms later,
+    /// iOS 27 simulator; it is still presented when `dismiss` returns). How TipKit presents the tip is not documented:
+    /// an iOS that presents it otherwise would bring back the wait without a sound, so testNameSpeakersTip checks that
+    /// `dismissed` ran (TranscriptView's DEBUG marker).
+    @MainActor static func closePopoverAtOnce(dismissed: (() -> Void)? = nil) {
         let window = UIApplication.shared.connectedScenes.lazy.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first
         guard var top = window?.rootViewController else { return }
         while let presented = top.presentedViewController { top = presented }
         guard top.modalPresentationStyle == .popover, let presenter = top.presentingViewController else { return }
-        presenter.dismiss(animated: false)
+        presenter.dismiss(animated: false, completion: dismissed)
     }
 
     #if DEBUG
