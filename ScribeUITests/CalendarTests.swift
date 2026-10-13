@@ -362,10 +362,10 @@ final class CalendarTests: ScribeUITestCase {
         XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10), "the card closes")
     }
 
-    /// Name from Calendar turned off while recording (the card minimized, Settings, back): the transcript keeps the
-    /// name it showed (the event's, taken with Use as Title), but no event is saved with it, as Save Location keeps no
-    /// place then: no row in the transcript, and its rename sheet has no Invitees. `-calendarOn` (stored, so the switch
-    /// can turn it off) and off again at the end.
+    /// Name from Calendar turned off while recording (the card minimized, Settings, back): the card's row is gone, and
+    /// the transcript keeps the name it showed (the event's, taken with Use as Title), but no event is saved with it,
+    /// as Save Location keeps no place then: no row in the transcript, and its rename sheet has no Invitees.
+    /// `-calendarOn` (stored, so the switch can turn it off) and off again at the end.
     @MainActor
     func testSwitchedOffBeforeStopSavesNoInvitees() throws {
         let app = launch(["-calendarOn", "-fakeCalendarEvent", "Design Review|Maria Lopez|Berger, Tom",
@@ -375,16 +375,9 @@ final class CalendarTests: ScribeUITestCase {
         app.buttons["UseCalendarTitle"].tap()
         XCTAssertTrue(waitFor(timeout: 3) { self.recordingTitle(app).label == "Design Review" },
                       "the card is named after the event")
-        app.buttons["Minimize"].tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
-        app.buttons["Settings"].firstMatch.tap()
-        let toggle = app.switches["Name from Calendar"].firstMatch
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
-        XCTAssertEqual(toggle.value as? String, "1", "on")
-        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
-        XCTAssertTrue(waitFor { (toggle.value as? String) == "0" }, "off")
-        app.buttons["Recording"].firstMatch.tap()           // back to the card from the accessory
-        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 5))
+        setCalendarSwitch(false, whileRecording: app)
+        XCTAssertFalse(calendarRow(app).waitForExistence(timeout: 2), "the card's row went with the switch")
+        XCTAssertEqual(recordingTitle(app).label, "Design Review", "the name stays as shown")
         sleep(6)                                            // two speakers: FakeDiarizer changes every 4 s
         app.buttons["Stop"].firstMatch.tap()
 
@@ -403,6 +396,30 @@ final class CalendarTests: ScribeUITestCase {
         app.buttons["CancelRename"].tap()
         XCTAssertTrue(nameField(app).waitForNonExistence(timeout: 5))
         deleteOpenTranscript(app)
+    }
+
+    /// Name from Calendar turned off while recording, before Use as Title: the card's row is gone at once, so the
+    /// meeting's name can't be taken any more (Stop saves no event then, so nothing could give the app's name back);
+    /// turned on again before Stop, it is offered again. `-calendarOn` (stored, so the switch can turn it off), and off
+    /// at the end.
+    @MainActor
+    func testSwitchedOffWhileRecordingTakesTheOfferAway() throws {
+        let app = launch(["-calendarOn", "-fakeCalendarEvent", "Design Review", "-fakeSilence"])
+        startRecording(app)
+        let row = calendarRow(app)
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "the event is offered")
+        setCalendarSwitch(false, whileRecording: app)
+        XCTAssertFalse(row.waitForExistence(timeout: 2), "the row went with the switch")
+        XCTAssertFalse(app.buttons["UseCalendarTitle"].exists, "nothing to take")
+        XCTAssertTrue(hasDefaultTitle(app), "New Transcript N")
+        shot("Recording after Name from Calendar was turned off", app)
+        setCalendarSwitch(true, whileRecording: app)
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "on again: offered again")
+        XCTAssertEqual(row.label, "Calendar event “Design Review”")
+        setCalendarSwitch(false, whileRecording: app)
+        XCTAssertFalse(row.waitForExistence(timeout: 2), "off for the next tests")
+        app.buttons["Stop"].firstMatch.tap()                // -fakeSilence: nothing saved, the card closes
+        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10), "the card closes")
     }
 
     /// Settings' switch asks for access (answered by `-fakeCalendarAccess granted`, no system alert) and turns on;
@@ -607,6 +624,23 @@ final class CalendarTests: ScribeUITestCase {
             XCTAssertFalse(row.exists && row.label.contains(other), "\(message): not \(other)", file: file, line: line)
         }
         XCTAssertTrue(waitFor { self.hasDefaultTitle(app) }, "\(message): New Transcript N", file: file, line: line)
+    }
+
+    /// Minimizes the recording card, turns Settings' Name from Calendar `on` or off, and goes back to the card from the
+    /// accessory; it records all along.
+    @MainActor
+    private func setCalendarSwitch(_ on: Bool, whileRecording app: XCUIApplication, file: StaticString = #filePath,
+                                   line: UInt = #line) {
+        app.buttons["Minimize"].tap()
+        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "minimized", file: file, line: line)
+        app.buttons["Settings"].firstMatch.tap()
+        let toggle = app.switches["Name from Calendar"].firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "Settings", file: file, line: line)
+        XCTAssertEqual(toggle.value as? String, on ? "0" : "1", on ? "was off" : "was on", file: file, line: line)
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        XCTAssertTrue(waitFor { (toggle.value as? String) == (on ? "1" : "0") }, on ? "on" : "off", file: file, line: line)
+        app.buttons["Recording"].firstMatch.tap()           // back to the card from the accessory
+        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 5), "the card again", file: file, line: line)
     }
 
     /// The transcript card's Delete, confirmed: test recordings don't pile up in the simulator's store.

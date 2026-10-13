@@ -207,12 +207,15 @@ final class RecordingSession: Identifiable {
     }
 
     /// The row under the recording card's date line (CalendarTitleRow): the event's title to take, or ⊗ back to "New
-    /// Transcript N" once taken; nil when there is none, it was dismissed, or Stop was pressed with Name from Calendar
-    /// turned off meanwhile.
+    /// Transcript N" once taken; nil when there is none, it was dismissed, or Name from Calendar is turned off while
+    /// recording (`CalendarContext.isOn`): Stop then saves no event, so the transcript would have no row, and a title
+    /// taken now would stay with no ⊗ to give the app's name back. A title taken before stays as shown; turned on again
+    /// before Stop, the row comes back as it was.
     var calendarTitleOffer: CalendarTitleOffer? {
-        CalendarRules.titleOffer(event: calendarEvent?.title, name: transcriptName,
-                                 nameBefore: calendarTitleTaken ? defaultName : nil,
-                                 dismissed: calendarTitleDismissed, nameIsUserSet: false)
+        guard calendar?.isOn == true else { return nil }
+        return CalendarRules.titleOffer(event: calendarEvent?.title, name: transcriptName,
+                                        nameBefore: calendarTitleTaken ? defaultName : nil,
+                                        dismissed: calendarTitleDismissed, nameIsUserSet: false)
     }
 
     /// Use as Title on the recording card: the transcript is named after the event at once, and saved so (not marked
@@ -268,9 +271,9 @@ final class RecordingSession: Identifiable {
         #if DEBUG
         let stopped = ContinuousClock.now
         #endif
-        // Name from Calendar turned off meanwhile: no event is saved (below), so the row goes as the card turns; the
-        // transcript has none to show in its place.
-        if !CalendarContext.isEnabled { calendarEvent = nil }
+        // Name from Calendar turned off meanwhile: no event is saved (below); the card's row went with the switch
+        // (`calendarTitleOffer`), and the transcript has none either.
+        if calendar?.isOn != true { calendarEvent = nil }
         state = .finishing
         stopObservingInterruptions()
         refresh?.cancel()

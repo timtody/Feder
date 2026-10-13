@@ -41,6 +41,11 @@ final class CalendarContext {
     nonisolated static let preferredIDKey = "calendarPreferredID"
     nonisolated static let preferredFingerprintKey = "calendarPreferredFingerprint"
 
+    /// The switch as stored (`isEnabled`), but observed: Settings can turn it off while a recording runs (the card
+    /// minimized), and the card's calendar row then goes at once (RecordingSession.calendarTitleOffer). Without it, the
+    /// row stayed and Use as Title still named the transcript after the meeting, though Stop saves no event then, so
+    /// the transcript kept the meeting's name with no ⊗ to give its own back.
+    private(set) var isOn = false
     /// Read off the main actor at every refresh, after a request and when the switch is turned on; Settings reads it.
     private(set) var access: CalendarAccess = .unknown
     /// The switch may show on: access is given, or not known yet this launch (so it doesn't flicker off at launch).
@@ -91,6 +96,7 @@ final class CalendarContext {
                                       forKey: Self.preferredFingerprintKey)
         }
         #endif
+        isOn = Self.isEnabled
         observe()
         if Self.isEnabled { refresh() }              // warm before a cold launch's Transcribe
     }
@@ -158,6 +164,7 @@ final class CalendarContext {
             return .needsSettings
         }
         UserDefaults.standard.set(true, forKey: Self.enabledKey)
+        isOn = true
         access = .granted
         refresh()
         return .enabled
@@ -170,6 +177,7 @@ final class CalendarContext {
     /// Not given, nothing is read (each read only checks the status) and no press finds an event.
     func enableWhenAllowed() {
         UserDefaults.standard.set(true, forKey: Self.enabledKey)
+        isOn = true
     }
 
     /// Settings' Preferred Calendar (nil: None): stored at once, used from the next press; nothing is read again (the
@@ -186,10 +194,11 @@ final class CalendarContext {
         preferred = calendar
     }
 
-    /// The switch off: nothing is read any more and the cache is emptied. Transcripts keep the names and invitees they
-    /// have, as Save Location keeps places.
+    /// The switch off: nothing is read any more and the cache is emptied, and a recording's card loses its row (`isOn`).
+    /// Transcripts keep the names and invitees they have, as Save Location keeps places.
     func disable() {
         UserDefaults.standard.set(false, forKey: Self.enabledKey)
+        isOn = false
         changeDebounce?.cancel()
         clear()
     }
