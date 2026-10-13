@@ -1,22 +1,18 @@
 import Foundation
 import SwiftData
 
-/// What a person's page shows beyond the store's cheap attributes (`PersonView`): the recurring topics and one quote
-/// per transcript (`PersonDigest`). Topics first (strings only: every finished transcript's topic text, tags and
-/// names, read on the main actor; the words found off it), then the quotes, newest transcript first: their `segments`
-/// are the SwiftData load, read 8 transcripts per turn of the main actor with a frame between the batches, as the
-/// search index does (TranscriptSearchModel), and cut off it. Both are cached for the process (static): a transcript's
-/// words by its topic text, its quote by its `searchKey` (which changes whenever the segments are rewritten) and the
-/// person's speakers there, so another person's page reads only what is new. A person's page as last shown (topics and
-/// quotes) is kept too and is the next page's start, so a second visit draws them in its first frame (each page has
-/// its own model; started empty, the Topics section came in after the push on every visit and pushed the rows down),
-/// then the update brings it up to date.
+/// What a person's page shows beyond the store's cheap attributes (`PersonView`): one quote per transcript
+/// (`PersonDigest`), newest transcript first. Their `segments` are the SwiftData load, read 8 transcripts per turn of
+/// the main actor with a frame between the batches, as the search index does (TranscriptSearchModel), and cut off it.
+/// The quotes are cached for the process (static) by the transcript's `searchKey` (which changes whenever the segments
+/// are rewritten) and the person's speakers there, so another person's page reads only what is new. A person's page as
+/// last shown is kept too and is the next page's start, so a second visit draws its quotes in its first frame (each
+/// page has its own model), then the update brings it up to date.
 @MainActor @Observable
 final class PersonPageModel {
     /// Recordings whose segments are read per turn of the main actor.
     static let batch = 8
 
-    private(set) var topics: [PersonTopic] = []
     /// The quote per transcript of theirs, once read (nil inside: they have no turn there).
     private(set) var quotes: [UUID: PersonQuote?] = [:]
 
@@ -25,17 +21,13 @@ final class PersonPageModel {
     /// Starts as the person's page was last shown (a dictionary lookup: PersonView makes one per init).
     init(personID: UUID) {
         self.personID = personID
-        if let shown = Self.lastShown[personID] {
-            topics = shown.topics
-            quotes = shown.quotes
-        }
+        if let shown = Self.lastShown[personID] { quotes = shown }
     }
 
     /// What the page depends on, compared to run `update` again only when one changed (`PersonView`'s task id).
     struct Input: Equatable {
         var personID: UUID
         var keys: [Int]                   // every transcript's `personPageKey`
-        var names: [String]               // every person's name
     }
 
     private struct QuoteEntry {
@@ -44,17 +36,11 @@ final class PersonPageModel {
         var quote: PersonQuote?
     }
 
-    private struct TermEntry {
-        var key: Int
-        var terms: [PersonDigest.Term]
-    }
-
     @ObservationIgnored private static var quoteCache: [UUID: QuoteEntry] = [:]
-    @ObservationIgnored private static var termCache: [UUID: TermEntry] = [:]
-    @ObservationIgnored private static var lastShown: [UUID: (topics: [PersonTopic], quotes: [UUID: PersonQuote?])] = [:]
+    @ObservationIgnored private static var lastShown: [UUID: [UUID: PersonQuote?]] = [:]
 
     private func remember() {
-        Self.lastShown[personID] = (topics, quotes)
+        Self.lastShown[personID] = quotes
     }
 
     /// The person's speakers in `recording` (usually one; two when they were split).
@@ -63,7 +49,7 @@ final class PersonPageModel {
     }
 
     /// Call from the view's task whenever `Input` changes; returns early when cancelled (a newer input).
-    func update(recordings: [Recording], people: [String]) async {
+    func update(recordings: [Recording]) async {
         #if DEBUG
         let started = ContinuousClock.now
         #endif
@@ -84,43 +70,9 @@ final class PersonPageModel {
             }
         }
         quotes = known
-
-        // 1. Topics: strings only.
-        let ids = Set(theirs.map(\.id))
-        var sources: [(id: UUID, isTheirs: Bool, tags: [String], names: Set<String>)] = []
-        var missing: [PersonDigest.TermSource] = []
-        var topicKeys: [UUID: Int] = [:]
-        for recording in live {
-            let source = Self.termSource(recording)
-            var hasher = Hasher()
-            hasher.combine(source.topics)
-            hasher.combine(source.summary)
-            hasher.combine(source.title)
-            let key = hasher.finalize()
-            topicKeys[recording.id] = key
-            if Self.termCache[recording.id]?.key != key { missing.append(source) }
-            sources.append((recording.id, ids.contains(recording.id), recording.tags,
-                            PersonDigest.nameWords(recording.speakerNames.values)))
-        }
-        if !missing.isEmpty {
-            for (id, terms) in await PersonDigest.termsInBackground(missing) {
-                if let key = topicKeys[id] { Self.termCache[id] = TermEntry(key: key, terms: terms) }
-            }
-        }
-        guard !Task.isCancelled else { return }
-        let ranked = sources.map { source in
-            PersonDigest.TopicSource(isTheirs: source.isTheirs, terms: Self.termCache[source.id]?.terms ?? [],
-                                     tags: source.tags, names: source.names)
-        }
-        let found = await PersonDigest.topicsInBackground(ranked, excluding: PersonDigest.nameWords(people))
-        guard !Task.isCancelled else { return }
-        if found != topics { topics = found }
         remember()
-        #if DEBUG
-        let topicsDone = ContinuousClock.now
-        #endif
 
-        // 2. Quotes, newest first, a batch per turn of the main actor.
+        // The rest, newest first, a batch per turn of the main actor.
         let keys = Dictionary(pending.map { ($0.0.id, ($0.1, $0.2)) }, uniquingKeysWith: { first, _ in first })
         for start in stride(from: 0, to: pending.count, by: Self.batch) {
             guard !Task.isCancelled else { return }
@@ -139,26 +91,14 @@ final class PersonPageModel {
             await Task.yield()                                // a frame between the batches
         }
         #if DEBUG
-        print("[Scribe] person page: \(live.count) transcripts, \(missing.count) topic texts read, topics in "
-              + "\(topicsDone - started), \(pending.count) quotes read in \(ContinuousClock.now - topicsDone)")
+        print("[Scribe] person page: \(live.count) transcripts, \(pending.count) quotes read in \(ContinuousClock.now - started)")
         #endif
-    }
-
-    /// A transcript's topic text: Gemma's Topics line, else (described before it was kept) its summary, and its title
-    /// when the user typed it or Gemma wrote it.
-    static func termSource(_ recording: Recording) -> PersonDigest.TermSource {
-        PersonDigest.TermSource(id: recording.id, topics: recording.topics,
-                                summary: recording.topics.isEmpty ? recording.summary : nil,
-                                // A title the user typed or Gemma wrote, not one a calendar event or a file gave it:
-                                // a weekly meeting's name became the top topic of everyone in it.
-                                title: recording.nameIsUserSet || recording.name == recording.automaticTitle
-                                    ? recording.name : nil)
     }
 }
 
 extension Recording {
-    /// Changes whenever something a person's page reads changes: what search reads (`searchKey`, which changes with
-    /// the segments and the topics) and the links to people.
+    /// Changes whenever something a person's page reads changes: the segments (`searchKey`, which changes whenever
+    /// they are rewritten) and the links to people.
     var personPageKey: Int {
         var hasher = Hasher()
         hasher.combine(searchKey)

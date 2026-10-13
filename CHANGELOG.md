@@ -25,8 +25,8 @@ release carries a later version's features, its notes are the 1.0 text plus thos
   list under the summary takes you to each one. Exports highlight the bookmarked sentences too and list them under the
   summary, and the summary makes sure to cover them.
 - Person pages: open someone in Settings › People, or touch and hold their name in a transcript and choose Go to
-  Person. You see when you last spoke, the topics that keep coming up, and what they said in each transcript. Tap a
-  transcript to open it where they speak and step through everything they said; tap a topic to search for it.
+  Person. You see when you last spoke and what they said in each transcript. Tap a transcript to open it where they
+  speak and step through everything they said.
 - Search also finds the topics Feder notes with each summary, even when nobody said the word.
 - Name transcripts from your calendar: turn on Name from Calendar in Settings › Recording, and when you start a
   transcript during a meeting, the meeting's name appears under the date. Tap Use as Title to name the transcript after
@@ -63,9 +63,8 @@ release carries a later version's features, its notes are the 1.0 text plus thos
   hervorgehoben, und eine Lesezeichen-Liste unter der Zusammenfassung führt dich zu jedem. Auch Exporte heben die
   markierten Sätze hervor und listen sie unter der Zusammenfassung auf, und die Zusammenfassung geht auf sie ein.
 - Personenseiten: Öffne jemanden unter Einstellungen › Personen, oder halte den Namen in einem Transkript gedrückt und
-  wähle „Zur Person“. Du siehst, wann ihr zuletzt gesprochen habt, welche Themen immer wieder vorkommen und was die
-  Person in jedem Transkript gesagt hat. Tippe auf ein Transkript, um es dort zu öffnen, wo sie spricht, und alles
-  durchzugehen, was sie gesagt hat; tippe auf ein Thema, um danach zu suchen.
+  wähle „Zur Person“. Du siehst, wann ihr zuletzt gesprochen habt und was die Person in jedem Transkript gesagt hat.
+  Tippe auf ein Transkript, um es dort zu öffnen, wo sie spricht, und alles durchzugehen, was sie gesagt hat.
 - Die Suche findet auch die Themen, die Feder zu jeder Zusammenfassung notiert, selbst wenn niemand das Wort gesagt hat.
 - Benenne Transkripte nach deinem Kalender: Schalte „Nach Kalender benennen“ in den Einstellungen unter „Aufnahme“
   ein, und startest du ein Transkript während eines Termins, steht dessen Name unter dem Datum. Tippe auf „Als Titel

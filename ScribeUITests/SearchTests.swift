@@ -135,6 +135,21 @@ final class SearchTests: ScribeUITestCase {
         return condition()
     }
 
+    /// A word only in Gemma's topics (`-seedLicencePlanning`: "procurement", which nobody says and neither summary has)
+    /// finds the two transcripts whose topics have it, since the search reads the topics. Moved here from the person
+    /// page's topic chips, removed in FED-12.
+    @MainActor
+    func testSearchFindsGemmaTopics() throws {
+        let app = launch(["-seedLicencePlanning"])
+        _ = openSearch(app)
+        app.typeText("procurement")
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForNonExistence(timeout: 10), "the results")
+        XCTAssertTrue(app.staticTexts["Licence Planning"].waitForExistence(timeout: 5)
+                        && app.staticTexts["Budget Review"].exists, "found in their topics")
+        XCTAssertTrue(app.staticTexts["2 Transcripts"].exists, "those two")
+        shot("Word only in Gemma's topics", app)
+    }
+
     /// Typed words: the matching transcript only, and its paragraphs with the word are stepped through.
     @MainActor
     func testWordResultHighlights() throws {

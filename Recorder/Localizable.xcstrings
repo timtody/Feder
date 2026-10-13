@@ -90,16 +90,6 @@
         }
       }
     },
-    "%@, Topic": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@, Thema"
-          }
-        }
-      }
-    },
     "%lld": {
       "shouldTranslate": false
     },
@@ -2675,16 +2665,6 @@
         }
       }
     },
-    "Searches your transcripts with %@ for this topic.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sucht in deinen Transkripten mit %@ nach diesem Thema."
-          }
-        }
-      }
-    },
     "Set a passcode in the iPhone's Settings to lock Feder.": {
       "localizations": {
         "de": {
@@ -3461,26 +3441,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Heute"
-          }
-        }
-      }
-    },
-    "Topics": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Themen"
-          }
-        }
-      }
-    },
-    "Topics that come up in more than one transcript with %@.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Themen, die in mehr als einem Transkript mit %@ vorkommen."
           }
         }
       }

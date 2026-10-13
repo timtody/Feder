@@ -1,13 +1,13 @@
 import XCTest
 
-/// A person's page (the Phone app's contact card: name as the large title, Last Conversation, Topics, their
+/// A person's page (the Phone app's contact card: name as the large title, Last Conversation, their
 /// transcripts with what they said), opened from Settings › People or with "Go to Person" from a card's name row, which
 /// closes the card and pushes the page onto the tab under it (Apple Music's Go to Artist).
 final class PersonPageTests: ScribeUITestCase {
 
     /// Settings › People › Anna Schmidt: her name as the title, when you last spoke, her two transcripts each with her
     /// longest turn quoted; a row opens the card at that turn ("1 of 2" through her turns, the turn marked), and
-    /// closing it comes back to her page. No Topics section: her two transcripts share no topic.
+    /// closing it comes back to her page.
     @MainActor
     func testPersonPageShowsWhatTheySaid() throws {
         let app = launch()
@@ -29,8 +29,6 @@ final class PersonPageTests: ScribeUITestCase {
         XCTAssertTrue(budgetQuote.waitForExistence(timeout: 10), "what she said in Budget Review")
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Agreed. If we cut playback'"))
                         .firstMatch.exists, "what she said in Project Kickoff")
-        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'PersonTopic.'")).firstMatch.exists,
-                       "no topics: her transcripts share none")
         shot("Person page", app)
         // The separator between her transcripts starts at their text, inside the card (FED-74).
         assertSeparatorStartsAtText(under: "Project Kickoff", app)
@@ -47,97 +45,42 @@ final class PersonPageTests: ScribeUITestCase {
         XCTAssertTrue(app.navigationBars["Anna Schmidt"].waitForExistence(timeout: 5), "back on her page")
     }
 
-    /// `-seedPersonTopics` (a third transcript of Anna's, "Licence Planning", and Gemma's topics): her page lists the
-    /// tag "finance" first, then the words they share. A word opens the Search tab with her as a token and the word as
-    /// the text, and the search's close button comes back to her page; the tag searches her and the tag. A word only in
-    /// Gemma's topics ("procurement": nobody says it, no summary has it) finds both transcripts too, since the search
-    /// reads the topics. Opened again, her page has its topics at once (the last ones shown, then brought up to date).
+    /// `-seedLicencePlanning` (a third transcript of Anna's), at Larger Text's largest standard size (the page then
+    /// scrolls on any iPhone): scrolled, the large title collapses into the bar, as in Contacts. Opened again from
+    /// People, her page has its quotes at once (the last ones shown, then brought up to date), not placeholders filled
+    /// in after the push.
     @MainActor
-    func testPersonTopics() throws {
-        let app = launch(["-seedPersonTopics", "-showPerson", "Anna Schmidt"])
-        XCTAssertTrue(app.navigationBars["Anna Schmidt"].waitForExistence(timeout: 10), "her page")
-        let finance = app.buttons["PersonTopic.finance"]
-        XCTAssertTrue(finance.waitForExistence(timeout: 10), "the tag on two of her transcripts")
-        let travel = app.buttons["PersonTopic.travel"]
-        XCTAssertTrue(travel.exists && app.buttons["PersonTopic.licences"].exists && app.buttons["PersonTopic.forecast"].exists
-                        && app.buttons["PersonTopic.procurement"].exists, "the words in two of her transcripts' topics")
-        XCTAssertFalse(app.buttons["PersonTopic.planning"].exists, "a tag on one transcript is no topic")
-        XCTAssertLessThanOrEqual(finance.frame.minY, travel.frame.minY, "tags first")
-        if finance.frame.minY == travel.frame.minY { XCTAssertLessThan(finance.frame.minX, travel.frame.minX, "tags first") }
-        XCTAssertTrue(app.staticTexts["Topics"].exists, "the section's header")
-        XCTAssertTrue(app.staticTexts["3 Transcripts"].exists)
-        shot("Person topics", app)
+    func testPersonPageTitleCollapsesAndKeepsQuotes() throws {
+        let app = launch(["-seedLicencePlanning", "-showPerson", "Anna Schmidt",
+                          "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryXXXL"])
+        let page = app.navigationBars["Anna Schmidt"]
+        XCTAssertTrue(page.waitForExistence(timeout: 10), "her page")
+        XCTAssertTrue(app.staticTexts["3 Transcripts"].waitForExistence(timeout: 5))
+        let quote = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'The travel overrun'")).firstMatch
+        XCTAssertTrue(quote.waitForExistence(timeout: 10), "her quotes")
 
-        // The large title collapses into the bar on scroll, as in Contacts.
-        let bar = app.navigationBars["Anna Schmidt"]
-        let large = bar.frame.height
+        let large = page.frame.height
         app.swipeUp()
         let end = Date.now.addingTimeInterval(3)
-        while Date.now < end, bar.frame.height > large - 20 { RunLoop.current.run(until: .now + 0.2) }
-        note("Navigation bar", "large \(large), scrolled \(bar.frame.height)")
+        while Date.now < end, page.frame.height > large - 20 { RunLoop.current.run(until: .now + 0.2) }
+        note("Navigation bar", "large \(large), scrolled \(page.frame.height)")
         shot("Person page scrolled", app)
-        XCTAssertLessThan(bar.frame.height, large - 20, "the title collapsed into the bar")
+        XCTAssertLessThan(page.frame.height, large - 20, "the title collapsed into the bar")
         app.swipeDown()
-        XCTAssertTrue(travel.waitForExistence(timeout: 5) && travel.isHittable, "back at the top")
 
-        travel.tap()
-        let field = app.textFields["SearchField"]
-        XCTAssertTrue(field.waitForExistence(timeout: 5), "the Search tab")
-        XCTAssertEqual(field.value as? String, "travel", "the word as the text")
-        XCTAssertTrue(app.buttons["Remove Anna Schmidt"].exists, "her as the token")
-        XCTAssertEqual(app.buttons.matching(identifier: "SearchToken").count, 1, "only her")
-        XCTAssertTrue(app.staticTexts["Licence Planning"].waitForExistence(timeout: 5)
-                        && app.staticTexts["Budget Review"].exists, "her transcripts about travel")
-        XCTAssertFalse(app.staticTexts["Project Kickoff"].exists, "not the one without it")
-        shot("Topic search", app)
-
-        app.buttons["Close"].firstMatch.tap()
-        XCTAssertTrue(app.navigationBars["Anna Schmidt"].waitForExistence(timeout: 5), "back on her page")
-        app.buttons["PersonTopic.finance"].tap()
-        XCTAssertTrue(app.buttons["Remove finance"].waitForExistence(timeout: 5), "the tag as a token")
-        XCTAssertTrue(app.buttons["Remove Anna Schmidt"].exists, "with her")
-        XCTAssertEqual(field.value as? String ?? "", field.placeholderValue ?? "", "no text")
-        XCTAssertTrue(app.staticTexts["Licence Planning"].waitForExistence(timeout: 5)
-                        && app.staticTexts["Budget Review"].exists, "her transcripts tagged finance")
-        XCTAssertFalse(app.staticTexts["Project Kickoff"].exists)
-
-        // A plural searches its shortest form ("Licence" in a title), which finds the plural too.
-        app.buttons["Close"].firstMatch.tap()
-        XCTAssertTrue(app.navigationBars["Anna Schmidt"].waitForExistence(timeout: 5), "back on her page")
-        app.buttons["PersonTopic.licences"].tap()
-        XCTAssertTrue(field.waitForExistence(timeout: 5))
-        XCTAssertEqual(field.value as? String, "licence", "the singular, which the search finds inside the plural")
-        XCTAssertTrue(app.staticTexts["Licence Planning"].waitForExistence(timeout: 5)
-                        && app.staticTexts["Budget Review"].exists, "both of her transcripts about licences")
-
-        // A word only in Gemma's topics: the search reads them, so the chip's two transcripts are its results.
-        app.buttons["Close"].firstMatch.tap()
-        XCTAssertTrue(app.navigationBars["Anna Schmidt"].waitForExistence(timeout: 5), "back on her page")
-        app.buttons["PersonTopic.procurement"].tap()
-        XCTAssertTrue(field.waitForExistence(timeout: 5))
-        XCTAssertEqual(field.value as? String, "procurement")
-        XCTAssertTrue(app.staticTexts["Licence Planning"].waitForExistence(timeout: 5)
-                        && app.staticTexts["Budget Review"].exists, "found in their topics")
-        XCTAssertTrue(app.staticTexts["2 Transcripts"].exists, "as many as the chip says")
-        shot("Topic only in Gemma's topics", app)
-
-        // Opened again from People: the topics are there with the page, not inserted after the push.
-        app.buttons["Close"].firstMatch.tap()
-        let page = app.navigationBars["Anna Schmidt"]
-        XCTAssertTrue(page.waitForExistence(timeout: 5), "back on her page")
         page.buttons.firstMatch.tap()                                    // Back to People
         XCTAssertTrue(app.navigationBars["People"].waitForExistence(timeout: 5))
         app.staticTexts["Anna Schmidt"].tap()
         XCTAssertTrue(page.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["PersonTopic.travel"].exists, "her topics, with the page")
+        XCTAssertTrue(quote.exists, "her quotes, with the page")
     }
 
-    /// A topic on her page in the Search tab (Go to Person from a result's card): the fresh search replaces the one her
-    /// page was over, and Close comes back to her page, whose Back leads to that earlier search; its Close then leaves
-    /// Search for the tab it was opened from.
+    /// A tag in a row of her page in the Search tab (Go to Person from a result's card): the fresh search (her and the
+    /// tag) replaces the one her page was over, and Close comes back to her page, whose Back leads to that earlier
+    /// search; its Close then leaves Search for the tab it was opened from.
     @MainActor
-    func testTopicOnPageInSearchTab() throws {
-        let app = launch(["-seedPersonTopics"])
+    func testTagOnPageInSearchTab() throws {
+        let app = launch(["-seedLicencePlanning"])
         app.buttons["Search"].firstMatch.tap()
         let field = app.textFields["SearchField"]
         XCTAssertTrue(field.waitForExistence(timeout: 10), "the Search tab")
@@ -152,18 +95,19 @@ final class PersonPageTests: ScribeUITestCase {
         let page = app.navigationBars["Anna Schmidt"]
         XCTAssertTrue(page.waitForExistence(timeout: 10), "her page, pushed onto the Search tab")
         XCTAssertEqual(page.buttons.firstMatch.label, "Search", "Back goes to the results")
-        let travel = app.buttons["PersonTopic.travel"]
-        XCTAssertTrue(travel.waitForExistence(timeout: 10))
 
-        travel.tap()
-        XCTAssertTrue(app.buttons["Remove Anna Schmidt"].waitForExistence(timeout: 5), "her as the token")
-        XCTAssertEqual(field.value as? String, "travel")
-        XCTAssertTrue(app.staticTexts["Licence Planning"].waitForExistence(timeout: 5), "her transcripts about travel")
+        tapTag("finance", inRow: "Licence Planning", app)
+        XCTAssertTrue(app.buttons["Remove finance"].waitForExistence(timeout: 5), "the tag as a token")
+        XCTAssertTrue(app.buttons["Remove Anna Schmidt"].exists, "with her")
+        XCTAssertEqual(field.value as? String ?? "", field.placeholderValue ?? "", "no text")
+        XCTAssertTrue(app.staticTexts["Licence Planning"].waitForExistence(timeout: 5)
+                        && app.staticTexts["Budget Review"].exists, "her transcripts tagged finance")
         XCTAssertFalse(app.staticTexts["Project Kickoff"].exists)
+        shot("Tag search from her page", app)
 
         app.buttons["Close"].firstMatch.tap()
         XCTAssertTrue(page.waitForExistence(timeout: 5), "Close comes back to her page")
-        XCTAssertTrue(travel.waitForExistence(timeout: 5), "her page, as it was")
+        XCTAssertTrue(app.staticTexts["3 Transcripts"].waitForExistence(timeout: 5), "her page, as it was")
         shot("Back on her page in Search", app)
         page.buttons.firstMatch.tap()                                    // Back
         XCTAssertTrue(page.waitForNonExistence(timeout: 5))
@@ -173,6 +117,18 @@ final class PersonPageTests: ScribeUITestCase {
         app.buttons["Close"].firstMatch.tap()
         XCTAssertTrue(field.waitForNonExistence(timeout: 5), "Search closed")
         XCTAssertTrue(app.buttons["Transcripts"].firstMatch.isSelected, "back on the tab Search was opened from")
+    }
+
+    /// Taps a row's only tag chip. VoiceOver reads the meta line as one element (its chips are actions), so the chip is
+    /// reached by position: the last one shown ends the line (`MetaLineLayout` is as wide as what it shows).
+    @MainActor
+    private func tapTag(_ tag: String, inRow title: String, _ app: XCUIApplication) {
+        let meta = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label ENDSWITH %@", "Tag: \(tag)")).allElementsBoundByIndex
+            .first { abs($0.frame.minY - app.staticTexts[title].frame.maxY) < 12 }
+        guard let meta else { return XCTFail("\(title)'s meta line with the tag \(tag)") }
+        meta.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: meta.frame.width - 12, dy: meta.frame.height / 2)).tap()
     }
 
     /// The same person twice in one stack (Anna, Lena, Anna: Go to Person from cards opened on the pages pushes, as
@@ -308,16 +264,12 @@ final class PersonPageTests: ScribeUITestCase {
     /// "3 Transkript"), so the counts come from the catalog's plural variations: one and other both checked.
     @MainActor
     func testGermanPersonPage() throws {
-        let app = launch(["-AppleLanguages", "(de)", "-AppleLocale", "de_DE", "-seedPersonTopics", "-showPerson", "Anna Schmidt"])
+        let app = launch(["-AppleLanguages", "(de)", "-AppleLocale", "de_DE", "-seedLicencePlanning", "-showPerson", "Anna Schmidt"])
         let page = app.navigationBars["Anna Schmidt"]
         XCTAssertTrue(page.waitForExistence(timeout: 10))
         let last = app.descendants(matching: .any)["LastConversation"]
         XCTAssertTrue(last.waitForExistence(timeout: 5) && last.label.contains("Letztes Gespräch"), last.label)
-        XCTAssertTrue(app.staticTexts["Themen"].waitForExistence(timeout: 10), "the Topics header")
-        XCTAssertTrue(app.staticTexts["3 Transkripte"].exists)
-        let finance = app.buttons["PersonTopic.finance"]
-        XCTAssertTrue(finance.exists)
-        XCTAssertEqual(finance.value as? String, "2 Transkripte", "the topic's VoiceOver value")
+        XCTAssertTrue(app.staticTexts["3 Transkripte"].waitForExistence(timeout: 10))
         shot("Person page in German", app)
 
         page.buttons.firstMatch.tap()                                    // Back to People

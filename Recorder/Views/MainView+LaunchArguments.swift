@@ -6,8 +6,8 @@ import SwiftData
 extension MainView {
     /// Screenshot hooks for simulator QA and the UI tests: `-seedSamples` puts two sample transcripts with named
     /// speakers into the store (`-seedPendingSample`: also a newest one whose speakers are still being identified;
-    /// `-seedFiller <n>`: n older ones, a list long enough to scroll; `-seedPersonTopics`: a third transcript of Anna's
-    /// and topics, so her page has recurring topics; all simulator only, never into an iPhone's real
+    /// `-seedFiller <n>`: n older ones, a list long enough to scroll; `-seedLicencePlanning`: a third transcript of Anna's
+    /// with Gemma's topics, for her page's count and the search of a word only in topics; all simulator only, never into an iPhone's real
     /// store); `-showSettings` / `-showPeople` select the Settings tab; `-showPerson <name>` opens that person's page
     /// in Settings › People;
     /// `-openFirstTranscript` opens the newest transcript's card; `-autoRecord` starts recording (the simulator's fakes
@@ -23,7 +23,7 @@ extension MainView {
             PreviewData.seed(into: modelContext, people: services.people, identifier: services.identifier,
                              pending: arguments.contains("-seedPendingSample"),
                              filler: UserDefaults.standard.integer(forKey: "seedFiller"),
-                             personTopics: arguments.contains("-seedPersonTopics"))
+                             licencePlanning: arguments.contains("-seedLicencePlanning"))
             // `-seedInvitees "Maria Lopez|Jonas Weber"`: Project Kickoff as if started during the calendar event
             // "Kickoff Meeting" with those invitees (the rename sheet's Invitees section, without recording).
             if let invitees = UserDefaults.standard.string(forKey: "seedInvitees"),

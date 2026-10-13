@@ -309,7 +309,7 @@ private struct SearchInput: Equatable {
 }
 
 /// Opening the Search tab (pull-to-search, a tag chip; with a token to add), closing it (the search bar's close
-/// button), and a fresh search with these tokens and text in place of the current one (a person page's topics):
+/// button), and a fresh search with these tokens and text in place of the current one (a tag in a person page's row):
 /// MainView's, handed to the lists through the environment.
 struct SearchActions {
     let open: (SearchToken?) -> Void

@@ -22,7 +22,7 @@ enum AppTab: Hashable {
 final class SearchState {
     var query = ""
     /// What is searched: `query` after a typing pause (the Search list's debounce), or at once when the app sets it
-    /// (a person page's topic set only `query`, and the list showed the person's results with the old text first).
+    /// (a person page's search set only `query`, and the list showed the person's results with the old text first).
     var appliedQuery = ""
     var tokens: [SearchToken] = []
     /// Bumped on every tap on Search (also when it is the current tab already): the field takes the focus again.
@@ -48,7 +48,7 @@ struct MainView: View {
     /// The tabs' navigation stacks (person pages; Settings' pages), so "Go to Person" can push onto the tab under the card.
     @State var navigation = AppNavigation()
     @State private var tabBeforeSearch: AppTab = .transcripts
-    /// A topic or tag tapped on a person's page in the Search tab itself: that page and the search under it, which the
+    /// A tag tapped in a row of a person's page in the Search tab itself: that page and the search under it, which the
     /// fresh search replaced (its results show only with the page popped) and Close brings back, the latest first.
     /// Cleared when Search is left or started anew; empty, Close goes back to `tabBeforeSearch`.
     @State private var searchReturns: [SearchReturn] = []
@@ -467,7 +467,7 @@ struct MainView: View {
         searchState.focusRequest += 1
     }
 
-    /// What Close brings back after a topic tapped on a person's page in the Search tab (`searchReturns`).
+    /// What Close brings back after a tag tapped in a row of a person's page in the Search tab (`searchReturns`).
     private struct SearchReturn {
         var path: [PersonRoute]
         var query: String
@@ -475,7 +475,7 @@ struct MainView: View {
         var tokens: [SearchToken]
     }
 
-    /// A person page's topic or tag: the Search tab with exactly these tokens and text (replacing what was searched
+    /// A tag in a person page's row: the Search tab with exactly these tokens and text (replacing what was searched
     /// before), applied at once (not after the typing pause: the person's results with the old text showed first).
     /// From a page in the Search tab itself, that page and its search are kept for Close.
     private func freshSearch(_ tokens: [SearchToken], _ text: String) {
@@ -494,7 +494,7 @@ struct MainView: View {
     }
 
     /// The search bar's close button: back to the tab Search was opened from (text and tokens are kept), or to the
-    /// person's page in the Search tab whose topic started this search, with the search it was over.
+    /// person's page in the Search tab whose tag started this search, with the search it was over.
     private func closeSearch() {
         guard let back = searchReturns.popLast() else {
             tab = tabBeforeSearch == .search ? .transcripts : tabBeforeSearch

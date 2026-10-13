@@ -2,17 +2,17 @@ import SwiftUI
 import SwiftData
 
 /// One person, laid out like a contact the Phone app opens from Recents (ⓘ): their name as the large title (it
-/// collapses into the bar on scroll), when you last spoke with them, the topics that keep coming up in their
-/// transcripts, and their transcripts, newest first, each the app's own row with a two-line quote of what they said
-/// there (their longest turn). Only system parts: no monogram header (Feder has no photos, and a drawn avatar is a
-/// custom version of something iOS draws).
+/// collapses into the bar on scroll), when you last spoke with them, and their transcripts, newest first, each the
+/// app's own row with a two-line quote of what they said there (their longest turn). Only system parts: no monogram
+/// header (Feder has no photos, and a drawn avatar is a custom version of something iOS draws). The recurring topics
+/// it showed were removed in FED-12 ("remove the topics for now"; README › People).
 /// A row opens the transcript card out of itself at that turn, in the person's context: their name rows marked and
 /// "n of m" through everything they said there (MainView's `openTranscript`, a person token's search context). A
-/// topic opens a fresh search in the Search tab: the person and the word (or the tag).
+/// row's tag opens a fresh search in the Search tab: the person and the tag.
 /// Pushed by id (`PersonRoute`) in Settings › People and, through "Go to Person" in a card's name row, onto whichever
 /// tab is under the card; the person is looked up here, and a person deleted meanwhile shows "Person Deleted" (reading
 /// a deleted @Model traps).
-/// Every press answers in its frame: the body reads only the store's cheap attributes; the topics and quotes come
+/// Every press answers in its frame: the body reads only the store's cheap attributes; the quotes come
 /// from `PersonPageModel` after the push (placeholders meanwhile, the size of the quote they stand for; on a second
 /// visit the page as last shown, brought up to date).
 struct PersonView: View {
@@ -30,7 +30,6 @@ struct PersonView: View {
     @Environment(\.searchActions) private var searchActions
     @Query private var found: [Person]
     @Query(sort: \Recording.createdAt, order: .reverse) private var recordings: [Recording]
-    @Query(sort: \Person.name) private var people: [Person]
     @State private var model: PersonPageModel
     /// This page, apart from another page of the same person in the same stack (see `stack`).
     @State private var instance = UUID()
@@ -78,15 +77,6 @@ struct PersonView: View {
                         .accessibilityIdentifier("LastConversation")
                 }
             }
-            if !model.topics.isEmpty {
-                Section {
-                    topicChips(name: name)
-                } header: {
-                    Text("Topics")
-                } footer: {
-                    Text("Topics that come up in more than one transcript with \(name).")
-                }
-            }
             if !mine.isEmpty {
                 Section {
                     ForEach(mine) { recording in
@@ -123,9 +113,8 @@ struct PersonView: View {
         } message: {
             Text("Their voice will no longer be recognized. Names already in transcripts stay.")
         }
-        .task(id: PersonPageModel.Input(personID: personID, keys: recordings.map(\.personPageKey),
-                                        names: people.map(\.name))) {
-            await model.update(recordings: recordings, people: people.map(\.name))
+        .task(id: PersonPageModel.Input(personID: personID, keys: recordings.map(\.personPageKey))) {
+            await model.update(recordings: recordings)
         }
     }
 
@@ -190,58 +179,5 @@ struct PersonView: View {
         let context = recording.speakerStatus == .done && !speakers.isEmpty
             ? TranscriptSearchContext(terms: [], speakers: speakers, firstHit: quote?.turnStart) : nil
         openTranscript?(recording, search: context, sourceID: sourceID)
-    }
-
-    // MARK: Topics
-
-    /// The search chips' look (the Search tab's suggestions): tags with their "number" symbol, then words, each with
-    /// the number of their transcripts it comes up in; wrapping into lines.
-    private func topicChips(name: String) -> some View {
-        WrappingLayout(spacing: 6, lineSpacing: 6) {
-            ForEach(model.topics) { topic in
-                Button {
-                    search(topic, name: name)
-                } label: {
-                    topicChip(topic, name: name)
-                }
-                .buttonStyle(.borderless)                     // each chip its own button inside the one list row
-                .accessibilityIdentifier("PersonTopic.\(topic.name)")
-            }
-        }
-        .padding(.vertical, 4)
-    }
-
-    private func topicChip(_ topic: PersonTopic, name: String) -> some View {
-        HStack(spacing: 4) {
-            if topic.kind == .tag {
-                Image(systemName: "number")
-                    .imageScale(.small)
-                    .foregroundStyle(.tint)
-            }
-            Text(verbatim: topic.name)
-                .lineLimit(1)
-            Text("\(topic.count)")
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-        }
-        .font(.subheadline)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(.fill.tertiary, in: Capsule())
-        .contentShape(Capsule())
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(topic.kind == .tag ? Text("\(topic.name), Tag") : Text("\(topic.name), Topic"))
-        .accessibilityValue("^[\(topic.count) transcript](inflect: true)")
-        .accessibilityHint("Searches your transcripts with \(name) for this topic.")
-    }
-
-    /// A fresh search in the Search tab (its close button comes back here): the person and the tag, or the person and
-    /// the word (the search reads the topics, summaries and titles the words came from).
-    private func search(_ topic: PersonTopic, name: String) {
-        let person = SearchToken(kind: .person, value: name)
-        switch topic.kind {
-        case .tag: searchActions.search([person, SearchToken(kind: .tag, value: topic.name)], "")
-        case .word: searchActions.search([person], topic.query)
-        }
     }
 }

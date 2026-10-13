@@ -863,7 +863,7 @@ final class SpeakerIdentifier {
             // A tag's style is kept as the transcript's own: removing the tag, or changing its style in Settings,
             // then rewrites nothing.
             if tagStyle != nil { recording.summaryStyle = description.style }
-            recording.topics = description.topics           // person pages' recurring topics
+            recording.topics = description.topics           // searched (TranscriptSearch)
             #if DEBUG
             print("[Scribe] topics: \(description.topics)")
             #endif
@@ -879,8 +879,8 @@ final class SpeakerIdentifier {
                 // Kept aside: the calendar row's ⊗ gives the transcript this title instead of "New Transcript N",
                 // which Gemma, done by then, would never replace (Recording.dismissCalendarTitle). Not when it is the
                 // meeting's name in Gemma's words: the taken name would then read as Gemma's own title (equal to
-                // `automaticTitle`), which a better model's next title replaces and person pages count as a topic;
-                // ⊗ gives "New Transcript N" back then, as when Gemma wrote none.
+                // `automaticTitle`), which a better model's next title replaces; ⊗ gives "New Transcript N" back
+                // then, as when Gemma wrote none.
                 recording.automaticTitle = title
             }
         }

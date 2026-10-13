@@ -98,8 +98,8 @@ nonisolated struct SearchDocument: Sendable {
     let title: String
     let place: String?
     let summary: String?                     // the automatic 1-2 sentence summary (TranscriptTitler)
-    /// Gemma's topics (`Recording.topics`), as one line: a person page's topic chips come from them, so their search
-    /// must find them (in no other text when Gemma named a topic with a word nobody said or wrote in the summary).
+    /// Gemma's topics (`Recording.topics`), as one line: searched too, so a topic is found even when Gemma named it
+    /// with a word nobody said or wrote in the summary.
     let topics: String
     let tags: [String]
     let speakerNames: [Int: String]          // only names the user gave or recognition set (not "Speaker N")

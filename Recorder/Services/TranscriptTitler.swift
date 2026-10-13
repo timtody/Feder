@@ -46,7 +46,7 @@ final class TranscriptTitler {
     nonisolated struct Description: Sendable, Equatable {
         var title: String?      // nil when the model's title failed the checks: the name stays
         var summary: String
-        var topics: [String] = []   // the "Topics:" line's items (person pages); empty when the answer had none
+        var topics: [String] = []   // the "Topics:" line's items (search); empty when the answer had none
         var style: SummaryStyle = .brief   // how `summary` is written: Brief's is one paragraph, the others lines
     }
 
@@ -299,7 +299,7 @@ final class TranscriptTitler {
         return TitleAndSummary(topics: topics, summary: summary, title: title)
     }
 
-    /// The Topics line's items (kept for person pages): split at semicolons, Markdown and end punctuation removed, at
+    /// The Topics line's items (kept for search): split at semicolons, Markdown and end punctuation removed, at
     /// most 12 of at most 60 characters (a longer item is a sentence, not a topic).
     nonisolated static func topicList(_ line: String) -> [String] {
         let trim = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ".,*_\"„“”"))

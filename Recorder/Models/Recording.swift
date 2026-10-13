@@ -100,8 +100,8 @@ final class Recording {
     /// row's ⊗ gives it back (Gemma's later title first). nil: not taken, or named after the event before FED-11 (those
     /// show no row).
     var nameBeforeCalendarTitle: String? = nil
-    var topics: [String] = []            // Gemma's "Topics:" line (TranscriptTitler), written with the summary; empty for
-                                         // transcripts described before it was kept (their summary stands in: person pages)
+    var topics: [String] = []            // Gemma's "Topics:" line (TranscriptTitler), written with the summary and
+                                         // searched; empty for transcripts described before it was kept
     var bookmarks: [TimeInterval] = []   // moments marked while recording, in seconds from its start (Bookmarks)
     var bookmarkTitles: [String] = []    // unused: Gemma's bookmark titles, removed (FED-77); kept, the store has it
     /// Imports: when the file says its audio was recorded (its metadata, else the file's date); `createdAt` is the
@@ -194,9 +194,8 @@ final class Recording {
                                  dismissed: calendarTitleDismissed, nameIsUserSet: nameIsUserSet)
     }
 
-    /// Use as Title: the event's title becomes the name, not marked as typed (`nameIsUserSet`), so the meeting's name
-    /// stays out of person pages' topics (PersonPageModel.termSource) while Gemma still leaves it alone (it replaces
-    /// only default names and its own title).
+    /// Use as Title: the event's title becomes the name, not marked as typed (`nameIsUserSet`: it is the meeting's name,
+    /// not the user's words), while Gemma still leaves it alone (it replaces only default names and its own title).
     func useCalendarTitle() {
         guard case .offer(let title) = calendarTitleOffer else { return }
         nameBeforeCalendarTitle = name
