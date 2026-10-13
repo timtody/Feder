@@ -1132,6 +1132,16 @@
         }
       }
     },
+    "Feder didn't finish writing the summary in this style.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder hat die Zusammenfassung in diesem Stil nicht fertig geschrieben."
+          }
+        }
+      }
+    },
     "Feder keeps a voice profile of each speaker, only on this iPhone, and recognizes people you've named in new recordings.": {
       "localizations": {
         "de": {
@@ -3025,6 +3035,16 @@
         }
       }
     },
+    "Style": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stil"
+          }
+        }
+      }
+    },
     "Subscribed Calendars": {
       "localizations": {
         "de": {
@@ -3841,6 +3861,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zusammenfassung wird geschrieben …"
+          }
+        }
+      }
+    },
+    "Written again once the recording has ended.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird nach der Aufnahme neu geschrieben."
           }
         }
       }
