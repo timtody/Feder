@@ -290,10 +290,12 @@ final class ActionItemsTests: ScribeUITestCase {
     }
 
     /// Shaking puts back removed items and takes back a correction (iOS's own alert, `shake`), newest first, in the sheet
-    /// and after it. In the sheet, before any correction: "Undo Action Item Removed" brings the item back. Then Budget
-    /// Review's second turn goes to Lena Vogel, the second item is removed again and the sheet closes: the first shake
-    /// brings the item back and leaves the correction, the second undoes the correction, a third has nothing left. (The
-    /// sheet withdrew the removal's Undo when it closed, which left an empty step: the first shake did nothing.)
+    /// and after it. In the sheet, before any correction: "Undo Action Item Removed" brings the item back. Removed again
+    /// and the sheet closed, with only that removal on offer (the card's view took first responder in the sheet, at the
+    /// Remove): a shake still brings it back, and then nothing is left. Then Budget Review's second turn goes to Lena
+    /// Vogel, the second item is removed again and the sheet closes: the first shake brings the item back and leaves the
+    /// correction, the second undoes the correction, a third has nothing left. (The sheet withdrew the removal's Undo
+    /// when it closed, which left an empty step: the first shake did nothing.)
     @MainActor
     func testUndoTakesBackTheRemoveFirst() throws {
         let app = launch(["-fakeGemmaDownload"])
@@ -308,8 +310,15 @@ final class ActionItemsTests: ScribeUITestCase {
         inSheet.buttons["Undo"].tap()
         XCTAssertTrue(item(1, app).waitForExistence(timeout: 3), "the item is back")
         XCTAssertTrue(app.buttons["UndoRemoveActionItem"].waitForNonExistence(timeout: 3), "its toast goes")
+        choose("Remove", forItem: 1, app)
+        XCTAssertTrue(waitFor({ !self.item(1, app).exists }, timeout: 3), "removed again")
         app.buttons["CloseActionItems"].tap()
         XCTAssertTrue(item(0, app).waitForNonExistence(timeout: 5), "the sheet closed")
+        let closed = try XCTUnwrap(shake(app), "a shake once the sheet is closed")
+        XCTAssertEqual(closed.label, "Undo Action Item Removed")
+        closed.buttons["Undo"].tap()
+        XCTAssertTrue(closed.waitForNonExistence(timeout: 3))
+        XCTAssertNil(shake(app, timeout: 2), "nothing left to undo")
 
         let names = {
             app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'SpeakerHeader.'")).allElementsBoundByIndex
@@ -326,7 +335,7 @@ final class ActionItemsTests: ScribeUITestCase {
         XCTAssertTrue(app.buttons["UndoCorrection"].waitForExistence(timeout: 5), "the correction's toast")
 
         actionItemsButton(app).tap()
-        XCTAssertTrue(item(1, app).waitForExistence(timeout: 5))
+        XCTAssertTrue(item(1, app).waitForExistence(timeout: 5), "the item the closed sheet's shake put back")
         choose("Remove", forItem: 1, app)
         XCTAssertTrue(app.buttons["UndoRemoveActionItem"].waitForExistence(timeout: 3), "the Remove's toast")
         app.buttons["CloseActionItems"].tap()

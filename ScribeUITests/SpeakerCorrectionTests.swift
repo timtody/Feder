@@ -173,8 +173,9 @@ final class SpeakerCorrectionTests: ScribeUITestCase {
     }
 
     /// The shake's first responder never takes the keys from a field: after a correction, the tapped title keeps the
-    /// keyboard past the toast's 6 s and what is typed lands there; once the title is done, a shake offers the
-    /// correction's Undo again.
+    /// keyboard past the toast's 6 s; a new correction from a name row's menu while the title has the keys (a new Undo
+    /// on offer, the edge that claims first responder) leaves it there too, and what is typed lands in the title; once
+    /// the title is done, a shake offers the newer correction's Undo, which leaves the first one.
     @MainActor
     func testShakeLeavesTheTitleFocused() throws {
         let app = launch()
@@ -182,16 +183,25 @@ final class SpeakerCorrectionTests: ScribeUITestCase {
         menu(app, header: 1, "Assign This Part To", "Anna Schmidt")
         XCTAssertTrue(waitFor { self.names(app) == ["Anna Schmidt", "Jonas Weber"] }, "\(names(app))")
         let title = app.textFields["Title"]
+        let focused = { title.value(forKey: "hasKeyboardFocus") as? Bool }
         title.tap()
         XCTAssertTrue(app.buttons["UndoCorrection"].waitForNonExistence(timeout: 12), "the toast times out")
-        XCTAssertEqual(title.value(forKey: "hasKeyboardFocus") as? Bool, true, "the title keeps the keyboard")
+        XCTAssertEqual(focused(), true, "the title keeps the keyboard")
+
+        menu(app, header: 0, "Assign This Part To", "Jonas Weber")
+        XCTAssertTrue(waitFor { self.names(app) == ["Jonas Weber"] }, "assigned with the title focused: \(names(app))")
+        XCTAssertTrue(app.buttons["UndoCorrection"].waitForExistence(timeout: 5), "its toast")
+        sleep(1)                                                  // the claim would come on the next turn
+        XCTAssertEqual(focused(), true, "the new Undo left the title the keyboard")
         title.typeText("!")
         XCTAssertTrue((title.value as? String)?.contains("!") == true, "typed into the title: \(title.value ?? "")")
         title.typeText("\n")
-        XCTAssertTrue(waitFor { title.value(forKey: "hasKeyboardFocus") as? Bool == false }, "the title is done")
-        let alert = try XCTUnwrap(shake(app), "then a shake offers the correction's Undo")
+        XCTAssertTrue(waitFor { focused() == false }, "the title is done")
+        let alert = try XCTUnwrap(shake(app), "then a shake offers the newer correction's Undo")
         XCTAssertEqual(alert.label, "Undo Speaker Changed")
-        alert.buttons["Cancel"].tap()
+        alert.buttons["Undo"].tap()
+        XCTAssertTrue(waitFor { self.names(app) == ["Anna Schmidt", "Jonas Weber"] },
+                      "undone, the first one stays: \(names(app))")
     }
 
     /// A rename after a correction drops its Undo (undoing would throw the rename away); a Done in Edit Text that
