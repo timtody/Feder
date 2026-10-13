@@ -1,12 +1,12 @@
 import XCTest
 
-/// A person's page (the Phone app's contact card: name as the large title, Last Conversation, their
+/// A person's page (the Phone app's contact card: name as the large title, Last Conversation, Voice Profile, their
 /// transcripts with what they said), opened from Settings › People or with "Go to Person" from a card's name row, which
 /// closes the card and pushes the page onto the tab under it (Apple Music's Go to Artist).
 final class PersonPageTests: ScribeUITestCase {
 
-    /// Settings › People › Anna Schmidt: her name as the title, when you last spoke, her two transcripts each with her
-    /// longest turn quoted; a row opens the card at that turn ("1 of 2" through her turns, the turn marked), and
+    /// Settings › People › Anna Schmidt: her name as the title, when you last spoke, her voice profile (saved: she was
+    /// named where a voice is stored), her two transcripts each with her longest turn quoted; a row opens the card at that turn ("1 of 2" through her turns, the turn marked), and
     /// closing it comes back to her page.
     @MainActor
     func testPersonPageShowsWhatTheySaid() throws {
@@ -22,6 +22,12 @@ final class PersonPageTests: ScribeUITestCase {
         XCTAssertTrue(last.label.contains("Last Conversation") && last.label.contains("Today at"),
                       "Project Kickoff is today: \(last.label)")
         XCTAssertTrue(app.staticTexts["2 Transcripts"].exists, "the transcripts' header")
+        let profile = app.descendants(matching: .any)["VoiceProfile"]
+        XCTAssertTrue(profile.exists && profile.label.contains("Voice Profile") && profile.label.contains("Saved"),
+                      "her voice profile: \(profile.label)")
+        XCTAssertTrue(last.frame.maxY <= profile.frame.minY && profile.frame.maxY <= app.staticTexts["2 Transcripts"].frame.minY,
+                      "between Last Conversation and her transcripts")
+        XCTAssertTrue(app.buttons["DeleteVoiceProfile"].exists, "and the button to delete it")
         XCTAssertTrue(app.staticTexts["Project Kickoff"].exists && app.staticTexts["Budget Review"].exists,
                       "her transcripts are listed")
         // Her longest turn in each: Budget Review's first one, Project Kickoff's second.
@@ -43,6 +49,93 @@ final class PersonPageTests: ScribeUITestCase {
         XCTAssertTrue(app.staticTexts["Match 2 of 2"].waitForExistence(timeout: 5), "her second turn")
         closeCard(app)
         XCTAssertTrue(app.navigationBars["Anna Schmidt"].waitForExistence(timeout: 5), "back on her page")
+    }
+
+    /// Delete Voice Profile on her page (the fingerprint button): it asks first, Cancel keeps it; Delete turns the row to
+    /// "Not Saved", the button goes and the footer says how to save one again; People then reads "voice not known yet"
+    /// for her only. Her voice is gone from her transcripts too: naming her again in Project Kickoff (renamed away and
+    /// back, as typed) saves no new profile there.
+    @MainActor
+    func testDeleteVoiceProfileOnPage() throws {
+        let app = launch(["-showPerson", "Anna Schmidt"])
+        let page = app.navigationBars["Anna Schmidt"]
+        XCTAssertTrue(page.waitForExistence(timeout: 10), "her page")
+        let profile = app.descendants(matching: .any)["VoiceProfile"]
+        XCTAssertTrue(profile.waitForExistence(timeout: 5) && profile.label.contains("Saved")
+                        && !profile.label.contains("Not Saved"), profile.label)
+        let delete = app.buttons["DeleteVoiceProfile"]
+        XCTAssertTrue(delete.exists && delete.label.contains("Delete Voice Profile"), delete.label)
+        shot("Voice profile saved", app)
+
+        delete.tap()
+        let title = app.staticTexts["Delete Voice Profile of Anna Schmidt?"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5), "asks first")
+        shot("Delete voice profile dialog", app)
+        if app.buttons["Cancel"].exists { app.buttons["Cancel"].tap() } else { page.tap() }   // a popover has no Cancel
+        XCTAssertTrue(title.waitForNonExistence(timeout: 5))
+        XCTAssertFalse(profile.label.contains("Not Saved"), "Cancel keeps it")
+
+        delete.tap()
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        app.buttons.matching(NSPredicate(format: "label == 'Delete Voice Profile' AND identifier != 'DeleteVoiceProfile'"))
+            .firstMatch.tap()
+        XCTAssertTrue(waitFor { profile.label.contains("Not Saved") }, "the row: \(profile.label)")
+        XCTAssertTrue(delete.waitForNonExistence(timeout: 5), "nothing left to delete")
+        XCTAssertTrue(app.staticTexts["Name Anna Schmidt in a new transcript to save their voice and recognize them in later recordings."].exists,
+                      "the footer says how to save one again")
+        shot("Voice profile deleted", app)
+
+        page.buttons.firstMatch.tap()                                    // Back to People
+        XCTAssertTrue(app.navigationBars["People"].waitForExistence(timeout: 5))
+        let unknown = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'voice not known yet'"))
+        XCTAssertTrue(unknown.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertEqual(unknown.count, 1, "only Anna's voice is unknown")
+        XCTAssertEqual(unknown.firstMatch.label, "2 transcripts · voice not known yet", "Anna's row (Lena and Jonas have one)")
+
+        // Renamed away and back in Project Kickoff: her voice there was removed, so no new profile.
+        app.buttons["Transcripts"].firstMatch.tap()
+        open("Project Kickoff", in: app)
+        rename(speaker: 0, to: "Maria Keller", app)
+        rename(speaker: 0, to: "Anna Schmidt", app)
+        app.buttons["SpeakerHeader.0"].press(forDuration: 1.0)
+        app.buttons["Go to Person"].tap()
+        XCTAssertTrue(page.waitForExistence(timeout: 10), "her page")
+        XCTAssertTrue(profile.waitForExistence(timeout: 5) && profile.label.contains("Not Saved"), profile.label)
+    }
+
+    /// With Recognize People by Voice off (a new install's state) nobody has a profile: her page has no Voice Profile
+    /// section, as People's rows say nothing about voices.
+    @MainActor
+    func testVoiceProfileHiddenWithRecognitionOff() throws {
+        let app = launch(["-resetVoiceRecognition", "-showPerson", "Anna Schmidt"])
+        XCTAssertTrue(app.navigationBars["Anna Schmidt"].waitForExistence(timeout: 10), "her page")
+        XCTAssertTrue(app.descendants(matching: .any)["LastConversation"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["VoiceProfile"].exists, "no Voice Profile")
+        XCTAssertFalse(app.buttons["DeleteVoiceProfile"].exists)
+    }
+
+    @MainActor
+    private func rename(speaker: Int, to name: String, _ app: XCUIApplication) {
+        app.buttons["SpeakerHeader.\(speaker)"].press(forDuration: 1.0)
+        app.buttons["Rename Speaker…"].tap()
+        let field = nameField(app)
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        dismissKeyboardTip(app)
+        app.buttons["Clear Name"].tap()
+        field.typeText(name)
+        app.buttons["SaveRename"].tap()
+        XCTAssertTrue(field.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(waitFor { app.buttons["SpeakerHeader.\(speaker)"].label == name }, "renamed \(name)")
+    }
+
+    @MainActor
+    private func waitFor(_ condition: () -> Bool, timeout: TimeInterval = 5) -> Bool {
+        let end = Date.now.addingTimeInterval(timeout)
+        while Date.now < end {
+            if condition() { return true }
+            RunLoop.current.run(until: .now + 0.2)
+        }
+        return condition()
     }
 
     /// `-seedLicencePlanning` (a third transcript of Anna's), at Larger Text's largest standard size (the page then
@@ -270,6 +363,9 @@ final class PersonPageTests: ScribeUITestCase {
         let last = app.descendants(matching: .any)["LastConversation"]
         XCTAssertTrue(last.waitForExistence(timeout: 5) && last.label.contains("Letztes Gespräch"), last.label)
         XCTAssertTrue(app.staticTexts["3 Transkripte"].waitForExistence(timeout: 10))
+        let profile = app.descendants(matching: .any)["VoiceProfile"]
+        XCTAssertTrue(profile.label.contains("Stimmprofil") && profile.label.contains("Gespeichert"), profile.label)
+        XCTAssertTrue(app.buttons["DeleteVoiceProfile"].label.contains("Stimmprofil löschen"))
         shot("Person page in German", app)
 
         page.buttons.firstMatch.tap()                                    // Back to People

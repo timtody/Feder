@@ -9,6 +9,9 @@ import Observation
 ///   (VoiceMatch). Recognition never adds samples: only names the user gave do, so a wrong match cannot drift a
 ///   fingerprint. Naming a person also recognizes them in older transcripts where their speaker is still unnamed.
 /// - Deleting a person removes its fingerprint and links; the names already in transcripts stay as plain text.
+/// - Deleting a person's voice profile (their page) removes their samples and fingerprint and their speakers' voices in
+///   every transcript, and keeps them out of later voice updates (`Person.voiceProfileDeleted`) until the user names
+///   them again where a voice is stored.
 /// - "Recognize People by Voice" (Settings › People and the onboarding, off until the user turns it on) gates all of it: no speaker's voice is computed
 ///   or kept (SpeakerIdentifier), naming a speaker stores no sample, and nobody is recognized. Turning it off deletes
 ///   every voice profile there is (`deleteAllVoiceProfiles`, after a confirmation); the names stay. Turned on again, it
@@ -46,6 +49,7 @@ final class PeopleDirectory {
             let person = person(named: name) ?? insertPerson(named: name)
             if Self.isRecognitionEnabled, let voice = recording.speakerVoices[index] {
                 person.setSample(VoiceSample(recordingID: recording.id, speakerIndex: index, embedding: voice))
+                person.voiceProfileDeleted = false            // named again: a new consent, a new profile
             }
             recording.speakerPeople[index] = person.id
         }
@@ -86,10 +90,15 @@ final class PeopleDirectory {
     /// centroids are less pure, and recognition never starts from them. A person linked to a speaker that had no voice
     /// gets a sample: such a link can only come from a name the user typed, because recognition needs a voice. Links
     /// recognized from a voice never become samples.
+    /// A person whose voice profile was deleted (`deleteVoiceProfile`) is linked to speakers without a voice for that
+    /// very reason, not because of a typed name: their speakers' new voices are dropped and they get no sample, so a
+    /// hand correction or the voice migration never brings the deleted profile back.
     func replaceVoices(of recording: Recording, with new: [Int: [Float]]) {
         let old = recording.speakerVoices
-        var voices = new
         let people = allPeople()
+        let deleted = Set(people.filter(\.voiceProfileDeleted).map(\.id))
+        let withheld = Set(recording.speakerPeople.filter { deleted.contains($0.value) }.keys)
+        var voices = new.filter { !withheld.contains($0.key) }
         for person in people {
             for sample in person.samples where sample.recordingID == recording.id {
                 if let voice = new[sample.speakerIndex] {
@@ -100,7 +109,7 @@ final class PeopleDirectory {
             }
         }
         let byID = Dictionary(uniqueKeysWithValues: people.map { ($0.id, $0) })
-        for (index, id) in recording.speakerPeople where old[index] == nil {
+        for (index, id) in recording.speakerPeople where old[index] == nil && !deleted.contains(id) {
             guard let person = byID[id], let voice = new[index] else { continue }
             person.setSample(VoiceSample(recordingID: recording.id, speakerIndex: index, embedding: voice))
         }
@@ -238,6 +247,29 @@ final class PeopleDirectory {
             recording.speakerPeople = recording.speakerPeople.filter { $0.value != person.id }
         }
         modelContext.delete(person)
+        try? modelContext.save()
+    }
+
+    /// Delete Voice Profile on a person's page: their samples and fingerprint go, and so do their speakers' voices in
+    /// every transcript (those of their samples too): that voice is the same biometric data, and kept, naming the
+    /// speaker again in an old transcript would silently make a new profile from it. The person, their links and the
+    /// names stay; `voiceProfileDeleted` keeps later voice updates from writing their voice back (`replaceVoices`)
+    /// until the user names them where a voice is stored (`name`). Undos of earlier corrections in those transcripts
+    /// go (`onTranscriptsChanged`): they could restore the samples.
+    func deleteVoiceProfile(of person: Person) {
+        let sampled = Dictionary(grouping: person.samples, by: \.recordingID)
+        let affected = allRecordings().filter { $0.speakerPeople.values.contains(person.id) || sampled[$0.id] != nil }
+        onTranscriptsChanged?(Set(affected.map(\.id)))
+        for recording in affected {
+            let speakers = Set(recording.speakerPeople.filter { $0.value == person.id }.keys)
+                .union((sampled[recording.id] ?? []).map(\.speakerIndex))
+            if speakers.contains(where: { recording.speakerVoices[$0] != nil }) {
+                recording.speakerVoices = recording.speakerVoices.filter { !speakers.contains($0.key) }
+            }
+        }
+        person.samples = []
+        person.fingerprint = []
+        person.voiceProfileDeleted = true
         try? modelContext.save()
     }
 

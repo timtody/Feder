@@ -19,6 +19,10 @@ final class Person {
     var createdAt: Date
     var samples: [VoiceSample]
     var fingerprint: [Float]                     // empty without samples: listed and searchable, never recognized
+    /// The user deleted this person's voice profile on their page (PeopleDirectory.deleteVoiceProfile): no voice of
+    /// theirs is taken again until they name them in a transcript (a new consent). Additive with a default: the
+    /// store migrates lightweight.
+    var voiceProfileDeleted: Bool = false
 
     init(name: String) {
         self.id = UUID()
@@ -26,6 +30,7 @@ final class Person {
         self.createdAt = .now
         self.samples = []
         self.fingerprint = []
+        self.voiceProfileDeleted = false
     }
 
     /// Replaces the sample for (recording, speaker) and recomputes the fingerprint.

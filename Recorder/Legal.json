@@ -66,7 +66,7 @@
         },
         {
           "heading": "How Long Data Is Kept",
-          "body": "Everything stays on your iPhone until you delete it:\n• Delete a transcript to remove its audio, text, summary, action items, place, the names from your calendar and its voice profiles. What you added to Reminders or Calendar stays there until you delete it in those apps.\n• Delete a person to stop Feder recognizing them; delete the transcripts they speak in to remove their voice profiles completely.\n• Delete Gemma in Feder’s Settings to remove the summary model.\n• Delete the app to remove all of Feder’s data and models from your iPhone.\n\nCopies in your backups are kept for as long as those backups are."
+          "body": "Everything stays on your iPhone until you delete it:\n• Delete a transcript to remove its audio, text, summary, action items, place, the names from your calendar and its voice profiles. What you added to Reminders or Calendar stays there until you delete it in those apps.\n• Delete a person to stop Feder recognizing them; delete the transcripts they speak in to remove their voice profiles completely.\n• Delete a person’s voice profile on their page to remove it completely, also from your transcripts; naming them in a new transcript saves a new one.\n• Delete Gemma in Feder’s Settings to remove the summary model.\n• Delete the app to remove all of Feder’s data and models from your iPhone.\n\nCopies in your backups are kept for as long as those backups are."
         },
         {
           "heading": "Your Rights",
@@ -148,7 +148,7 @@
         },
         {
           "heading": "Wie lange Daten gespeichert werden",
-          "body": "Alles bleibt auf deinem iPhone, bis du es löschst:\n• Lösche ein Transkript, um seinen Ton, Text, seine Zusammenfassung, seine Aufgaben, seinen Ort, die Namen aus deinem Kalender und seine Stimmprofile zu entfernen. Was du zu Erinnerungen oder zum Kalender hinzugefügt hast, bleibt dort, bis du es in diesen Apps löschst.\n• Lösche eine Person, damit Feder sie nicht mehr erkennt; lösche die Transkripte, in denen sie spricht, um ihre Stimmprofile ganz zu entfernen.\n• Lösche Gemma in den Einstellungen von Feder, um das Zusammenfassungsmodell zu entfernen.\n• Lösche die App, um alle Daten und Modelle von Feder von deinem iPhone zu entfernen.\n\nKopien in deinen Backups bleiben so lange erhalten wie diese Backups."
+          "body": "Alles bleibt auf deinem iPhone, bis du es löschst:\n• Lösche ein Transkript, um seinen Ton, Text, seine Zusammenfassung, seine Aufgaben, seinen Ort, die Namen aus deinem Kalender und seine Stimmprofile zu entfernen. Was du zu Erinnerungen oder zum Kalender hinzugefügt hast, bleibt dort, bis du es in diesen Apps löschst.\n• Lösche eine Person, damit Feder sie nicht mehr erkennt; lösche die Transkripte, in denen sie spricht, um ihre Stimmprofile ganz zu entfernen.\n• Lösche das Stimmprofil einer Person auf ihrer Seite, um es ganz zu entfernen, auch aus deinen Transkripten; benennst du sie in einem neuen Transkript, wird ein neues gespeichert.\n• Lösche Gemma in den Einstellungen von Feder, um das Zusammenfassungsmodell zu entfernen.\n• Lösche die App, um alle Daten und Modelle von Feder von deinem iPhone zu entfernen.\n\nKopien in deinen Backups bleiben so lange erhalten wie diese Backups."
         },
         {
           "heading": "Deine Rechte",

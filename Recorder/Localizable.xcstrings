@@ -149,6 +149,16 @@
         }
       }
     },
+    "A voice profile is biometric data. Feder uses it only on this iPhone to recognize %@ in new recordings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Stimmprofil ist ein biometrisches Merkmal. Feder nutzt es nur auf diesem iPhone, um %@ in neuen Aufnahmen zu erkennen."
+          }
+        }
+      }
+    },
     "AI Model for More Accurate Transcripts": {
       "localizations": {
         "de": {
@@ -822,6 +832,26 @@
         }
       }
     },
+    "Delete Voice Profile": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stimmprofil löschen"
+          }
+        }
+      }
+    },
+    "Delete Voice Profile of %@?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stimmprofil von %@ löschen?"
+          }
+        }
+      }
+    },
     "Delete Voice Profiles?": {
       "localizations": {
         "de": {
@@ -1188,6 +1218,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Feder erwartet %@ dann in deinen nächsten Transkripten."
+          }
+        }
+      }
+    },
+    "Feder will no longer recognize %@ by voice, and their voice is removed from your transcripts. Names stay.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder erkennt %@ nicht mehr an der Stimme, und die Stimme wird aus deinen Transkripten entfernt. Namen bleiben erhalten."
           }
         }
       }
@@ -1902,6 +1942,16 @@
         }
       }
     },
+    "Name %@ in a new transcript to save their voice and recognize them in later recordings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benenne %@ in einem neuen Transkript, um die Stimme zu speichern und die Person in späteren Aufnahmen zu erkennen."
+          }
+        }
+      }
+    },
     "Name a speaker in a transcript to add them here.": {
       "localizations": {
         "de": {
@@ -2128,6 +2178,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nicht jetzt"
+          }
+        }
+      }
+    },
+    "Not Saved": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht gespeichert"
           }
         }
       }
@@ -2631,6 +2691,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ort speichern"
+          }
+        }
+      }
+    },
+    "Saved": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gespeichert"
           }
         }
       }
@@ -3691,6 +3761,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vokabular"
+          }
+        }
+      }
+    },
+    "Voice Profile": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stimmprofil"
           }
         }
       }

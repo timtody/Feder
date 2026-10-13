@@ -30,10 +30,12 @@ struct PersonView: View {
     @Environment(\.searchActions) private var searchActions
     @Query private var found: [Person]
     @Query(sort: \Recording.createdAt, order: .reverse) private var recordings: [Recording]
+    @AppStorage(PeopleDirectory.recognitionKey) private var recognizesVoices = false
     @State private var model: PersonPageModel
     /// This page, apart from another page of the same person in the same stack (see `stack`).
     @State private var instance = UUID()
     @State private var confirmDelete = false
+    @State private var confirmDeleteVoice = false
     /// Delete Person on this page: done once the page has gone (onDisappear). Deleted while it slid away, the page turned
     /// into "Person Deleted" (the id-filtered @Query emptied) in the middle of the pop.
     @State private var deletesOnDisappear = false
@@ -53,7 +55,7 @@ struct PersonView: View {
     var body: some View {
         Group {
             if let person {
-                page(name: person.name)
+                page(name: person.name, hasVoiceProfile: !person.fingerprint.isEmpty)
             } else {
                 ContentUnavailableView("Person Deleted", systemImage: "person.slash")
             }
@@ -67,7 +69,7 @@ struct PersonView: View {
         }
     }
 
-    private func page(name: String) -> some View {
+    private func page(name: String, hasVoiceProfile: Bool) -> some View {
         let mine = recordings.filter { $0.speakerPeople.values.contains(personID) }   // once per body, newest first
         return List {
             if let newest = mine.first {
@@ -76,6 +78,9 @@ struct PersonView: View {
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("LastConversation")
                 }
+            }
+            if recognizesVoices {                         // off: nobody has a profile (People hides it too)
+                voiceProfile(name: name, saved: hasVoiceProfile)
             }
             if !mine.isEmpty {
                 Section {
@@ -115,6 +120,43 @@ struct PersonView: View {
         }
         .task(id: PersonPageModel.Input(personID: personID, keys: recordings.map(\.personPageKey))) {
             await model.update(recordings: recordings)
+        }
+    }
+
+    // MARK: Voice profile
+
+    /// Whether Feder keeps their voice profile, and Delete Voice Profile while it does. `touchid` (Touch ID's
+    /// fingerprint; SF Symbols has no symbol named "fingerprint") on both says biometric data, as Settings › Face ID &
+    /// Passcode's Delete Fingerprint does. `saved` is the fingerprint's presence, a cheap attribute People's rows read
+    /// too; the delete fetches every transcript, so it runs after the press (a Task), and the @Query redraws the row.
+    private func voiceProfile(name: String, saved: Bool) -> some View {
+        Section {
+            LabeledContent {
+                Text(saved ? "Saved" : "Not Saved")
+            } label: {
+                Label("Voice Profile", systemImage: "touchid")
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("VoiceProfile")
+            if saved {
+                Button("Delete Voice Profile", systemImage: "touchid", role: .destructive) { confirmDeleteVoice = true }
+                    .accessibilityIdentifier("DeleteVoiceProfile")
+                    .confirmationDialog("Delete Voice Profile of \(name)?", isPresented: $confirmDeleteVoice,
+                                        titleVisibility: .visible) {
+                        Button("Delete Voice Profile", role: .destructive) {
+                            guard let person else { return }
+                            Task { services.people.deleteVoiceProfile(of: person) }
+                        }
+                    } message: {
+                        Text("Feder will no longer recognize \(name) by voice, and their voice is removed from your transcripts. Names stay.")
+                    }
+            }
+        } footer: {
+            if saved {
+                Text("A voice profile is biometric data. Feder uses it only on this iPhone to recognize \(name) in new recordings.")
+            } else {
+                Text("Name \(name) in a new transcript to save their voice and recognize them in later recordings.")
+            }
         }
     }
 
