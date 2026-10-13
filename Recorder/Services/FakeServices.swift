@@ -221,9 +221,10 @@ nonisolated struct FakeLiveDiarizer: LiveDiarizer {
 }
 
 /// Simulator stand-in for Gemma (`-fakeGemma`): answers the title request with three canned lines after a second,
-/// streamed word by word like Gemma's tokens, a part request with one sentence, and the action items' request with two
-/// items. Proves the pipeline's summary step, the Action Items sheet's search, the card's streamed summary and the
-/// automatic title without MLX (which the simulator has no GPU for).
+/// streamed word by word like Gemma's tokens (a styled one, FED-15, with its canned lines after three seconds), a part
+/// request with one sentence, and the action items' request with two items. Proves the pipeline's summary step, the
+/// Action Items sheet's search, the card's streamed summary, the summary styles and the automatic title without MLX
+/// (which the simulator has no GPU for).
 nonisolated final class FakeTextWriter: TextWriter, @unchecked Sendable {
     func respond(instructions: String, prompt: String, maxTokens: Int, temperature: Float,
                  partial: (@Sendable (String) -> Void)?) async throws -> String {
@@ -240,6 +241,10 @@ nonisolated final class FakeTextWriter: TextWriter, @unchecked Sendable {
                 "Task: Check the provisional words | Who: - | Due: tomorrow at 10:00"
         }
         guard instructions.contains("Title:") else { return "A part of the test conversation about the live transcript." }
+        if let styled = Self.styledAnswer(instructions: instructions, budget: prompt.contains("numbers by Friday")) {
+            try await Task.sleep(for: .seconds(2))           // long enough for a UI test to see "Writing summary…"
+            return styled
+        }
         let answer = "Topics: live transcript; provisional words\nSummary: The test checks the live transcript; new words " +
             "show at once and provisional ones stay lighter until final.\nTitle: Live Transcript Test"
         var text = ""
@@ -252,5 +257,40 @@ nonisolated final class FakeTextWriter: TextWriter, @unchecked Sendable {
     }
 
     func unload() async {}
+
+    /// A styled summary's answer (FED-15), told by its instructions' format: Meeting, Interview, Lecture or Bullet
+    /// Points; the seeded Budget Review's (its transcript says "numbers by Friday"), else the test recording's.
+    private static func styledAnswer(instructions: String, budget: Bool) -> String? {
+        let summary: String
+        if instructions.contains("Decisions:\n") || instructions.contains("Entscheidungen:\n") {
+            summary = budget
+                ? "Decisions:\n- Part of the licence budget moves to travel once finance agrees.\nTo-dos:\n- Anna Schmidt " +
+                  "sends the numbers to finance by Friday.\n- Anna Schmidt adds the third-quarter forecast.\nOpen " +
+                  "questions:\n- none"
+                : "Decisions:\n- New words show at once.\nTo-dos:\n- The team checks the provisional words tomorrow.\n" +
+                  "Open questions:\n- none"
+        } else if instructions.contains("Q: a question") || instructions.contains("F: eine gestellte Frage") {
+            summary = budget
+                ? "Q: Why is travel over plan?\nA: The two customer workshops cost more than planned.\nQ: How is it " +
+                  "covered?\nA: Part of the licence budget moves to travel once finance agrees."
+                : "Q: What does the test check?\nA: The live transcript: new words show at once.\nQ: What happens to " +
+                  "provisional words?\nA: They stay lighter until final."
+        } else if instructions.contains("key idea") || instructions.contains("Kernaussage") {
+            summary = budget
+                ? "- Travel is over plan because of the two customer workshops.\n- Licences are under plan and cover it."
+                : "- The live transcript shows new words at once.\n- Provisional words stay lighter until final."
+        } else if instructions.contains("one line per point") || instructions.contains("eine Zeile je Punkt") {
+            summary = budget
+                ? "- Travel is over plan and licences are under.\n- Part of the licence budget moves to travel once " +
+                  "finance agrees.\n- Anna Schmidt sends the numbers to finance by Friday, with the third-quarter forecast."
+                : "- The test checks the live transcript.\n- New words show at once.\n- Provisional words stay lighter " +
+                  "until final."
+        } else {
+            return nil
+        }
+        return budget
+            ? "Topics: travel budget; licences; forecast\nSummary:\n\(summary)\nTitle: Budget Review"
+            : "Topics: live transcript; provisional words\nSummary:\n\(summary)\nTitle: Live Transcript Test"
+    }
 }
 #endif

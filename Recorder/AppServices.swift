@@ -121,6 +121,11 @@ final class AppServices {
         } else if ProcessInfo.processInfo.arguments.contains("-voiceRecognitionOn") {
             UserDefaults.standard.set(true, forKey: PeopleDirectory.recognitionKey)
         }
+        // The summary styles of tags (FED-15): `-resetSummaryStyles` (every UI test's launch) removes them, so a test
+        // that gave a tag a style leaves the next one's seeded transcripts as they are.
+        if ProcessInfo.processInfo.arguments.contains("-resetSummaryStyles") {
+            UserDefaults.standard.removeObject(forKey: SummaryStyles.key)
+        }
         // Likewise "Show in iPhone Search": `-spotlightOn` stores it on, `-resetSpotlight` removes it.
         if ProcessInfo.processInfo.arguments.contains("-resetSpotlight") {
             UserDefaults.standard.removeObject(forKey: SpotlightIndex.enabledKey)

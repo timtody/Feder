@@ -510,7 +510,14 @@ nonisolated enum TranscriptExport {
         var body = paragraph(snapshot.title, size: 40, bold: true, after: 80)
         body += paragraph(snapshot.metaLine, size: 18, color: "666666", after: 80)
         if !snapshot.tags.isEmpty { body += paragraph(snapshot.tags.map { "#\($0)" }.joined(separator: "  "), size: 18, color: "666666") }
-        if let summary = snapshot.summary { body += paragraph(summary, size: 21, italic: true, color: "555555", before: 120, after: 200) }
+        if let summary = snapshot.summary {
+            // A styled summary's lines (FED-15) one paragraph each: a newline inside a run is no break in Word.
+            let lines = summary.components(separatedBy: "\n")
+            for (index, line) in lines.enumerated() {
+                body += paragraph(line, size: 21, italic: true, color: "555555", before: index == 0 ? 120 : 0,
+                                  after: index == lines.count - 1 ? 200 : 40)
+            }
+        }
         if !snapshot.bookmarks.isEmpty {
             body += paragraph(snapshot.bookmarksHeading, size: 21, bold: true, color: "1F1F1F", before: 120, after: 40)
             let hanging = snapshot.bookmarks.contains { $0.time >= 3600 } ? 1000 : 720   // "1:02:03" is wider

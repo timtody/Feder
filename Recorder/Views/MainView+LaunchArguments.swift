@@ -53,6 +53,16 @@ extension MainView {
                 budget.bookmarks = [9.6, 10.5, 17, 25.5]
                 try? modelContext.save()
             }
+            // `-seedStyledSummary`: Budget Review's summary in the Meeting style (FED-15), as Gemma's would be stored,
+            // marked described, so `-fakeGemma`'s sweep leaves it: the card's headings and bullets, and the exports.
+            if arguments.contains("-seedStyledSummary"),
+               let budget = try? modelContext.fetch(FetchDescriptor<Recording>()).first(where: { $0.id == PreviewData.budgetID }) {
+                budget.summary = PreviewData.budgetMeetingSummary
+                budget.summaryStyle = .meeting
+                budget.summaryWrittenStyle = .meeting
+                budget.summaryVersion = TranscriptTitler.localVersion
+                try? modelContext.save()
+            }
             do { try await Task.sleep(for: .milliseconds(300)) } catch { return }   // @Query catches up first
         }
         #endif

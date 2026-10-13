@@ -122,6 +122,10 @@ enum PreviewData {
         + "licence budget moves to travel once finance agrees. The numbers go to finance by Friday, together with the "
         + "third-quarter forecast for the whole year."
 
+    /// Budget Review's summary in the Meeting style, as TranscriptTitler.parseStyled stores it (`-seedStyledSummary`).
+    static let budgetMeetingSummary = "Decisions\n• Part of the licence budget moves to travel once finance agrees.\n"
+        + "To-dos\n• Anna Schmidt sends the numbers to finance by Friday.\n• Anna Schmidt adds the third-quarter forecast."
+
     /// Budget Review's action items, as Gemma would find them (the UI tests read them back): Anna sends the numbers by
     /// Friday (the Friday after the meeting) and adds the forecast.
     static func budgetActionItems(recordedAt: Date) -> [ActionItem] {

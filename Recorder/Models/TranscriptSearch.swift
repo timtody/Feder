@@ -309,8 +309,8 @@ nonisolated enum TranscriptSearch {
             let text = Snippets.excerpt(of: seg.text, around: nil)
             result.snippet = Snippet(text: text, highlights: [], segmentID: seg.id, speakerIndex: seg.speakerIndex)
         } else if let summary = doc.summary, let summaryAnchor {
-            // Found in the summary only: show that part of it.
-            let text = Snippets.excerpt(of: summary, around: summaryAnchor)
+            // Found in the summary only: show that part of it, a styled summary's lines (FED-15) on one line.
+            let text = Snippets.excerpt(of: summary, around: summaryAnchor).replacingOccurrences(of: "\n", with: " ")
             result.summaryExcerpt = text
             result.summaryHighlights = Snippets.highlightRanges(terms: query.terms, in: text)
         } else if let topicsAnchor {
