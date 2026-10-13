@@ -512,6 +512,16 @@
         }
       }
     },
+    "Calendar event “%@”": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kalenderereignis „%@“"
+          }
+        }
+      }
+    },
     "Can't Import": {
       "localizations": {
         "de": {
@@ -788,6 +798,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dieses Transkript löschen?"
+          }
+        }
+      }
+    },
+    "Dismiss": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ignorieren"
           }
         }
       }
@@ -1212,6 +1232,16 @@
         }
       }
     },
+    "From your calendar": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus deinem Kalender"
+          }
+        }
+      }
+    },
     "From “%@”, %@": {
       "localizations": {
         "de": {
@@ -1318,6 +1348,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gemma, das Modell für Zusammenfassungen, findet die Aufgaben auf diesem iPhone. Lade es unter Einstellungen › Zusammenfassungen oder schalte es dort ein."
+          }
+        }
+      }
+    },
+    "Gives the transcript back the name Feder gave it": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gibt dem Transkript den Namen zurück, den Feder ihm gegeben hat"
           }
         }
       }
@@ -1572,12 +1612,12 @@
         }
       }
     },
-    "Live Speaker Labels show who is speaking as you record. Name from Calendar names a transcript after the calendar event running when you start it, one in the Preferred Calendar first, and offers its invitees as speaker names. Save Location keeps where a recording was made; the place name comes from Apple Maps. After you stop, each recording is transcribed again and its speakers are identified more accurately.": {
+    "Live Speaker Labels show who is speaking as you record. Name from Calendar shows the calendar event running when you start a recording, one in the Preferred Calendar first; tap Use as Title to name the transcript after it. Its invitees are offered as speaker names. Save Location keeps where a recording was made; the place name comes from Apple Maps. After you stop, each recording is transcribed again and its speakers are identified more accurately.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "„Sprecher live anzeigen“ zeigt beim Aufnehmen, wer spricht. „Nach Kalender benennen“ gibt einem Transkript den Namen des Kalenderereignisses, das beim Start der Aufnahme läuft, eines im bevorzugten Kalender zuerst, und schlägt die Eingeladenen als Sprechernamen vor. „Ort speichern“ merkt sich, wo eine Aufnahme entstanden ist; den Ortsnamen liefert Apple Karten. Nach dem Stoppen wird jede Aufnahme noch einmal genauer transkribiert, und die Sprecher werden genauer erkannt."
+            "value": "„Sprecher live anzeigen“ zeigt beim Aufnehmen, wer spricht. „Nach Kalender benennen“ zeigt das Kalenderereignis, das beim Start der Aufnahme läuft, eines im bevorzugten Kalender zuerst; tippe auf „Als Titel verwenden“, um das Transkript danach zu benennen. Die Eingeladenen werden als Sprechernamen vorgeschlagen. „Ort speichern“ merkt sich, wo eine Aufnahme entstanden ist; den Ortsnamen liefert Apple Karten. Nach dem Stoppen wird jede Aufnahme noch einmal genauer transkribiert, und die Sprecher werden genauer erkannt."
           }
         }
       }
@@ -3541,6 +3581,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Verwende Touch ID, um deine Transkripte zu sehen."
+          }
+        }
+      }
+    },
+    "Use as Title": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Als Titel verwenden"
           }
         }
       }

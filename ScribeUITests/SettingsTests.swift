@@ -351,7 +351,7 @@ final class SettingsTests: ScribeUITestCase {
         XCTAssertLessThanOrEqual(labels.frame.maxY, toggle.frame.minY + 1, "after Live Speaker Labels")
         XCTAssertLessThanOrEqual(toggle.frame.maxY, location.frame.minY + 1, "right above Save Location")
         XCTAssertLessThan(location.frame.minY - toggle.frame.maxY, 20, "in the same section")
-        let footer = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Name from Calendar names a transcript'"))
+        let footer = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'tap Use as Title to name the transcript after it'"))
         XCTAssertTrue(footer.firstMatch.exists, "the footer says what it does")
         shot("Name from Calendar off", app)
     }

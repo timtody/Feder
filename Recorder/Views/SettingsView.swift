@@ -77,7 +77,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Recording")
                 } footer: {
-                    Text("Live Speaker Labels show who is speaking as you record. Name from Calendar names a transcript after the calendar event running when you start it, one in the Preferred Calendar first, and offers its invitees as speaker names. Save Location keeps where a recording was made; the place name comes from Apple Maps. After you stop, each recording is transcribed again and its speakers are identified more accurately.")
+                    Text("Live Speaker Labels show who is speaking as you record. Name from Calendar shows the calendar event running when you start a recording, one in the Preferred Calendar first; tap Use as Title to name the transcript after it. Its invitees are offered as speaker names. Save Location keeps where a recording was made; the place name comes from Apple Maps. After you stop, each recording is transcribed again and its speakers are identified more accurately.")
                 }
 
                 Section {

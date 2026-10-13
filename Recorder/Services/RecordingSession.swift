@@ -43,25 +43,34 @@ final class RecordingSession: Identifiable {
             case .finished, .discarded, .failed: RecordingLiveActivity.end()
             case .idle, .preparing, .downloadingSpeechModel: break
             }
+            switch state {
+            case .finishing, .finished, .discarded, .failed: calendarFollow?.cancel()   // the offer is settled
+            case .idle, .preparing, .downloadingSpeechModel, .recording: break
+            }
         }
     }
     private(set) var text = LiveText()                     // what the live screen shows (LiveTranscript)
     private(set) var level: Float = 0                      // microphone level 0...1 for the meter, while recording
     private(set) var downloadProgress: Progress?
     private(set) var locale: Locale?
-    /// The name the transcript will be saved with (the calendar event running at Record, else "New Transcript N"),
-    /// fixed when the session is made (at Record): the
-    /// recording card shows it in the title's place from its first frame, so it never changes under the user (not even
-    /// when transcripts are deleted meanwhile). Not in `start()`: that runs 0.12 s after the card has begun zooming in
-    /// (MainView.startDelay), which showed the title field's grey "Title" placeholder until then. One exception: a press
-    /// that came before the calendar read that makes the cache current had ended (a cold launch from Control Center, the
-    /// Action Button, Siri or the widget; a return to the foreground after a meeting was cancelled or moved elsewhere)
-    /// takes what that read finds, once, while preparing (`recheckCalendarEvent`), before `.recording` hands the name to
-    /// the Live Activity; never later.
+    /// The name the transcript will be saved with: "New Transcript N" (`defaultName`), or the calendar event's title
+    /// once the user taps Use as Title on the recording card (`useCalendarTitle`). The default is fixed when the session
+    /// is made (at Record): the recording card shows it in the title's place from its first frame, so it never changes
+    /// under the user (not even when transcripts are deleted meanwhile). Not in `start()`: that runs 0.12 s after the
+    /// card has begun zooming in (MainView.startDelay), which showed the title field's grey "Title" placeholder until
+    /// then. The Live Activity gets it at `.recording` but doesn't show it (RecordingActivityAttributes.name).
     private(set) var transcriptName: String
-    /// The calendar event the recording was started in (CalendarContext; nil: none, or naming from the calendar is
-    /// off): its title names the transcript, and its title and invitees are saved with it.
+    /// "New Transcript N": what the transcript is called unless the user takes the calendar event's title; Gemma titles
+    /// it after the summary (TranscriptTitler.isDefaultName).
+    private let defaultName: String
+    /// The calendar event the recording was started in (CalendarContext; nil: none, or Name from Calendar is off): its
+    /// title is offered under the date line (`calendarTitleOffer`, never given by itself, FED-11), and its title and
+    /// invitees are saved with the transcript.
     private(set) var calendarEvent: CalendarEvent?
+    /// Use as Title was tapped on the recording card: the name is the event's title.
+    private(set) var calendarTitleTaken = false
+    /// The row's ⊗ was tapped: the event's title is not offered again, here or in the saved transcript.
+    private(set) var calendarTitleDismissed = false
     /// When Transcribe was pressed: the moment the calendar event is picked for.
     let pressedAt: Date
     /// The calendar cache's read at the press (`CalendarContext.generation`): a later one is picked from again.
@@ -87,6 +96,7 @@ final class RecordingSession: Identifiable {
     private var fileName: String?
     private var transcriptionEnded = false                 // Stop saved the words: later transcriber events are dropped
     private var interruptionObserver: (any NSObjectProtocol)?
+    private var calendarFollow: Task<Void, Never>?        // followCalendar, until Stop or the end
 
     init(capture: any AudioCapture, transcriber: any Transcriber, modelContext: ModelContext, identifier: SpeakerIdentifier,
          liveDiarizer: (any LiveDiarizer)? = nil, calendar: CalendarContext? = nil) {
@@ -99,14 +109,13 @@ final class RecordingSession: Identifiable {
         let pressedAt = Date.now
         self.pressedAt = pressedAt
         pressedCalendarRead = calendar?.generation ?? 0
-        // From the calendar's in-memory cache: no EventKit call in the press. A calendar name isn't a default name, so
-        // Gemma writes only the summary (TranscriptTitler.isDefaultName).
-        let event = calendar?.event(at: pressedAt)
-        calendarEvent = event
-        transcriptName = event?.title ?? Self.defaultName(in: modelContext)
+        // From the calendar's in-memory cache: no EventKit call in the press. Only offered: the name is the app's own.
+        calendarEvent = calendar?.event(at: pressedAt)
+        defaultName = Self.defaultName(in: modelContext)
+        transcriptName = defaultName
     }
 
-    /// "New Transcript N": one more than the transcripts there are (a synchronous count; only when no event names it).
+    /// "New Transcript N": one more than the transcripts there are (a synchronous count; a few milliseconds).
     private static func defaultName(in modelContext: ModelContext) -> String {
         let count = (try? modelContext.fetchCount(FetchDescriptor<Recording>())) ?? 0
         return String(localized: "New Transcript \(count + 1)")   // stored: TranscriptTitler.isDefaultName knows both languages
@@ -118,6 +127,7 @@ final class RecordingSession: Identifiable {
     func start() async {
         guard state == .idle else { return }
         state = .preparing
+        if let calendar { calendarFollow = Task { await followCalendar(calendar) } }   // beside it: nothing waits
         guard await AVAudioApplication.requestRecordPermission() else {
             state = .failed(.microphoneDenied)
             return
@@ -133,7 +143,6 @@ final class RecordingSession: Identifiable {
                 self.downloadProgress = progress
                 self.state = .downloadingSpeechModel
             }
-            await recheckCalendarEvent()                      // ≤ 1 s, only while a calendar read is still running
             guard state != .discarded else {                  // cancelled during prepare/download: nothing captured yet
                 await capture.shutDown()                      // deactivates the audio session
                 return
@@ -174,23 +183,50 @@ final class RecordingSession: Identifiable {
         }
     }
 
-    /// The press picked from the cache as it was; a read running then (or started by the return to the foreground the
-    /// press came with) may know better. A cold launch from outside the app (Control Center, the Action Button, Siri,
-    /// the widget) presses within about a second of launching, often before the first read has finished, and so finds
-    /// no event. A press that resumes a suspended Feder finds what was read before it was suspended: a meeting
-    /// cancelled, moved or declined on the Mac meanwhile still named the transcript, with its invitees, because only
-    /// a press that found nothing looked again. That read had the time of preparing (permission, audio session, speech
-    /// model) and has at most 1 s more; what it finds names the transcript once, without animation, while the card
-    /// still says Preparing and before `.recording` hands the name to the Live Activity: another event, or "New
-    /// Transcript N" when none runs any more. A warm press with the cache current returns at once.
-    private func recheckCalendarEvent() async {
-        guard let calendar,
-              case .event(let event) = await calendar.recheck(at: pressedAt, pickedFrom: pressedCalendarRead,
-                                                              waitingUpTo: .seconds(1)),
-              event != calendarEvent else { return }
-        guard state == .preparing || state == .downloadingSpeechModel else { return }   // cancelled meanwhile
-        calendarEvent = event
-        transcriptName = event?.title ?? Self.defaultName(in: modelContext)
+    /// The press picked from the cache as it was; a later read may know better (CalendarContext.read(after:)). A cold
+    /// launch from outside the app (Control Center, the Action Button, Siri, the widget) presses within about a second
+    /// of launching, often before the first read has finished, and so finds no event. A press that resumes a suspended
+    /// Feder finds what was read before it was suspended: a meeting cancelled, moved or declined on the Mac meanwhile is
+    /// still there until the return's read has ended. Each read that ends while recording replaces the offer under the
+    /// date line with what it finds for the press (another event, or none; a read past midnight, which doesn't cover
+    /// the press, is skipped), until the user takes or dismisses it (their choice stands) or Stop (cancelled in
+    /// `state`'s didSet: the card turns into the transcript, which shows what was saved). Recording doesn't wait for it.
+    private func followCalendar(_ calendar: CalendarContext) async {
+        calendar.refreshUnlessCovering(pressedAt)
+        var seen = pressedCalendarRead
+        while !Task.isCancelled, !calendarTitleTaken, !calendarTitleDismissed {
+            seen = await calendar.read(after: seen)
+            guard !Task.isCancelled, !calendarTitleTaken, !calendarTitleDismissed, calendar.covers(pressedAt)
+            else { continue }
+            let event = calendar.event(at: pressedAt)
+            if event != calendarEvent { calendarEvent = event }
+        }
+    }
+
+    /// The row under the recording card's date line (CalendarTitleRow): the event's title to take, or ⊗ back to "New
+    /// Transcript N" once taken; nil when there is none, it was dismissed, or Stop was pressed with Name from Calendar
+    /// turned off meanwhile.
+    var calendarTitleOffer: CalendarTitleOffer? {
+        CalendarRules.titleOffer(event: calendarEvent?.title, name: transcriptName,
+                                 nameBefore: calendarTitleTaken ? defaultName : nil,
+                                 dismissed: calendarTitleDismissed, nameIsUserSet: false)
+    }
+
+    /// Use as Title on the recording card: the transcript is named after the event at once, and saved so (not marked
+    /// as typed: Recording.useCalendarTitle).
+    func useCalendarTitle() {
+        guard isOngoing, state != .finishing, case .offer(let title) = calendarTitleOffer else { return }
+        calendarTitleTaken = true
+        transcriptName = title
+    }
+
+    /// The row's ⊗ on the recording card: hides the offer for good (the saved transcript doesn't show it either), and
+    /// after Use as Title gives the name back ("New Transcript N").
+    func dismissCalendarTitle() {
+        guard isOngoing, state != .finishing, calendarTitleOffer != nil else { return }
+        calendarTitleTaken = false
+        transcriptName = defaultName
+        calendarTitleDismissed = true
     }
 
     /// "Cancel" on the preparing / downloading overlays, i.e. before anything was captured. The cover dismisses via
@@ -229,6 +265,9 @@ final class RecordingSession: Identifiable {
         #if DEBUG
         let stopped = ContinuousClock.now
         #endif
+        // Name from Calendar turned off meanwhile: no event is saved (below), so the row goes as the card turns; the
+        // transcript has none to show in its place.
+        if !CalendarContext.isEnabled { calendarEvent = nil }
         state = .finishing
         stopObservingInterruptions()
         refresh?.cancel()
@@ -267,11 +306,14 @@ final class RecordingSession: Identifiable {
         recording.createdAt = since
         recording.duration = duration
         if let place { recording.apply(place) }
-        // The calendar event it was started in: its title and invitees' names (the rename sheet offers them). Not when
-        // Name from Calendar was turned off before Stop, as Save Location keeps no place then; the name stays as shown.
-        if let calendarEvent, CalendarContext.isEnabled {
+        // The calendar event it was started in: its title (offered as the name, or taken) and invitees' names (the
+        // rename sheet offers them, also when the title was dismissed). Not when Name from Calendar was turned off
+        // before Stop, as Save Location keeps no place then; the name stays as shown.
+        if let calendarEvent {
             recording.calendarEventTitle = calendarEvent.title
             recording.calendarAttendees = calendarEvent.attendees
+            recording.calendarTitleDismissed = calendarTitleDismissed
+            if calendarTitleTaken { recording.nameBeforeCalendarTitle = defaultName }
         }
         recording.words = words
         recording.bookmarks = bookmarks.filter { $0 <= duration }

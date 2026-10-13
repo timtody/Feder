@@ -119,6 +119,16 @@ struct RecordingDetailView: View {
                                            place: recording.placeName)
                             .opacity(turning ? 0 : 1)
                             .animation(nil, value: turning)
+                        // Started during a calendar event: its title to take as the name, where the recording card had
+                        // the same row, so it stays put in the turn like the date line (FED-11). The press only sets
+                        // the model's properties; autosave writes them, as the title field's edits.
+                        if let offer = recording.calendarTitleOffer {
+                            CalendarTitleRow(offer: offer, onUse: { recording.useCalendarTitle() },
+                                             onDismiss: { recording.dismissCalendarTitle() })
+                                .opacity(turning ? 0 : 1)
+                                .animation(nil, value: turning)
+                                .transition(.opacity)
+                        }
                         // One line under the date: what is being done to the transcript right now while the
                         // pipeline runs ("Writing summary…" too), then in the same place the automatic summary
                         // (TranscriptTitler), folded into a "Summary" row. Two lines at once (the status and the
@@ -173,6 +183,8 @@ struct RecordingDetailView: View {
                 }
                 .animation(.snappy, value: showsNote)
                 .animation(.snappy, value: !recording.tags.isEmpty || editingTags)   // the tag line comes and goes
+                // The calendar row changes (Use as Title) or goes (⊗, or a typed title).
+                .animation(.snappy, value: recording.calendarTitleOffer)
                 // No spacing above: the first name row brings its own (the space above a name is part of its target).
                 transcript(segments)
                     .opacity(bodyShown ? 1 : 0)

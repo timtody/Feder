@@ -90,8 +90,15 @@ final class Recording {
     var diarizerRaw: String? = nil       // DiarizerKind.rawValue of speakerTurns' model; nil: diarized before it was kept
                                          // (the app before Scribe: pyannote, or the live labels)
     var editCount: Int = 0               // the user corrected words or speakers this often (search and Spotlight re-read)
-    var calendarEventTitle: String? = nil // the calendar event running at Record whose title named it (CalendarContext); nil: none
+    var calendarEventTitle: String? = nil // the calendar event running at Record (CalendarContext): its title is offered as the
+                                         // name (CalendarTitleRow), never given by itself (FED-11); nil: none
     var calendarAttendees: [String] = [] // that event's invitees' names (no addresses, not the user, at most 30): the rename sheet offers them
+    /// The calendar row's ⊗ was tapped (while recording or in the transcript): the event's title is never offered again.
+    var calendarTitleDismissed: Bool = false
+    /// The app's own name ("New Transcript N", or Gemma's title) that Use as Title replaced with the event's title; the
+    /// row's ⊗ gives it back (Gemma's later title first). nil: not taken, or named after the event before FED-11 (those
+    /// show no row).
+    var nameBeforeCalendarTitle: String? = nil
     var topics: [String] = []            // Gemma's "Topics:" line (TranscriptTitler), written with the summary; empty for
                                          // transcripts described before it was kept (their summary stands in: person pages)
     var bookmarks: [TimeInterval] = []   // moments marked while recording, in seconds from its start (Bookmarks)
@@ -159,5 +166,30 @@ final class Recording {
     /// reads as sent somewhere, and nothing leaves the iPhone. Imports from before it have none: nothing marks them.
     nonisolated static var importTag: String {
         String(localized: "Import", comment: "The tag an imported transcript gets; stored with the transcript.")
+    }
+
+    // MARK: The calendar's title (FED-11)
+
+    /// What the row under the date line shows (CalendarTitleRow), nil for no row.
+    var calendarTitleOffer: CalendarTitleOffer? {
+        CalendarRules.titleOffer(event: calendarEventTitle, name: name, nameBefore: nameBeforeCalendarTitle,
+                                 dismissed: calendarTitleDismissed, nameIsUserSet: nameIsUserSet)
+    }
+
+    /// Use as Title: the event's title becomes the name, not marked as typed (`nameIsUserSet`), so the meeting's name
+    /// stays out of person pages' topics (PersonPageModel.termSource) while Gemma still leaves it alone (it replaces
+    /// only default names and its own title).
+    func useCalendarTitle() {
+        guard case .offer(let title) = calendarTitleOffer else { return }
+        nameBeforeCalendarTitle = name
+        name = title
+    }
+
+    /// The row's ⊗: before Use as Title it only hides the offer; after it, the name goes back to the app's own (Gemma's
+    /// title when it wrote one meanwhile, SpeakerIdentifier.describe, else the name the event's replaced). For good.
+    func dismissCalendarTitle() {
+        if calendarTitleOffer == .taken, let before = automaticTitle ?? nameBeforeCalendarTitle { name = before }
+        nameBeforeCalendarTitle = nil
+        calendarTitleDismissed = true
     }
 }

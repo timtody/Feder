@@ -824,10 +824,15 @@ final class SpeakerIdentifier {
             print("[Scribe] topics: \(description.topics)")
             #endif
             // Checked after the wait: the user may have renamed it meanwhile. A name the app gave, or the title a model
-            // gave it before (a better model's title replaces it), never one the user typed.
+            // gave it before (a better model's title replaces it), never one the user typed, nor the calendar event's
+            // title taken with Use as Title (not a default name either).
             if let title = description.title, !recording.nameIsUserSet,
                TranscriptTitler.isDefaultName(recording.name) || recording.name == recording.automaticTitle {
                 recording.name = title
+                recording.automaticTitle = title
+            } else if let title = description.title, recording.calendarTitleOffer == .taken {
+                // Kept aside: the calendar row's ⊗ gives the transcript this title instead of "New Transcript N",
+                // which Gemma, done by then, would never replace (Recording.dismissCalendarTitle).
                 recording.automaticTitle = title
             }
         }

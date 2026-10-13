@@ -1,10 +1,11 @@
 import CryptoKit
 import Foundation
 
-/// A calendar event as Feder keeps it in memory (`CalendarContext`): the title that names a transcript started during it
-/// and its invitees' names, which the rename sheet offers. Made from EventKit's `EKEvent` inside `CalendarReader` (and
-/// from the simulator's fake), so only these values cross actors. Nothing else of the event is kept: no identifier,
-/// location, notes, URL or e-mail address; only its calendar's identifier, in memory, for the Preferred Calendar.
+/// A calendar event as Feder keeps it in memory (`CalendarContext`): the title offered as the name of a transcript
+/// started during it and its invitees' names, which the rename sheet offers. Made from EventKit's `EKEvent` inside
+/// `CalendarReader` (and from the simulator's fake), so only these values cross actors. Nothing else of the event is
+/// kept: no identifier, location, notes, URL or e-mail address; only its calendar's identifier, in memory, for the
+/// Preferred Calendar.
 nonisolated struct CalendarEvent: Sendable, Equatable {
     var title: String
     var start: Date
@@ -49,6 +50,15 @@ nonisolated struct CalendarChoice: Sendable, Equatable, Identifiable {
     }
 }
 
+/// The row under a transcript's date line while it has a calendar event (CalendarTitleRow), on the recording and on the
+/// saved transcript alike (`CalendarRules.titleOffer`).
+nonisolated enum CalendarTitleOffer: Sendable, Equatable {
+    /// The event's title, with Use as Title and ⊗.
+    case offer(String)
+    /// The name is the event's title, taken with Use as Title: "From your calendar", with ⊗ back to the app's own name.
+    case taken
+}
+
 /// An attendee or the organizer as EventKit describes them, reduced to what `CalendarRules` decides on.
 nonisolated struct CalendarParticipant: Sendable, Equatable {
     var name: String?
@@ -62,8 +72,8 @@ nonisolated struct CalendarParticipant: Sendable, Equatable {
     var declined = false
 }
 
-/// The rules of calendar naming, pure so the simulator's fake runs them too: which events count, which one names a
-/// transcript at a press, and the invitees' names as the rename sheet offers them.
+/// The rules of calendar naming, pure so the simulator's fake runs them too: which events count, which one a transcript
+/// started at a press belongs to, the row offering its title, and the invitees' names as the rename sheet offers them.
 nonisolated enum CalendarRules {
     /// Pressing Transcribe up to this long before an event starts counts as during it (people come in early).
     static let lead: TimeInterval = 5 * 60
@@ -72,7 +82,7 @@ nonisolated enum CalendarRules {
     /// A title longer than this is cut (a pasted agenda as the title).
     static let maxTitleLength = 100
 
-    /// The event as Feder keeps it, or nil when it can't name a transcript: all-day, cancelled, declined by the user,
+    /// The event as Feder keeps it, or nil when it never counts: all-day, cancelled, declined by the user,
     /// without a title, or Feder's own (`isFeders`: an action item added with Add to Calendar, which carries the
     /// transcript's feder:// link; prefilled on the full hour without attendees, it counted as the user's own and,
     /// shorter, beat the meeting starting with it, so the transcript got the to-do's name and none of the invitees).
@@ -151,12 +161,12 @@ nonisolated enum CalendarRules {
             && part.allSatisfy { $0.isLetter || $0 == " " || $0 == "-" || $0 == "'" || $0 == "’" || $0 == "." }
     }
 
-    /// The event that names a transcript started at `date`: one running then or starting within `lead` after it, and
-    /// one that counts only in the preferred calendar (`onlyWhenPreferred`) only when it is in that one; events in the
-    /// preferred calendar first (`preferring`, Settings' Preferred Calendar: the work calendar's meeting, not the
-    /// private reminder block over it), then those the user takes part in, then the one starting closest to the press
-    /// (at 10:01 the 10:00 meeting, not the 9:00-17:00 workshop around it), then the shorter one. nil when none
-    /// qualifies; with nothing of the preferred calendar running, the others count as before.
+    /// The event a transcript started at `date` belongs to (its title offered, its invitees kept): one running then or
+    /// starting within `lead` after it, and one that counts only in the preferred calendar (`onlyWhenPreferred`) only
+    /// when it is in that one; events in the preferred calendar first (`preferring`, Settings' Preferred Calendar: the
+    /// work calendar's meeting, not the private reminder block over it), then those the user takes part in, then the
+    /// one starting closest to the press (at 10:01 the 10:00 meeting, not the 9:00-17:00 workshop around it), then the
+    /// shorter one. nil when none qualifies; with nothing of the preferred calendar running, the others count as before.
     static func pick(_ events: [CalendarEvent], at date: Date, lead: TimeInterval = lead,
                      preferring calendarID: String? = nil) -> CalendarEvent? {
         events
@@ -171,6 +181,19 @@ nonisolated enum CalendarRules {
                 if da != db { return da < db }
                 return a.end.timeIntervalSince(a.start) < b.end.timeIntervalSince(b.start)
             }
+    }
+
+    /// The calendar row of a transcript named `name` that was started during `event` (its title, nil: none). The event
+    /// never names a transcript by itself (FED-11, the user's decision): it is offered next to the name the app gave
+    /// (New Transcript N, later Gemma's title) until the user takes it (Use as Title: `nameBefore` keeps the name it
+    /// replaced, `.taken`), dismisses it, or types a title. nil also when the name already is the event's without Use
+    /// as Title (named after it before FED-11, or Gemma chose the same words: nothing to offer, nothing to go back to).
+    static func titleOffer(event: String?, name: String, nameBefore: String?, dismissed: Bool,
+                           nameIsUserSet: Bool) -> CalendarTitleOffer? {
+        guard let event, !event.isEmpty, !dismissed, !nameIsUserSet else { return nil }
+        let isEvent = name.compare(event, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+        if isEvent { return nameBefore == nil ? nil : .taken }
+        return .offer(event)
     }
 
     /// The preferred calendar among `calendars`: by its identifier; else the one calendar with its name in an account of

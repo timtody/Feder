@@ -7,9 +7,10 @@ import UIKit
 /// place once it is found), in the transcript's fonts and at its positions; the live transcript below; at the bottom
 /// the level meter and the big timer above a large Stop. MainView owns the session (it starts it and handles
 /// Saved/Discarded), so swiping the card to the right, or its back button, shrinks it back into the accessory and
-/// recording goes on. On Stop the card turns into the transcript in place (`turn`): title and date line stay put, the timer
-/// shrinks into the date line's duration, the live text fades out, and the Stop melts into the transcript's toolbar
-/// (TranscriptCard). Preparation, model download and every failure are shown as in-screen overlays.
+/// recording goes on. Under the date line, while the recording has a calendar event, its title to take as the name
+/// (CalendarTitleRow). On Stop the card turns into the transcript in place (`turn`): title, date line and that row stay
+/// put, the timer shrinks into the date line's duration, the live text fades out, and the Stop melts into the
+/// transcript's toolbar (TranscriptCard). Preparation, model download and every failure are shown as in-screen overlays.
 struct RecordView: View {
     let session: RecordingSession
     /// Stop has saved, or is saving, something: the card is turning into the transcript, timed by this clock. The
@@ -113,6 +114,9 @@ struct RecordView: View {
             }
             .overlay { stateOverlay }
         }
+        // The calendar row comes (the read after a cold start has the event), changes (Use as Title) or goes (⊗): the
+        // live text below moves with it.
+        .animation(.snappy, value: session.calendarTitleOffer)
         // The card's back button, as on a transcript: back into the accessory, still recording.
         .cardCloseButton(hint: "Back to the transcripts; recording goes on", action: onClose)
         .safeAreaBar(edge: .bottom) {                  // a bar: text scrolling under it fades out (scroll edge effect)
@@ -164,39 +168,56 @@ struct RecordView: View {
     // MARK: Header
 
     /// The transcript's title and date line, at the transcript's positions (RecordingDetailView: same top offset,
-    /// margin, fonts and spacing; a Text title sat 1 pt higher than the transcript's TextField, so it is one too).
+    /// margin, fonts and spacing; a Text title sat 1 pt higher than the transcript's TextField, so it is one too), and
+    /// the calendar row under the date line, as there.
     private var header: some View {
         VStack(alignment: .leading, spacing: 20) {
             TextField("Title", text: .constant(session.transcriptName))
                 .font(.title2.weight(.bold))
-                .allowsHitTesting(false)                    // named once it is saved, in the transcript
+                .allowsHitTesting(false)                    // typed once it is saved, in the transcript
                 .accessibilityRepresentation {
-                    Text(session.transcriptName).accessibilityAddTraits(.isHeader)
+                    Text(session.transcriptName)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("RecordingTitle")
                 }
-            TimelineView(.animation(paused: !isMoving)) { context in
-                let progress = flightProgress(context.date)
-                TranscriptDateLine(date: startedAt ?? .now, duration: turning ? durationSlot(progress) : nil,
-                                   place: session.place?.name, reveal: reduceMotion ? 1 : progress)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(alignment: .topLeading) {
-                // The same line with the duration, where the timer will land, measured all along: the flight's end
-                // has to be known when it starts, and stays put during it. Its text is the timer's.
-                TimelineView(.periodic(from: startedAt ?? .now, by: 1)) { context in
-                    TranscriptDateLine(date: startedAt ?? .now, duration: Text(timerText(at: context.date))
-                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { frame in
-                            // Fixed from Stop on (measured once more if the card came up during the turn).
-                            if !turning || timerFrames.slot == nil { timerFrames.slot = frame }
-                        }, place: session.place?.name)
+            VStack(alignment: .leading, spacing: 8) {
+                dateLine
+                if let offer = session.calendarTitleOffer {
+                    CalendarTitleRow(offer: offer, onUse: { session.useCalendarTitle() },
+                                     onDismiss: { session.dismissCalendarTitle() })
+                        .allowsHitTesting(!turning)
+                        .accessibilityHidden(turning)
+                        .transition(.opacity)
                 }
-                .hidden()
-                .accessibilityHidden(true)
             }
         }
         .padding(.top, CardCloseButton.contentTop)
         .padding(.horizontal, TranscriptStyle.margin)
         .frame(maxWidth: TranscriptStyle.maxWidth, alignment: .leading)
         .frame(maxWidth: .infinity)
+    }
+
+    /// The start time, the place once found, and from Stop the duration's slot opening for the timer.
+    private var dateLine: some View {
+        TimelineView(.animation(paused: !isMoving)) { context in
+            let progress = flightProgress(context.date)
+            TranscriptDateLine(date: startedAt ?? .now, duration: turning ? durationSlot(progress) : nil,
+                               place: session.place?.name, reveal: reduceMotion ? 1 : progress)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(alignment: .topLeading) {
+            // The same line with the duration, where the timer will land, measured all along: the flight's end
+            // has to be known when it starts, and stays put during it. Its text is the timer's.
+            TimelineView(.periodic(from: startedAt ?? .now, by: 1)) { context in
+                TranscriptDateLine(date: startedAt ?? .now, duration: Text(timerText(at: context.date))
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { frame in
+                        // Fixed from Stop on (measured once more if the card came up during the turn).
+                        if !turning || timerFrames.slot == nil { timerFrames.slot = frame }
+                    }, place: session.place?.name)
+            }
+            .hidden()
+            .accessibilityHidden(true)
+        }
     }
 
     /// The duration in the date line: where the timer lands (with Reduce Motion the duration itself fades in).

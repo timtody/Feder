@@ -1,14 +1,14 @@
 import SwiftUI
 import UIKit
 
-/// Settings › Recording › "Name from Calendar" (CalendarContext), right above Save Location, which names transcripts
-/// after where they were made as this names them after when. Off until turned on. Turning it on asks for calendar access
-/// (the system alert, once), after the tap's frame (the status is read off the main actor); the switch stays on
-/// meanwhile instead of springing back under the alert. Denied before, it offers the iPhone's Settings ("Allow Calendar
-/// Access") rather than being a switch that does nothing; Open Settings stores it on, so it is on when the user comes
-/// back having allowed it (`enableWhenAllowed`). On only while access is given: taken back in the iPhone's Settings, it
-/// shows off. Off: nothing is read; transcripts keep the names and invitees they have. The only place that asks for
-/// calendar access (not the onboarding: CalendarContext).
+/// Settings › Recording › "Name from Calendar" (CalendarContext), right above Save Location, which records where a
+/// transcript was made as this offers the meeting it was made in as its name (Use as Title). Off until turned on.
+/// Turning it on asks for calendar access (the system alert, once), after the tap's frame (the status is read off the
+/// main actor); the switch stays on meanwhile instead of springing back under the alert. Denied before, it offers the
+/// iPhone's Settings ("Allow Calendar Access") rather than being a switch that does nothing; Open Settings stores it
+/// on, so it is on when the user comes back having allowed it (`enableWhenAllowed`). On only while access is given:
+/// taken back in the iPhone's Settings, it shows off. Off: nothing is read; transcripts keep the names and invitees
+/// they have. The only place that asks for calendar access (not the onboarding: CalendarContext).
 ///
 /// While it is on, "Preferred Calendar" sits below it: the calendar whose events win when several run at a press (the
 /// work meeting over the private block in the same hour; `CalendarRules.pick`), None by default. iOS Settings' own

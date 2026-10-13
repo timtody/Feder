@@ -12,11 +12,12 @@ nonisolated enum CalendarAccess: Sendable, Equatable {
     case granted          // full access
 }
 
-/// "Name from Calendar" (roadmap #11): a transcript started during a calendar event gets the event's title as its name,
-/// and the event's invitees are offered in the rename sheet. Opt-in, off until the user turns it on in Settings ›
-/// Recording, and the calendar permission is asked only on that tap: iOS 17's full access means read, change and delete
-/// all events, and the system alert says so, so it is never asked at Transcribe (it would collide with the microphone's
-/// alert and cover the live recording) or at Stop (where location asks). Not from an onboarding page: a page before
+/// "Name from Calendar" (roadmap #11): a transcript started during a calendar event offers the event's title as its name
+/// (CalendarTitleRow: Use as Title, never given by itself, FED-11), and the event's invitees are offered in the rename
+/// sheet. Opt-in, off until the user turns it on in Settings › Recording, and the calendar permission is asked only on
+/// that tap: iOS 17's full access means read, change and delete all events, and the system alert says so, so it is
+/// never asked at Transcribe (it would collide with the microphone's alert and cover the live recording) or at Stop
+/// (where location asks). Not from an onboarding page: a page before
 /// the system alert must lead to it with a single Continue (HIG › Privacy, App Review 5.1.1(iv)), and one with a way
 /// out ("No Thanks") is a common rejection.
 ///
@@ -27,9 +28,9 @@ nonisolated enum CalendarAccess: Sendable, Equatable {
 /// event from the cache (`event(at:)`, a scan of a few dozen structs). A press can come before the read that makes the
 /// cache current has ended: on a cold launch from outside the app (Control Center, the Action Button, Siri, the widget)
 /// before the first one, on a return to the foreground before the one that catches up on changes made meanwhile (a
-/// meeting cancelled or moved on the Mac). The session then picks again from that read once it has prepared
-/// (`recheck`). The cache lives in memory only; what a transcript keeps is the event's title and its invitees' names
-/// (`Recording.calendarEventTitle`, `calendarAttendees`), written at Stop.
+/// meeting cancelled or moved on the Mac). The session picks again whenever a read has ended (`read(after:)`), beside
+/// the recording, which doesn't wait for it. The cache lives in memory only; what a transcript keeps is the event's
+/// title and its invitees' names (`Recording.calendarEventTitle`, `calendarAttendees`), written at Stop.
 @MainActor @Observable
 final class CalendarContext {
     /// UserDefaults: "Name from Calendar"; absent means off.
@@ -62,11 +63,10 @@ final class CalendarContext {
     /// When the last read ended: the launch's read usually ends just before the app becomes active, which needs no
     /// second one.
     @ObservationIgnored private var lastRead: ContinuousClock.Instant?
-    /// Counts the reads that filled the cache. A session notes it at the press, so after preparing it can tell whether
-    /// the cache it picked from has been read again since (`recheck`).
+    /// Counts the reads that filled the cache. A session notes it at the press and waits for newer ones (`read(after:)`).
     @ObservationIgnored private(set) var generation = 0
-    /// Presses waiting for the running read (`recheck`), resumed when it ends or when their wait is over.
-    @ObservationIgnored private var waiters: [UUID: CheckedContinuation<Void, Never>] = [:]
+    /// Sessions waiting for the next read (`read(after:)`), resumed when it has filled the cache or when they stop.
+    @ObservationIgnored private var readWaiters: [UUID: CheckedContinuation<Void, Never>] = [:]
     @ObservationIgnored private var changeDebounce: Task<Void, Never>?
     @ObservationIgnored private var observers: [any NSObjectProtocol] = []
     @ObservationIgnored private let reader = CalendarReader()
@@ -97,43 +97,42 @@ final class CalendarContext {
 
     // MARK: The press
 
-    /// The event a transcript started at `date` is named after, from the cache (no EventKit call). nil while off, without
+    /// The event a transcript started at `date` belongs to, from the cache (no EventKit call). nil while off, without
     /// access, or when the cache doesn't cover `date` (not read yet, or stale).
     func event(at date: Date) -> CalendarEvent? {
         guard Self.isEnabled, let window, window.contains(date) else { return nil }
         return CalendarRules.pick(events, at: date, preferring: preferred?.id)
     }
 
-    /// What a recheck after preparing found: `.unchanged` when no read has filled the cache since the press (its pick
-    /// stands), else the event for the press from the newer cache (nil: none any more).
-    enum Recheck: Equatable { case unchanged, event(CalendarEvent?) }
+    /// The cache holds the events around `date` (a read after midnight no longer covers a press before it).
+    func covers(_ date: Date) -> Bool { window?.contains(date) == true }
 
-    /// The press's pick again, from a read that ended after the cache it was made from (`generation` at the press):
-    /// one still running at the press (a cold launch's first read), one the return to the foreground started (a
-    /// suspended app reads changes made meanwhile only then, and a press from Control Center or the Action Button
-    /// comes with that return), or one due now (the cache doesn't cover `date`). Waits at most `limit` for a running
-    /// read; returns at once when none runs and the cache is still the press's. Switched off meanwhile: `.unchanged`
-    /// (the name stays as shown, as at Stop).
-    func recheck(at date: Date, pickedFrom generation: Int, waitingUpTo limit: Duration) async -> Recheck {
-        guard Self.isEnabled else { return .unchanged }
-        if refreshing == nil, window?.contains(date) != true { refresh() }
-        await waitForRead(upTo: limit)
-        guard Self.isEnabled, self.generation != generation else { return .unchanged }
-        return .event(event(at: date))
+    /// Starts a read when the cache doesn't cover `date` (never read, or read before midnight) and none runs.
+    func refreshUnlessCovering(_ date: Date) {
+        guard Self.isEnabled, refreshing == nil, !covers(date) else { return }
+        refresh()
     }
 
-    /// Returns when the running read has ended or after `limit`, whichever comes first. Not a task group racing
-    /// `refreshing.value` against a sleep: awaiting a task's value ignores cancellation, so the group waited for the
-    /// whole read however long it took, and a slow calendar held up the recording's start.
-    private func waitForRead(upTo limit: Duration) async {
-        guard refreshing != nil else { return }
-        let id = UUID()
-        let timeout = Task { [weak self] in
-            do { try await Task.sleep(for: limit) } catch { return }
-            self?.waiters.removeValue(forKey: id)?.resume()
+    /// Returns once a read newer than `generation` has filled the cache (at once when one has), with the newest
+    /// generation; or when the caller is cancelled. The press picks from the cache as it was, and a later read may know
+    /// better: one still running at the press (a cold launch's first read), or the one the return to the foreground
+    /// starts (a suspended app reads changes made meanwhile only then). A press from Control Center or the Action
+    /// Button comes with that return, and that read may not have started yet when the session looks: waiting only for a
+    /// read running then missed it (CalendarTests.testResumePicksTheEventAgain, resumed by feder://record). Nothing
+    /// waits for this: until FED-11 the event named the transcript, and recording waited up to 1 s for a running read
+    /// so the name was right before the Live Activity got it; now the event is only offered (CalendarTitleRow), and the
+    /// session follows the reads beside the recording (RecordingSession.followCalendar). Turned off, the cache is
+    /// emptied without a new read: nothing wakes.
+    func read(after generation: Int) async -> Int {
+        while self.generation <= generation, !Task.isCancelled {
+            let id = UUID()
+            await withTaskCancellationHandler {
+                await withCheckedContinuation { readWaiters[id] = $0 }
+            } onCancel: {
+                Task { @MainActor [weak self] in self?.readWaiters.removeValue(forKey: id)?.resume() }
+            }
         }
-        await withCheckedContinuation { waiters[id] = $0 }
-        timeout.cancel()
+        return self.generation
     }
 
     // MARK: The switch
@@ -218,15 +217,15 @@ final class CalendarContext {
                 hasReadCalendars = access == .granted
                 findPreferred()
                 generation += 1
+                let waiting = readWaiters.values
+                readWaiters = [:]
+                for waiter in waiting { waiter.resume() }
                 #if DEBUG
                 print("[Scribe] calendar: \(events.count) events in \((ContinuousClock.now - started).formatted(.units(allowed: [.milliseconds])))")
                 #endif
             } while again
             refreshing = nil
             lastRead = .now
-            let waiting = waiters.values
-            waiters = [:]
-            for waiter in waiting { waiter.resume() }
         }
     }
 
@@ -321,8 +320,8 @@ actor CalendarReader {
         }
     }
 
-    /// The events overlapping `window` that can name a transcript (CalendarRules.event), with the access they were read
-    /// with, and the calendars Preferred Calendar lists. Nothing without full access.
+    /// The events overlapping `window` that can count for a transcript (CalendarRules.event), with the access they were
+    /// read with, and the calendars Preferred Calendar lists. Nothing without full access.
     func events(in window: DateInterval) async -> (CalendarAccess, [CalendarEvent], [CalendarChoice]) {
         #if DEBUG && targetEnvironment(simulator)
         if CalendarFake.isActive {
@@ -369,7 +368,7 @@ actor CalendarReader {
         (try? await EKEventStore().requestFullAccessToEvents()) ?? false
     }
 
-    /// Every event calendar but Birthdays (its events are all-day, which never name a transcript) is read and listed.
+    /// Every event calendar but Birthdays (its events are all-day, which never count) is read and listed.
     /// Subscribed ones too (FED-65: a work calendar from Outlook can reach the iPhone only as a published link),
     /// but their events count only while one is the Preferred Calendar (`CalendarRules.event`).
     nonisolated private static func isListed(_ calendar: EKCalendar) -> Bool {
