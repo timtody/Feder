@@ -212,45 +212,28 @@ final class AppLockTests: ScribeUITestCase {
         XCTAssertFalse(kickoff.exists)
     }
 
-    /// Within 10 s of unlocking the iPhone with Face ID, LocalAuthentication answers without a sheet, and Feder asks it
-    /// so as each locked launch or return begins (`-fakeQuietUnlock` stands in for it: the simulator's Lock Screen has
-    /// no Face ID): Feder opens without its prompt, which would be cancelled here.
+    /// A locked Feder asks at every return, also at quick ones in a row (Lock: Immediately): nothing opens it without
+    /// Face ID. On the iPhone a Face ID unlock of the iPhone within 10 s used to count, so Feder reopened right after
+    /// unlocking the iPhone opened without asking (FED-13); the simulator can't unlock its Lock Screen with Face ID, so
+    /// this checks the path that remains. Home right after each unlock and back a second later, three times: each time
+    /// locked, Face ID asked (cancelled: Unlock), and Unlock opens it.
     @MainActor
-    func testJustUnlockedOpensWithoutAsking() throws {
-        let app = launch(["-appLockOn", "-fakeAuthentication", "cancel", "-fakeQuietUnlock"], waitsForList: false)
-        let kickoff = app.staticTexts["Project Kickoff"]
-        XCTAssertTrue(kickoff.waitForExistence(timeout: 15), "opened at the launch without asking")
-        sleep(2)                                            // the prompt would have come by now
-        XCTAssertFalse(app.buttons["Unlock"].exists, "nothing asked at the launch")
-        XCUIDevice.shared.press(.home)
-        sleep(1)
-        app.activate()
-        XCTAssertTrue(kickoff.waitForExistence(timeout: 5), "opened at the return (Lock: Immediately)")
-        sleep(2)
-        XCTAssertFalse(app.buttons["Unlock"].exists, "nothing asked at the return")
-        XCTAssertTrue(isOnScreen(transcribe(app), app))
-    }
-
-    /// Feder left while that check still answers (a flick home during the opening animation, where it runs;
-    /// `-fakeQuietUnlockDelay` holds the answer back 6 s): the answer belongs to a return that is over and is dropped.
-    /// Opening then would leave Feder uncovered in the background, and the next return, perhaps hours later in someone
-    /// else's hands, would skip the lock. Back, Feder is still covered, and the return's own check opens it.
-    @MainActor
-    func testLeavingBeforeTheCheckAnswersStaysLocked() throws {
-        let app = launch(["-appLockOn", "-fakeAuthentication", "cancel", "-fakeQuietUnlock", "-fakeQuietUnlockDelay", "6"],
+    func testEveryReturnAsks() throws {
+        let app = launch(["-appLockOn", "-fakeAuthentication", "success,cancel,success,cancel,success,cancel,success"],
                          waitsForList: false)
         let kickoff = app.staticTexts["Project Kickoff"]
-        let locked = app.staticTexts["Feder Is Locked"]     // in the tree while covered, though only the icon shows
-        XCTAssertTrue(locked.waitForExistence(timeout: 5), "covered while the check answers")
-        XCTAssertFalse(kickoff.exists, "not answered yet")
-        XCUIDevice.shared.press(.home)
-        sleep(8)                                            // the answer arrives while Feder is in the background
-        app.activate()
-        XCTAssertTrue(locked.exists, "still covered at the return: the answer belonged to the launch")
-        XCTAssertFalse(kickoff.exists, "no transcript")
-        shot("Still locked at the return", app)
-        XCTAssertTrue(kickoff.waitForExistence(timeout: 10), "the return's own check opens Feder")
-        XCTAssertFalse(app.buttons["Unlock"].exists, "nothing asked")
+        XCTAssertTrue(kickoff.waitForExistence(timeout: 15), "unlocked at launch")
+        let unlock = app.buttons["Unlock"]
+        for round in 1...3 {
+            XCUIDevice.shared.press(.home)
+            sleep(1)
+            app.activate()
+            XCTAssertTrue(waitFor({ unlock.exists && unlock.isEnabled }, timeout: 15),
+                          "return \(round): locked, Face ID asked (cancelled)")
+            XCTAssertFalse(kickoff.exists, "return \(round): no transcript")
+            unlock.tap()
+            XCTAssertTrue(kickoff.waitForExistence(timeout: 10), "return \(round): Unlock opens it")
+        }
     }
 
     /// A recording started from outside while Feder is locked (the Lock Screen widget's link here; Control Center, the
@@ -424,9 +407,9 @@ final class AppLockTests: ScribeUITestCase {
 
     /// LocalAuthentication itself, without `-fakeAuthentication`: the iOS 27 simulator has Face ID (Features › Face ID
     /// in the Simulator's menu, which posts the same notifications as here). Enrolled, the launch shows the Face ID
-    /// sheet over the lock (Feder's icon on its blue); a matching face unlocks Feder. Also the real check without a
-    /// sheet at the launch (`checkWithoutPrompt`), which finds no Face ID unlock of the iPhone and must not hold up the
-    /// sheet.
+    /// sheet over the lock (Feder's icon on its blue); a matching face unlocks Feder. Left right after that and back,
+    /// the real sheet asks again (a scan a moment ago doesn't count), and a match opens Feder again. A match without
+    /// a sheet up does nothing, so each opening shows the sheet was there.
     @MainActor
     func testRealFaceIDUnlocks() throws {
         #if targetEnvironment(simulator)
@@ -434,16 +417,24 @@ final class AppLockTests: ScribeUITestCase {
         notify_post("com.apple.BiometricKit.enrollmentChanged")
         #endif
         let app = launch(["-appLockOn"], waitsForList: false)
-        sleep(4)                                            // the Face ID sheet is up (SpringBoard's, not in the tree)
-        shot("Face ID", app)
-        XCTAssertFalse(app.staticTexts["Project Kickoff"].exists, "locked")
-        // While Face ID is asked only the icon shows (the rest is transparent, so nothing flashes as the cover drops);
-        // Unlock is in the tree but waits.
-        XCTAssertFalse(app.buttons["Unlock"].isEnabled, "Unlock waits while Face ID is asked")
-        #if targetEnvironment(simulator)
-        notify_post("com.apple.BiometricKit_Sim.pearl.match")
-        #endif
-        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 10), "a matching face unlocks")
+        let kickoff = app.staticTexts["Project Kickoff"]
+        for moment in ["launch", "return"] {
+            if moment == "return" {
+                XCUIDevice.shared.press(.home)
+                sleep(1)
+                app.activate()
+            }
+            sleep(4)                                        // the Face ID sheet is up (SpringBoard's, not in the tree)
+            shot("Face ID at the \(moment)", app)
+            XCTAssertFalse(kickoff.exists, "locked at the \(moment)")
+            // While Face ID is asked only the icon shows (the rest is transparent, so nothing flashes as the cover
+            // drops); Unlock is in the tree but waits.
+            XCTAssertFalse(app.buttons["Unlock"].isEnabled, "Unlock waits while Face ID is asked")
+            #if targetEnvironment(simulator)
+            notify_post("com.apple.BiometricKit_Sim.pearl.match")
+            #endif
+            XCTAssertTrue(kickoff.waitForExistence(timeout: 10), "a matching face unlocks at the \(moment)")
+        }
     }
 
     #if targetEnvironment(simulator)

@@ -24,7 +24,7 @@ import notify
 /// microphone and location alerts, Control Center and Notification Center all make the app inactive, so covering there
 /// would flash over the card at every system alert and loop with the lock's own prompt. The prompt comes by itself
 /// once per return (like Journal and banking apps); after a cancel the Unlock button stays, and nothing asks again by
-/// itself.
+/// itself. A locked Feder always asks: a Face ID unlock of the iPhone just before doesn't count (`evaluate`).
 ///
 /// A recording started from outside while locked (Control Center, the Action Button, Siri, the Lock Screen widget)
 /// starts at once behind the lock, whose view shows its time, level and Stop; Face ID is asked once it records, so the
@@ -78,18 +78,12 @@ final class AppLock {
     @ObservationIgnored private var retriedAfterInterruption = false
     /// Unlock requests so far: the automatic prompt, due a moment after the activation, checks nobody asked meanwhile.
     @ObservationIgnored private var requests = 0
-    /// The check without a sheet at a locked return (`checkWithoutPrompt`) until it answers: a prompt waits for it.
-    @ObservationIgnored private var quietCheck: Task<Void, Never>?
     /// How often Feder was left: an answer from LocalAuthentication that arrives after Feder was left belongs to a
-    /// foreground that is over (`checkWithoutPrompt`, `authenticate`).
+    /// foreground that is over (`authenticate`).
     @ObservationIgnored private var departures = 0
     #if DEBUG && targetEnvironment(simulator)
     /// `-fakeAuthentication success,cancel,…`: the answers in order (the last one repeats), without LocalAuthentication.
     @ObservationIgnored private var fakeOutcomes: [Outcome]?
-    /// `-fakeQuietUnlock`: the check without a sheet succeeds, as within 10 s of unlocking the iPhone with Face ID.
-    @ObservationIgnored private var fakesQuietUnlock = false
-    /// `-fakeQuietUnlockDelay <seconds>`: and answers that much later, so a test can leave Feder before it does.
-    @ObservationIgnored private var fakeQuietDelay = Duration.zero
     #endif
 
     private enum Outcome {
@@ -130,11 +124,9 @@ final class AppLock {
     // MARK: Events
 
     /// Covered before the app switcher's snapshot; locked at once unless a grace period was chosen. The keyboard goes:
-    /// its window sits above the lock's, and its suggestions can show typed words. A check without a sheet still
-    /// running is dropped, so the next return asks afresh.
+    /// its window sits above the lock's, and its suggestions can show typed words.
     private func enteredBackground() {
         departures += 1
-        quietCheck = nil
         guard Self.isEnabled else { return }
         leftAt = .now
         if Self.grace == .zero { isLocked = true } else if !isLocked { stayAwake() }
@@ -199,35 +191,11 @@ final class AppLock {
         if isLocked {
             promptDue = true
             showsPrompt = false                         // a prompt interrupted by leaving set it meanwhile
-            checkWithoutPrompt()
         } else {
             // Until the uncovered frame (README › Performance); only here: a locked return's cover waits for Face ID.
             InteractionTrace.begin("return")
             uncover()
             InteractionTrace.shown("return")
-        }
-    }
-
-    /// The iPhone was unlocked with Face ID or Touch ID less than 10 s ago (the reuse window `evaluate` allows anyway):
-    /// LocalAuthentication then answers without a sheet, so it is asked at once, as the return begins, without one
-    /// (`interactionNotAllowed`: `notInteractive` where a sheet would be needed), and Feder opens. The prompt would get
-    /// the same answer only after the activation (the end of the system's animation) and its 0.3 s wait, with the cover
-    /// up meanwhile for a sheet that never comes. Nothing shows, so nothing counts as asked; the prompt (and Unlock)
-    /// wait for its answer, so two evaluations never overlap. Whether LocalAuthentication answers before the scene is
-    /// active is unverified on an iPhone (if it doesn't, this changes nothing).
-    ///
-    /// It runs during the system's opening animation, when a flick home is still easy, and leaving cancels no sheet
-    /// here: an answer after Feder was left is dropped. Opening then would uncover Feder in the background (perhaps
-    /// before iOS takes the app switcher's snapshot), and the next return, finding no cover, would skip the lock.
-    private func checkWithoutPrompt() {
-        guard quietCheck == nil, !isAuthenticating else { return }
-        let foreground = departures
-        quietCheck = Task {
-            let opens = await evaluateWithoutPrompt(reason: String(localized: "Unlock your transcripts."))
-            guard departures == foreground else { return }  // `enteredBackground` dropped it already
-            quietCheck = nil
-            guard UIApplication.shared.applicationState != .background else { return }   // only in front
-            if opens, isLocked, !isAuthenticating { open() }
         }
     }
 
@@ -248,7 +216,6 @@ final class AppLock {
             // Control Center's and the Action Button's intent is performed after Feder came to the foreground; unverified
             // how long after on an iPhone (README › App Lock).
             try? await Task.sleep(for: .milliseconds(300))
-            await quietCheck?.value                     // opened without a sheet: nothing to ask
             // Not if a recording that reached `.recording` meanwhile has already asked (and was perhaps cancelled).
             guard isLocked, !isAuthenticating, requests == asked else { return }
             guard UIApplication.shared.applicationState == .active else { promptDue = true; return }
@@ -300,7 +267,6 @@ final class AppLock {
     }
 
     private func authenticate() async {
-        await quietCheck?.value                         // the check without a sheet first (`checkWithoutPrompt`)
         guard isLocked, !isAuthenticating else { return }
         isAuthenticating = true
         requests += 1
@@ -313,8 +279,9 @@ final class AppLock {
         let foreground = departures
         var outcome = await evaluate(reason: String(localized: "Unlock your transcripts."))
         isAuthenticating = false
-        // Feder was left meanwhile: leaving cancels the sheet, but within the 10 s reuse window a success needs none, and
-        // opening now would leave Feder uncovered in the background (`checkWithoutPrompt`). Asked again instead.
+        // Feder was left meanwhile: leaving cancels the sheet, but a face recognized as Feder was left can still answer
+        // with a success, and opening now would leave Feder uncovered in the background (perhaps before iOS takes the
+        // app switcher's snapshot); the next return, finding no cover, would skip the lock. Asked again instead.
         if outcome == .success, departures != foreground || UIApplication.shared.applicationState == .background {
             outcome = .interrupted
         }
@@ -348,7 +315,7 @@ final class AppLock {
     private func open() {
         isLocked = false
         showsPrompt = false
-        promptDue = false                               // opened before the activation (`checkWithoutPrompt`)
+        promptDue = false                               // opened before the activation (`passcodeRemoved`)
         waitsForRecording = false
         uncover()
     }
@@ -377,10 +344,14 @@ final class AppLock {
 
     // MARK: LocalAuthentication
 
-    /// One evaluation in a fresh context. A Face ID or Touch ID unlock of the iPhone's Lock Screen within the last 10 s
-    /// counts (`touchIDAuthenticationAllowableReuseDuration`, which covers Face ID too), so a recording started from a
-    /// locked iPhone (Control Center, the Action Button, the Lock Screen widget, the Live Activity) needs one scan, not
-    /// two. 0 would be the strictest; someone handed the phone within those 10 s gets in without a scan.
+    /// One evaluation in a fresh context, which always asks: a Face ID or Touch ID unlock of the iPhone itself doesn't
+    /// count (`touchIDAuthenticationAllowableReuseDuration`, which covers Face ID too, stays at its default 0). It was
+    /// 10 s, so that a recording started from a locked iPhone needed one scan, not two, and a check without a sheet as
+    /// each locked return began opened Feder within those 10 s. On the iPhone that made Lock: Immediately look broken
+    /// (FED-13): reopened right after unlocking the iPhone, Feder opened without asking, and only the second or third
+    /// try, past the 10 s, found it locked. The cost: a recording started from a locked iPhone (Control Center, the
+    /// Action Button, the Lock Screen widget, the Live Activity) scans twice, once for the iPhone and once more for
+    /// Feder when it shows. A grace period is the user's own way not to be asked again soon.
     private func evaluate(reason: String) async -> Outcome {
         #if DEBUG && targetEnvironment(simulator)
         if var fakes = fakeOutcomes, let next = fakes.first {
@@ -391,7 +362,6 @@ final class AppLock {
         }
         #endif
         let context = LAContext()
-        context.touchIDAuthenticationAllowableReuseDuration = 10
         do {
             let success = try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)
             return success ? .success : .refused
@@ -404,27 +374,6 @@ final class AppLock {
         } catch {
             return .refused
         }
-    }
-
-    /// `checkWithoutPrompt`: the same evaluation, but one that would need a sheet fails instead (`notInteractive`).
-    private func evaluateWithoutPrompt(reason: String) async -> Bool {
-        #if DEBUG && targetEnvironment(simulator)
-        if fakesQuietUnlock {
-            if fakeQuietDelay > .zero {
-                // Feder keeps running meanwhile, as for the moment LocalAuthentication takes after it was left: iOS
-                // would suspend it within seconds, and the answer would come only at the return.
-                let running = UIApplication.shared.beginBackgroundTask(withName: "Fake check without a sheet")
-                try? await Task.sleep(for: fakeQuietDelay)
-                UIApplication.shared.endBackgroundTask(running)
-            }
-            return true
-        }
-        if fakeOutcomes != nil { return false }        // the tests' answers stay in order
-        #endif
-        let context = LAContext()
-        context.touchIDAuthenticationAllowableReuseDuration = 10
-        context.interactionNotAllowed = true
-        return (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)) ?? false
     }
 
     /// Launch and every return: Face ID, Touch ID or only the passcode, and whether a passcode is set. Without one
@@ -480,14 +429,10 @@ final class AppLock {
     /// success|failure|cancel|nopasscode[,…]`: the answers, 0.3 s each, instead of LocalAuthentication, whose sheets a
     /// test can't answer predictably (the iOS 27 simulator has real ones: Face ID once enrolled in Features › Face ID,
     /// otherwise a passcode sheet); `nopasscode` as if the passcode had been removed, while each return's check finds
-    /// one again (as after setting a new one). `-fakeQuietUnlock`: the check without a sheet at a locked launch or
-    /// return opens Feder (`checkWithoutPrompt`), which the simulator can't do (no Face ID unlock of its Lock Screen);
-    /// `-fakeQuietUnlockDelay <seconds>` delays its answer.
+    /// one again (as after setting a new one).
     private func applyTestHooks() {
         let arguments = ProcessInfo.processInfo.arguments
         let defaults = UserDefaults.standard
-        fakesQuietUnlock = arguments.contains("-fakeQuietUnlock")
-        fakeQuietDelay = .seconds(defaults.double(forKey: "fakeQuietUnlockDelay"))
         if arguments.contains("-appLockOn") {
             defaults.set(true, forKey: Self.enabledKey)
             defaults.removeObject(forKey: Self.graceKey)    // a test's grace period comes as `-appLockGrace`
