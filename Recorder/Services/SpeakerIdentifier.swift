@@ -874,9 +874,13 @@ final class SpeakerIdentifier {
                TranscriptTitler.isDefaultName(recording.name) || recording.name == recording.automaticTitle {
                 recording.name = title
                 recording.automaticTitle = title
-            } else if let title = description.title, recording.calendarTitleOffer == .taken {
+            } else if let title = description.title, recording.calendarTitleOffer == .taken,
+                      title.compare(recording.name, options: [.caseInsensitive, .diacriticInsensitive]) != .orderedSame {
                 // Kept aside: the calendar row's ⊗ gives the transcript this title instead of "New Transcript N",
-                // which Gemma, done by then, would never replace (Recording.dismissCalendarTitle).
+                // which Gemma, done by then, would never replace (Recording.dismissCalendarTitle). Not when it is the
+                // meeting's name in Gemma's words: the taken name would then read as Gemma's own title (equal to
+                // `automaticTitle`), which a better model's next title replaces and person pages count as a topic;
+                // ⊗ gives "New Transcript N" back then, as when Gemma wrote none.
                 recording.automaticTitle = title
             }
         }

@@ -204,7 +204,8 @@ final class Recording {
     }
 
     /// The row's ⊗: before Use as Title it only hides the offer; after it, the name goes back to the app's own (Gemma's
-    /// title when it wrote one meanwhile, SpeakerIdentifier.describe, else the name the event's replaced). For good.
+    /// title when it wrote one meanwhile, SpeakerIdentifier.describe, not the meeting's own words, else the name the
+    /// event's replaced). For good.
     func dismissCalendarTitle() {
         if calendarTitleOffer == .taken, let before = automaticTitle ?? nameBeforeCalendarTitle { name = before }
         nameBeforeCalendarTitle = nil

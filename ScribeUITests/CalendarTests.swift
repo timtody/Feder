@@ -155,6 +155,36 @@ final class CalendarTests: ScribeUITestCase {
         deleteOpenTranscript(app)
     }
 
+    /// The meeting's name taken while recording that Gemma then chooses as its title too (an event named like the fake
+    /// Gemma's "Live Transcript Test"): the name stays, and Gemma's same words are not kept aside as its title, where
+    /// the taken name would count as Gemma's own (a better model's title would replace it, person pages would take it
+    /// as a topic). So ⊗ gives "New Transcript N" back, as when Gemma wrote no title.
+    @MainActor
+    func testGemmaChoosingTheTakenNameKeepsNothingAside() throws {
+        let app = launch(["-calendarContext", "YES", "-fakeCalendarEvent", "Live Transcript Test", "-fakeGemma",
+                          "-resetVoiceRecognition"])
+        startRecording(app)
+        let row = calendarRow(app)
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "the event is offered")
+        let before = recordingTitle(app).label
+        XCTAssertTrue(before.hasPrefix("New Transcript "), before)
+        app.buttons["UseCalendarTitle"].tap()
+        XCTAssertTrue(waitFor(timeout: 2) { self.recordingTitle(app).label == "Live Transcript Test" },
+                      "named after the event")
+        sleep(5)
+        app.buttons["Stop"].firstMatch.tap()
+
+        let field = app.textFields["Title"]
+        XCTAssertTrue(field.waitForExistence(timeout: 15), "the transcript in the card")
+        XCTAssertTrue(app.buttons["Summary"].waitForExistence(timeout: 40), "the summary is written")
+        XCTAssertEqual(field.value as? String, "Live Transcript Test", "the taken name stays")
+        XCTAssertTrue(waitFor { row.exists && row.label == "From your calendar" }, "still taken")
+        app.buttons["DismissCalendarTitle"].tap()
+        XCTAssertTrue(waitFor { (field.value as? String) == before }, "⊗ gives \(before) back")
+        XCTAssertTrue(row.waitForNonExistence(timeout: 5), "and the row goes")
+        deleteOpenTranscript(app)
+    }
+
     /// Project Kickoff as if started during "Kickoff Meeting" (`-seedInvitees`): the transcript offers it under the date
     /// line, above the AI notice. Use as Title names it so, also in the list; ⊗ then gives "Project Kickoff" back and the
     /// row goes for good. Launched again (the seed is fresh): ⊗ alone hides the offer for good, and typing a title takes
