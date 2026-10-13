@@ -79,6 +79,17 @@ final class BetterSummaries {
         }
     }
 
+    /// Gemma will write the summaries of new transcripts: supported, switched on, and downloaded or on its way (a
+    /// transcript's summary follows within the three days of `SpeakerIdentifier.gemmaLookBack`). Where the summary
+    /// styles are offered before there is a summary: the recording card's disc, Settings' Styles for Tags (FED-15).
+    var writesSummaries: Bool {
+        guard Self.isSupported, isEnabled else { return false }
+        switch state {
+        case .ready, .downloading, .waitingForWiFi: return true
+        case .notDownloaded, .failed: return false
+        }
+    }
+
     /// The model to write with: downloaded, turned on, supported. nil = Apple's model.
     var activeModel: (any TextWriter)? {
         guard Self.isSupported, isEnabled, state == .ready else { return nil }

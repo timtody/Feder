@@ -297,17 +297,16 @@ struct RecordView: View {
                 }
             }
             .opacity(opacity)
-            // The bookmark on the Stop's left (as in the Live Activity: away from Stop, FED-14), a stand-in of its size
-            // on the right, so the Stop stays centred where the melt expects it.
+            // The bookmark on the Stop's left (as in the Live Activity: away from Stop, FED-14), the summary style on
+            // its right (FED-15), or a stand-in of its size, so the Stop stays centred where the melt expects it.
             HStack(spacing: 28) {
                 bookmarkControl
                     .opacity(opacity)
                 // Melting: gone in the frame the melt's identical glass appears, not faded out over it.
                 stopControl
                     .opacity(melts ? (turning ? 0 : 1) : opacity)
-                BookmarkButtonLabel(count: 0)
-                    .hidden()
-                    .accessibilityHidden(true)
+                styleControl
+                    .opacity(opacity)
             }
         }
         .padding(.bottom, 12)
@@ -354,7 +353,7 @@ struct RecordView: View {
                 if session.addBookmark() { bookmarkPresses += 1 }
                 InteractionTrace.shown("bookmark")
             } label: {
-                BookmarkButtonLabel(count: count)
+                SideDiscLabel(bookmarks: count)
             }
             .buttonStyle(.plain)
             .disabled(!isRecording)
@@ -365,10 +364,55 @@ struct RecordView: View {
             .accessibilityIdentifier("AddBookmark")
             .sensoryFeedback(.impact(weight: .medium), trigger: bookmarkPresses)
         } else {
-            BookmarkButtonLabel(count: 0)
+            SideDiscLabel(bookmarks: 0)
                 .hidden()
         }
     }
+
+    /// The summary's style (FED-15): a disc like the bookmark's with the chosen style's symbol, opening the system menu
+    /// of the five styles; saved with the transcript (RecordingSession.summaryStyle), and Gemma writes the summary so
+    /// after Stop. Only where Gemma can write one (an 8 GB iPhone, switched on, downloaded or on its way: the summary
+    /// follows within three days); elsewhere a hidden stand-in of its size keeps the Stop centred. Choosing only sets
+    /// the session's property.
+    @ViewBuilder
+    private var styleControl: some View {
+        if showsStyleControl, isRecording || turning {
+            let style = session.summaryStyle ?? .brief
+            Menu {
+                Picker(selection: Binding(get: { session.summaryStyle ?? .brief },
+                                          set: { session.summaryStyle = $0 })) {
+                    ForEach(SummaryStyle.allCases) { option in
+                        Label {
+                            Text(option.name)
+                            Text(option.detail)
+                        } icon: {
+                            Image(systemName: option.symbol)
+                        }
+                        .tag(option)
+                    }
+                } label: {
+                    Text("Summary Style")
+                }
+                .pickerStyle(.inline)
+            } label: {
+                SideDiscLabel(symbol: style.symbol)
+            }
+            .menuOrder(.fixed)                         // opening upwards, the menu keeps the styles' order
+            .buttonStyle(.plain)
+            .disabled(!isRecording)
+            .allowsHitTesting(!turning)
+            .accessibilityHidden(turning)
+            .accessibilityLabel("Summary Style")
+            .accessibilityValue(Text(style.name))
+            .accessibilityIdentifier("SummaryStyleControl")
+        } else {
+            SideDiscLabel(bookmarks: 0)
+                .hidden()
+                .accessibilityHidden(true)
+        }
+    }
+
+    private var showsStyleControl: Bool { services.betterSummaries.writesSummaries }
 
     // MARK: Transcript
 
@@ -463,10 +507,22 @@ struct RecordView: View {
 }
 #endif
 
-/// The recording card's bookmark button: a smaller glass disc than the Stop's, the bookmark filled once there is one,
-/// its count in a badge.
-private struct BookmarkButtonLabel: View {
-    let count: Int
+/// The recording card's discs beside the Stop, smaller glass discs than the Stop's: the bookmark (filled once there
+/// is one, its count in a badge) and the summary style (its symbol).
+private struct SideDiscLabel: View {
+    var symbol: String
+    var tinted = false
+    var count = 0
+
+    init(bookmarks count: Int) {
+        symbol = count > 0 ? "bookmark.fill" : "bookmark"
+        tinted = count > 0
+        self.count = count
+    }
+
+    init(symbol: String) {
+        self.symbol = symbol
+    }
 
     @ScaledMetric(relativeTo: .title) private var size: CGFloat = 52
 
@@ -474,9 +530,9 @@ private struct BookmarkButtonLabel: View {
         ZStack {
             Color.clear
                 .glassEffect(.regular.interactive(), in: Circle())
-            Image(systemName: count > 0 ? "bookmark.fill" : "bookmark")
+            Image(systemName: symbol)
                 .font(.title3.weight(.semibold))
-                .foregroundStyle(count > 0 ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+                .foregroundStyle(tinted ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
                 .contentTransition(.symbolEffect(.replace))
         }
         .frame(width: size, height: size)

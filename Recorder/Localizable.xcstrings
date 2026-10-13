@@ -512,6 +512,26 @@
         }
       }
     },
+    "Brief": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kurz"
+          }
+        }
+      }
+    },
+    "Bullet Points": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stichpunkte"
+          }
+        }
+      }
+    },
     "Calendar event “%@”": {
       "localizations": {
         "de": {
@@ -728,6 +748,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aktueller Treffer"
+          }
+        }
+      }
+    },
+    "Decisions, to-dos, open questions": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entscheidungen, Aufgaben, offene Fragen"
           }
         }
       }
@@ -1462,6 +1492,16 @@
         }
       }
     },
+    "Interview": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interview"
+          }
+        }
+      }
+    },
     "Invited": {
       "localizations": {
         "de": {
@@ -1498,6 +1538,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "In der iPhone-Suche behalten"
+          }
+        }
+      }
+    },
+    "Key ideas": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kernaussagen"
           }
         }
       }
@@ -1558,6 +1608,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stand: %@"
+          }
+        }
+      }
+    },
+    "Lecture": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vortrag"
           }
         }
       }
@@ -1698,6 +1758,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Treffer %1$lld von %2$lld"
+          }
+        }
+      }
+    },
+    "Meeting": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Besprechung"
           }
         }
       }
@@ -2385,6 +2455,16 @@
         }
       }
     },
+    "Questions and answers": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fragen und Antworten"
+          }
+        }
+      }
+    },
     "Recognize People by Voice": {
       "localizations": {
         "de": {
@@ -3015,6 +3095,16 @@
         }
       }
     },
+    "Summary Style": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stil der Zusammenfassung"
+          }
+        }
+      }
+    },
     "Summary being written": {
       "localizations": {
         "de": {
@@ -3111,6 +3201,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Text"
+          }
+        }
+      }
+    },
+    "The content as a list": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Inhalt als Liste"
           }
         }
       }
@@ -3501,6 +3601,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Beim Ausschalten werden die Stimmprofile deiner Personen und der Sprecher in deinen Transkripten gelöscht. Die Namen bleiben. Wieder eingeschaltet, wirkt es ab der nächsten Aufnahme."
+          }
+        }
+      }
+    },
+    "Two or three sentences": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zwei oder drei Sätze"
           }
         }
       }
