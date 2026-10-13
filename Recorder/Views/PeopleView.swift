@@ -67,7 +67,8 @@ struct PeopleView: View {
 
     private func summary(_ person: Person, transcripts count: Int) -> String {
         // AttributedString applies the inflection ("1 transcript", "2 transcripts"); a String(localized:) of the same key
-        // showed the markup itself ("^[2 transcript](inflect: true)").
+        // showed the markup itself ("^[2 transcript](inflect: true)"). German has a plural variation in the catalog
+        // instead, as the person page's header does: iOS 27 left "^[3 Transkript](inflect: true)" as "3 Transkript".
         let transcripts = String(AttributedString(localized: "^[\(count) transcript](inflect: true)").characters)
         return person.fingerprint.isEmpty && recognizesVoices ? String(localized: "\(transcripts) · voice not known yet") : transcripts
     }

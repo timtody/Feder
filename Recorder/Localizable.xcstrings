@@ -3960,9 +3960,21 @@
     "^[%lld transcript](inflect: true)": {
       "localizations": {
         "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "^[%lld Transkript](inflect: true)"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Transkript"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Transkripte"
+                }
+              }
+            }
           }
         }
       }
