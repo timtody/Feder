@@ -584,15 +584,17 @@ final class CalendarTests: ScribeUITestCase {
     }
 
     /// A subscribed calendar (the fake's "Outlook": an Outlook calendar published as a link, read-only, whose events
-    /// don't mark the user) is on Preferred Calendar's page, last, under Subscribed Calendars, and counts only once it is
-    /// chosen there: with None the closer "Standup" in Work is offered, not "Client Call" in Outlook; with Outlook
-    /// chosen, "Client Call" is. Someone else's event in a calendar the user can only read counts the same way:
-    /// "Therapy" (shared with the user in Home) is offered once Home is chosen. None again at the end.
+    /// don't mark the user: `others`, no organizer, no attendees) is on Preferred Calendar's page, last, under Subscribed
+    /// Calendars, and counts only once it is chosen there. Someone else's event in a calendar the user can only read
+    /// counts the same way ("Therapy", shared with the user in Home). "Client Call" and "Therapy" started closer to the
+    /// press than "Planning" in Work and, without attendees, rank like the user's own, so with None either would be
+    /// offered if it counted unchosen: Planning is. With Outlook chosen "Client Call" is offered, with Home chosen
+    /// "Therapy". None again at the end.
     @MainActor
     func testSubscribedCalendarCountsWhenPreferred() throws {
         let app = launch(["-resetCalendar", "-calendarContext", "YES", "-fakeCalendarEvent",
-                          "Client Call@-30+90!cal=Outlook;Therapy@-20+60!shared;Standup@-1+15!cal=Work", "-fakeSilence"])
-        record(named: "Standup", not: ["Client Call", "Therapy"], app)
+                          "Client Call@-1+60!cal=Outlook,others;Therapy@-2+60!shared;Planning@-30+90!cal=Work", "-fakeSilence"])
+        record(named: "Planning", not: ["Client Call", "Therapy"], app)
 
         app.buttons["Settings"].firstMatch.tap()
         let row = preferredRow(app)
@@ -609,10 +611,10 @@ final class CalendarTests: ScribeUITestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 5), "back in Settings")
         XCTAssertTrue(waitFor { self.shown(row).contains("Outlook") }, "Outlook chosen: \(shown(row))")
         shot("Preferred Calendar: Outlook", app)
-        record(named: "Client Call", not: ["Standup", "Therapy"], app)
+        record(named: "Client Call", not: ["Planning", "Therapy"], app)
 
         choose("Home", row, app)
-        record(named: "Therapy", not: ["Standup", "Client Call"], app)
+        record(named: "Therapy", not: ["Planning", "Client Call"], app)
         choose("None", row, app)
     }
 
