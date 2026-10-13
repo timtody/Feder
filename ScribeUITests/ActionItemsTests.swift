@@ -225,19 +225,30 @@ final class ActionItemsTests: ScribeUITestCase {
         XCTAssertTrue(waitFor({ !back.isHittable }, timeout: 10), "the editor covers the sheet")
         sleep(4)                                                // the remote editor draws its content
         screenShot("New Event editor")
-        close.tap()
-        XCTAssertTrue(waitFor({ back.isHittable }, timeout: 10), "the close button closes it")
+        XCTAssertTrue(tapEditor(close, until: back), "the close button closes it")
         XCTAssertFalse(item(0, app).label.contains("In Calendar"), "cancelled: not added: \(item(0, app).label)")
 
         choose("Add to Calendar", forItem: 0, app)
         XCTAssertTrue(waitFor({ !back.isHittable }, timeout: 10), "the editor again")
         sleep(4)
-        confirm.tap()
-        XCTAssertTrue(waitFor({ back.isHittable }, timeout: 10), "Add closes it")
+        XCTAssertTrue(tapEditor(confirm, until: back), "Add closes it")
         XCTAssertTrue(waitFor({ self.item(0, app).label.contains("In Calendar") }, timeout: 10),
                       "added: \(item(0, app).label)")
         XCTAssertFalse(item(1, app).label.contains("In Calendar"), "only that one")
         shot("Added to Calendar", app)
+    }
+
+    /// Taps a point of the out-of-process New Event editor, again every 5 s while the editor stays up (the sheet's
+    /// `back` covered): in a parallel run on a freshly cloned simulator the editor was still blank 4 s after it came up,
+    /// and one tap hit nothing (2026-10-13). 5 s apart, so a tap that worked has closed it before the next could land on
+    /// the sheet.
+    @MainActor
+    private func tapEditor(_ point: XCUICoordinate, until back: XCUIElement) -> Bool {
+        for _ in 0..<4 {
+            point.tap()
+            if waitFor({ back.isHittable }, timeout: 5) { return true }
+        }
+        return false
     }
 
     /// The whole screen (the out-of-process editor shows in it, not in `app.screenshot()`).
