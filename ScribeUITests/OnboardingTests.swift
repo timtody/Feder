@@ -7,7 +7,7 @@ import XCTest
 /// someone who saw the Gemma-only page this replaced, and earlier runs stored that); `-fakeParakeetDownload` offers Parakeet and simulates its
 /// download; `-fakeNemotronDownload` pretends Nemotron isn't there and downloads it; NetworkPath's fakes set the
 /// network: `-fakeNoWiFi` (cellular), `-fakeOffline`, `-fakeLowData`, and `-fakeWiFiAfter <s>` joins Wi-Fi after that
-/// many seconds.
+/// many seconds; without one of them ScribeUITestCase passes `-fakeWiFi`, so the Mac's network doesn't count.
 final class OnboardingTests: ScribeUITestCase {
     /// A new install: Welcome (with the download sizes; can't be swiped away), Before You Record (with the privacy
     /// policy), Recognize People by Voice (biometric data, off until turned on), Find Transcripts in iPhone Search

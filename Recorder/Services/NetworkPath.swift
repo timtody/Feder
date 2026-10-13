@@ -68,12 +68,16 @@ final class NetworkPath {
 
     #if DEBUG && targetEnvironment(simulator)
     /// Simulator QA: `-fakeNoWiFi` (cellular), `-fakeLowData`, `-fakeOffline`; `-fakeWiFiAfter <s>` then switches to
-    /// Wi-Fi after that many seconds, as if the phone joined a Wi-Fi network while the app is open.
+    /// Wi-Fi after that many seconds, as if the phone joined a Wi-Fi network while the app is open. `-fakeWiFi` (the UI
+    /// tests' default, the others win over it): Wi-Fi whatever the Mac is on. The simulator shares the Mac's network, and
+    /// a Mac on an iPhone's Personal Hotspot (expensive, and constrained with Low Data Mode) kept every fake download
+    /// "Waiting for Wi-Fi" or "Low Data Mode", so the tests expecting one to run failed (2026-10-13).
     private static var fakeKind: Kind? {
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("-fakeOffline") { return .offline }
         if arguments.contains("-fakeLowData") { return .lowData }
         if arguments.contains("-fakeNoWiFi") { return .cellular }
+        if arguments.contains("-fakeWiFi") { return .wifi }
         return nil
     }
 

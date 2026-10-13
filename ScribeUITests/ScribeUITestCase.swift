@@ -36,8 +36,12 @@ class ScribeUITestCase: XCTestCase {
         // App Lock is off unless a test turns it on (`-appLockOn`): a test that turned it on in Settings would otherwise
         // leave every later one locked.
         let lock = arguments.contains("-appLockOn") ? [] : ["-resetAppLock"]
+        // On Wi-Fi unless a test picks another network (NetworkPath's fakes): the simulator shares the Mac's network, and
+        // a Mac on a Personal Hotspot or in Low Data Mode kept the fake downloads waiting for Wi-Fi.
+        let network = ["-fakeNoWiFi", "-fakeOffline", "-fakeLowData"].contains(where: arguments.contains) ? [] : ["-fakeWiFi"]
         // No tag has a summary style (FED-15): one a test set in Settings would restyle the next test's summaries.
-        app.launchArguments = ["-seedSamples", "-resetSummaryStyles"] + language + onboarding + voices + lock + arguments
+        app.launchArguments = ["-seedSamples", "-resetSummaryStyles"] + language + onboarding + voices + lock + network
+            + arguments
         app.launch()
         if waitsForList {
             XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15), "the seeded transcripts are listed")
