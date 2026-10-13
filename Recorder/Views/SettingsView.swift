@@ -131,6 +131,7 @@ struct SettingsView: View {
                 case .transcription: TranscriptionModelView()
                 case .speakers: SpeakerModelView()
                 case .summaries: SummariesModelView()
+                case .summaryStyles: SummaryStylesView()
                 case .vocabulary: VocabularyView()
                 case .privacy: LegalTextView(document: .privacy)
                 case .legalNotice: LegalTextView(document: .legalNotice)
@@ -384,6 +385,8 @@ struct SpeakerModelView: View {
 /// October 2026; its results were too weak). Its download, the on/off switch and Delete.
 struct SummariesModelView: View {
     @Environment(AppServices.self) private var services
+    /// How many tags have a summary style (read again when the page comes back from Styles for Tags).
+    @State private var styledTags = SummaryStyles.count
 
     var body: some View {
         @Bindable var better = services.betterSummaries
@@ -428,9 +431,20 @@ struct SummariesModelView: View {
                      ? "Google's Gemma 4 E2B writes a title and a short summary of every new transcript, on this iPhone: it reads a whole meeting at once and keeps who said what. When you tap Action Items in a transcript, it lists them. It needs a one-time 3.6 GB download over Wi-Fi, which goes on in the background, also when Feder is closed. Transcripts from the last three days get a summary too; titles you typed stay."
                      : "Automatic titles and summaries need an iPhone with at least 8 GB of memory.")
             }
+            // The summary styles (FED-15), only where Gemma writes summaries.
+            if better.writesSummaries {
+                Section {
+                    NavigationLink(value: SettingsRoute.summaryStyles) {
+                        LabeledContent("Styles for Tags", value: styledTags > 0 ? String(styledTags) : "")
+                    }
+                } footer: {
+                    Text("Choose how a summary is written while recording, or in the summary itself. A tag can have its own style.")
+                }
+            }
         }
         .navigationTitle("Summaries")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { styledTags = SummaryStyles.count }
     }
 }
 
@@ -489,5 +503,5 @@ struct VocabularyView: View {
 #endif
 
 enum SettingsRoute: Hashable {
-    case people, transcription, speakers, summaries, vocabulary, privacy, legalNotice, acknowledgements
+    case people, transcription, speakers, summaries, summaryStyles, vocabulary, privacy, legalNotice, acknowledgements
 }

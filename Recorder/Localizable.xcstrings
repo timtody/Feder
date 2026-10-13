@@ -139,6 +139,16 @@
         }
       }
     },
+    "A transcript with one of these tags gets its summary in that style: new transcripts, and one you add the tag to. A style you choose while recording or in the summary comes first.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Transkript mit einem dieser Tags bekommt seine Zusammenfassung in diesem Stil: neue Transkripte und eines, dem du den Tag gibst. Ein Stil, den du beim Aufnehmen oder in der Zusammenfassung wählst, geht vor."
+          }
+        }
+      }
+    },
     "A voice profile identifies a person. Turn this on only if the people you record agree.": {
       "localizations": {
         "de": {
@@ -285,6 +295,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Wort oder Namen hinzufügen"
+          }
+        }
+      }
+    },
+    "Add tags to your transcripts, then choose a summary style for each here.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gib deinen Transkripten Tags und wähle hier für jeden einen Stil der Zusammenfassung."
           }
         }
       }
@@ -618,6 +638,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vokabular wird geprüft …"
+          }
+        }
+      }
+    },
+    "Choose how a summary is written while recording, or in the summary itself. A tag can have its own style.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wie eine Zusammenfassung geschrieben wird, wählst du beim Aufnehmen oder in der Zusammenfassung selbst. Ein Tag kann einen eigenen Stil haben."
           }
         }
       }
@@ -2052,6 +2082,16 @@
         }
       }
     },
+    "No Tags": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Tags"
+          }
+        }
+      }
+    },
     "No Thanks": {
       "localizations": {
         "de": {
@@ -3041,6 +3081,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stil"
+          }
+        }
+      }
+    },
+    "Styles for Tags": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stile für Tags"
           }
         }
       }
