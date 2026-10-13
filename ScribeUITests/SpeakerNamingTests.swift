@@ -114,6 +114,30 @@ final class SpeakerNamingTests: ScribeUITestCase {
         shot("Default name", app)
     }
 
+    /// The people's captions count their transcripts, read after the sheet's first frame, 16 transcripts per turn
+    /// (FED-9). `-seedFiller 20`: twenty older transcripts come first (oldest first), so Budget Review, Lena Vogel's
+    /// only one, is in the second batch; a count that stops after a batch, or never arrives, fails here. Anna Schmidt,
+    /// the other speaker of Project Kickoff, reads "Already in this transcript" instead of a count.
+    @MainActor
+    func testRenameSheetCountsTranscripts() throws {
+        let app = launch(["-seedFiller", "20"])
+        open("Project Kickoff", in: app)
+        app.buttons["SpeakerHeader.1"].tap()                                  // Jonas Weber
+        let field = nameField(app)
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        let anna = app.buttons["PersonChoice.Anna Schmidt"]
+        XCTAssertTrue(anna.waitForExistence(timeout: 5))
+        XCTAssertTrue(anna.label.hasSuffix("Already in this transcript"), "speaker 0 here: no count, \(anna.label)")
+        field.typeText("Le")                                                   // Lena's row, wherever the list puts it
+        let lena = app.buttons["PersonChoice.Lena Vogel"]
+        XCTAssertTrue(lena.waitForExistence(timeout: 5))
+        let counted = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label ENDSWITH ' 1 transcript'"), object: lena)
+        XCTAssertEqual(XCTWaiter().wait(for: [counted], timeout: 5), .completed, "her one transcript, counted: \(lena.label)")
+        shot("Transcripts counted", app)
+        app.buttons["CancelRename"].tap()
+        XCTAssertTrue(field.waitForNonExistence(timeout: 5))
+    }
+
     /// Long-pressing a name row offers "Rename Speaker…" (the sheet for that speaker); long-pressing a paragraph keeps
     /// the system's text selection: its edit menu, whose Copy is pasted into the Add Tag field to check.
     @MainActor
