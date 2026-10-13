@@ -950,7 +950,7 @@ final class SpeakerIdentifier {
             let titler = titler
             description = try await betterSummaries.run { model in
                 try await titler.describe(paragraphs: paragraphs, locale: locale, writer: model, bookmarked: bookmarked,
-                                          style: style)
+                                          style: style, needsTitle: false)
             }
         } catch {
             // A recording started: again after it. RetryLater (the app left the foreground) and LocalModelFailed
@@ -959,7 +959,7 @@ final class SpeakerIdentifier {
             summaryRewrites[id] = nil
             if isRecording, !isGone(recording) {
                 summaryRewrites[id] = .afterRecording
-                waitingRewrites.append(request)
+                if !waitingRewrites.contains(where: { $0.id == id }) { waitingRewrites.append(request) }
             }
             return
         }
