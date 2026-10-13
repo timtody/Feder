@@ -126,6 +126,44 @@ final class AppLockTests: ScribeUITestCase {
         assertCard(app)
     }
 
+    /// Shake to undo still works after App Lock (FED-7): leaving resigns the first responder (the keyboard goes), so the
+    /// card's ShakeUndoResponder lets go, and only its window becoming key again at the unlock gives it back. Lost, a
+    /// shake found no UndoManager and did nothing while the toast still worked. After an assign, Home, back, Unlock: a
+    /// shake offers "Undo Speaker Changed" and Undo brings Project Kickoff's four turns back.
+    @MainActor
+    func testShakeUndoesAfterUnlock() throws {
+        let app = launch(["-appLockOn", "-fakeAuthentication", "success,cancel,success"], waitsForList: false)
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15), "unlocked at launch")
+        open("Project Kickoff", in: app)
+        let names = {
+            app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'SpeakerHeader.'")).allElementsBoundByIndex
+                .sorted { $0.frame.minY < $1.frame.minY }.map(\.label)
+        }
+        let four = ["Anna Schmidt", "Jonas Weber", "Anna Schmidt", "Jonas Weber"]
+        XCTAssertTrue(waitFor { names() == four }, "\(names())")
+        app.buttons["SpeakerHeader.1"].press(forDuration: 1.0)
+        let assign = app.buttons["Assign This Part To"]
+        XCTAssertTrue(assign.waitForExistence(timeout: 5))
+        assign.tap()
+        let anna = app.buttons["Anna Schmidt"].firstMatch
+        XCTAssertTrue(anna.waitForExistence(timeout: 5))
+        anna.tap()
+        XCTAssertTrue(waitFor { names() == ["Anna Schmidt", "Jonas Weber"] }, "assigned: \(names())")
+
+        XCUIDevice.shared.press(.home)
+        sleep(1)
+        app.activate()
+        let unlock = app.buttons["Unlock"]
+        XCTAssertTrue(waitFor({ unlock.exists && unlock.isEnabled }, timeout: 15), "locked on return (Face ID cancelled)")
+        unlock.tap()
+        XCTAssertTrue(app.textFields["Title"].waitForExistence(timeout: 10), "unlocked: the card")
+        let alert = try XCTUnwrap(shake(app), "a shake after the unlock offers the Undo")
+        XCTAssertEqual(alert.label, "Undo Speaker Changed")
+        shot("Shake after the unlock", app)
+        alert.buttons["Undo"].tap()
+        XCTAssertTrue(waitFor { names() == four }, "undone: \(names())")
+    }
+
     /// Leaving Feder covers it before iOS takes the app switcher's snapshot: the switcher shows the lock, not the card
     /// (the snapshot is an image: the shot is for the eye).
     @MainActor
