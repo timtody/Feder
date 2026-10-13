@@ -304,16 +304,30 @@ final class PersonPageTests: ScribeUITestCase {
         XCTAssertTrue(app.staticTexts["Lena Vogel"].exists, "the others stay")
     }
 
-    /// The page and the menu item in German.
+    /// The page, People's counts and the menu item in German. iOS 27 doesn't inflect German (FED-78: People read
+    /// "3 Transkript"), so the counts come from the catalog's plural variations: one and other both checked.
     @MainActor
     func testGermanPersonPage() throws {
         let app = launch(["-AppleLanguages", "(de)", "-AppleLocale", "de_DE", "-seedPersonTopics", "-showPerson", "Anna Schmidt"])
-        XCTAssertTrue(app.navigationBars["Anna Schmidt"].waitForExistence(timeout: 10))
+        let page = app.navigationBars["Anna Schmidt"]
+        XCTAssertTrue(page.waitForExistence(timeout: 10))
         let last = app.descendants(matching: .any)["LastConversation"]
         XCTAssertTrue(last.waitForExistence(timeout: 5) && last.label.contains("Letztes Gespräch"), last.label)
         XCTAssertTrue(app.staticTexts["Themen"].waitForExistence(timeout: 10), "the Topics header")
         XCTAssertTrue(app.staticTexts["3 Transkripte"].exists)
+        let finance = app.buttons["PersonTopic.finance"]
+        XCTAssertTrue(finance.exists)
+        XCTAssertEqual(finance.value as? String, "2 Transkripte", "the topic's VoiceOver value")
         shot("Person page in German", app)
+
+        page.buttons.firstMatch.tap()                                    // Back to People
+        XCTAssertTrue(app.navigationBars["Personen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["2 Transkripte"].waitForExistence(timeout: 5), "Jonas Weber")
+        XCTAssertTrue(app.staticTexts["3 Transkripte"].exists, "Anna Schmidt")
+        XCTAssertTrue(app.staticTexts["1 Transkript"].exists, "Lena Vogel")
+        shot("People in German", app)
+        app.staticTexts["Anna Schmidt"].tap()
+        XCTAssertTrue(page.waitForExistence(timeout: 5) && app.staticTexts["Budget Review"].waitForExistence(timeout: 5))
         app.staticTexts["Budget Review"].tap()
         XCTAssertTrue(app.buttons["SpeakerHeader.1"].waitForExistence(timeout: 10))
         app.buttons["SpeakerHeader.1"].press(forDuration: 1.0)
