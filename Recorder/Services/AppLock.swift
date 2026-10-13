@@ -80,11 +80,16 @@ final class AppLock {
     @ObservationIgnored private var requests = 0
     /// The check without a sheet at a locked return (`checkWithoutPrompt`) until it answers: a prompt waits for it.
     @ObservationIgnored private var quietCheck: Task<Void, Never>?
+    /// How often Feder was left: an answer from LocalAuthentication that arrives after Feder was left belongs to a
+    /// foreground that is over (`checkWithoutPrompt`, `authenticate`).
+    @ObservationIgnored private var departures = 0
     #if DEBUG && targetEnvironment(simulator)
     /// `-fakeAuthentication success,cancel,…`: the answers in order (the last one repeats), without LocalAuthentication.
     @ObservationIgnored private var fakeOutcomes: [Outcome]?
     /// `-fakeQuietUnlock`: the check without a sheet succeeds, as within 10 s of unlocking the iPhone with Face ID.
     @ObservationIgnored private var fakesQuietUnlock = false
+    /// `-fakeQuietUnlockDelay <seconds>`: and answers that much later, so a test can leave Feder before it does.
+    @ObservationIgnored private var fakeQuietDelay = Duration.zero
     #endif
 
     private enum Outcome {
@@ -125,8 +130,11 @@ final class AppLock {
     // MARK: Events
 
     /// Covered before the app switcher's snapshot; locked at once unless a grace period was chosen. The keyboard goes:
-    /// its window sits above the lock's, and its suggestions can show typed words.
+    /// its window sits above the lock's, and its suggestions can show typed words. A check without a sheet still
+    /// running is dropped, so the next return asks afresh.
     private func enteredBackground() {
+        departures += 1
+        quietCheck = nil
         guard Self.isEnabled else { return }
         leftAt = .now
         if Self.grace == .zero { isLocked = true } else if !isLocked { stayAwake() }
@@ -205,11 +213,18 @@ final class AppLock {
     /// up meanwhile for a sheet that never comes. Nothing shows, so nothing counts as asked; the prompt (and Unlock)
     /// wait for its answer, so two evaluations never overlap. Whether LocalAuthentication answers before the scene is
     /// active is unverified on an iPhone (if it doesn't, this changes nothing).
+    ///
+    /// It runs during the system's opening animation, when a flick home is still easy, and leaving cancels no sheet
+    /// here: an answer after Feder was left is dropped. Opening then would uncover Feder in the background (perhaps
+    /// before iOS takes the app switcher's snapshot), and the next return, finding no cover, would skip the lock.
     private func checkWithoutPrompt() {
         guard quietCheck == nil, !isAuthenticating else { return }
+        let foreground = departures
         quietCheck = Task {
             let opens = await evaluateWithoutPrompt(reason: String(localized: "Unlock your transcripts."))
+            guard departures == foreground else { return }  // `enteredBackground` dropped it already
             quietCheck = nil
+            guard UIApplication.shared.applicationState != .background else { return }   // only in front
             if opens, isLocked, !isAuthenticating { open() }
         }
     }
@@ -293,8 +308,14 @@ final class AppLock {
         promptDue = false
         waitsForRecording = false
         if recordingStarts { askedWhileStarting = true }
-        let outcome = await evaluate(reason: String(localized: "Unlock your transcripts."))
+        let foreground = departures
+        var outcome = await evaluate(reason: String(localized: "Unlock your transcripts."))
         isAuthenticating = false
+        // Feder was left meanwhile: leaving cancels the sheet, but within the 10 s reuse window a success needs none, and
+        // opening now would leave Feder uncovered in the background (`checkWithoutPrompt`). Asked again instead.
+        if outcome == .success, departures != foreground || UIApplication.shared.applicationState == .background {
+            outcome = .interrupted
+        }
         switch outcome {
         case .success:
             open()
@@ -387,7 +408,16 @@ final class AppLock {
     /// `checkWithoutPrompt`: the same evaluation, but one that would need a sheet fails instead (`notInteractive`).
     private func evaluateWithoutPrompt(reason: String) async -> Bool {
         #if DEBUG && targetEnvironment(simulator)
-        if fakesQuietUnlock { return true }
+        if fakesQuietUnlock {
+            if fakeQuietDelay > .zero {
+                // Feder keeps running meanwhile, as for the moment LocalAuthentication takes after it was left: iOS
+                // would suspend it within seconds, and the answer would come only at the return.
+                let running = UIApplication.shared.beginBackgroundTask(withName: "Fake check without a sheet")
+                try? await Task.sleep(for: fakeQuietDelay)
+                UIApplication.shared.endBackgroundTask(running)
+            }
+            return true
+        }
         if fakeOutcomes != nil { return false }        // the tests' answers stay in order
         #endif
         let context = LAContext()
@@ -450,11 +480,13 @@ final class AppLock {
     /// test can't answer predictably (the iOS 27 simulator has real ones: Face ID once enrolled in Features › Face ID,
     /// otherwise a passcode sheet); `nopasscode` as if the passcode had been removed, while each return's check finds
     /// one again (as after setting a new one). `-fakeQuietUnlock`: the check without a sheet at a locked launch or
-    /// return opens Feder (`checkWithoutPrompt`), which the simulator can't do (no Face ID unlock of its Lock Screen).
+    /// return opens Feder (`checkWithoutPrompt`), which the simulator can't do (no Face ID unlock of its Lock Screen);
+    /// `-fakeQuietUnlockDelay <seconds>` delays its answer.
     private func applyTestHooks() {
         let arguments = ProcessInfo.processInfo.arguments
         let defaults = UserDefaults.standard
         fakesQuietUnlock = arguments.contains("-fakeQuietUnlock")
+        fakeQuietDelay = .seconds(defaults.double(forKey: "fakeQuietUnlockDelay"))
         if arguments.contains("-appLockOn") {
             defaults.set(true, forKey: Self.enabledKey)
             defaults.removeObject(forKey: Self.graceKey)    // a test's grace period comes as `-appLockGrace`

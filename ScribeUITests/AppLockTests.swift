@@ -193,6 +193,28 @@ final class AppLockTests: ScribeUITestCase {
         XCTAssertTrue(isOnScreen(transcribe(app), app))
     }
 
+    /// Feder left while that check still answers (a flick home during the opening animation, where it runs;
+    /// `-fakeQuietUnlockDelay` holds the answer back 6 s): the answer belongs to a return that is over and is dropped.
+    /// Opening then would leave Feder uncovered in the background, and the next return, perhaps hours later in someone
+    /// else's hands, would skip the lock. Back, Feder is still covered, and the return's own check opens it.
+    @MainActor
+    func testLeavingBeforeTheCheckAnswersStaysLocked() throws {
+        let app = launch(["-appLockOn", "-fakeAuthentication", "cancel", "-fakeQuietUnlock", "-fakeQuietUnlockDelay", "6"],
+                         waitsForList: false)
+        let kickoff = app.staticTexts["Project Kickoff"]
+        let locked = app.staticTexts["Feder Is Locked"]     // in the tree while covered, though only the icon shows
+        XCTAssertTrue(locked.waitForExistence(timeout: 5), "covered while the check answers")
+        XCTAssertFalse(kickoff.exists, "not answered yet")
+        XCUIDevice.shared.press(.home)
+        sleep(8)                                            // the answer arrives while Feder is in the background
+        app.activate()
+        XCTAssertTrue(locked.exists, "still covered at the return: the answer belonged to the launch")
+        XCTAssertFalse(kickoff.exists, "no transcript")
+        shot("Still locked at the return", app)
+        XCTAssertTrue(kickoff.waitForExistence(timeout: 10), "the return's own check opens Feder")
+        XCTAssertFalse(app.buttons["Unlock"].exists, "nothing asked")
+    }
+
     /// A recording started from outside while Feder is locked (the Lock Screen widget's link here; Control Center, the
     /// Action Button and Siri go the same way) starts at once behind the lock, whose view shows its time, level and
     /// Stop. Face ID is asked once it records, and only once (on the simulator the activation can come seconds after
