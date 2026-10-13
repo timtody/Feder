@@ -28,11 +28,12 @@ release carries a later version's features, its notes are the 1.0 text plus thos
   Person. You see when you last spoke, the topics that keep coming up, and what they said in each transcript. Tap a
   transcript to open it where they speak and step through everything they said; tap a topic to search for it.
 - Search also finds the topics Feder notes with each summary, even when nobody said the word.
-- Name transcripts from your calendar: turn on Name from Calendar in Settings › Recording, and a transcript you start
-  during a meeting gets the meeting's name, and its invitees are offered when you name the speakers. When two events
-  overlap, the one in your Preferred Calendar wins, if you choose one there. You can also choose a subscribed calendar
-  there, such as your work calendar from Outlook, and its meetings then name your transcripts too. Everything stays on
-  your iPhone.
+- Name transcripts from your calendar: turn on Name from Calendar in Settings › Recording, and when you start a
+  transcript during a meeting, the meeting's name appears under the date. Tap Use as Title to name the transcript after
+  it, already while recording, or keep the title Feder writes. The meeting's invitees are offered when you name the
+  speakers. When two events overlap, the one in your Preferred Calendar wins, if you choose one there. You can also
+  choose a subscribed calendar there, such as your work calendar from Outlook, and its meetings then count too.
+  Everything stays on your iPhone.
 - Lock Feder with Face ID: turn on Require Face ID in Settings, and Feder asks for it when it opens and when you come
   back, at once or after a minute or more, as you choose. Anything you had open is there again after Face ID.
   Recording from Control Center, the Action Button or Siri still starts right away, and the Lock Screen and Dynamic
@@ -63,10 +64,12 @@ release carries a later version's features, its notes are the 1.0 text plus thos
   durchzugehen, was sie gesagt hat; tippe auf ein Thema, um danach zu suchen.
 - Die Suche findet auch die Themen, die Feder zu jeder Zusammenfassung notiert, selbst wenn niemand das Wort gesagt hat.
 - Benenne Transkripte nach deinem Kalender: Schalte „Nach Kalender benennen“ in den Einstellungen unter „Aufnahme“
-  ein, und ein Transkript, das du während eines Termins startest, bekommt dessen Namen; beim Benennen der Sprecher
-  werden dir die Eingeladenen vorgeschlagen. Überschneiden sich zwei Termine, gewinnt der aus deinem bevorzugten
-  Kalender, wenn du dort einen auswählst. Dort kannst du auch einen abonnierten Kalender auswählen, etwa deinen
-  Arbeitskalender aus Outlook; dann benennen auch seine Termine deine Transkripte. Alles bleibt auf deinem iPhone.
+  ein, und startest du ein Transkript während eines Termins, steht dessen Name unter dem Datum. Tippe auf „Als Titel
+  verwenden“, um das Transkript danach zu benennen, schon während der Aufnahme, oder behalte den Titel, den Feder
+  schreibt. Beim Benennen der Sprecher werden dir die Eingeladenen des Termins vorgeschlagen. Überschneiden sich zwei
+  Termine, gewinnt der aus deinem bevorzugten Kalender, wenn du dort einen auswählst. Dort kannst du auch einen
+  abonnierten Kalender auswählen, etwa deinen Arbeitskalender aus Outlook; dann zählen auch seine Termine. Alles bleibt
+  auf deinem iPhone.
 - Sperre Feder mit Face ID: Schalte in den Einstellungen „Face ID anfordern“ ein, und Feder fragt beim Öffnen und bei
   deiner Rückkehr danach, sofort oder nach einer Minute oder mehr, wie du möchtest. Was du offen hattest, ist nach
   Face ID wieder da. Eine Aufnahme aus dem Kontrollzentrum, mit der Aktionstaste oder über Siri startet weiterhin
