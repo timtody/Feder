@@ -1,13 +1,15 @@
 #!/bin/zsh
 # perf.sh <name>: builds for the iPhone 17 simulator, then runs the trace test while capturing the app's Interaction log.
+# TEST="testA testB" picks other ResponsivenessTests (default testInteractionPathsTrace).
 cd /Users/julius.taylor/projects/recorder
 name=$1; udid=69C35674-CE05-437A-B1F2-C37D41BE149B; dir=build/qa/perf; mkdir -p $dir
+only=(); for t in ${=TEST:-testInteractionPathsTrace}; do only+=(-only-testing:ScribeUITests/ResponsivenessTests/$t); done
 xcodebuild build-for-testing -project Recorder.xcodeproj -scheme Recorder -destination "id=$udid" -derivedDataPath build/DerivedDataSwipe CODE_SIGNING_ALLOWED=NO > $dir/$name-build.log 2>&1 || { echo "BUILD FAILED"; grep -E "error:" $dir/$name-build.log | head; exit 1; }
 xcrun simctl spawn $udid log stream --style compact --predicate 'subsystem == "de.timtody.feder" AND category == "Interaction"' > $dir/$name-trace.log 2>&1 &
 logpid=$!
 sleep 2
 for run in 1 2; do
-  xcodebuild test-without-building -project Recorder.xcodeproj -scheme Recorder -destination "id=$udid" -derivedDataPath build/DerivedDataSwipe -only-testing:ScribeUITests/ResponsivenessTests/testInteractionPathsTrace > $dir/$name-test$run.log 2>&1
+  xcodebuild test-without-building -project Recorder.xcodeproj -scheme Recorder -destination "id=$udid" -derivedDataPath build/DerivedDataSwipe $only > $dir/$name-test$run.log 2>&1
   echo "run $run exit=$?"
   echo "===== run $run done" >> $dir/$name-trace.log
 done

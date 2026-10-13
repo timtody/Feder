@@ -198,6 +198,13 @@ struct TranscriptView: View {
         }
     }
 
+    /// A tap on a name or "Rename Speaker…" in its menu: the rename sheet. Any rename ends the naming tip (they found it).
+    private func rename(_ speaker: Int, with renameSpeaker: (Int) -> Void) {
+        InteractionTrace.begin("rename")
+        NameSpeakersTip().invalidate(reason: .actionPerformed)
+        renameSpeaker(speaker)
+    }
+
     @ViewBuilder
     private func header(index: Int, segment: UUID, speaker: Int, name: String, start: TimeInterval,
                         showsTip: Bool) -> some View {
@@ -214,8 +221,7 @@ struct TranscriptView: View {
                     withAnimation(.snappy) { noticeRow = segment }
                     AccessibilityNotification.Announcement(preliminaryNotice).post()
                 } else {
-                    NameSpeakersTip().invalidate(reason: .actionPerformed)   // they found it
-                    renameSpeaker(speaker)
+                    rename(speaker, with: renameSpeaker)
                 }
             } label: {
                 line.contentShape(Rectangle())                    // the whole row is the target
@@ -223,10 +229,7 @@ struct TranscriptView: View {
             .buttonStyle(SpeakerHeaderButtonStyle())
             .contextMenu {
                 if !preliminary {
-                    Button("Rename Speaker…", systemImage: "pencil") {
-                        NameSpeakersTip().invalidate(reason: .actionPerformed)
-                        renameSpeaker(speaker)
-                    }
+                    Button("Rename Speaker…", systemImage: "pencil") { rename(speaker, with: renameSpeaker) }
                     if let correctSpeaker {
                         let others = speakers.filter { $0 != speaker }
                         Menu("Assign This Part To", systemImage: "person.crop.circle.badge.checkmark") {

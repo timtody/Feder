@@ -1,11 +1,12 @@
 #!/bin/zsh
-# profile.sh <name>: rebuilds for the iPhone 17 simulator, runs the trace test and records a Time Profiler of the app meanwhile.
+# profile.sh <name> [nobuild]: rebuilds for the iPhone 17 simulator, runs the trace test and records a Time Profiler of the app
+# meanwhile. TEST=testX picks another ResponsivenessTests test (default testInteractionPathsTrace).
 cd /Users/julius.taylor/projects/recorder
 name=$1; udid=69C35674-CE05-437A-B1F2-C37D41BE149B; dir=build/qa/perf
 if [[ "$2" != "nobuild" ]]; then
   xcodebuild build-for-testing -project Recorder.xcodeproj -scheme Recorder -destination "id=$udid" -derivedDataPath build/DerivedDataSwipe CODE_SIGNING_ALLOWED=NO > $dir/$name-build.log 2>&1 || { echo BUILD FAILED; exit 1; }
 fi
-xcodebuild test-without-building -project Recorder.xcodeproj -scheme Recorder -destination "id=$udid" -derivedDataPath build/DerivedDataSwipe -only-testing:ScribeUITests/ResponsivenessTests/testInteractionPathsTrace > $dir/$name-test.log 2>&1 &
+xcodebuild test-without-building -project Recorder.xcodeproj -scheme Recorder -destination "id=$udid" -derivedDataPath build/DerivedDataSwipe -only-testing:ScribeUITests/ResponsivenessTests/${TEST:-testInteractionPathsTrace} > $dir/$name-test.log 2>&1 &
 testpid=$!
 pid=""
 for i in {1..120}; do pid=$(pgrep -f "$udid/data/Containers/Bundle/Application/.*/Feder.app/Feder" | head -1); [[ -n "$pid" ]] && break; sleep 0.5; done

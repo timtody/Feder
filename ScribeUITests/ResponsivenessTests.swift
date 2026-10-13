@@ -56,6 +56,48 @@ final class ResponsivenessTests: ScribeUITestCase {
         deleteNewestRecording(app)
     }
 
+    /// A name → the rename sheet, the first time with the naming tip up (`-showTips -resetTips`: a transcript just
+    /// recorded, its speakers final and unnamed), then again without it. `-interactionTrace` logs each "rename" press:
+    /// with `testRenameTraceWithoutTip` (the session's first sheet without a tip) it separates the tip's share from the
+    /// first sheet's and the first keyboard's (FED-9).
+    @MainActor
+    func testRenameTraceWithTip() throws {
+        let app = launch(["-interactionTrace", "-showTips", "-resetTips", "-autoRecord", "-autoStopAfter", "4"])
+        XCTAssertTrue(app.buttons["Delete Transcript"].waitForExistence(timeout: 25), "saved: the card shows the transcript")
+        XCTAssertTrue(app.staticTexts["Name the Speakers"].waitForExistence(timeout: 15), "the tip")
+        settle(6)                                                            // its fade-in; profile.sh's profiler attaching
+        renameTwice(app)
+        app.buttons["Delete Transcript"].tap()
+        let confirm = app.buttons["Delete"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
+    }
+
+    /// A name → the rename sheet without the tip, twice: the session's first sheet, then a later one.
+    @MainActor
+    func testRenameTraceWithoutTip() throws {
+        let app = launch(["-interactionTrace"])
+        open("Project Kickoff", in: app)
+        settle(6)                                                            // profile.sh's profiler attaching
+        renameTwice(app)
+        closeCard(app)
+    }
+
+    /// Taps the first name twice, closing the sheet in between, with time to settle around each press.
+    @MainActor
+    private func renameTwice(_ app: XCUIApplication) {
+        let cancel = app.buttons["CancelRename"]
+        for _ in 0..<2 {
+            app.buttons["SpeakerHeader.0"].tap()
+            XCTAssertTrue(cancel.waitForExistence(timeout: 5), "the rename sheet")
+            settle(2)                                                        // the keyboard and the selected name
+            cancel.tap()
+            XCTAssertTrue(cancel.waitForNonExistence(timeout: 5))
+            settle(2)
+        }
+    }
+
     /// The record button reacts at once: the card is up (its Minimize control and the transcript's name) long before
     /// preparation is over (`-fakePrepareSeconds 6`: the fake speech model takes 6 s to prepare), and the large Stop
     /// follows once it is. (XCUITest itself takes 1-2 s to tap and to see the card, so the bound is loose; the

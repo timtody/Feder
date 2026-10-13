@@ -113,6 +113,7 @@ struct SpeakerNameSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .onAppear { InteractionTrace.shown("rename") }        // the sheet starts to rise
         .task {
             isFieldFocused = true
             // The name gets selected once the field has focus: a selection set before that becomes a caret at the
