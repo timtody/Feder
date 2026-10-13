@@ -6,7 +6,8 @@ import Foundation
 // content and the token reserve can be checked by reading.
 //
 // usage: SummaryBench <modelDir> <styles: all|brief,meeting,…> <languages: en|de|both> <repeat> <text.txt>…
-//        SummaryBench parse        (the parser on canned answers, no model)
+//        SummaryBench parse        (the parser on canned answers and the parsing checks, no model; exits 1 on a
+//                                   failed check)
 // A text is one "Name: text" paragraph per line; <repeat> joins it that many times (the long-transcript case).
 
 /// Forwards to Gemma and keeps what each request was, for the token counts.
@@ -28,6 +29,12 @@ final class MeasuringWriter: TextWriter, @unchecked Sendable {
     func unload() async { await model.unload() }
 }
 
+var failures = 0
+func check(_ ok: Bool, _ what: String) {
+    if !ok { failures += 1 }
+    print("\(ok ? "ok  " : "FAIL") \(what)")
+}
+
 let args = CommandLine.arguments
 
 if args.count > 1, args[1] == "parse" {
@@ -38,12 +45,57 @@ if args.count > 1, args[1] == "parse" {
         (.lecture, true, "Themen: Gletscher\nZusammenfassung:\nKernaussagen:\n- Gletscher formen Täler zu U-Tälern.\n- Moränen sind Schutt.\nTitel: Gletscher und Moränen"),
         (.bulletPoints, false, "Topics: a\nSummary: - First point\n- Second point\nTitle: Points"),
         (.bulletPoints, false, "Topics: a\nThe first point.\nThe second point.\nTitle: Points"),
+        // Decisions that begin with their date or number (review of FED-15: the dates were cut off).
+        (.meeting, true, "Themen: Abnahme\nEntscheidungen:\n- 25. November: Abnahme der Software\n- 1. Dezember Go-live\n- 15.11. Abgabe des Berichts\n- 3.5 % mehr Budget\n- 9:30 Uhr Treffen\n- 2027: Budget steigt\nAufgaben:\n- 1: Lena passt die Erwartungswerte an.\nOffene Fragen:\n- Keine Entscheidung zur Miete\nTitel: Abnahme"),
     ]
     for (style, german, answer) in answers {
         let parsed = TranscriptTitler.parseStyled(answer, style: style, german: german)
         print("== \(style.rawValue) \(german ? "de" : "en"): title \(parsed?.title ?? "-") topics \(parsed?.topics ?? [])\n\(parsed?.summary ?? "nil")\n")
     }
-    exit(0)
+
+    // A number is a list marker only where it can't be content.
+    let items: [(line: String, text: String, marked: Bool)] = [
+        ("- 25. November: Abnahme der Software", "25. November: Abnahme der Software", true),
+        ("- 1. Dezember Go-live", "1. Dezember Go-live", true),
+        ("- 15.11. Abgabe des Berichts", "15.11. Abgabe des Berichts", true),
+        ("- 3.5 % mehr Budget", "3.5 % mehr Budget", true),
+        ("- 9:30 Uhr Treffen", "9:30 Uhr Treffen", true),
+        ("- 2027: Budget steigt", "2027: Budget steigt", true),
+        ("- 2. Quartal: Budget steigt", "2. Quartal: Budget steigt", true),
+        ("25. November: Abnahme der Software", "25. November: Abnahme der Software", false),
+        ("1. Dec. go-live", "1. Dec. go-live", false),
+        ("15.11. Abgabe des Berichts", "15.11. Abgabe des Berichts", false),
+        ("9:30 Uhr Treffen", "9:30 Uhr Treffen", false),
+        ("2027: Budget steigt", "2027: Budget steigt", false),
+        ("-5 °C am Morgen", "-5 °C am Morgen", false),
+        ("1. Lena passt die Erwartungswerte an.", "Lena passt die Erwartungswerte an.", true),
+        ("2) Anna sends the numbers.", "Anna sends the numbers.", true),
+        ("- 1: Die Abnahme verschiebt sich.", "Die Abnahme verschiebt sich.", true),
+        ("- 3) The budget moves.", "The budget moves.", true),
+        ("* Point", "Point", true),
+        ("  • Punkt", "Punkt", true),
+        ("Plain line", "Plain line", false),
+    ]
+    for item in items {
+        let result = TranscriptTitler.listItem(item.line)
+        check(result.text == item.text && result.marked == item.marked,
+              "listItem \"\(item.line)\" → \"\(result.text)\" \(result.marked ? "marked" : "plain")")
+    }
+
+    // Only lines that say there is nothing go, not those naming what is open.
+    let nones: [(text: String, none: Bool)] = [
+        ("none", true), ("Keine.", true), ("No decisions were made.", true), ("Keine offenen Fragen.", true),
+        ("Es wurden keine Entscheidungen getroffen.", true), ("There were no open questions.", true),
+        ("No action items", true), ("Keine Aufgaben vergeben", true), ("None identified", true),
+        ("No decision on the rent", false), ("Keine Entscheidung zur Miete", false), ("No overtime until March", false),
+        ("No.", false), ("No, the budget stays", false), ("Keine Einigung beim Budget", false),
+    ]
+    for none in nones {
+        check(TranscriptTitler.saysNone(none.text) == none.none, "saysNone \"\(none.text)\" \(none.none)")
+    }
+
+    print(failures == 0 ? "all checks passed" : "\(failures) checks failed")
+    exit(failures == 0 ? 0 : 1)
 }
 
 guard args.count > 5 else {

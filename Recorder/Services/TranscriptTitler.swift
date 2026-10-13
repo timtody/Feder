@@ -629,28 +629,78 @@ extension TranscriptTitler {
     }
 
     /// A line without its list marker ("- ", "* ", "• ", "1. ", "2) ", also "- 1: ", as Gemma numbered decisions),
-    /// and whether it had one.
+    /// and whether it had one. A number counts as a marker only where it can't be the line's content: before, any
+    /// leading "\d+[.):]" went, and "- 25. November: Abnahme" was stored as "November: Abnahme", "- 15.11. Abgabe"
+    /// as "Abgabe", "- 3.5 % mehr" as "5 % mehr" (review of FED-15). So "1. " and "2) " only at the line's start, with
+    /// a space after them and no month or digit next ("1. Dezember Go-live" is a date); after a dash only "1: " and
+    /// "1) " (Meeting's numbered decisions), never "2. " ("- 2. Quartal" is an ordinal). Dates, decimals, times and
+    /// years ("15.11.", "3.5", "9:30", "2027:") have no space after their first number and always stay.
     nonisolated static func listItem(_ line: String) -> (text: String, marked: Bool) {
-        var text = line, marked = false
-        while let match = text.firstMatch(of: /^\s*(?:[-*•–—]|\d+[.):])\s*(.*)$/) {
+        var text = line.trimmingCharacters(in: .whitespaces), marked = false
+        while let match = text.firstMatch(of: /^[-*•–—](?!\d)\s*(.*)$/) {   // not "-5 °C"
             text = String(match.1)
+            marked = true
+        }
+        if marked {
+            if let match = text.firstMatch(of: /^\d{1,2}[:)]\s+([^\s\d].*)$/) { text = String(match.1) }
+        } else if let match = text.firstMatch(of: /^\d{1,2}([.)])\s+([^\s\d].*)$/),
+                  match.1 == ")" || !startsWithMonth(match.2) {
+            text = String(match.2)
             marked = true
         }
         return (text.replacingOccurrences(of: "*", with: "").trimmingCharacters(in: .whitespaces), marked)
     }
 
+    /// Whether `text` begins with a month's name, English or German, also abbreviated ("Dez."): "1. Dezember" is a
+    /// date, not the first item of a list.
+    nonisolated static func startsWithMonth(_ text: Substring) -> Bool {
+        let months: Set<String> = [
+            "january", "february", "march", "april", "may", "june", "july", "august", "september", "october",
+            "november", "december", "januar", "jänner", "februar", "märz", "mai", "juni", "juli", "oktober", "dezember",
+            "jan", "feb", "mar", "mär", "mrz", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "okt", "nov", "dec", "dez",
+        ]
+        return months.contains(text.prefix { $0.isLetter }.lowercased())
+    }
+
     /// A line that only says there is nothing: "none", "-", "keine" (ActionItemExtractor's empty values; not
-    /// shared, so this file builds alone in the Mac bench), or "No decisions were made", "Keine offenen Fragen" (a
-    /// few words naming what there is none of; "No overtime until March" is content and stays).
+    /// shared, so this file builds alone in the Mac bench), or "No decisions were made", "Keine offenen Fragen", "Es
+    /// wurden keine Entscheidungen getroffen": every word after the "no" from `noneWords` (what there is none of, and
+    /// words that say nothing more). A line naming a subject is content and stays: "No decision on the rent" under
+    /// Open questions, "No overtime until March", and "No." as an interview's answer.
     nonisolated static func saysNone(_ text: String) -> Bool {
         let lower = text.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".!;: \"'„“”"))
         let empty: Set<String> = ["", "-", "–", "—", "none", "keine", "keiner", "nichts", "nothing", "n/a", "k.a.",
                                   "k. a.", "entfällt"]
         if empty.contains(lower) { return true }
-        guard lower.firstMatch(of: /^(none|nothing|nichts|keine?n?|no)\b/) != nil,
-              lower.split(separator: " ").count <= 6 else { return false }
-        return lower.firstMatch(of: /decision|entscheid|beschl|task|to-?do|aufgabe|question|frage|point|punkt/) != nil
+        var words = lower.split(whereSeparator: { $0.isWhitespace || $0 == "," }).map(String.init)
+        if words.count > 2, words[0] == "there" || words[0] == "es" { words.removeFirst(2) }   // "There were no …"
+        guard let first = words.first,
+              ["no", "none", "nothing", "nichts", "kein", "keine", "keinen", "keiner", "keinerlei"].contains(first)
+        else { return false }
+        let rest = words.dropFirst()
+        guard rest.allSatisfy({ noneSubjects.contains($0) || noneWords.contains($0) }) else { return false }
+        // "No"/"kein" need what there is none of ("No." answers a question); "Keine genannt" says it alone.
+        return (first != "no" && first != "kein") || rest.contains(where: noneSubjects.contains)
     }
+
+    /// What a "none" line in a styled answer says there is none of.
+    nonisolated static let noneSubjects: Set<String> = [
+        "decision", "decisions", "task", "tasks", "to-do", "to-dos", "todo", "todos", "action", "actions", "item",
+        "items", "question", "questions", "point", "points", "step", "steps", "issue", "issues", "agreement",
+        "agreements", "entscheidung", "entscheidungen", "beschluss", "beschlüsse", "aufgabe", "aufgaben", "frage",
+        "fragen", "punkt", "punkte", "schritt", "schritte", "vereinbarung", "vereinbarungen",
+    ]
+
+    /// Words that add nothing to a "none" line: "open", "further", "were made", "wurden getroffen", "to report".
+    nonisolated static let noneWords: Set<String> = [
+        "open", "other", "further", "more", "specific", "concrete", "new", "clear", "explicit", "next", "key", "were",
+        "was", "are", "is", "has", "have", "been", "made", "assigned", "raised", "identified", "left", "mentioned",
+        "discussed", "recorded", "given", "agreed", "decided", "noted", "remain", "remaining", "yet", "so", "far", "to",
+        "report", "offen", "offene", "offenen", "offener", "weitere", "weiteren", "weiterer", "andere", "anderen",
+        "konkrete", "konkreten", "neue", "neuen", "klare", "klaren", "explizite", "expliziten", "nächste", "nächsten",
+        "wurden", "wurde", "sind", "gibt", "gab", "getroffen", "vereinbart", "genannt", "festgelegt", "gestellt",
+        "besprochen", "vergeben", "erwähnt", "geblieben", "mehr", "noch", "bisher", "zu", "berichten",
+    ]
 
     /// A line that is only a heading Gemma added ("Key ideas:", "Kernaussagen:"): no marker, ends with a colon, a
     /// few words.
