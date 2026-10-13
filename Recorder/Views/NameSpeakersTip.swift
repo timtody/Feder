@@ -1,5 +1,6 @@
 import SwiftUI
 import TipKit
+import UIKit
 
 /// The hint that names are tappable (TipKit, Apple's own tips), on the first speaker's name row of a transcript whose
 /// speakers are final and still all "Speaker N" (RecordingDetailView). Shown once: tapping a name (any rename) or
@@ -36,6 +37,17 @@ struct NameSpeakersTip: Tip {
 
     /// UserDefaults: which generation of the tip is current (see `id`; 0 until a Debug build's Reset Onboarding).
     static let generationKey = "nameSpeakersTipGeneration"
+
+    /// Takes the tip's popover away at once, without its animation, so a sheet can be presented in the same turn
+    /// (TranscriptView.rename). The popover is the key window's topmost presented controller while the tip shows;
+    /// anything else (the tip already closed) is left alone.
+    @MainActor static func closePopoverAtOnce() {
+        let window = UIApplication.shared.connectedScenes.lazy.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first
+        guard var top = window?.rootViewController else { return }
+        while let presented = top.presentedViewController { top = presented }
+        guard top.modalPresentationStyle == .popover, let presenter = top.presentingViewController else { return }
+        presenter.dismiss(animated: false)
+    }
 
     #if DEBUG
     /// Reset Onboarding: the tip shows again, on the next transcript with unnamed final speakers.

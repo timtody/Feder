@@ -203,7 +203,11 @@ final class SpeakerNamingTests: ScribeUITestCase {
         header.tap()
         let cancel = app.buttons["CancelRename"]
         XCTAssertTrue(cancel.waitForExistence(timeout: 5), "the rename sheet on the first tap")
-        XCTAssertTrue(tip.waitForNonExistence(timeout: 5), "and the tip is gone")
+        // The tip's popover goes in the tap's frame, without its animation, so the sheet doesn't wait for it (FED-9);
+        // SwiftUI, which presented the popover, must not take the sheet along when it lets go of it.
+        XCTAssertFalse(tip.exists, "and the tip went with the tap")
+        sleep(1)
+        XCTAssertTrue(cancel.exists, "the sheet stays")
 
         // Debug builds: Settings › About › Reset Onboarding brings it back at once, without a relaunch.
         cancel.tap()

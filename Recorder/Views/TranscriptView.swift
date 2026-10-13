@@ -68,6 +68,7 @@ struct TranscriptView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var noticeRow: UUID?            // the name row showing the preliminary notice
     @State private var headerTaps = 0              // haptic trigger
+    @State private var tipEnded = false            // the naming tip went with a rename (see rename)
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
@@ -83,7 +84,7 @@ struct TranscriptView: View {
                     }
                     if showsHeader, let speaker = segment.speakerIndex, let speakerName {
                         header(index: index, segment: segment.id, speaker: speaker, name: speakerName(speaker),
-                               start: segment.start, showsTip: index == 0 && showsNameTip && !preliminary)
+                               start: segment.start, showsTip: index == 0 && showsNameTip && !preliminary && !tipEnded)
                             .zIndex(1)   // above the text's selection area, which reaches 16 pt above it on iOS 27
                         if preliminary, noticeRow == segment.id {
                             Label(preliminaryNotice, systemImage: "hourglass")
@@ -199,8 +200,20 @@ struct TranscriptView: View {
     }
 
     /// A tap on a name or "Rename Speaker…" in its menu: the rename sheet. Any rename ends the naming tip (they found it).
+    /// The tip's popover and the sheet are presented by the same controller (the card's), one at a time: SwiftUI held
+    /// the sheet back until the popover's dismissal was over, long after the tip had visibly gone (tap → the sheet
+    /// moving 0.87 s, the main thread idle for 0.45 s of it; iPhone 17 simulator, FED-9). TipKit animates that dismissal
+    /// whatever the transaction says (`popoverTip(nil)` and its `isPresented` binding, both set with
+    /// `disablesAnimations`, still waited), so the popover goes at once through UIKit: the tip is gone in the tap's frame
+    /// and the sheet follows as it does without the tip (0.28 s for the session's first sheet and keyboard).
     private func rename(_ speaker: Int, with renameSpeaker: (Int) -> Void) {
         InteractionTrace.begin("rename")
+        if showsNameTip, !tipEnded {
+            NameSpeakersTip.closePopoverAtOnce()
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { tipEnded = true }       // the popover modifier lets go of it in this update
+        }
         NameSpeakersTip().invalidate(reason: .actionPerformed)
         renameSpeaker(speaker)
     }
