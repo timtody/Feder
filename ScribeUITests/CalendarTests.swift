@@ -287,6 +287,32 @@ final class CalendarTests: ScribeUITestCase {
         shot("German offer", app)
     }
 
+    /// In German, once taken, "Aus deinem Kalender" has the row up to the ⊗ to itself: the pill's hidden stand-in keeps
+    /// only its height, so nothing below moves, not its width, which cut the label to "Aus deinem Kale…" (FED-11).
+    /// XCUITest reads the full text even when an ellipsis is drawn, and the label's frame is its text's, so the test
+    /// checks that the label now reaches past where the pill's space began, which it couldn't while the stand-in held
+    /// it (on an iPhone 17 the text is 170 pt wide, the space was 156); the screenshot shows the text.
+    @MainActor
+    func testTakenRowFitsInGerman() throws {
+        let app = launch(["-seedInvitees", "Maria Lopez|Jonas Weber", "-AppleLanguages", "(de)",
+                          "-AppleLocale", "de_DE"])
+        let row = calendarRow(app), use = app.buttons["UseCalendarTitle"], dismiss = app.buttons["DismissCalendarTitle"]
+        app.staticTexts["Project Kickoff"].firstMatch.tap()
+        XCTAssertTrue(use.waitForExistence(timeout: 10), "offered")
+        let notice = app.staticTexts["AINotice"]
+        let (noticeY, dismissY, pillMinX) = (notice.frame.minY, dismiss.frame.midY, use.frame.minX)
+        XCTAssertGreaterThan(dismiss.frame.minX - row.frame.maxX, use.frame.width, "offered, the pill sits between them")
+        use.tap()
+        XCTAssertTrue(waitFor { row.label == "Aus deinem Kalender" }, row.label)
+        XCTAssertTrue(use.waitForNonExistence(timeout: 5), "the pill is gone")
+        XCTAssertGreaterThan(row.frame.maxX, pillMinX - 10 + 0.5, "the label uses the pill's width: \(row.frame)")
+        XCTAssertLessThan(row.frame.maxX, dismiss.frame.minX, "beside the ⊗")
+        XCTAssertLessThan(abs(row.frame.midY - dismiss.frame.midY), 4, "on one line")
+        XCTAssertEqual(dismiss.frame.midY, dismissY, accuracy: 1, "the ⊗ stays where it was")
+        XCTAssertEqual(notice.frame.minY, noticeY, accuracy: 1, "nothing below moves")
+        shot("German taken row", app)
+    }
+
     /// A press from outside the app (the lock screen widget's `feder://record`, as Control Center, the Action Button or
     /// Siri on a cold launch) that comes while the calendar's first read still runs (`-fakeCalendarDelay 25`, counted
     /// from launch) finds no event, and recording starts without waiting for the read; once the read has it, the card

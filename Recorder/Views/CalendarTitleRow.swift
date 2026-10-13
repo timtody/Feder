@@ -23,20 +23,27 @@ struct CalendarTitleRow: View {
 
     var body: some View {
         let stacked = typeSize.isAccessibilitySize
+        // Taken, beside the label, the pill's place gives its width to the label, which then reaches the ⊗. Under it
+        // (accessibility sizes) the label has its own line anyway, and the ⊗ stays where it was.
+        let freesWidth = offer == .taken && !stacked
         let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
                              : AnyLayout(HStackLayout(alignment: .center, spacing: 10))
         layout {
             label
-                .lineLimit(stacked ? 3 : 1)
+                // The offer's event keeps to one line beside the pill; "From your calendar" may take a second one
+                // should a narrow screen or a large size still not fit it.
+                .lineLimit(stacked ? 3 : offer == .taken ? 2 : 1)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            HStack(spacing: 10) {
-                // Taken, it fades out where it stands, over a hidden stand-in that keeps its place: removed, the row
-                // lost height (the pill is taller than the ⊗) and everything below moved up. Not the pill itself kept
+            HStack(spacing: freesWidth ? 0 : 10) {
+                // A hidden stand-in keeps the pill's height once it is gone: removed, the row lost height (the pill is
+                // taller than the ⊗) and everything below moved up. Beside the label its height only, not its width:
+                // kept, that width cut "Aus deinem Kalender" to "Aus deinem Kale…" (FED-11). Not the pill itself kept
                 // at opacity 0 with `accessibilityHidden`: on the recording card it stayed in the accessibility tree,
                 // a dimmed "Use as Title" (CalendarTests).
                 ZStack {
                     useButton(action: {})
                         .hidden()
+                        .frame(width: freesWidth ? 0 : nil)
                     if case .offer = offer {
                         useButton(action: onUse)
                             .accessibilityHidden(!isActive)
