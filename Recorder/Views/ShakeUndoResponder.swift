@@ -14,13 +14,16 @@ import os
 /// UIResponder passes the shake up to UIApplication, which shows the alert, so Settings › Accessibility › Touch › Shake
 /// to Undo turns it off as in every app. Not a shake detector of our own with an alert of our own: that would ignore
 /// the setting, and iOS draws this alert.
-/// It takes first responder only at edges, on the next turn: an Undo newly on offer, whatever held the keys letting go
-/// (`blocked`: a text field, a sheet, an alert), its window becoming key again (after App Lock). Taken while a field is
-/// edited it would end the edit, so it never does then; a field tapped later simply takes over.
+/// It takes first responder only at edges: on the next turn after an Undo newly on offer or after whatever held the
+/// keys let go (`blocked`), and at once when its window becomes key again (after App Lock, which resigned it on
+/// leaving). Taken while a field is edited it would end the edit, so it never does then; a field tapped later simply
+/// takes over.
 struct ShakeUndoResponder: UIViewRepresentable {
     /// Changes with every Undo registered for shaking; nil when none is on offer (the view lets go of first responder).
     let offer: Int?
-    /// Something else has the keys or covers the card (a text field, a sheet, an alert): it waits until that lets go.
+    /// The card's own keys are elsewhere (its title, tag field or Edit Text, the rename sheet, one of its questions): it
+    /// waits until they let go. Not the Action Items sheet or what that presents: the view stays first responder under
+    /// it, and a Remove there claims it.
     let blocked: Bool
 
     private static let log = Logger(subsystem: "de.timtody.feder", category: "Undo")
@@ -79,8 +82,8 @@ struct ShakeUndoResponder: UIViewRepresentable {
             }
         }
 
-        /// In a window: claimed there if an Undo is on offer by then, and again whenever that window becomes key (App
-        /// Lock's window had the keys).
+        /// In a window: claimed there on the next turn if an Undo is on offer by then, and again, at once, whenever that
+        /// window becomes key (App Lock's window had the keys, and App Lock resigned the first responder on leaving).
         func windowChanged(_ window: UIWindow?) {
             stopObserving()
             guard let window else { return }
