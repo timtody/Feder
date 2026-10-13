@@ -325,6 +325,7 @@ final class AppLock {
     private func open() {
         isLocked = false
         showsPrompt = false
+        promptDue = false                               // opened before the activation (`checkWithoutPrompt`)
         waitsForRecording = false
         uncover()
     }
