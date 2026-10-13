@@ -64,8 +64,8 @@ final class TranscriptTitler {
     /// say that the summary must cover them. Without bookmarks the request is exactly the benched one.
     /// `style` (FED-15): Brief is the benched request, unchanged; the others ask for the summary as lines between the
     /// Topics and Title lines (`styledInstructions`) and are parsed into the stored lines (`parseStyled`).
-    /// `needsTitle`: false for a rewrite in another style (the transcript keeps its name), which then never asks
-    /// again for a title the styled answer left out.
+    /// `needsTitle`: false when the title won't be used (a rewrite in another style, a transcript the user named),
+    /// which then never asks again for a title the styled answer left out.
     func describe(paragraphs: [String], locale recordingLocale: Locale, writer: any TextWriter, bookmarked: Bool = false,
                   style: SummaryStyle = .brief, needsTitle: Bool = true,
                   partial: (@Sendable (String) -> Void)? = nil) async throws -> Description? {
@@ -107,23 +107,12 @@ final class TranscriptTitler {
             parts = next
             fromSummaries = true
         }
-        let heading = german
-            ? (fromSummaries ? "Zusammenfassungen der aufeinanderfolgenden Teile eines langen Gesprächs:\n" : "Transkript:\n")
-            : (fromSummaries ? "Summaries of the consecutive parts of one long conversation:\n" : "Transcript:\n")
-        let prompt = heading + parts[0]
-        // The bookmarks' note only where the marked lines are read: the parts' summaries carry no markers.
-        let instructions = (styled
-                ? Self.styledInstructions(style, language: language, german: german, fromSummaries: fromSummaries)
-                : german ? Self.germanTitleInstructions(fromSummaries: fromSummaries)
-                         : Self.localTitleInstructions(language: language, locale: locale, fromSummaries: fromSummaries))
-            + (fromSummaries ? "" : bookmarkNote)
-        // The task again after the transcript: without it Gemma went on with the transcript ("Anna Schmidt: …").
-        let reminder = styled ? Self.styledReminder(german: german) : german ? Self.germanReminder : Self.localReminder
-        let request = prompt + "\n\n" + reminder
+        let request = Self.finalRequest(parts[0], style: style, language: language, locale: locale, german: german,
+                                        fromSummaries: fromSummaries, bookmarkNote: bookmarkNote)
         // A styled answer is several lines long: 700 tokens (Brief's three lines stay within 400).
         let text = try await Self.local {
-            try await writer.respond(instructions: instructions, prompt: request, maxTokens: styled ? 700 : 400,
-                                     temperature: 0) { text in
+            try await writer.respond(instructions: request.instructions, prompt: request.prompt,
+                                     maxTokens: styled ? 700 : 400, temperature: 0) { text in
                 if !styled, let summary = Self.partialSummary(in: text) { partial?(summary) }
             }
         }
@@ -134,12 +123,21 @@ final class TranscriptTitler {
             guard let answer = Self.parseStyled(text, style: style, german: german) else { return nil }
             var title = Self.cleanTitle(answer.title)
             if title == nil, needsTitle {
-                // Gemma ended a styled answer without its title line (2 of 26 runs in the Mac bench): Brief's
-                // request, the benched one, gives the title; its summary is not used.
-                title = try await describe(paragraphs, locale: locale, writer: writer, bookmarked: bookmarked,
-                                           style: .brief, needsTitle: false,
-                                           limit: Self.chunkCharacters(contextSize: LocalLanguageModel.contextTokens),
-                                           partial: nil)?.title
+                // Gemma ended a styled answer without its title line (7 of 40 styled runs in the Mac bench, all with
+                // the German instructions) or with one cleanTitle rejects: Brief's request, the benched one, gives
+                // the title from the same text (the transcript, or its parts' summaries: no part is summarized
+                // again, so a long transcript's work isn't doubled); its summary is not used. A styled request's
+                // text fits Brief's: Brief reserves fewer tokens.
+                let brief = Self.finalRequest(parts[0], style: .brief, language: language, locale: locale,
+                                              german: german, fromSummaries: fromSummaries, bookmarkNote: bookmarkNote)
+                let briefAnswer = try await Self.local {
+                    try await writer.respond(instructions: brief.instructions, prompt: brief.prompt, maxTokens: 400,
+                                             temperature: 0, partial: nil)
+                }
+                #if DEBUG
+                print("[Scribe] title (Gemma, brief, for a styled summary): \(briefAnswer)")
+                #endif
+                title = Self.parseLabelled(briefAnswer).flatMap { Self.cleanTitle($0.title) }
             }
             return Description(title: title, summary: answer.summary, topics: answer.topics, style: style)
         }
@@ -152,6 +150,25 @@ final class TranscriptTitler {
         if title == nil { print("[Scribe] title rejected: \(answer.title)") }
         #endif
         return Description(title: title, summary: first.uppercased() + summary.dropFirst(), topics: answer.topics)
+    }
+
+    /// The request that writes the answer from `text` (the transcript, or its parts' summaries) in `style`. The
+    /// bookmarks' note only where the marked lines are read: the parts' summaries carry no markers.
+    nonisolated static func finalRequest(_ text: String, style: SummaryStyle, language: String, locale: Locale,
+                                         german: Bool, fromSummaries: Bool,
+                                         bookmarkNote: String) -> (instructions: String, prompt: String) {
+        let styled = style != .brief
+        let heading = german
+            ? (fromSummaries ? "Zusammenfassungen der aufeinanderfolgenden Teile eines langen Gesprächs:\n" : "Transkript:\n")
+            : (fromSummaries ? "Summaries of the consecutive parts of one long conversation:\n" : "Transcript:\n")
+        let instructions = (styled
+                ? styledInstructions(style, language: language, german: german, fromSummaries: fromSummaries)
+                : german ? germanTitleInstructions(fromSummaries: fromSummaries)
+                         : localTitleInstructions(language: language, locale: locale, fromSummaries: fromSummaries))
+            + (fromSummaries ? "" : bookmarkNote)
+        // The task again after the transcript: without it Gemma went on with the transcript ("Anna Schmidt: …").
+        let reminder = styled ? styledReminder(german: german) : german ? germanReminder : localReminder
+        return (instructions, heading + text + "\n\n" + reminder)
     }
 
     /// A part's summary as plain text.

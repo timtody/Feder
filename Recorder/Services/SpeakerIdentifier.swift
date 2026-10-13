@@ -836,13 +836,18 @@ final class SpeakerIdentifier {
             waitForGemma(recording, id: id)
             return
         }
+        // Whether a title would be used below: only then does a styled answer without one cost another Gemma request
+        // (TranscriptTitler.describe), not for a transcript the user named.
+        let needsTitle = !recording.nameIsUserSet
+            && (TranscriptTitler.isDefaultName(recording.name) || recording.name == recording.automaticTitle
+                || recording.calendarTitleOffer == .taken)
         let description: TranscriptTitler.Description?
         let version = TranscriptTitler.localVersion
         do {
             let titler = titler
             description = try await betterSummaries.run { model in
                 try await titler.describe(paragraphs: paragraphs, locale: locale, writer: model, bookmarked: bookmarked,
-                                          style: style)
+                                          style: style, needsTitle: needsTitle)
             }
         } catch {
             // RetryLater: not marked described, tried again later; stopped because a recording started: again right

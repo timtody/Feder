@@ -29,6 +29,22 @@ final class MeasuringWriter: TextWriter, @unchecked Sendable {
     func unload() async { await model.unload() }
 }
 
+/// Answers from a script, in order, and keeps each request: the title fallback's request count, without a model.
+final class ScriptedWriter: TextWriter, @unchecked Sendable {
+    var answers: [String]
+    var requests: [(instructions: String, prompt: String)] = []
+
+    init(answers: [String]) { self.answers = answers }
+
+    func respond(instructions: String, prompt: String, maxTokens: Int, temperature: Float,
+                 partial: (@Sendable (String) -> Void)?) async throws -> String {
+        requests.append((instructions, prompt))
+        return answers.isEmpty ? "" : answers.removeFirst()
+    }
+
+    func unload() async {}
+}
+
 var failures = 0
 func check(_ ok: Bool, _ what: String) {
     if !ok { failures += 1 }
@@ -94,6 +110,29 @@ if args.count > 1, args[1] == "parse" {
         check(TranscriptTitler.saysNone(none.text) == none.none, "saysNone \"\(none.text)\" \(none.none)")
     }
 
+    // A styled answer without a title: one Brief request over the text the styled one read (here three parts'
+    // summaries), not the map-reduce again; none when the title isn't needed.
+    let paragraphs = (1...3).map { "Anna Schmidt: Teil \($0) " + String(repeating: "Die Abnahme verschiebt sich. ", count: 5) }
+    for needsTitle in [true, false] {
+        let writer = ScriptedWriter(answers: ["Abnahme verschoben.", "Go-live geplant.", "Budget steigt.",
+                                              "Themen: Abnahme\nEntscheidungen:\n- Die Abnahme verschiebt sich.",
+                                              "Themen: Abnahme\nZusammenfassung: Die Abnahme verschiebt sich.\nTitel: Kreditprojekt: Abnahme"])
+        let description = try await TranscriptTitler().describe(paragraphs, locale: Locale(identifier: "de"),
+                                                                 writer: writer, bookmarked: false, style: .meeting,
+                                                                 needsTitle: needsTitle, limit: 200, partial: nil)
+        let count = writer.requests.count
+        check(count == (needsTitle ? 5 : 4), "needsTitle \(needsTitle): \(count) requests (3 parts, the styled one\(needsTitle ? ", Brief's" : ""))")
+        check(description?.title == (needsTitle ? "Kreditprojekt: Abnahme" : nil), "title \(description?.title ?? "-")")
+        check(description?.summary == "Entscheidungen\n• Die Abnahme verschiebt sich.", "summary \(description?.summary ?? "nil")")
+        if needsTitle, count == 5 {
+            let brief = writer.requests[4], styled = writer.requests[3]
+            check(brief.instructions == TranscriptTitler.germanTitleInstructions(fromSummaries: true),
+                  "the title's request has Brief's instructions")
+            check(brief.prompt.contains("Teil 1: Abnahme verschoben.") && !brief.prompt.contains("Anna Schmidt")
+                  && brief.prompt.hasPrefix(styled.prompt.components(separatedBy: "\n\n").first ?? "-"),
+                  "and the parts' summaries the styled request read")
+        }
+    }
     print(failures == 0 ? "all checks passed" : "\(failures) checks failed")
     exit(failures == 0 ? 0 : 1)
 }
