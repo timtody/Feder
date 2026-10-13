@@ -1,6 +1,11 @@
 import SwiftUI
 import UIKit
 
+/// The lock's white status bar on its blue, also in Light Mode (where the default is dark text).
+private final class AppLockHost: UIHostingController<AppLockView> {
+    override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
+}
+
 /// App Lock's window (AppLock): its own UIWindow above everything Feder shows (the card's full-screen cover, sheets,
 /// alerts, the file picker, TipKit's popovers, the share sheet), which all stay alive underneath. Built when the scene
 /// connects, before its first frame, so covering is only `isHidden = false`, drawn before iOS takes the app switcher's
@@ -15,8 +20,8 @@ final class AppLockWindow {
     private init(scene: UIWindowScene, lock: AppLock) {
         window = UIWindow(windowScene: scene)
         window.windowLevel = .alert + 1
-        let host = UIHostingController(rootView: AppLockView(lock: lock))
-        host.view.backgroundColor = .systemBackground
+        let host = AppLockHost(rootView: AppLockView(lock: lock))
+        host.view.backgroundColor = UIColor(resource: .appLockBackground)
         window.rootViewController = host
         window.isHidden = true
     }
@@ -82,48 +87,77 @@ final class AppLockWindow {
     }
 }
 
-/// The lock, like Notes' locked note and Photos' Hidden album: the lock symbol, one line and Unlock on the plain
-/// background; no blurred snapshot of what is underneath (titles and shapes survive a blur). While only covering (the
-/// app switcher's snapshot, a return within the grace period, the automatic prompt) just the symbol, in the same place,
-/// so "Feder Is Locked" doesn't flash as the cover drops.
+/// The lock, like a launch screen and banking apps' privacy screens: Feder's icon in the middle of one colour, the
+/// icon's own deep blue (the bottom stop of its gradient, light and dark: AppLockBackground), with no blurred snapshot
+/// of what is underneath (titles and shapes survive a blur). It was the lock symbol on the plain background, like
+/// Notes' locked note; the user asked for a coloured screen with the app's icon. While only covering (the app
+/// switcher's snapshot, a return, the automatic prompt) just the icon, exactly in the middle of the screen, where a
+/// launch screen puts an app's image; after a cancel "Feder Is Locked", the method and Unlock fade in below it, and the
+/// icon doesn't move: the two flexible halves around it split the height, and only text too large for its half (the
+/// largest text sizes) pushes it up. The image is rendered from AppIcon.icon by `build/qa/icon/lock-icon.sh` (no API
+/// loads an app's icon); rerun it when the icon changes.
 struct AppLockView: View {
     let lock: AppLock
+    /// The bottom safe area, which the layout ignores to centre the icon on the whole screen: the prompt keeps clear of
+    /// the home indicator.
+    @State private var bottomInset: CGFloat = 0
 
     var body: some View {
-        let prompts = lock.showsPrompt
-        ContentUnavailableView {
-            Label {
-                Text("Feder Is Locked")
-                    .opacity(prompts ? 1 : 0)
-            } icon: {
-                Image(systemName: "lock.fill")
-            }
-        } description: {
-            Text(description)
-                .opacity(prompts ? 1 : 0)
-        } actions: {
-            Button("Unlock") {
-                Task { await lock.unlock() }
-            }
-            .buttonStyle(.glassProminent)
-            .controlSize(.large)
-            // Dimmed while only covering: ContentUnavailableView keeps its parts in the accessibility tree whatever
-            // their opacity (`accessibilityHidden` on them, or on the whole view, didn't remove them in the UI tests), so
-            // VoiceOver can read "Feder Is Locked" under the Face ID sheet, which is true, and Unlock waits.
-            .disabled(lock.isAuthenticating || !prompts)
-            .opacity(prompts ? 1 : 0)
+        VStack(spacing: 0) {
+            Color.clear
+            Image(.appLockIcon)
+                .accessibilityHidden(true)
+            prompt
+                .fixedSize(horizontal: false, vertical: true)   // wrapped, not truncated to its half at large sizes
+                .padding(.top, 28)
+                .padding(.bottom, bottomInset + 16)
+                .frame(maxHeight: .infinity, alignment: .top)
         }
-        // Fades in after a cancel; gone at once when covering for the snapshot.
-        .animation(prompts ? .easeOut(duration: 0.2) : nil, value: prompts)
+        .padding(.horizontal, 32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemBackground))
+        .ignoresSafeArea()
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { bottomInset = $0 }
+        .background(Color(.appLockBackground))
         .overlay(alignment: .bottom) {
             // Only while covering: the window exists, hidden, whether App Lock is on or not, and the bar's level meter
             // and timer would update with every reading of every recording.
             if lock.isCovered, let session = lock.session, session.isOngoing {
                 LockRecordingBar(session: session)
+                    .environment(\.colorScheme, .dark)     // white on the blue, as the prompt
             }
         }
+    }
+
+    /// White text on the blue in both appearances: the dark scheme for the prompt only, not for the icon and the
+    /// background, which keep their light and dark variants.
+    private var prompt: some View {
+        let prompts = lock.showsPrompt
+        return VStack(spacing: 24) {
+            VStack(spacing: 8) {
+                Text("Feder Is Locked")
+                    .font(.title2.bold())
+                Text(description)
+                    .foregroundStyle(.secondary)
+            }
+            .multilineTextAlignment(.center)
+            .opacity(prompts ? 1 : 0)
+            Button {
+                Task { await lock.unlock() }
+            } label: {
+                Text("Unlock")
+                    .foregroundStyle(Color(.appLockBackground))   // its dark variant here, navy on the white
+            }
+            .buttonStyle(.glassProminent)
+            .controlSize(.large)
+            .tint(.white)                               // the accent's blue barely stood out on the blue
+            // Dimmed while only covering, still in the accessibility tree: VoiceOver can read "Feder Is Locked" under
+            // the Face ID sheet, which is true, and Unlock waits.
+            .disabled(lock.isAuthenticating || !prompts)
+            .opacity(prompts ? 1 : 0)
+        }
+        // Fades in after a cancel; gone at once when covering for the snapshot.
+        .animation(prompts ? .easeOut(duration: 0.2) : nil, value: prompts)
+        .environment(\.colorScheme, .dark)
     }
 
     private var description: LocalizedStringKey {

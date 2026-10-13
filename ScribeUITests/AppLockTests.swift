@@ -87,8 +87,8 @@ final class AppLockTests: ScribeUITestCase {
         XCTAssertEqual(toggle.value as? String, "1", "App Lock stays on")
     }
 
-    /// With App Lock on, Feder opens locked: the lock, "Feder Is Locked" and Unlock after a cancelled Face ID, and
-    /// nothing of the list in the accessibility tree. Unlock opens it.
+    /// With App Lock on, Feder opens locked: Feder's icon on its blue, "Feder Is Locked" and Unlock below it after a
+    /// cancelled Face ID, and nothing of the list in the accessibility tree. Unlock opens it.
     @MainActor
     func testLaunchIsLocked() throws {
         let app = launch(["-appLockOn", "-fakeAuthentication", "cancel,success"], waitsForList: false)
@@ -364,7 +364,9 @@ final class AppLockTests: ScribeUITestCase {
 
     /// LocalAuthentication itself, without `-fakeAuthentication`: the iOS 27 simulator has Face ID (Features › Face ID
     /// in the Simulator's menu, which posts the same notifications as here). Enrolled, the launch shows the Face ID
-    /// sheet over the lock; a matching face unlocks Feder.
+    /// sheet over the lock (Feder's icon on its blue); a matching face unlocks Feder. Also the real check without a
+    /// sheet at the launch (`checkWithoutPrompt`), which finds no Face ID unlock of the iPhone and must not hold up the
+    /// sheet.
     @MainActor
     func testRealFaceIDUnlocks() throws {
         #if targetEnvironment(simulator)
@@ -375,8 +377,8 @@ final class AppLockTests: ScribeUITestCase {
         sleep(4)                                            // the Face ID sheet is up (SpringBoard's, not in the tree)
         shot("Face ID", app)
         XCTAssertFalse(app.staticTexts["Project Kickoff"].exists, "locked")
-        // While Face ID is asked only the lock symbol shows (the rest is transparent, so nothing flashes as the cover
-        // drops); Unlock is in the tree but waits.
+        // While Face ID is asked only the icon shows (the rest is transparent, so nothing flashes as the cover drops);
+        // Unlock is in the tree but waits.
         XCTAssertFalse(app.buttons["Unlock"].isEnabled, "Unlock waits while Face ID is asked")
         #if targetEnvironment(simulator)
         notify_post("com.apple.BiometricKit_Sim.pearl.match")
