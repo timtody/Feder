@@ -87,15 +87,16 @@ final class AppLockWindow {
     }
 }
 
-/// The lock, like a launch screen and banking apps' privacy screens: Feder's icon in the middle of one colour, the
-/// icon's own deep blue (the bottom stop of its gradient, light and dark: AppLockBackground), with no blurred snapshot
-/// of what is underneath (titles and shapes survive a blur). It was the lock symbol on the plain background, like
-/// Notes' locked note; the user asked for a coloured screen with the app's icon. While only covering (the app
-/// switcher's snapshot, a return, the automatic prompt) just the icon, exactly in the middle of the screen, where a
-/// launch screen puts an app's image; after a cancel "Feder Is Locked", the method and Unlock fade in below it, and the
-/// icon doesn't move: the two flexible halves around it split the height, and only text too large for its half (the
-/// largest text sizes) pushes it up. The image is rendered from AppIcon.icon by `build/qa/icon/lock-icon.sh` (no API
-/// loads an app's icon); rerun it when the icon changes.
+/// The lock, like a launch screen and banking apps' privacy screens: Feder's feather in white in the middle of one
+/// colour, the icon's own deep blue (the bottom stop of its gradient, light and dark: AppLockBackground), with no
+/// blurred snapshot of what is underneath (titles and shapes survive a blur). It was the lock symbol on the plain
+/// background, like Notes' locked note; the user asked for a coloured screen with the app's icon, then for the feather
+/// alone, without the icon's squircle. While only covering (the app switcher's snapshot, a return, the automatic
+/// prompt) just the feather, exactly in the middle of the screen, where a launch screen puts an app's image; after a
+/// cancel "Feder Is Locked", the method and Unlock fade in below it, and the feather doesn't move: the two flexible
+/// halves around it split the height, and only text too large for its half (the largest text sizes) pushes it up. The
+/// feather is the icon's own (AppIcon.icon's body.svg, cropped by `build/qa/icon/lock-icon.sh`, a vector template);
+/// rerun it when the icon's feather changes.
 struct AppLockView: View {
     let lock: AppLock
     /// The bottom safe area, which the layout ignores to centre the icon on the whole screen: the prompt keeps clear of
@@ -105,7 +106,11 @@ struct AppLockView: View {
     var body: some View {
         VStack(spacing: 0) {
             Color.clear
-            Image(.appLockIcon)
+            Image(.appLockFeather)
+                .resizable()
+                .scaledToFit()
+                .frame(height: 80)                  // as tall as the feather in the 100 pt icon it replaced
+                .foregroundStyle(.white)
                 .accessibilityHidden(true)
             prompt
                 .fixedSize(horizontal: false, vertical: true)   // wrapped, not truncated to its half at large sizes
@@ -128,8 +133,8 @@ struct AppLockView: View {
         }
     }
 
-    /// White text on the blue in both appearances: the dark scheme for the prompt only, not for the icon and the
-    /// background, which keep their light and dark variants.
+    /// White text on the blue in both appearances: the dark scheme for the prompt only, not for the background, which
+    /// keeps its light and dark variants.
     private var prompt: some View {
         let prompts = lock.showsPrompt
         return VStack(spacing: 24) {
