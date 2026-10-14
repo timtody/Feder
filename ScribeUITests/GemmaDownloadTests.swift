@@ -65,8 +65,9 @@ final class AskTests: ScribeUITestCase {
         field.typeText("What can you do?")
         shot("Typed", app)
         app.buttons["Send"].tap()
-        XCTAssertTrue(app.staticTexts["What can you do?"].waitForExistence(timeout: 2), "the question in its bubble")
-        XCTAssertTrue(app.buttons["Stop Answer"].waitForExistence(timeout: 2), "Send turns into Stop")
+        // Stop first: the fake answer is done in about 3.5 s, and with the keyboard up each query takes a while.
+        XCTAssertTrue(app.buttons["Stop Answer"].waitForExistence(timeout: 3), "Send turns into Stop")
+        XCTAssertTrue(app.staticTexts["What can you do?"].exists, "the question in its bubble")
         let answer = app.staticTexts["ChatAnswer"].firstMatch
         XCTAssertTrue(answer.waitForExistence(timeout: 5), "the answer streams in")
         shot("Streaming", app)
@@ -76,7 +77,7 @@ final class AskTests: ScribeUITestCase {
 
         field.typeText("And then?")
         app.buttons["Send"].tap()
-        XCTAssertTrue(app.buttons["Stop Answer"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["Stop Answer"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 15))
         let second = app.staticTexts.matching(identifier: "ChatAnswer").element(boundBy: 1)
         XCTAssertTrue(second.label.contains("Earlier messages: 2."), "the history went along: \(second.label)")
@@ -90,9 +91,9 @@ final class AskTests: ScribeUITestCase {
     /// Stop mid-answer keeps what was written so far, captioned Stopped.
     @MainActor
     func testStopKeepsPartialAnswer() throws {
-        let app = launch(["-fakeGemma", "-showAsk"])
+        let app = launch(["-fakeGemma", "-showAsk"], waitsForList: false)      // the list is in another tab
         let field = app.textFields["ChatField"]
-        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(field.waitForExistence(timeout: 15))
         field.tap()
         dismissKeyboardTip(app)
         field.typeText("Tell me something long")
@@ -111,8 +112,8 @@ final class AskTests: ScribeUITestCase {
     @MainActor
     func testAskOffersDownload() throws {
         let app = launch(["-fakeGemmaDownload", "-fakeGemmaDownloadSeconds", "4", "-improvementsOnboardingShown", "YES",
-                          "-showAsk"])
-        XCTAssertTrue(app.staticTexts["Download Gemma to Chat"].waitForExistence(timeout: 5), "the download offer")
+                          "-showAsk"], waitsForList: false)
+        XCTAssertTrue(app.staticTexts["Download Gemma to Chat"].waitForExistence(timeout: 15), "the download offer")
         XCTAssertFalse(app.textFields["ChatField"].exists, "no field before Gemma is there")
         app.buttons["Download Gemma 4 E2B (3.6 GB)"].tap()
         XCTAssertTrue(app.staticTexts["Downloading Gemma 4 E2B…"].waitForExistence(timeout: 5), "the progress")

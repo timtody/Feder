@@ -52,14 +52,19 @@ struct ChatView: View {
             } actions: {
                 downloadState
             }
-        } else if services.chat.messages.isEmpty {
-            ContentUnavailableView {
-                Label("Ask Gemma", systemImage: "bubble.left.and.text.bubble.right")
-            } description: {
-                Text("Gemma runs on this iPhone. Nothing you type leaves it.")
-            }
         } else {
+            // The empty chat's text over the (empty) conversation, not instead of it: swapping the views on the first
+            // Send put the keyboard away (iOS 27 simulator), and Messages keeps it up.
             conversation
+                .overlay {
+                    if services.chat.messages.isEmpty {
+                        ContentUnavailableView {
+                            Label("Ask Gemma", systemImage: "bubble.left.and.text.bubble.right")
+                        } description: {
+                            Text("Gemma runs on this iPhone. Nothing you type leaves it.")
+                        }
+                    }
+                }
         }
     }
 
