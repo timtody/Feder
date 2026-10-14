@@ -39,10 +39,12 @@ final class BetterSummaries {
     var variant: LocalLanguageModel.Variant { .e2b }
     /// The transcript being described with Gemma right now (Settings shows it while it works).
     private(set) var isWorking = false
+    /// Gemma is answering in the Ask tab (`runInteractive`).
+    private(set) var isAnswering = false
     /// SpeakerIdentifier.setRecording: Gemma does not run while recording (the GPU and memory belong to it); a request
-    /// in flight when recording starts is stopped.
+    /// in flight when recording starts is stopped, a chat answer too.
     @ObservationIgnored var isRecording = false {
-        didSet { if isRecording { cancelRunning?() } }
+        didSet { if isRecording { cancelAll() } }
     }
     /// Called when the model becomes usable (downloaded, or turned on): AppServices starts the re-describe sweep.
     @ObservationIgnored var onBecameActive: (() -> Void)?
@@ -53,7 +55,13 @@ final class BetterSummaries {
     #if DEBUG
     @ObservationIgnored private var fakeDownload: Task<Void, Never>?
     #endif
-    @ObservationIgnored private var cancelRunning: (() -> Void)?   // stops the request in flight
+    @ObservationIgnored private var cancelRunning: (() -> Void)?   // stops the background request in flight
+    /// Ends when the background request in flight has ended (cancelled or not): a chat answer waits for it, so two
+    /// requests never share the GPU (two KV caches over the 3.7 GB peak on an 8 GB iPhone).
+    @ObservationIgnored private var runningDone: Task<Void, Never>?
+    @ObservationIgnored private var cancelAnswer: (() -> Void)?    // stops the chat answer in flight
+    /// A background request was stopped or turned away for a chat answer: the sweep runs again after it.
+    @ObservationIgnored private var deferredForChat = false
     @ObservationIgnored private var unloadTask: Task<Void, Never>?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
 
@@ -85,6 +93,13 @@ final class BetterSummaries {
         return model
     }
 
+    /// The model the Ask tab chats with: downloaded and supported, also with Titles and Summaries off (that switch is
+    /// about the automatic summaries; turning it off shouldn't empty a tab).
+    var chatModel: (any TextWriter)? {
+        guard Self.isSupported, state == .ready else { return nil }
+        return model
+    }
+
     init(network: NetworkPath) {
         self.network = network
         for build in LocalLanguageModel.Variant.allCases where Self.isSupported && Self.isDownloaded(build) {
@@ -110,7 +125,7 @@ final class BetterSummaries {
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: UIApplication.willResignActiveNotification, object: nil,
                                             queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.cancelRunning?() }     // stop before the GPU is taken away
+            MainActor.assumeIsolated { self?.cancelAll() }          // stop before the GPU is taken away
         })
         observers.append(center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil,
                                             queue: .main) { [weak self] _ in
@@ -122,9 +137,15 @@ final class BetterSummaries {
 
     /// Runs `work` with Gemma while the app is active: throws RetryLater when it is not, or when it resigns active
     /// meanwhile (the request is cancelled). One request at a time (the background worker is serial anyway).
+    /// A chat answer goes first (`runInteractive`): while one runs, this throws RetryLater, and the sweep runs again
+    /// after it.
     func run<T: Sendable>(_ work: @escaping @MainActor (any TextWriter) async throws -> T) async throws -> T {
         guard let model = activeModel else { throw TranscriptTitler.LocalModelFailed(underlying: "not available") }
         guard UIApplication.shared.applicationState == .active, !isRecording else { throw TranscriptTitler.RetryLater() }
+        guard !isAnswering else {
+            deferredForChat = true
+            throw TranscriptTitler.RetryLater()
+        }
         unloadTask?.cancel()
         isWorking = true
         defer {
@@ -133,7 +154,11 @@ final class BetterSummaries {
         }
         let task = Task { try await work(model) }
         cancelRunning = { task.cancel() }
-        defer { cancelRunning = nil }
+        runningDone = Task { _ = await task.result }
+        defer {
+            cancelRunning = nil
+            runningDone = nil
+        }
         do {
             return try await withTaskCancellationHandler {
                 try await task.value
@@ -150,10 +175,54 @@ final class BetterSummaries {
         }
     }
 
+    /// Why the Ask tab can't answer right now.
+    enum ChatUnavailable: Error {
+        case notDownloaded, recording, background
+    }
+
+    /// Runs a chat answer (the Ask tab) with Gemma, ahead of the background work: a press must answer at once, so a
+    /// summary or an action-item search in flight is stopped (not marked done; the sweep started after the answer
+    /// writes it again) and new ones are turned away until the answer is done. Only while the app is active and not
+    /// recording; stopped like a background request when the app resigns active or a recording starts.
+    func runInteractive<T: Sendable>(_ work: @escaping @MainActor (any TextWriter) async throws -> T) async throws -> T {
+        guard let model = chatModel else { throw ChatUnavailable.notDownloaded }
+        guard !isRecording else { throw ChatUnavailable.recording }
+        guard UIApplication.shared.applicationState == .active else { throw ChatUnavailable.background }
+        guard !isAnswering else { throw CancellationError() }      // GemmaChat sends one at a time
+        unloadTask?.cancel()
+        isAnswering = true
+        defer {
+            isAnswering = false
+            scheduleUnload()
+            if deferredForChat {
+                deferredForChat = false
+                onBecameActive?()                               // the stopped or refused summaries, again
+            }
+        }
+        if let running = runningDone {
+            deferredForChat = true
+            cancelRunning?()
+            await running.value                                 // a token later: the loop checks between tokens
+        }
+        try Task.checkCancellation()
+        let task = Task { try await work(model) }
+        cancelAnswer = { task.cancel() }
+        defer { cancelAnswer = nil }
+        return try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: { task.cancel() }
+    }
+
+    /// Stops the background request and the chat answer in flight.
+    private func cancelAll() {
+        cancelRunning?()
+        cancelAnswer?()
+    }
+
     /// Frees the weights (a recording is about to start, or a minute passed without requests).
     func unload() async {
         unloadTask?.cancel()
-        cancelRunning?()
+        cancelAll()
         await model?.unload()
     }
 
@@ -161,8 +230,9 @@ final class BetterSummaries {
         unloadTask?.cancel()
         unloadTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(60))
-            guard !Task.isCancelled else { return }
-            await self?.model?.unload()
+            // Not under a request still running (a summary stopped for a chat answer scheduled this as it ended).
+            guard !Task.isCancelled, let self, !self.isAnswering, !self.isWorking else { return }
+            await self.model?.unload()
         }
     }
 

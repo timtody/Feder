@@ -5,7 +5,17 @@ import Foundation
 nonisolated protocol TextWriter: AnyObject, Sendable {
     func respond(instructions: String, prompt: String, maxTokens: Int, temperature: Float,
                  partial: (@Sendable (String) -> Void)?) async throws -> String
+    /// The next answer in a conversation (the Ask tab); see `LocalLanguageModel.chat`.
+    func chat(instructions: String, turns: [ChatTurn], maxTokens: Int, temperature: Float,
+              partial: (@Sendable (String) -> Void)?) async throws -> String
     func unload() async
+}
+
+/// One message of a conversation with Gemma (the Ask tab), as the model reads it.
+nonisolated struct ChatTurn: Sendable, Equatable {
+    enum Role: Sendable { case user, assistant }
+    var role: Role
+    var text: String
 }
 
 /// A short title and a short summary of a finished transcript, written on device in the app's language by

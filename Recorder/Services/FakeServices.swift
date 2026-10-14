@@ -251,6 +251,32 @@ nonisolated final class FakeTextWriter: TextWriter, @unchecked Sendable {
         return answer
     }
 
+    /// The Ask tab's stand-in answer: after 0.8 s ("Thinking…" shows), a canned reply that names the question and the
+    /// number of earlier turns (so a UI test sees the history arrive), streamed word by word every 60 ms (about 3 s,
+    /// long enough to press Stop). A question with "long" in it gets a reply with Markdown and a list, long enough to
+    /// scroll.
+    func chat(instructions: String, turns: [ChatTurn], maxTokens: Int, temperature: Float,
+              partial: (@Sendable (String) -> Void)?) async throws -> String {
+        try await Task.sleep(for: .milliseconds(800))
+        let question = turns.last?.text ?? ""
+        var answer = "You asked: \u{201C}\(question)\u{201D}. This is a canned answer from the simulator's stand-in for " +
+            "Gemma, which runs on this iPhone, so nothing you type leaves it. Earlier messages: \(turns.count - 1)."
+        if question.localizedCaseInsensitiveContains("long") {
+            answer += "\n\nHere is a **longer** answer, to see how the chat scrolls:\n\n" +
+                (1...8).map { "* Point \($0): a sentence that takes up a line or two on an iPhone, so the list grows " +
+                    "taller than the screen." }.joined(separator: "\n") +
+                "\n\nThat is all for now."
+        }
+        var text = ""
+        for word in answer.split(separator: " ", omittingEmptySubsequences: false) {
+            try Task.checkCancellation()
+            text += (text.isEmpty ? "" : " ") + word
+            partial?(text)
+            try await Task.sleep(for: .milliseconds(60))
+        }
+        return answer
+    }
+
     func unload() async {}
 }
 #endif

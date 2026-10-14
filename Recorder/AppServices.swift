@@ -64,6 +64,7 @@ final class AppServices {
     /// Plays a transcript's audio (the card's player bar, a tapped word).
     let player = TranscriptPlayer()
     let betterSummaries: BetterSummaries             // Gemma for titles and summaries (Settings)
+    let chat: GemmaChat                              // the Ask tab's conversation with Gemma (in memory only)
     let appLock = AppLock()                          // Face ID before Feder shows a transcript (Settings › App Lock)
     /// Name from Calendar: today's and tomorrow's events in memory, read off the main actor (CalendarContext).
     let calendar = CalendarContext()
@@ -93,6 +94,7 @@ final class AppServices {
         self.nemotronDiarizer = nemotronDiarizer
         nemotron = NemotronModel(diarizer: nemotronDiarizer, network: network)
         betterSummaries = BetterSummaries(network: network)
+        chat = GemmaChat(betterSummaries: betterSummaries)
         parakeet = ParakeetModel(network: network)
         let liveModel = Self.liveLabelsModel
         self.liveModel = liveModel

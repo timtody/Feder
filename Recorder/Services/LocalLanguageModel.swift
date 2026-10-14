@@ -68,10 +68,30 @@ actor LocalLanguageModel {
     /// CancellationError then.
     func respond(instructions: String, prompt: String, maxTokens: Int = 400, temperature: Float = 0,
                  partial: (@Sendable (String) -> Void)? = nil) async throws -> String {
+        try await generate(instructions: instructions, turns: [ChatTurn(role: .user, text: prompt)],
+                           maxTokens: maxTokens, temperature: temperature, partial: partial)
+    }
+
+    /// The next answer in a conversation (the Ask tab, GemmaChat): `turns` alternate user and assistant and end with
+    /// the user's newest message. The whole history goes in with every request, no `ChatSession` and no KV cache kept
+    /// between turns: Gemma's prefill is fast (1.5 s for 4K characters on the M5), the actor keeps its one container,
+    /// and unload and memory stay as they are. Reusing the cache is a follow-up if the time to first token on the
+    /// iPhone asks for it.
+    func chat(instructions: String, turns: [ChatTurn], maxTokens: Int = 1000, temperature: Float = 0,
+              partial: (@Sendable (String) -> Void)? = nil) async throws -> String {
+        try await generate(instructions: instructions, turns: turns, maxTokens: maxTokens, temperature: temperature,
+                           partial: partial)
+    }
+
+    /// The chat messages are made here, from Sendable turns: `Chat.Message` isn't Sendable, and handed in, the input
+    /// built from it couldn't be sent to the container.
+    private func generate(instructions: String, turns: [ChatTurn], maxTokens: Int, temperature: Float,
+                          partial: (@Sendable (String) -> Void)?) async throws -> String {
         try await load()
         guard let container else { throw CancellationError() }
-        let input = UserInput(chat: [.system(instructions), .user(prompt)],
-                              additionalContext: ["enable_thinking": false])
+        let messages: [Chat.Message] = [.system(instructions)]
+            + turns.map { $0.role == .user ? .user($0.text) : .assistant($0.text) }
+        let input = UserInput(chat: messages, additionalContext: ["enable_thinking": false])
         let prepared = try await container.prepare(input: input)
         let parameters = GenerateParameters(maxTokens: maxTokens, temperature: temperature)
         var text = ""
