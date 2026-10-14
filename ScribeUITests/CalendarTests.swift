@@ -300,14 +300,17 @@ final class CalendarTests: ScribeUITestCase {
         app.staticTexts["Project Kickoff"].firstMatch.tap()
         XCTAssertTrue(use.waitForExistence(timeout: 10), "offered")
         let notice = app.staticTexts["AINotice"]
-        let (noticeY, dismissY, pillMinX) = (notice.frame.minY, dismiss.frame.midY, use.frame.minX)
+        // "Kickoff Meeting" is on one line: the taken label's height must match it. Not midY against the ⊗: the row is
+        // centred, so a label wrapped to two lines stays centred on it too.
+        let (noticeY, dismissY, pillMinX, lineHeight) = (notice.frame.minY, dismiss.frame.midY, use.frame.minX,
+                                                         row.frame.height)
         XCTAssertGreaterThan(dismiss.frame.minX - row.frame.maxX, use.frame.width, "offered, the pill sits between them")
         use.tap()
         XCTAssertTrue(waitFor { row.label == "Aus deinem Kalender" }, row.label)
         XCTAssertTrue(use.waitForNonExistence(timeout: 5), "the pill is gone")
         XCTAssertGreaterThan(row.frame.maxX, pillMinX - 10 + 0.5, "the label uses the pill's width: \(row.frame)")
         XCTAssertLessThan(row.frame.maxX, dismiss.frame.minX, "beside the ⊗")
-        XCTAssertLessThan(abs(row.frame.midY - dismiss.frame.midY), 4, "on one line")
+        XCTAssertEqual(row.frame.height, lineHeight, accuracy: 1, "on one line: \(row.frame)")
         XCTAssertEqual(dismiss.frame.midY, dismissY, accuracy: 1, "the ⊗ stays where it was")
         XCTAssertEqual(notice.frame.minY, noticeY, accuracy: 1, "nothing below moves")
         shot("German taken row", app)

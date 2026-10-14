@@ -48,7 +48,10 @@ struct CalendarTitleRow: View {
                         useButton(action: onUse)
                             .accessibilityHidden(!isActive)
                             .accessibilityIdentifier("UseCalendarTitle")
-                            .transition(.opacity)
+                            // Leaves at once on Use as Title, and only the label crossfades: the stand-in has already
+                            // given its width away, so "Aus deinem Kalender" ran under the fading pill for the 0.3 s
+                            // (frames of the German tap, FED-11).
+                            .transition(.asymmetric(insertion: .opacity, removal: .identity))
                     }
                 }
                 dismissButton
