@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The Stop melting into the transcript's bottom toolbar: the Stop's Liquid Glass disc stretches, necks and splits into
-/// the bar's two glass shapes (Share, Add Tag and Speakers in one capsule, Delete a circle) while its red square shrinks away
+/// the bar's two glass shapes (Share, Find, Action Items, Listen and More in one capsule, Delete a circle) while its red square shrinks away
 /// and the bar's symbols fade in. The system bar can't do this itself: a toolbar item is at most a 48 pt glass, and
 /// only a regular-glass capsule at least ~92 pt wide morphed into the bar's group (a round 48 pt Stop or a red
 /// `.glassProminent` one just faded, and Delete never split off the same blob). So these are replicas: two glass shapes
@@ -62,16 +62,15 @@ struct MeltLayer: View {
             ZStack(alignment: .topLeading) {
                 Color.clear
                 symbol("square.and.arrow.up", at: Self.shareCentre, in: group, of: bar.group)
-                symbol("tag", at: Self.tagCentre, in: group, of: bar.group)
-                // Edit Text is disabled while the steps after Stop run, which they always do right after Stop.
-                symbol("pencil", at: Self.editCentre, in: group, of: bar.group, disabled: true)
-                // Action Items too: the speakers aren't final right after Stop. Only where Gemma can run (the bar has
-                // no Action Items elsewhere).
+                symbol("magnifyingglass", at: Self.findCentre, in: group, of: bar.group)
+                // Action Items is disabled right after Stop: the speakers aren't final yet. Only where Gemma can run
+                // (the bar has no Action Items elsewhere).
                 if BetterSummaries.isSupported {
                     symbol("checklist", at: Self.actionItemsCentre, in: group, of: bar.group, disabled: true)
                 }
                 // Listen: enabled at the hand-over (the card has found the recording's audio by then).
                 symbol("headphones", at: Self.listenCentre, in: group, of: bar.group)
+                symbol("ellipsis", at: Self.moreCentre, in: group, of: bar.group)
                 symbol("trash", at: Self.deleteCentre, in: delete, of: bar.delete)
             }
             .opacity(1 - (1 - symbols) * (1 - symbols))     // ease out
@@ -109,28 +108,30 @@ struct MeltLayer: View {
                       y: frame.minY + centre.y * frame.height / final.height)
     }
 
-    // The transcript's bar (Share, Add Tag, Edit Text, Action Items, Listen, flexible space, Delete), measured on iOS 27,
-    // iPhone 17 (402 × 874 pt), from the system's glass views: Share, Add Tag, Edit Text, Action Items and Listen in one
-    // capsule (28, 798, 279.33 × 48; 285 with Speakers' wider person.2 in Action Items' place, 175 before Edit Text, 116
-    // before Add Tag), Delete a circle (326, 798, 48 × 48), 28 pt from the screen's edges and 42 pt above the safe
-    // area's bottom. The symbols' centres in their glass, from their image views (replicas there match the real bar to
-    // 0.02 pt). Edit Text's, Action Items' and Listen's came from the buttons' frames instead (UI test, 2026-10-12):
-    // their centres matched Share's and Add Tag's image views exactly, the capsule reaches 5 pt past the outer buttons,
-    // and the items before the one that changed didn't move. Without Action Items (an iPhone that can't run Gemma: no
-    // button) the capsule is 219.67 wide and Listen sits where Action Items would (same UI test). Another item in the
-    // bar's group changes these: measure again.
+    // The transcript's bar (Share, Find, Action Items, Listen, More, flexible space, Delete), measured on iOS 27,
+    // iPhone 17 (402 × 874 pt), from the system's glass views: the five in one capsule (28, 798, 277.33 × 48; 279.33
+    // with Add Tag and Edit Text in More's place until FED-79, 285 with Speakers' wider person.2 in Action Items' place,
+    // 175 before Edit Text, 116 before Add Tag), Delete a circle (326, 798, 48 × 48), 28 pt from the screen's edges and
+    // 42 pt above the safe area's bottom. Share's and Delete's symbol centres from their image views (replicas there
+    // match the real bar to 0.02 pt); the others from the buttons' frames (UI test, 2026-10-14, as on 2026-10-12, when
+    // the buttons' centres matched the image views exactly and the capsule reached 5 pt past the outer buttons). More's
+    // ellipsis button is 40 pt wide, 3.33 less than Listen at the end before: the capsule is 2 pt narrower. Without
+    // Action Items (an iPhone that can't run Gemma: no button) the capsule is 217.67 wide and Listen and More sit one
+    // place to the left (same UI test). Another item in the bar's group changes these: measure again.
     private static let shareCentre = CGPoint(x: 25.33, y: 22.67)
-    private static let tagCentre = CGPoint(x: 82.17, y: 25.0)
-    private static let editCentre = CGPoint(x: 138.0, y: 24.0)
-    private static let actionItemsCentre = CGPoint(x: 194.17, y: 24.0)
+    private static let findCentre = CGPoint(x: 80.5, y: 24.0)
+    private static let actionItemsCentre = CGPoint(x: 138.17, y: 24.0)
     private static var listenCentre: CGPoint {
-        BetterSummaries.isSupported ? CGPoint(x: 252.67, y: 24.0) : CGPoint(x: 193.0, y: 24.0)
+        BetterSummaries.isSupported ? CGPoint(x: 196.67, y: 24.0) : CGPoint(x: 137.0, y: 24.0)
+    }
+    private static var moreCentre: CGPoint {
+        BetterSummaries.isSupported ? CGPoint(x: 252.33, y: 24.0) : CGPoint(x: 192.67, y: 24.0)
     }
     private static let deleteCentre = CGPoint(x: 23.83, y: 23.33)
 
     static func barItems(in safeArea: CGRect) -> (group: CGRect, delete: CGRect) {
         let y = safeArea.maxY - 42
-        return (CGRect(x: 28, y: y, width: BetterSummaries.isSupported ? 279.33 : 219.67, height: 48),
+        return (CGRect(x: 28, y: y, width: BetterSummaries.isSupported ? 277.33 : 217.67, height: 48),
                 CGRect(x: safeArea.maxX - 28 - 48, y: y, width: 48, height: 48))   // portrait only: safe x = screen x
     }
 
