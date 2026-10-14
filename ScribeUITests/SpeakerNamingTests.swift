@@ -223,6 +223,9 @@ final class SpeakerNamingTests: ScribeUITestCase {
         let below = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Tap a speaker'")).firstMatch
         XCTAssertTrue(below.exists, "it says what to do")
         XCTAssertLessThan(header.frame.minY, tip.frame.minY, "under the first name, pointing at it")
+        sleep(1)                                            // the keyboard's warm-up has run (KeyboardWarmup)
+        XCTAssertTrue(tip.exists, "the warm-up leaves the tip up")
+        XCTAssertEqual(app.keyboards.count, 0, "and no keyboard")
         // One tap: the tip lets taps through to the page (tipBackgroundInteraction), so the name renames at once.
         header.tap()
         let cancel = app.buttons["CancelRename"]
@@ -238,7 +241,9 @@ final class SpeakerNamingTests: ScribeUITestCase {
         // closePopoverAtOnce says so in the first name row's value (DEBUG, `-showTips`), so an iOS that presents the tip
         // otherwise fails here. How soon the sheet then moves is not checked: XCUITest can't time it (README ›
         // Performance, Rename).
-        XCTAssertEqual(header.value as? String, "Tip popover closed at once", "the tap took the tip's popover away")
+        // The keyboard was set up while the tip was up, not by the tap (KeyboardWarmup).
+        XCTAssertEqual(header.value as? String, "Tip popover closed at once, keyboard warmed up",
+                       "the tap took the tip's popover away")
 
         // Debug builds: Settings › About › Reset Onboarding brings it back at once, without a relaunch.
         closeCard(app)

@@ -72,7 +72,7 @@ struct TranscriptView: View {
     #if DEBUG
     /// UI tests with tips (`-showTips`): "Tip popover closed at once" as the first name row's accessibility value once
     /// the rename took the tip's popover away itself (NameSpeakersTip.closePopoverAtOnce), since XCUITest can't time
-    /// the sheet. Empty when it found no popover: testNameSpeakersTip fails then, instead of an iOS that presents the
+    /// the sheet; ", keyboard warmed up" when KeyboardWarmup had run while the tip was up. Empty when it found no popover: testNameSpeakersTip fails then, instead of an iOS that presents the
     /// tip otherwise quietly bringing back the wait for its fade.
     @State private var tipClose = ""
     private static let marksTipClose = ProcessInfo.processInfo.arguments.contains("-showTips")
@@ -218,7 +218,9 @@ struct TranscriptView: View {
         InteractionTrace.begin("rename")
         if showsNameTip, !tipEnded {
             #if DEBUG
-            NameSpeakersTip.closePopoverAtOnce { if Self.marksTipClose { tipClose = "Tip popover closed at once" } }
+            NameSpeakersTip.closePopoverAtOnce {
+                if Self.marksTipClose { tipClose = "Tip popover closed at once" + (KeyboardWarmup.done ? ", keyboard warmed up" : "") }
+            }
             #else
             NameSpeakersTip.closePopoverAtOnce()
             #endif
@@ -319,6 +321,12 @@ private struct SpeakerNameLine: View {
                 // The page behind the tip stays live (iOS 26): the first tap on the name renames at once. Without it
                 // the popover took that tap to close itself, and naming took two taps the first time.
                 .tipBackgroundInteraction(.enabled)
+                .task(id: showsTip) {
+                    guard showsTip else { return }
+                    // After the tip's fade-in, while it waits for its tap: the tap then doesn't set up the keyboard.
+                    do { try await Task.sleep(for: .seconds(1)) } catch { return }
+                    KeyboardWarmup.runWhileTipShows()
+                }
             Text(start.clockFormatted)
                 .font(.caption)
                 .monospacedDigit()
