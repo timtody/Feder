@@ -28,6 +28,7 @@ struct RecordingDetailView: View {
     @Environment(AppServices.self) private var services
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openPerson) private var openPerson     // a name row's "Go to Person"
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @State private var confirmDelete = false
     @FocusState private var titleFocused: Bool
@@ -242,6 +243,7 @@ struct RecordingDetailView: View {
                 // In the player's place while Listen is on (playback goes on; the player is back when Find closes).
                 TranscriptFindBar(text: $findText, matches: findTerms.isEmpty ? nil : (hitIndex, hits.count),
                                   focusRequest: findFocusRequest, step: step, close: endFinding)
+                    .capped
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             } else if listening, hasAudio, !isEditingText {
                 // Listen: the player above the bottom toolbar; its close button ends Listen.
@@ -376,11 +378,16 @@ struct RecordingDetailView: View {
                     editTextButton
                     if BetterSummaries.isSupported { actionItemsButton }
                     listenButton
+                    if dynamicTypeSize.isAccessibilitySize { findButton }
                 } label: {
                     Label("More", systemImage: "ellipsis")
                 }
             }
-            ToolbarItem(placement: .bottomBar) { findButton }
+            // At the accessibility text sizes "1 of 2" grows, and with Find beside More iOS moved Next Match and Delete
+            // into an overflow menu (AX XL, iPhone 17 simulator): Find goes into More there.
+            if !dynamicTypeSize.isAccessibilitySize {
+                ToolbarItem(placement: .bottomBar) { findButton }
+            }
         } else {
             // Five in the group at most: a sixth (Find beside the others, FED-79) left too little room for Delete on
             // an iPhone 17. Add Tag and Edit Text went into More, as the less used ones on a finished transcript.

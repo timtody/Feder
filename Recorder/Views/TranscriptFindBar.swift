@@ -6,7 +6,8 @@ import SwiftUI
 /// `.searchToolbarBehavior(.minimize)`) expands over the whole bar with only its own close button, and neither the
 /// bar's other items nor a `.keyboard` toolbar group were shown beside it (iOS 27, iPhone 17 simulator, 2026-10-14):
 /// no place for the count and the arrows. In the card's bottom safe-area bar, so it rides on the keyboard and stays at
-/// the bottom when the keyboard goes; styled like the Search tab's bar (TranscriptSearchBar).
+/// the bottom when the keyboard goes; styled like the Search tab's bar (TranscriptSearchBar). Not past the largest
+/// standard text size (`capped`).
 struct TranscriptFindBar: View {
     @Binding var text: String
     /// The paragraphs with hits, and which one is current; nil while nothing is searched (an empty field).
@@ -17,7 +18,16 @@ struct TranscriptFindBar: View {
     let close: () -> Void
 
     @FocusState private var isFocused: Bool
+    /// The bar's height grows with the text; the buttons' width doesn't (as the toolbar's): at the largest standard
+    /// size three growing circles left the field too little room for its text.
     @ScaledMetric(relativeTo: .body) private var height: CGFloat = 44
+
+    /// At the accessibility sizes the three glass shapes grew wider than the screen (AX XL, iPhone 17 simulator) and
+    /// pushed the whole card sideways. The bottom toolbar it stands in for doesn't grow its buttons either (the Large
+    /// Content Viewer shows them). Outside the bar: its own scaled metric reads the size it is given.
+    var capped: some View {
+        dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+    }
 
     var body: some View {
         GlassEffectContainer(spacing: 10) {
@@ -52,6 +62,13 @@ struct TranscriptFindBar: View {
                     step(1)
                     isFocused = true
                 }
+                // ⌘G and ⇧⌘G while the field has the keys: the arrows' shortcuts didn't reach them then (iOS 27
+                // simulator; the text field took the keys first).
+                .onKeyPress(keys: ["g"], phases: .down) { press in
+                    guard press.modifiers.contains(.command) else { return .ignored }
+                    step(press.modifiers.contains(.shift) ? -1 : 1)
+                    return .handled
+                }
                 .accessibilityIdentifier("FindField")
             if let matches {
                 Group {
@@ -80,7 +97,7 @@ struct TranscriptFindBar: View {
             }
         }
         .padding(.horizontal, 14)
-        .frame(minHeight: height)
+        .frame(maxWidth: .infinity, minHeight: height)
         .glassEffect(.regular.interactive(), in: Capsule())
     }
 
@@ -91,13 +108,14 @@ struct TranscriptFindBar: View {
         } label: {
             Image(systemName: "xmark")
                 .font(.body.weight(.semibold))
-                .frame(width: height, height: height)
+                .frame(width: 44, height: height)
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: Circle())
         .accessibilityLabel("Close Find")
         .accessibilityIdentifier("CloseFind")
+        .accessibilityShowsLargeContentViewer()
     }
 
     /// Previous and Next in one capsule; ⇧⌘G and ⌘G with a hardware keyboard, as in Safari.
@@ -108,20 +126,22 @@ struct TranscriptFindBar: View {
                 step(-1)
             } label: {
                 Image(systemName: "chevron.up")
-                    .frame(width: height, height: height)
+                    .frame(width: 44, height: height)
                     .contentShape(Rectangle())
             }
             .keyboardShortcut("g", modifiers: [.command, .shift])
             .accessibilityLabel("Previous Match")
+            .accessibilityShowsLargeContentViewer()
             Button {
                 step(1)
             } label: {
                 Image(systemName: "chevron.down")
-                    .frame(width: height, height: height)
+                    .frame(width: 44, height: height)
                     .contentShape(Rectangle())
             }
             .keyboardShortcut("g", modifiers: .command)
             .accessibilityLabel("Next Match")
+            .accessibilityShowsLargeContentViewer()
         }
         .font(.body.weight(.semibold))
         .buttonStyle(.plain)
