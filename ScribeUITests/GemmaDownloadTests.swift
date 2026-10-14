@@ -39,28 +39,51 @@ final class GemmaDownloadTests: ScribeUITestCase {
     }
 }
 
-/// The Ask tab (FED-17, DEBUG builds on iPhones that run Gemma): a chat with Gemma, between Transcripts and Search.
-/// Its field is the tab bar's bottom accessory on that tab (where Transcribe is on the others); a tap on it brings up
-/// the keyboard with the composer (`ChatField`) over it. `-fakeGemma` answers with a canned reply streamed word by
-/// word that names the question and the count of earlier messages (FakeTextWriter.chat). Kept with Gemma's download
-/// tests, so the project needs no new test file.
+/// Ask (FED-17, DEBUG builds on iPhones that run Gemma): a chat with Gemma as a card that zooms out of the record
+/// accessory's Ask button (`AskGemma`, where Import was): a sheet at half height that pulls up to full, Close and New Chat
+/// at the top, the field (`ChatField`) at the bottom. `-fakeGemma` answers with a canned reply streamed word by word
+/// that names the question and the count of earlier messages (FakeTextWriter.chat). Kept with Gemma's download tests,
+/// so the project needs no new test file.
 final class AskTests: ScribeUITestCase {
-    /// The tab sits between Transcripts and Search; a question gets a streamed answer (Stop while it streams, Send
-    /// again after), a follow-up carries the history, and New Chat clears the conversation.
+    /// Ask sits at the accessory's end, right of the language, and stays when the bar minimizes. A tap opens the card
+    /// at half height; a question gets a streamed answer (Stop while it streams, Send again after), a follow-up carries
+    /// the history, New Chat clears the conversation, Close puts the card away.
     @MainActor
-    func testAskTabAnswers() throws {
-        let app = launch(["-fakeGemma"])
-        let transcripts = app.buttons["Transcripts"].firstMatch, ask = app.buttons["Ask"].firstMatch
-        let search = app.buttons["Search"].firstMatch
-        XCTAssertTrue(ask.waitForExistence(timeout: 5), "the Ask tab with Gemma")
-        XCTAssertTrue(transcripts.frame.midX < ask.frame.midX && ask.frame.midX < search.frame.midX,
-                      "Transcripts, Ask, Search: \(transcripts.frame) \(ask.frame) \(search.frame)")
-        XCTAssertEqual(ask.frame.midY, search.frame.midY, accuracy: 2, "in the same bar")
+    func testAskCardAnswers() throws {
+        let app = launch(["-fakeGemma", "-seedFiller", "12"])
+        let ask = app.buttons["AskGemma"], language = app.buttons["Language"]
+        XCTAssertTrue(ask.waitForExistence(timeout: 5), "Ask in the accessory")
+        XCTAssertLessThan(app.buttons["ImportAudio"].frame.maxY, app.frame.height * 0.2, "Import is at the top, not here")
+        XCTAssertGreaterThan(ask.frame.minX, language.frame.maxX - 1, "right of the language")
+        XCTAssertLessThan(abs(ask.frame.midY - language.frame.midY), 3, "on the language's line")
+        XCTAssertLessThan(ask.frame.maxY, app.buttons["Transcripts"].firstMatch.frame.minY + 4, "over the tab bar")
+        XCTAssertEqual(app.tabBars.buttons.count, 3, "Settings, Transcripts, Search: no Ask tab")
+        app.swipeUp()                                            // the list scrolls: the bar minimizes
+        XCTAssertTrue(waitUntil { !language.isHittable }, "minimized: no language")
+        XCTAssertTrue(ask.isHittable, "Ask stays")
+        XCTAssertGreaterThan(ask.frame.midX, app.frame.width * 0.5, "on the right")
+        shot("Minimized with Ask", app)
+
         ask.tap()
-        XCTAssertTrue(app.staticTexts["Ask Gemma"].waitForExistence(timeout: 5), "the empty chat")
+        let title = app.navigationBars["Ask Gemma"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5), "the card")
+        let height = app.frame.height
+        XCTAssertTrue(waitUntil { abs(title.frame.minY - height * 0.5) < height * 0.12 },
+                      "at half height: \(title.frame) in \(height)")
+        XCTAssertTrue(app.staticTexts["Ask Gemma"].exists, "the empty chat")
         XCTAssertFalse(app.buttons["New Chat"].isEnabled, "nothing to clear yet")
         XCTAssertFalse(app.buttons["Send"].isEnabled, "no Send without text")
-        let field = compose(app)
+        let field = app.textFields["ChatField"]
+        XCTAssertTrue(field.exists, "the field")
+        XCTAssertGreaterThan(field.frame.minY, height * 0.8, "at the bottom: \(field.frame)")
+        shot("Card at half height", app)
+
+        field.tap()
+        dismissKeyboardTip(app)
+        let keyboard = app.keyboards.firstMatch
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 5), "the keyboard")
+        XCTAssertTrue(waitUntil { title.frame.minY < height * 0.15 }, "typing: the card goes to full height: \(title.frame)")
+        XCTAssertLessThan(field.frame.maxY, keyboard.frame.minY + 1, "the field over the keyboard")
         field.typeText("What can you do?")
         shot("Typed", app)
         app.buttons["Send"].tap()
@@ -74,7 +97,7 @@ final class AskTests: ScribeUITestCase {
         XCTAssertTrue(answer.label.contains("You asked: \u{201C}What can you do?\u{201D}"), answer.label)
         XCTAssertTrue(answer.label.contains("Earlier messages: 0."), answer.label)
 
-        XCTAssertTrue(field.exists, "the keyboard stays up after Send, as in Messages")
+        XCTAssertTrue(keyboard.exists, "the keyboard stays up after Send, as in Messages")
         field.typeText("And then?")
         app.buttons["Send"].tap()
         XCTAssertTrue(app.buttons["Stop Answer"].waitForExistence(timeout: 3))
@@ -86,61 +109,59 @@ final class AskTests: ScribeUITestCase {
         app.buttons["New Chat"].tap()
         XCTAssertTrue(app.staticTexts["Ask Gemma"].waitForExistence(timeout: 5), "New Chat clears the conversation")
         XCTAssertFalse(app.staticTexts["ChatAnswer"].exists)
+        app.buttons["CloseAsk"].tap()
+        XCTAssertTrue(title.waitForNonExistence(timeout: 5), "Close puts the card away")
+        XCTAssertTrue(ask.isHittable, "back to the accessory")
     }
 
-    /// The field is the bottom accessory, where Transcribe is on the other tabs: the same place and size, one row over
-    /// the tab bar (not a third). The composer grows to five lines over the keyboard; with the keyboard gone the draft
-    /// rests in the accessory, which minimizes with the bar, and it survives a trip to another tab.
+    /// The field grows to five lines over the keyboard; a draft survives closing the card (a swipe down) and is sent
+    /// when it is opened again. Pulled up by its grabber, the card goes to full height without the keyboard.
     @MainActor
-    func testFieldIsTheAccessory() throws {
+    func testFieldGrowsAndDraftSurvives() throws {
         let app = launch(["-fakeGemma"])
-        let record = transcribe(app)
-        XCTAssertTrue(record.waitForExistence(timeout: 5))
-        let transcribeFrame = record.frame
-        app.buttons["Ask"].firstMatch.tap()
-        let rest = app.buttons["ChatAccessory"]
-        XCTAssertTrue(rest.waitForExistence(timeout: 5), "the field in the accessory")
-        XCTAssertFalse(record.exists, "no Transcribe on the Ask tab")
-        XCTAssertEqual(rest.frame.minY, transcribeFrame.minY, accuracy: 1, "where Transcribe was: \(rest.frame) \(transcribeFrame)")
-        XCTAssertEqual(rest.frame.height, transcribeFrame.height, accuracy: 1, "as tall as Transcribe")
-        XCTAssertLessThan(rest.frame.maxY, app.buttons["Ask"].firstMatch.frame.minY + 4, "right over the tab bar")
-        XCTAssertFalse(app.textFields["ChatField"].exists, "no second field over it")
+        let ask = app.buttons["AskGemma"]
+        XCTAssertTrue(ask.waitForExistence(timeout: 5))
+        ask.tap()
+        let title = app.navigationBars["Ask Gemma"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        let height = app.frame.height
+        XCTAssertTrue(waitUntil { title.frame.minY > height * 0.3 }, "half height first")
+        // Pulled up from the top of the card: full height.
+        let top = title.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
+        top.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.05)))
+        XCTAssertTrue(waitUntil { title.frame.minY < height * 0.15 }, "pulled up to full: \(title.frame)")
+        XCTAssertFalse(app.keyboards.firstMatch.exists, "no keyboard for that")
+        shot("Card at full height", app)
 
-        let field = compose(app)
+        let field = app.textFields["ChatField"]
+        field.tap()
+        dismissKeyboardTip(app)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         let oneLine = field.frame.height
         field.typeText("One\ntwo\nthree\nfour\nfive\nsix")
         XCTAssertGreaterThan(field.frame.height, oneLine * 3.5, "grows: \(oneLine) → \(field.frame.height)")
         XCTAssertLessThan(field.frame.height, oneLine * 5.8, "up to five lines: \(field.frame.height)")
         XCTAssertLessThan(field.frame.maxY, app.keyboards.firstMatch.frame.minY + 1, "over the keyboard")
-        XCTAssertEqual(app.buttons.matching(identifier: "Send").count, 1, "one Send while composing")
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 30) + "A draft")
-        dismissKeyboard(app)
-        XCTAssertTrue(rest.waitForExistence(timeout: 5), "the draft back in the accessory")
-        XCTAssertFalse(field.exists, "the composer went with the keyboard")
-        XCTAssertEqual(rest.label, "A draft")
-        XCTAssertTrue(app.buttons["Send"].isEnabled, "Send from the accessory")
-        shot("Draft in the minimized accessory", app)
-
-        app.buttons["Ask"].firstMatch.tap()                         // expands a minimized bar
-        app.buttons["Transcripts"].firstMatch.tap()
-        XCTAssertTrue(record.waitForExistence(timeout: 5), "Transcribe back on the Transcripts tab")
-        XCTAssertFalse(rest.exists)
-        app.buttons["Ask"].firstMatch.tap()
-        XCTAssertTrue(rest.waitForExistence(timeout: 5))
-        XCTAssertEqual(rest.label, "A draft", "the draft survives the trip")
+        app.buttons["CloseAsk"].tap()
+        XCTAssertTrue(title.waitForNonExistence(timeout: 5), "closed")
+        ask.tap()
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertEqual(field.value as? String, "A draft", "the draft survives closing the card")
         app.buttons["Send"].tap()
-        XCTAssertTrue(app.staticTexts["A draft"].waitForExistence(timeout: 3), "sent from the accessory")
+        XCTAssertTrue(app.staticTexts["A draft"].waitForExistence(timeout: 3), "sent")
+        // A swipe down on the grabber closes it, as any sheet.
+        app.swipeDown(velocity: .fast)
+        app.swipeDown(velocity: .fast)
+        XCTAssertTrue(title.waitForNonExistence(timeout: 5), "swiped away")
     }
 
     /// Stop mid-answer keeps what was written so far, captioned Stopped.
     @MainActor
     func testStopKeepsPartialAnswer() throws {
-        let app = launch(["-fakeGemma", "-showAsk"], waitsForList: false)      // the list is in another tab
-        let field = compose(app)
-        field.typeText("Tell me something long")
-        app.buttons["Send"].tap()
+        let app = launch(["-fakeGemma", "-askQuestion", "Tell me something long"])
         let answer = app.staticTexts["ChatAnswer"].firstMatch
-        XCTAssertTrue(answer.waitForExistence(timeout: 5))
+        XCTAssertTrue(answer.waitForExistence(timeout: 10))
         app.buttons["Stop Answer"].tap()
         XCTAssertTrue(app.staticTexts["Stopped"].waitForExistence(timeout: 3), "the answer is marked Stopped")
         XCTAssertTrue(app.buttons["Send"].exists, "Send again")
@@ -149,81 +170,60 @@ final class AskTests: ScribeUITestCase {
         shot("Stopped", app)
     }
 
-    /// Without Gemma the tab offers its download (as Settings › Summaries does), and the accessory's field is off;
-    /// once Gemma is there, the field.
+    /// Without Gemma the card offers its download (as Settings › Summaries does) and has no field; once Gemma is
+    /// there, the chat and the field.
     @MainActor
     func testAskOffersDownload() throws {
         let app = launch(["-fakeGemmaDownload", "-fakeGemmaDownloadSeconds", "4", "-improvementsOnboardingShown", "YES",
-                          "-showAsk"], waitsForList: false)
+                          "-showAsk"])
         XCTAssertTrue(app.staticTexts["Download Gemma to Chat"].waitForExistence(timeout: 15), "the download offer")
-        let rest = app.buttons["ChatAccessory"]
-        XCTAssertTrue(rest.exists && !rest.isEnabled, "the field is off before Gemma is there")
+        XCTAssertFalse(app.textFields["ChatField"].exists, "no field before Gemma is there")
         app.buttons["Download Gemma 4 E2B (3.6 GB)"].tap()
         XCTAssertTrue(app.staticTexts["Downloading Gemma 4 E2B…"].waitForExistence(timeout: 5), "the progress")
         shot("Downloading", app)
         XCTAssertTrue(app.staticTexts["Ask Gemma"].waitForExistence(timeout: 15), "downloaded: the chat")
-        XCTAssertTrue(rest.isEnabled, "and the field")
+        XCTAssertTrue(app.textFields["ChatField"].waitForExistence(timeout: 5), "and the field")
     }
 
-    /// German: the tab is "Fragen", the empty chat "Gemma fragen".
+    /// German: the button and the card are "Gemma fragen", New Chat "Neuer Chat".
     @MainActor
     func testAskInGerman() throws {
-        let app = launch(["-fakeGemma", "-AppleLanguages", "(de)", "-AppleLocale", "de_DE"], waitsForList: false)
-        let ask = app.buttons["Fragen"].firstMatch
-        XCTAssertTrue(ask.waitForExistence(timeout: 15), "the tab in German")
+        let app = launch(["-fakeGemma", "-AppleLanguages", "(de)", "-AppleLocale", "de_DE"])
+        let ask = app.buttons["AskGemma"]
+        XCTAssertTrue(ask.waitForExistence(timeout: 15))
+        XCTAssertEqual(ask.label, "Gemma fragen", "the button in German")
         ask.tap()
-        XCTAssertTrue(app.staticTexts["Gemma fragen"].waitForExistence(timeout: 5), "the empty chat in German")
+        XCTAssertTrue(app.navigationBars["Gemma fragen"].waitForExistence(timeout: 5), "the card in German")
         XCTAssertTrue(app.buttons["Neuer Chat"].exists, "New Chat in German")
-        XCTAssertEqual(app.buttons["ChatAccessory"].label, "Gemma fragen", "the field in German")
         shot("Ask in German", app)
     }
 
-    /// While recording Gemma doesn't run: the recording takes the accessory on the Ask tab too (it wins over the
-    /// field, as Music's mini player shows what plays), and the chat says why it pauses.
+    /// While recording Gemma doesn't run: the accessory shows the recording, without Ask; after Stop Ask is back. A
+    /// recording started from outside while the card is up (the Action Button) closes it for the recording's card.
     @MainActor
-    func testAskPausedWhileRecording() throws {
-        let app = launch(["-fakeGemma", "-showAsk", "-autoRecord"], waitsForList: false)
-        XCTAssertTrue(app.staticTexts["Recording"].waitForExistence(timeout: 15), "recording in the card")
+    func testNoAskWhileRecording() throws {
+        let app = launch(["-fakeGemma", "-showAsk", "-fakeOutsidePressAfter", "4"])
+        XCTAssertTrue(app.navigationBars["Ask Gemma"].waitForExistence(timeout: 5), "the card is up")
+        XCTAssertTrue(app.staticTexts["Recording"].waitForExistence(timeout: 15), "the recording's card instead")
+        XCTAssertFalse(app.navigationBars["Ask Gemma"].exists, "the Ask card went")
         closeCard(app)
         XCTAssertTrue(app.buttons["Recording"].firstMatch.waitForExistence(timeout: 5)
                       || app.otherElements["Recording"].firstMatch.exists, "the recording in the accessory")
-        XCTAssertFalse(app.buttons["ChatAccessory"].exists, "no field while recording")
-        XCTAssertTrue(app.staticTexts["Gemma pauses while you record."].exists, "the chat says why")
-        shot("Paused while recording", app)
+        XCTAssertFalse(app.buttons["AskGemma"].exists, "no Ask while recording")
+        shot("Recording without Ask", app)
         app.buttons["Stop"].firstMatch.tap()
         XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 15), "saved: the card opens on the transcript")
         closeCard(app)
-        app.buttons["Ask"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["ChatAccessory"].waitForExistence(timeout: 5), "the field is back after Stop")
+        XCTAssertTrue(app.buttons["AskGemma"].waitForExistence(timeout: 5), "Ask is back after Stop")
     }
 
-    /// Taps the field in the accessory: the composer comes up with the keyboard and has the focus.
     @MainActor
-    private func compose(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) -> XCUIElement {
-        let rest = app.buttons["ChatAccessory"]
-        XCTAssertTrue(rest.waitForExistence(timeout: 15), "the field in the accessory", file: file, line: line)
-        rest.tap()
-        dismissKeyboardTip(app)
-        let field = app.textFields["ChatField"]
-        XCTAssertTrue(field.waitForExistence(timeout: 5), "the composer", file: file, line: line)
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "the keyboard", file: file, line: line)
-        return field
-    }
-
-    /// A drag from the conversation down into the keyboard puts it away (`scrollDismissesKeyboard(.interactively)`;
-    /// the tab bar is under the keyboard meanwhile). With a hardware keyboard (the test simulator's, README › UI tests)
-    /// the software keyboard is parked off screen and the drag never reaches it: the conversation scrolls, the field
-    /// keeps the focus (3 of 3 runs on 2026-10-14). There the keyboard goes as with another tab: Transcripts and back.
-    @MainActor
-    private func dismissKeyboard(_ app: XCUIApplication) {
-        let keyboard = app.keyboards.firstMatch
-        let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
-        from.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.98)),
-                   withVelocity: .default, thenHoldForDuration: 0.1)
-        if keyboard.waitForNonExistence(timeout: 3) { return }
-        guard keyboard.exists, keyboard.frame.minY >= app.frame.maxY - 1 else { return }   // on screen: the drag failed
-        app.buttons["Transcripts"].firstMatch.tap()
-        app.buttons["Ask"].firstMatch.tap()
-        _ = keyboard.waitForNonExistence(timeout: 3)
+    private func waitUntil(_ condition: () -> Bool, timeout: TimeInterval = 5) -> Bool {
+        let end = Date.now.addingTimeInterval(timeout)
+        while Date.now < end {
+            if condition() { return true }
+            RunLoop.current.run(until: .now.addingTimeInterval(0.2))
+        }
+        return condition()
     }
 }

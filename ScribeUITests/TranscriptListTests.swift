@@ -6,14 +6,17 @@ import XCTest
 final class TranscriptListTests: ScribeUITestCase {
 
     /// The "Transcripts" and "Settings" headings are not pinned in a navigation bar: they are the first row (section
-    /// header) and scroll away with the content. `-seedFiller 12` makes the list long enough to scroll. The Search tab
-    /// has no heading: its bar is at the top.
+    /// header) and scroll away with the content. Transcripts has a navigation bar with Import only (no title), so its
+    /// heading starts under that button. `-seedFiller 12` makes the list long enough to scroll. The Search tab has no
+    /// heading: its bar is at the top.
     @MainActor
     func testHeadingsScrollAway() throws {
         let app = launch(["-seedFiller", "12"])
         let heading = app.collectionViews.staticTexts["Transcripts"]   // not the tab
         XCTAssertTrue(heading.waitForExistence(timeout: 5), "the Transcripts heading")
-        XCTAssertLessThan(heading.frame.minY, 120, "at the top at rest: \(heading.frame)")
+        let importButton = app.buttons["ImportAudio"]
+        XCTAssertGreaterThan(heading.frame.minY, importButton.frame.maxY - 1, "under Import: \(heading.frame) \(importButton.frame)")
+        XCTAssertLessThan(heading.frame.minY, 180, "at the top at rest: \(heading.frame)")
         XCTAssertLessThan(heading.frame.maxY, app.cells.containing(.staticText, identifier: "Project Kickoff").firstMatch.frame.minY + 1,
                           "above the first transcript")
         XCTAssertFalse(app.navigationBars.staticTexts["Transcripts"].exists, "no navigation bar title")

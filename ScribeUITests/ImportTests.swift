@@ -1,25 +1,33 @@
 import XCTest
 
-/// Importing audio (AudioImporter): the record accessory's Import button, and a file that becomes a transcript.
+/// Importing audio (AudioImporter): the Import button at the top of the Transcripts list, and a file that becomes a
+/// transcript.
 final class ImportTests: ScribeUITestCase {
-    /// Import sits at the accessory's end, right of the language; minimized, Import stays and the language goes. A tap
-    /// opens the system's file picker.
+    /// Import sits at the top right of the Transcripts list, in its navigation bar over the heading (as Voice Memos
+    /// has Edit there), and stays there while the list scrolls and the tab bar minimizes; it isn't on the other tabs or
+    /// in the accessory. A tap opens the system's file picker.
     @MainActor
     func testImportButtonPlacementAndPicker() throws {
         let app = launch(["-seedFiller", "12"])
         let importButton = app.buttons["ImportAudio"]
-        let language = app.buttons["Language"]
-        XCTAssertTrue(importButton.waitForExistence(timeout: 5), "Import in the accessory")
-        XCTAssertTrue(language.exists)
-        XCTAssertGreaterThan(importButton.frame.minX, language.frame.maxX - 1, "right of the language")
-        XCTAssertLessThan(abs(importButton.frame.midY - language.frame.midY), 3, "on the language's line")
-        shot("Accessory with Import", app)
+        let heading = app.staticTexts["Transcripts"].firstMatch
+        XCTAssertTrue(importButton.waitForExistence(timeout: 5), "Import on the Transcripts list")
+        XCTAssertLessThan(importButton.frame.maxY, heading.frame.minY + 1, "over the heading: \(importButton.frame) \(heading.frame)")
+        XCTAssertGreaterThan(importButton.frame.minX, app.frame.width * 0.75, "at the right")
+        XCTAssertGreaterThan(transcribe(app).frame.minY, app.frame.height * 0.75, "the accessory below")
+        shot("Transcripts with Import", app)
 
+        let top = importButton.frame
         app.swipeUp()                                            // the list scrolls: the bar minimizes
-        XCTAssertTrue(waitFor { !language.isHittable }, "minimized: no language")
+        XCTAssertTrue(waitFor { !app.buttons["Language"].isHittable }, "minimized")
         XCTAssertTrue(importButton.isHittable, "Import is still there")
-        XCTAssertGreaterThan(importButton.frame.midX, app.frame.width * 0.5, "on the right")
-        shot("Minimized with Import", app)
+        XCTAssertEqual(importButton.frame.minY, top.minY, accuracy: 1, "in the same place")
+        shot("Scrolled with Import", app)
+        app.buttons["Search"].firstMatch.tap()
+        XCTAssertTrue(app.textFields["SearchField"].waitForExistence(timeout: 5))
+        XCTAssertFalse(importButton.isHittable, "not on the Search tab")
+        app.buttons["Close"].firstMatch.tap()
+        XCTAssertTrue(waitFor { importButton.isHittable }, "back on Transcripts")
 
         // The system's file picker runs in its own process (its buttons aren't in the app's tree): it covers the app.
         importButton.tap()

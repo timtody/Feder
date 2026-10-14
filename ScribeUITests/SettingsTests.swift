@@ -21,7 +21,8 @@ final class SettingsTests: ScribeUITestCase {
         XCTAssertEqual(settings.frame.midY, transcripts.frame.midY, accuracy: 2, "in the same bar")
         XCTAssertFalse(app.switches["Live Speaker Labels"].exists, "Live Speaker Labels are in Settings")
         XCTAssertFalse(app.textFields["SearchField"].exists, "no search field until Search is chosen")
-        XCTAssertFalse(app.buttons["Ask"].exists, "no Ask tab without Gemma (AskTests)")
+        XCTAssertEqual(app.tabBars.buttons.count, 3, "three tabs (Ask is a card out of the accessory, AskTests)")
+        XCTAssertFalse(app.buttons["AskGemma"].exists, "no Ask without Gemma")
         shot("tab bar", app)
     }
 
