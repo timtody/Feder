@@ -53,6 +53,19 @@ extension MainView {
                 budget.bookmarks = [9.6, 10.5, 17, 25.5]
                 try? modelContext.save()
             }
+            // `-seedOldStyledSummary`: Budget Review as summary styles (13 Oct 2026, removed in FED-15) stored a Meeting
+            // summary, described and with Gemma's title: `-fakeGemma`'s sweep must write it again as the short summary
+            // and keep the title (a plain describe would rename it, being `automaticTitle`).
+            if arguments.contains("-seedOldStyledSummary"),
+               let budget = try? modelContext.fetch(FetchDescriptor<Recording>()).first(where: { $0.id == PreviewData.budgetID }) {
+                budget.summary = "Decisions\n• Part of the licence budget moves to travel once finance agrees.\n"
+                    + "To-dos\n• Anna Schmidt sends the numbers to finance by Friday."
+                budget.summaryStyleRaw = "meeting"
+                budget.summaryWrittenStyleRaw = "meeting"
+                budget.summaryVersion = TranscriptTitler.localVersion
+                budget.automaticTitle = budget.name
+                try? modelContext.save()
+            }
             do { try await Task.sleep(for: .milliseconds(300)) } catch { return }   // @Query catches up first
         }
         #endif

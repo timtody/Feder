@@ -131,11 +131,13 @@ final class SpeakerIdentifier {
         }
         if betterSummaries.activeModel != nil {                       // also the sweep of recent ones, newest first
             let version = summaryVersion
-            // Only the last days (`gemmaLookBack`), never the archive.
+            // Only the last days (`gemmaLookBack`), never the archive. A summary written in a style is written again
+            // (`needsSummary`).
             let since = Date.now.addingTimeInterval(-Self.gemmaLookBack)
             let undescribed = FetchDescriptor<Recording>(
                 predicate: #Predicate {
-                    $0.speakerStatusRaw == done && $0.createdAt >= since && $0.summaryVersion < version
+                    $0.speakerStatusRaw == done && $0.createdAt >= since
+                        && ($0.summaryVersion < version || $0.summaryWrittenStyleRaw != nil)
                 },
                 sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
             for recording in (try? modelContext.fetch(undescribed)) ?? [] {
@@ -641,7 +643,8 @@ final class SpeakerIdentifier {
             progress[id] = nil                                // the row shows the failure instead
         }
         try? modelContext.save()
-        if recording.speakerStatus == .done, recording.vocabularyPending || recording.summaryVersion < summaryVersion {
+        if recording.speakerStatus == .done,
+           recording.vocabularyPending || Self.needsSummary(recording, summaryVersion) {
             enqueueBackgroundPass(recording, fresh: true)
         } else if recording.speakerStatus == .done {
             track(id) { $0.drop(.vocabulary); $0.drop(.summary) }
@@ -777,7 +780,7 @@ final class SpeakerIdentifier {
         let target = summaryVersion
         guard !isGone(recording) else { return }
         let id = recording.id
-        guard recording.speakerStatus == .done, recording.summaryVersion < target else {
+        guard recording.speakerStatus == .done, Self.needsSummary(recording, target) else {
             track(id) { $0.drop(.summary) }
             return
         }
@@ -817,7 +820,15 @@ final class SpeakerIdentifier {
             return
         }
         guard !isGone(recording) else { return }
-        if let description {
+        // A summary from summary styles written again as the short one: like the styles' own rewrite, never the title
+        // (the transcript was named by then), the topics only when it had none. See `needsSummary`.
+        let restyle = recording.summaryWrittenStyleRaw != nil
+        recording.summaryWrittenStyleRaw = nil              // once, as every describe: an unusable answer leaves the lines
+        recording.summaryStyleRaw = nil
+        if let description, restyle {
+            recording.summary = description.summary
+            if recording.topics.isEmpty { recording.topics = description.topics }
+        } else if let description {
             recording.summary = description.summary
             recording.topics = description.topics           // searched (TranscriptSearch)
             #if DEBUG
@@ -902,6 +913,14 @@ final class SpeakerIdentifier {
     /// models, are compared: a transcript deleted meanwhile is detached, and reading it traps.
     private func waitForGemma(_ recording: Recording, id: UUID) {
         if !waitingForGemma.contains(where: { $0.id == id }) { waitingForGemma.append((id, recording)) }
+    }
+
+    /// Whether `describe` has work for `recording`: not described by Gemma yet, or its summary was written in one of
+    /// the summary styles. Those existed on 13 Oct 2026 only and were removed at the user's request (FED-15); their
+    /// headings and bullets would read as stray lines in the one paragraph, so the sweep writes them again as the short
+    /// summary. Lasts only while such transcripts are within `gemmaLookBack`; mirrored in the sweep's predicate.
+    static func needsSummary(_ recording: Recording, _ target: Int) -> Bool {
+        recording.summaryVersion < target || recording.summaryWrittenStyleRaw != nil
     }
 
     /// The summaryVersion transcripts should have: Gemma's. (Transcripts Apple's model described are at
