@@ -34,10 +34,6 @@ release carries a later version's features, its notes are the 1.0 text plus thos
   speakers. When two events overlap, the one in your Preferred Calendar wins, if you choose one there. You can also
   choose a subscribed calendar there, such as your work calendar from Outlook, and its meetings then count too.
   Everything stays on your iPhone.
-- Summary styles: on an iPhone that writes summaries, choose how a summary is written: Brief, Meeting (decisions,
-  to-dos, open questions), Lecture (key ideas), Interview (questions and answers) or Bullet Points. Choose it while
-  recording with the button next to Stop, or open a summary and pick another style to have it written again. Give a
-  tag its own style in Settings › Summaries › Styles for Tags.
 - Lock Feder with Face ID: turn on Require Face ID in Settings, and Feder asks for it when it opens and when you come
   back, at once or after a minute or more, as you choose. Anything you had open is there again after Face ID.
   Recording from Control Center, the Action Button or Siri still starts right away, and the Lock Screen and Dynamic
@@ -74,11 +70,6 @@ release carries a later version's features, its notes are the 1.0 text plus thos
   Termine, gewinnt der aus deinem bevorzugten Kalender, wenn du dort einen auswählst. Dort kannst du auch einen
   abonnierten Kalender auswählen, etwa deinen Arbeitskalender aus Outlook; dann zählen auch seine Termine. Alles bleibt
   auf deinem iPhone.
-- Stile für Zusammenfassungen: Auf einem iPhone, das Zusammenfassungen schreibt, wählst du, wie eine Zusammenfassung
-  geschrieben wird: Kurz, Besprechung (Entscheidungen, Aufgaben, offene Fragen), Vortrag (Kernaussagen), Interview
-  (Fragen und Antworten) oder Stichpunkte. Wähle den Stil während der Aufnahme mit der Taste neben „Stoppen“, oder
-  öffne eine Zusammenfassung und wähle einen anderen Stil, damit sie neu geschrieben wird. Einem Tag gibst du unter
-  Einstellungen › Zusammenfassungen › Stile für Tags einen eigenen Stil.
 - Sperre Feder mit Face ID: Schalte in den Einstellungen „Face ID anfordern“ ein, und Feder fragt beim Öffnen und bei
   deiner Rückkehr danach, sofort oder nach einer Minute oder mehr, wie du möchtest. Was du offen hattest, ist nach
   Face ID wieder da. Eine Aufnahme aus dem Kontrollzentrum, mit der Aktionstaste oder über Siri startet weiterhin
