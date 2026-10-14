@@ -132,12 +132,13 @@ final class SpeakerIdentifier {
         if betterSummaries.activeModel != nil {                       // also the sweep of recent ones, newest first
             let version = summaryVersion
             // Only the last days (`gemmaLookBack`), never the archive. A summary written in a style is written again
-            // (`needsSummary`).
+            // at any age (`needsSummary`): the style menu worked on every transcript, and those are only the few the
+            // user restyled by hand.
             let since = Date.now.addingTimeInterval(-Self.gemmaLookBack)
             let undescribed = FetchDescriptor<Recording>(
                 predicate: #Predicate {
-                    $0.speakerStatusRaw == done && $0.createdAt >= since
-                        && ($0.summaryVersion < version || $0.summaryWrittenStyleRaw != nil)
+                    $0.speakerStatusRaw == done
+                        && (($0.createdAt >= since && $0.summaryVersion < version) || $0.summaryWrittenStyleRaw != nil)
                 },
                 sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
             for recording in (try? modelContext.fetch(undescribed)) ?? [] {
@@ -823,7 +824,9 @@ final class SpeakerIdentifier {
         // A summary from summary styles written again as the short one: like the styles' own rewrite, never the title
         // (the transcript was named by then), the topics only when it had none. See `needsSummary`.
         let restyle = recording.summaryWrittenStyleRaw != nil
-        recording.summaryWrittenStyleRaw = nil              // once, as every describe: an unusable answer leaves the lines
+        // Once, as every describe: an unusable answer leaves the lines. Kept set, the sweep would run Gemma again on
+        // every return to the foreground for the same answer (temperature 0).
+        recording.summaryWrittenStyleRaw = nil
         recording.summaryStyleRaw = nil
         if let description, restyle {
             recording.summary = description.summary
@@ -918,7 +921,8 @@ final class SpeakerIdentifier {
     /// Whether `describe` has work for `recording`: not described by Gemma yet, or its summary was written in one of
     /// the summary styles. Those existed on 13 Oct 2026 only and were removed at the user's request (FED-15); their
     /// headings and bullets would read as stray lines in the one paragraph, so the sweep writes them again as the short
-    /// summary. Lasts only while such transcripts are within `gemmaLookBack`; mirrored in the sweep's predicate.
+    /// summary, at any age (the Style menu reached every transcript, not only those within `gemmaLookBack`); mirrored
+    /// in the sweep's predicate.
     static func needsSummary(_ recording: Recording, _ target: Int) -> Bool {
         recording.summaryVersion < target || recording.summaryWrittenStyleRaw != nil
     }

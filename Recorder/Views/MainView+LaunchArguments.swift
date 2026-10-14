@@ -55,7 +55,8 @@ extension MainView {
             }
             // `-seedOldStyledSummary`: Budget Review as summary styles (13 Oct 2026, removed in FED-15) stored a Meeting
             // summary, described and with Gemma's title: `-fakeGemma`'s sweep must write it again as the short summary
-            // and keep the title (a plain describe would rename it, being `automaticTitle`).
+            // and keep the title (a plain describe would rename it, being `automaticTitle`). With `-seedOldTranscripts`
+            // ten days old: written again all the same.
             if arguments.contains("-seedOldStyledSummary"),
                let budget = try? modelContext.fetch(FetchDescriptor<Recording>()).first(where: { $0.id == PreviewData.budgetID }) {
                 budget.summary = "Decisions\n• Part of the licence budget moves to travel once finance agrees.\n"

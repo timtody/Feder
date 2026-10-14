@@ -82,7 +82,19 @@ final class SummaryTests: ScribeUITestCase {
     /// Gemma's title) is written again as the short one by the launch sweep (`-fakeGemma`); the title stays.
     @MainActor
     func testStyledSummaryWrittenAgainAsBrief() throws {
-        let app = launch(["-fakeGemma", "-seedOldStyledSummary"])
+        try styledSummaryWrittenAgainAsBrief(["-fakeGemma", "-seedOldStyledSummary"])
+    }
+
+    /// Ten days old (`-seedOldTranscripts`), beyond Gemma's three-day reach: the Style menu worked on any transcript,
+    /// so the sweep writes a styled one again at any age.
+    @MainActor
+    func testOldStyledSummaryWrittenAgainAsBrief() throws {
+        try styledSummaryWrittenAgainAsBrief(["-fakeGemma", "-seedOldTranscripts", "-seedOldStyledSummary"])
+    }
+
+    @MainActor
+    private func styledSummaryWrittenAgainAsBrief(_ arguments: [String]) throws {
+        let app = launch(arguments)
         open("Budget Review", in: app)
         let summary = app.buttons["Summary"]
         XCTAssertTrue(summary.waitForExistence(timeout: 10))
