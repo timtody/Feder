@@ -23,8 +23,8 @@ final class PersonPageTests: ScribeUITestCase {
                       "Project Kickoff is today: \(last.label)")
         XCTAssertTrue(app.staticTexts["2 Transcripts"].exists, "the transcripts' header")
         let profile = app.descendants(matching: .any)["VoiceProfile"]
-        XCTAssertTrue(profile.exists && profile.label.contains("Voice Profile") && profile.label.contains("Saved"),
-                      "her voice profile: \(profile.label)")
+        XCTAssertTrue(profile.exists && profile.label.contains("Voice Profile") && (profile.value as? String) == "Saved"
+                        && !profile.label.contains("Not Saved"), "her voice profile: \(profile.label) \(profile.value ?? "")")
         XCTAssertTrue(last.frame.maxY <= profile.frame.minY && profile.frame.maxY <= app.staticTexts["2 Transcripts"].frame.minY,
                       "between Last Conversation and her transcripts")
         XCTAssertTrue(app.buttons["DeleteVoiceProfile"].exists, "and the button to delete it")
@@ -61,7 +61,7 @@ final class PersonPageTests: ScribeUITestCase {
         let page = app.navigationBars["Anna Schmidt"]
         XCTAssertTrue(page.waitForExistence(timeout: 10), "her page")
         let profile = app.descendants(matching: .any)["VoiceProfile"]
-        XCTAssertTrue(profile.waitForExistence(timeout: 5) && profile.label.contains("Saved")
+        XCTAssertTrue(profile.waitForExistence(timeout: 5) && (profile.value as? String) == "Saved"
                         && !profile.label.contains("Not Saved"), profile.label)
         let delete = app.buttons["DeleteVoiceProfile"]
         XCTAssertTrue(delete.exists && delete.label.contains("Delete Voice Profile"), delete.label)
@@ -364,7 +364,7 @@ final class PersonPageTests: ScribeUITestCase {
         XCTAssertTrue(last.waitForExistence(timeout: 5) && last.label.contains("Letztes Gespräch"), last.label)
         XCTAssertTrue(app.staticTexts["3 Transkripte"].waitForExistence(timeout: 10))
         let profile = app.descendants(matching: .any)["VoiceProfile"]
-        XCTAssertTrue(profile.label.contains("Stimmprofil") && profile.label.contains("Gespeichert"), profile.label)
+        XCTAssertTrue(profile.label.contains("Stimmprofil") && (profile.value as? String) == "Gespeichert", "\(profile.label) \(profile.value ?? "")")
         XCTAssertTrue(app.buttons["DeleteVoiceProfile"].label.contains("Stimmprofil löschen"))
         shot("Person page in German", app)
 

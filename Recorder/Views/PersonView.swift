@@ -126,20 +126,29 @@ struct PersonView: View {
     // MARK: Voice profile
 
     /// Whether Feder keeps their voice profile, and its Delete, in one row: the fingerprint (`touchid`, Touch ID's; SF
-    /// Symbols has no "fingerprint") once, saying biometric data, the status and a red Delete trailing, as a Settings
-    /// row with an action. A second row with the same fingerprint for the button looked doubled and cluttered (the
-    /// user's review, FED-12). `saved` is the fingerprint's presence, a cheap attribute People's rows read too; the
+    /// Symbols has no "fingerprint") once, saying biometric data; saved, it is in the accent and a red Delete is the
+    /// only thing trailing (Delete says there is one); not saved, it is grey with "Not Saved". A second row with the
+    /// same fingerprint for the button, and "Saved" beside Delete, looked doubled and cluttered (the user's review,
+    /// FED-12). `saved` is the fingerprint's presence, a cheap attribute People's rows read too; the
     /// delete fetches every transcript, so it runs after the press (a Task), and the @Query redraws the row.
     private func voiceProfile(name: String, saved: Bool) -> some View {
         Section {
             HStack {
                 HStack {
-                    Label("Voice Profile", systemImage: "touchid")
+                    Label {
+                        Text("Voice Profile")
+                    } icon: {
+                        Image(systemName: "touchid")
+                            .foregroundStyle(saved ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    }
                     Spacer()
-                    Text(saved ? "Saved" : "Not Saved")
-                        .foregroundStyle(.secondary)
+                    if !saved {
+                        Text("Not Saved")
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .accessibilityElement(children: .combine)
+                .accessibilityValue(saved ? Text("Saved") : Text(verbatim: ""))   // shown by Delete, said aloud
                 .accessibilityIdentifier("VoiceProfile")
                 if saved {
                     Button("Delete", role: .destructive) { confirmDeleteVoice = true }
