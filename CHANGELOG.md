@@ -28,6 +28,8 @@ release carries a later version's features, its notes are the 1.0 text plus thos
   Person. You see when you last spoke, whether Feder keeps their voice profile (delete it there with a tap), and what
   they said in each transcript. Tap a transcript to open it where they speak and step through everything they said.
 - Search also finds the topics Feder notes with each summary, even when nobody said the word.
+- Find words in a transcript: tap the magnifier at the bottom of a transcript, type a word, and step from one place to
+  the next. Add Tag and Edit Text are now in the More menu (…) next to it.
 - Name transcripts from your calendar: turn on Name from Calendar in Settings › Recording, and when you start a
   transcript during a meeting, the meeting's name appears under the date. Tap Use as Title to name the transcript after
   it, already while recording, or keep the title Feder writes. The meeting's invitees are offered when you name the
@@ -64,6 +66,8 @@ release carries a later version's features, its notes are the 1.0 text plus thos
   kannst es dort mit einem Tippen löschen) und was sie in jedem Transkript gesagt hat. Tippe auf ein Transkript, um es
   dort zu öffnen, wo sie spricht, und alles durchzugehen, was sie gesagt hat.
 - Die Suche findet auch die Themen, die Feder zu jeder Zusammenfassung notiert, selbst wenn niemand das Wort gesagt hat.
+- Wörter im Transkript finden: Tippe unten im Transkript auf die Lupe, gib ein Wort ein und springe von Stelle zu
+  Stelle. „Tag hinzufügen“ und „Text bearbeiten“ findest du jetzt daneben im Menü „Mehr“ (…).
 - Benenne Transkripte nach deinem Kalender: Schalte „Nach Kalender benennen“ in den Einstellungen unter „Aufnahme“
   ein, und startest du ein Transkript während eines Termins, steht dessen Name unter dem Datum. Tippe auf „Als Titel
   verwenden“, um das Transkript danach zu benennen, schon während der Aufnahme, oder behalte den Titel, den Feder
