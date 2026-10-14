@@ -110,7 +110,13 @@ struct SpeakerNameSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
-        .onAppear { InteractionTrace.shown("rename") }        // the sheet starts to rise
+        .onAppear { InteractionTrace.shown("rename") }        // laid out; it may move later (README › Performance)
+        #if DEBUG
+        .onChange(of: isFieldFocused) { if isFieldFocused { InteractionTrace.point("rename", "focused") } }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            InteractionTrace.point("rename", "keyboard rises")             // with the sheet, the software keyboard's
+        }
+        #endif
         .task { await loadCounts() }
         .task {
             isFieldFocused = true

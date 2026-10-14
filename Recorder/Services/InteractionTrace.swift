@@ -22,6 +22,8 @@ nonisolated enum InteractionTrace {
     private static let logger = Logger(subsystem: "de.timtody.feder", category: "Interaction")
     private static let verbose = ProcessInfo.processInfo.arguments.contains("-interactionTrace")
     private static let pending = Mutex<[String: Pending]>([:])
+    /// When each path's last press began, kept past its first frame for `point`.
+    private static let began = Mutex<[String: ContinuousClock.Instant]>([:])
 
     /// A press was handled: `name` names the path. The main thread's turn is timed until the run loop is free again.
     @MainActor
@@ -29,6 +31,7 @@ nonisolated enum InteractionTrace {
         let now = ContinuousClock.now
         let interval = signposter.beginInterval("Press", id: signposter.makeSignpostID(), "\(name)")
         pending.withLock { $0[name] = Pending(began: now, interval: interval) }
+        began.withLock { $0[name] = now }
         DispatchQueue.main.async {                           // after this turn of the run loop (and its commit)
             let turn = ContinuousClock.now - now
             let frameKnown: Bool = pending.withLock { state in
@@ -57,6 +60,17 @@ nonisolated enum InteractionTrace {
         }
     }
 
+    /// A step after the press's first frame, timed from the press: the rename sheet's field taking focus and its
+    /// keyboard starting to rise, which the sheet's `onAppear` comes before (FED-9).
+    @MainActor
+    static func point(_ name: String, _ step: String) {
+        let now = ContinuousClock.now
+        guard let start = began.withLock({ $0[name] }) else { return }
+        let elapsed = milliseconds(now - start)
+        signposter.emitEvent("Step", "\(name) \(step) \(elapsed) ms")
+        if verbose { logger.log("\(name, privacy: .public): \(step, privacy: .public) \(elapsed, privacy: .public) ms") }
+    }
+
     private static func milliseconds(_ duration: Duration) -> String {
         String(format: "%.1f", Double(duration.components.seconds) * 1000 + Double(duration.components.attoseconds) / 1e15)
     }
@@ -66,5 +80,6 @@ nonisolated enum InteractionTrace {
 nonisolated enum InteractionTrace {
     @inlinable @MainActor static func begin(_ name: String) {}
     @inlinable @MainActor static func shown(_ name: String) {}
+    @inlinable @MainActor static func point(_ name: String, _ step: String) {}
 }
 #endif

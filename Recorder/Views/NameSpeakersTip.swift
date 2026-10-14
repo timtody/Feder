@@ -1,6 +1,7 @@
 import SwiftUI
 import TipKit
 import UIKit
+import os
 
 /// The hint that names are tappable (TipKit, Apple's own tips), on the first speaker's name row of a transcript whose
 /// speakers are final and still all "Speaker N" (RecordingDetailView). Shown once: tapping a name (any rename) or
@@ -48,9 +49,22 @@ struct NameSpeakersTip: Tip {
         let window = UIApplication.shared.connectedScenes.lazy.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first
         guard var top = window?.rootViewController else { return }
         while let presented = top.presentedViewController { top = presented }
-        guard top.modalPresentationStyle == .popover, let presenter = top.presentingViewController else { return }
+        guard top.modalPresentationStyle == .popover, let presenter = top.presentingViewController else {
+            #if DEBUG
+            // On a device the test's marker can't be read: the log says whether this iOS presents the tip as expected.
+            log.log("tip popover not found (top \(String(describing: type(of: top)), privacy: .public), style \(top.modalPresentationStyle.rawValue))")
+            #endif
+            return
+        }
         presenter.dismiss(animated: false, completion: dismissed)
+        #if DEBUG
+        log.log("tip popover closed at once")
+        #endif
     }
+
+    #if DEBUG
+    private static let log = Logger(subsystem: "de.timtody.feder", category: "Interaction")
+    #endif
 
     #if DEBUG
     /// Reset Onboarding: the tip shows again, on the next transcript with unnamed final speakers.
