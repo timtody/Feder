@@ -452,16 +452,6 @@
     "Apple Speech": {
       "shouldTranslate": false
     },
-    "Ask": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fragen"
-          }
-        }
-      }
-    },
     "Ask First": {
       "localizations": {
         "de": {
@@ -2432,12 +2422,12 @@
         }
       }
     },
-    "Opens the keyboard to ask Gemma": {
+    "Opens a chat with Gemma on this iPhone": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Öffnet die Tastatur, um Gemma zu fragen"
+            "value": "Öffnet einen Chat mit Gemma auf diesem iPhone"
           }
         }
       }

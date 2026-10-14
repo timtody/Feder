@@ -51,11 +51,8 @@ struct ChatMessage: Identifiable, Equatable {
 final class GemmaChat {
     private(set) var messages: [ChatMessage] = []
     private(set) var isAnswering = false
-    /// What is typed in the field (the tab bar's accessory on the Ask tab, ChatAccessory): kept here, so it survives a
-    /// switch to another tab, where the accessory shows Transcribe, and back.
+    /// What is typed in the card's field (ChatView): kept here, so it survives closing the card and opening it again.
     var draft = ""
-    /// The keyboard is up with the composer over it (ChatView); false: the draft rests in the accessory.
-    var isComposing = false
     @ObservationIgnored private let betterSummaries: BetterSummaries
     @ObservationIgnored private var answerTask: Task<Void, Never>?
 

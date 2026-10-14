@@ -23,7 +23,6 @@ final class AppNavigation {
         case .transcripts: if transcripts.last != route { transcripts.append(route) }
         case .search: if search.last != route { search.append(route) }
         case .settings: settings.append(route)                   // an untyped path: its top can't be read
-        case .ask: break                                         // no pages (MainView pushes on Transcripts instead)
         }
     }
 
@@ -34,7 +33,6 @@ final class AppNavigation {
         case .transcripts: "transcripts"
         case .search: "search"
         case .settings: "settings"
-        case .ask: "ask"
         }
     }
 }

@@ -15,6 +15,7 @@ struct RecordingsListView: View {
     @Environment(AppServices.self) private var services
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openTranscript) private var openTranscript
+    @Environment(\.importAudio) private var importAudio
     @Environment(AppNavigation.self) private var navigation
     @Query(sort: \Recording.createdAt, order: .reverse) private var recordings: [Recording]
     @Query(sort: \Person.name) private var people: [Person]
@@ -153,8 +154,17 @@ struct RecordingsListView: View {
             .listStyle(.plain)                                 // Voice Memos: rows on the screen's own background
             .scrollDismissesKeyboard(.immediately)             // Search: scrolling the results puts the keyboard away (Music)
             .navigationTitle(isSearch ? "Search" : "Transcripts")   // for VoiceOver only
-            // No top bar (the tab bar shows where one is), so the list starts right under the status bar.
-            .toolbar(.hidden, for: .navigationBar)
+            // Search: no top bar (the tab bar shows where one is), so its search bar starts right under the status bar.
+            // Transcripts: a bar with Import only, at the top right, as Voice Memos has Edit and Files its menu over
+            // their large titles; its title stays off (the heading is the list's first row, which scrolls away).
+            .toolbar(isSearch ? .hidden : .visible, for: .navigationBar)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(removing: .title)
+            .toolbar {
+                if !isSearch, let importAudio {
+                    ToolbarItem(placement: .topBarTrailing) { importButton(importAudio) }
+                }
+            }
             .personDestination(stack: isSearch ? .search : .transcripts)
             .safeAreaBar(edge: .top, spacing: 0) {             // a bar: the list fades out under it
                 if isSearch {
@@ -186,6 +196,14 @@ struct RecordingsListView: View {
                 }
             }
         }
+    }
+
+    /// Audio from Files (or Voice Memos saved there) as a transcript: the system's file picker (MainView), then the
+    /// steps after Stop on the file (AudioImporter). In the record accessory until October 2026, where Ask is now.
+    private func importButton(_ action: ImportAudioAction) -> some View {
+        Button("Import Audio", systemImage: "square.and.arrow.down") { action() }
+            .accessibilityHint("Transcribes an audio file from Files")
+            .accessibilityIdentifier("ImportAudio")
     }
 
     // MARK: Suggestions
@@ -317,8 +335,16 @@ struct SearchActions {
     var search: ([SearchToken], String) -> Void = { _, _ in }
 }
 
+/// Import (MainView's file picker), for the Transcripts list's button.
+struct ImportAudioAction {
+    let open: () -> Void
+
+    func callAsFunction() { open() }
+}
+
 extension EnvironmentValues {
     @Entry var searchActions = SearchActions(open: { _ in }, close: {})
+    @Entry var importAudio: ImportAudioAction? = nil
 }
 
 #if DEBUG

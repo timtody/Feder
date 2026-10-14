@@ -4,15 +4,17 @@ import SwiftUI
 /// in the mini player's sizes (subheadline semibold, a small mark).
 /// Without a recording: a red dot, "Transcribe" and under it the language ("German · On device"; "Preparing speaker
 /// model…", Nemotron's or Gemma's download, "Downloading Gemma · 42 %", while those run), and at the end a
-/// button with the language's code ("DE ⌄") that picks the next recording's language; a tap on the rest starts a
+/// button with the language's code ("DE ⌄") that picks the next recording's language, then Ask (the chat with Gemma,
+/// where it runs); a tap on the rest starts a
 /// recording and opens the transcript card on it out of this accessory (zoom transition, like Music's mini player). While recording: a pulsing red dot, the time, the
 /// microphone level and Stop; a tap elsewhere opens the card again.
 struct RecordAccessory: View {
     let session: RecordingSession?
     let start: () -> Void
     let open: () -> Void
-    /// The Import button: audio from Files becomes a transcript (MainView's file picker).
-    let importAudio: () -> Void
+    /// The Ask button (FED-17): the chat with Gemma, out of this button (MainView's sheet); nil where Gemma can't run
+    /// (`ChatView.isAvailable`), and then there is no button.
+    var ask: (() -> Void)?
     /// An import is being converted: the accessory says so instead of Transcribe.
     var isImporting = false
     /// Reports whether the bar is minimized (the accessory inline), for MainView's Search tab.
@@ -47,7 +49,7 @@ struct RecordAccessory: View {
             }
         }
         .padding(.leading, inline ? 2 : 4)
-        .padding(.trailing, inline ? 6 : 8)             // Import's own frame brings the rest of the margin
+        .padding(.trailing, inline ? 6 : 8)             // Ask's own frame brings the rest of the margin
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
         .sensoryFeedback(trigger: presses) { _, _ in session == nil ? .impact(weight: .medium) : .impact(weight: .light) }
@@ -98,28 +100,30 @@ struct RecordAccessory: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Transcribe")                // what it says
             .accessibilityHint("Starts a new recording and its live transcript")
-            // At the end, as Music has its control there: the language of the next recording and Import. Minimized,
-            // Import stays (on the right, where Music keeps play) and the language goes.
+            // At the end, as Music has its control there: the language of the next recording and Ask. Minimized,
+            // Ask stays (on the right, where Music keeps play) and the language goes. Import is at the top of the
+            // Transcripts list (RecordingsListView).
             if !inline {
                 languageMenu(locale)
             }
-            importButton
+            if let ask { askButton(ask) }
         }
     }
 
-    /// Audio from Files (or Voice Memos saved there) as a transcript: the system's file picker, then the steps after
-    /// Stop on the file (AudioImporter).
-    private var importButton: some View {
-        Button(action: importAudio) {
-            Image(systemName: "square.and.arrow.down")
+    /// Ask (FED-17): the chat with Gemma zooms out of this button as a sheet (MainView). Where Import was until
+    /// October 2026, in its size; the chat card's source (`ChatView.askSource`).
+    private func askButton(_ ask: @escaping () -> Void) -> some View {
+        Button(action: ask) {
+            Image(systemName: "bubble.left")
                 .font(.system(size: inline ? 15 : 17, weight: .semibold))
                 .frame(minWidth: inline ? 36 : 40, minHeight: 44)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Import Audio")
-        .accessibilityHint("Transcribes an audio file from Files")
-        .accessibilityIdentifier("ImportAudio")
+        .cardSource(ChatView.askSource)
+        .accessibilityLabel("Ask Gemma")
+        .accessibilityHint("Opens a chat with Gemma on this iPhone")
+        .accessibilityIdentifier("AskGemma")
     }
 
     /// Nemotron's files are there and the model is being loaded and compiled (most of a minute): said like the

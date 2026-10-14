@@ -12,10 +12,8 @@ import UIKit
 /// bar is expanded and takes the search role only while it is minimized (`isBarMinimized`, from the accessory's
 /// placement). On iOS 27 that switch replaced the Search tab (UITab ↔ UISearchTab, a new object each time) in the
 /// middle of the bar's own morph, and the magnifier sometimes dropped into its place from above as the bar unfolded.
-/// Ask (a chat with Gemma, FED-17) sits between Transcripts and Search in DEBUG builds on iPhones that run Gemma
-/// (ChatView.isAvailable), so Search keeps the right end; on that tab the accessory is its field (ChatAccessory).
 enum AppTab: Hashable {
-    case transcripts, settings, ask, search
+    case transcripts, settings, search
 }
 
 /// The text and tokens of the search, shared by the tabs: a tag chip in the Transcripts list or a pull on it opens the
@@ -61,9 +59,6 @@ struct MainView: View {
     /// before it snapped to its width (iPhone 17 simulator, iOS 27, frame by frame); every later collapse was fine.
     @State private var isBarMinimized = true
 
-    /// The Ask tab's field takes the accessory's place (ChatAccessory) while nothing records.
-    private var showsChatField: Bool { tab == .ask && card.session == nil }
-
     /// See the type's comment: constant on iOS 27, following the bar on iOS 26.
     private var searchRole: TabRole? {
         if #available(iOS 27, *) { return .search }
@@ -90,6 +85,12 @@ struct MainView: View {
     /// Files to import after the one being converted (shared one after another, or several at once).
     @State private var importQueue: [URL] = []
     @State private var importError: String?
+    /// Ask (FED-17): the chat card is asked for (`showsAsk`), and it is on screen from then until its sheet's onDismiss
+    /// (`askOnScreen`, also while it slides away). A card asked for meanwhile (a recording started from outside, an
+    /// import, Spotlight) waits in `pendingCard` until the sheet is gone: one view can't present the transcript card
+    /// while it presents the chat.
+    @State var showsAsk = false
+    @State private var askOnScreen = false
 
     var body: some View {
         TabView(selection: tabSelection) {
@@ -98,11 +99,6 @@ struct MainView: View {
             }
             Tab("Transcripts", systemImage: "waveform", value: AppTab.transcripts) {
                 RecordingsListView(isSearch: false, searchState: searchState)
-            }
-            if ChatView.isAvailable {
-                Tab("Ask", systemImage: "bubble.left", value: AppTab.ask) {
-                    ChatView()
-                }
             }
             Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: searchRole) {
                 RecordingsListView(isSearch: true, searchState: searchState)
@@ -113,26 +109,25 @@ struct MainView: View {
         // simulator: the @Query and every row); with plain properties SwiftUI skips them.
         .environment(\.searchActions, SearchActions(open: openSearch, close: closeSearch, search: freshSearch))
         .environment(navigation)
+        .environment(\.importAudio, ImportAudioAction { showsImporter = true })
         .tabBarMinimizeBehavior(.onScrollDown)
-        // On the Ask tab the accessory is the chat's field instead of Transcribe (as Music's mini player takes that
-        // place), unless a recording runs: the recording wins on every tab, as Music's mini player always shows what
-        // plays. While the composer is up over the keyboard the accessory goes (the keyboard covers it anyway; with a
-        // hardware keyboard the composer and an empty capsule stacked over the tab bar).
-        .modifier(BottomAccessory(isEnabled: !(showsChatField && services.chat.isComposing)) {
-            if showsChatField {
-                ChatAccessory(isInline: $isBarMinimized)
-            } else {
-                RecordAccessory(session: card.session, start: startRecording, open: openRecorder,
-                                importAudio: { showsImporter = true }, isImporting: isImporting,
-                                isInline: $isBarMinimized)
-                    .cardSource(TranscriptCardContent.recorderSource)
-            }
-        })
+        .tabViewBottomAccessory {
+            RecordAccessory(session: card.session, start: startRecording, open: openRecorder,
+                            ask: askAction, isImporting: isImporting,
+                            isInline: $isBarMinimized)
+                .cardSource(TranscriptCardContent.recorderSource)
+        }
         // Full screen like Now Playing: the tab bar and the accessory are covered while the card is up.
         .fullScreenCover(isPresented: Binding(get: { cardPhase == .open }, set: { shows in
             if shows { cardPhase = .open } else { closeCard() }
         }), onDismiss: cardDismissed) {
             TranscriptCard(content: card, onClose: closeCard, onRetry: retryRecording, namespace: cardZoom)
+        }
+        // Ask: the chat as a sheet that zooms out of the accessory's Ask button (as iOS 26 sheets morph out of the
+        // button that opens them), half height first, pulled up to full (ChatView).
+        .sheet(isPresented: $showsAsk, onDismiss: askDismissed) {
+            ChatView()
+                .navigationTransition(.zoom(sourceID: ChatView.askSource, in: cardZoom))
         }
         .sheet(isPresented: Binding(get: { !onboardingPages.isEmpty }, set: { if !$0 { onboardingPages = [] } })) {
             Onboarding(pages: onboardingPages)
@@ -179,7 +174,6 @@ struct MainView: View {
                 endEditing()                                     // the keyboard goes with the Search tab
                 searchReturns = []
             }
-            if old == .ask, new != .ask { endEditing() }         // and with the Ask tab's field, kept alive likewise
         }
         .onChange(of: card.session?.state) { _, state in
             guard let state else { return }
@@ -231,7 +225,7 @@ struct MainView: View {
         }
         guard !pages.isEmpty else { return }
         try? await Task.sleep(for: .seconds(1))
-        guard cardPhase == .closed, card.session == nil else { return }
+        guard cardPhase == .closed, card.session == nil, !askOnScreen else { return }
         onboardingPages = pages
     }
 
@@ -288,6 +282,11 @@ struct MainView: View {
     /// Opens the card on `request`, or, while the last card is still shrinking away, once it is gone (cardDismissed).
     private func present(_ request: CardRequest) {
         guard cardPhase != .closing else { pendingCard = request; return }
+        guard !askOnScreen else {                       // the chat goes first (askDismissed)
+            pendingCard = request
+            showsAsk = false
+            return
+        }
         guard request.transcript != nil || card.session != nil else { return }   // the recording ended meanwhile
         card.transcript = request.transcript
         card.search = request.search
@@ -332,6 +331,32 @@ struct MainView: View {
         }
     }
 
+    // MARK: Ask
+
+    /// The accessory's Ask button, where Gemma runs (`ChatView.isAvailable`); none elsewhere.
+    private var askAction: (() -> Void)? {
+        guard ChatView.isAvailable else { return nil }
+        return { openAsk() }
+    }
+
+    /// The accessory's Ask button: the chat card out of it. Not while the transcript card is up or shrinking (the
+    /// button is under it then).
+    func openAsk() {
+        guard cardPhase == .closed else { return }
+        InteractionTrace.begin("ask")
+        askOnScreen = true
+        showsAsk = true
+    }
+
+    /// The chat's sheet is gone: a card asked for meanwhile opens now.
+    private func askDismissed() {
+        askOnScreen = false
+        if let request = pendingCard {
+            pendingCard = nil
+            present(request)
+        }
+    }
+
     // MARK: People
 
     /// "Go to Person" in a card's name row, like Apple Music's Go to Artist: the card shrinks back into its row, then
@@ -349,7 +374,6 @@ struct MainView: View {
 
     private func pushPerson(_ id: UUID) {
         InteractionTrace.begin("person")
-        if tab == .ask { tab = .transcripts }                    // the Ask tab has no pages: the Transcripts tab's
         navigation.push(PersonRoute(id: id), on: tab)
     }
 
@@ -527,20 +551,5 @@ struct MainView: View {
         // Pushed again, with the push's slide over the search it was on (that is where its Back leads). The slide
         // stayed under `withTransaction(\.disablesAnimations, true)` too (iOS 27 simulator, frame by frame).
         navigation.search = back.path
-    }
-}
-
-/// `tabViewBottomAccessory(isEnabled:)` where it exists (iOS 26.1); on iOS 26.0 the accessory stays (ChatAccessory
-/// is empty while the composer is up).
-private struct BottomAccessory<Accessory: View>: ViewModifier {
-    let isEnabled: Bool
-    @ViewBuilder let accessory: () -> Accessory
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26.1, *) {
-            content.tabViewBottomAccessory(isEnabled: isEnabled, content: accessory)
-        } else {
-            content.tabViewBottomAccessory(content: accessory)
-        }
     }
 }

@@ -15,7 +15,7 @@ extension MainView {
     /// and turns the card into it; `-minimizeAfter <seconds>` minimizes the card into the accessory after that long
     /// and reopens it 2 s later (counted into `-autoStopAfter`; with `-openFirstTranscript` it closes that card). Search: `-search <text>`, `-searchToken person:<name>` or `tag:<tag>` (several
     /// separated by commas), `-openFirstResult` (the search list opens its first result's card); `-addTag <tag>` tags
-    /// the newest transcript. Ask (with `-fakeGemma`): `-showAsk` selects the tab, `-askQuestion <text>` sends a question.
+    /// the newest transcript. Ask (with `-fakeGemma`): `-showAsk` opens the Ask card, `-askQuestion <text>` sends a question in it.
     func applyLaunchArguments() async {
         let arguments = ProcessInfo.processInfo.arguments
         #if targetEnvironment(simulator)                   // seeds the app's own store: never on an iPhone with real data
@@ -73,7 +73,6 @@ extension MainView {
         let newest = (try? modelContext.fetch(FetchDescriptor<Recording>(sortBy: [SortDescriptor(\.createdAt,
                                                                                                   order: .reverse)])))?.first
         if arguments.contains("-showSettings") || arguments.contains("-showPeople") { tab = .settings }
-        if arguments.contains("-showAsk"), ChatView.isAvailable { tab = .ask }   // with `-fakeGemma` (FED-17)
         if let name = UserDefaults.standard.string(forKey: "showPerson"),   // `-showPerson "Anna Schmidt"`: her page
            let person = try? modelContext.fetch(FetchDescriptor<Person>(predicate: #Predicate { $0.name == name })).first {
             tab = .settings
@@ -153,12 +152,17 @@ extension MainView {
                 RecordingControl.shared.requestStart()
             }
         }
-        // `-askQuestion <text>`: the Ask tab, with that question sent a second after launch, as if typed (screenshots
-        // of a streaming answer; `-fakeGemma`'s reply is long with "long" in the question).
-        if let question = UserDefaults.standard.string(forKey: "askQuestion"), ChatView.isAvailable {
-            tab = .ask
+        // `-showAsk` (with `-fakeGemma`, FED-17): the Ask card, out of the accessory once it is laid out.
+        // `-askQuestion <text>`: the card with that question sent a second later, as if typed (screenshots of a
+        // streaming answer; `-fakeGemma`'s reply is long with "long" in the question).
+        let question = UserDefaults.standard.string(forKey: "askQuestion")
+        if ChatView.isAvailable, arguments.contains("-showAsk") || question != nil {
             do { try await Task.sleep(for: .seconds(1)) } catch { return }
-            services.chat.send(question)
+            openAsk()
+            if let question {
+                do { try await Task.sleep(for: .seconds(1)) } catch { return }
+                services.chat.send(question)
+            }
         }
         guard arguments.contains("-autoRecord") else { return }
         await services.prepareLiveDiarizer()           // live labels need the model loaded before the session is made
