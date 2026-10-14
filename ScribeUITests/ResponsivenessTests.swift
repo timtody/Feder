@@ -44,6 +44,11 @@ final class ResponsivenessTests: ScribeUITestCase {
         settle(1)
         app.buttons["Close Find"].tap()
         settle()
+        app.buttons["FindButton"].tap()                                      // again: the session's second find bar
+        XCTAssertTrue(app.textFields["FindField"].waitForExistence(timeout: 5))
+        settle()
+        app.buttons["Close Find"].tap()
+        settle()
         app.buttons["SpeakerHeader.0"].press(forDuration: 1.0)
         app.buttons["Go to Person"].tap()                                    // the card shrinks, then her page
         XCTAssertTrue(app.navigationBars["Anna Schmidt"].waitForExistence(timeout: 10))

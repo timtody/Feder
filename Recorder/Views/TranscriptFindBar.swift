@@ -46,8 +46,12 @@ struct TranscriptFindBar: View {
         .padding(.top, 4)
         .padding(.bottom, 8)
         .onAppear {
-            isFocused = true
             InteractionTrace.shown("find")
+            // Focused on the next turn, after the bar is on screen, as the tag field is (TagEditor): focused in the
+            // press's turn, the text field became first responder as UIKit inserted it and set up the keyboard there,
+            // 19–24 ms of the press's 69–76 ms of main thread (Time Profiler, iPhone 17 simulator, Debug, software
+            // keyboard). The keyboard still starts to rise one turn later.
+            DispatchQueue.main.async { isFocused = true }
         }
         // ⌘F while the bar is up: the field takes the keys again, as in Safari. The toolbar's Find gets the press
         // even while the toolbar is hidden (logged during testFindKeyboardShortcuts, 2026-10-15); a ⌘F of the bar's
