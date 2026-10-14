@@ -338,6 +338,35 @@ final class SearchTests: ScribeUITestCase {
         XCTAssertTrue(waitFor { !count.exists }, "an empty field counts nothing")
     }
 
+    /// While the hits for new words aren't known (the typing pause, then the search) the bar counts nothing and the
+    /// arrows are off: the last words' "No Matches" would be wrong. Return within the pause searches the text at once
+    /// instead of stepping through the last words' hits.
+    @MainActor
+    func testFindWaitsForItsHits() throws {
+        let app = launch()
+        open("Budget Review", in: app)
+        app.buttons["FindButton"].tap()
+        let field = app.textFields["FindField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.typeText("zebraquartz")
+        let count = app.staticTexts["FindCount"]
+        XCTAssertTrue(waitFor { count.exists && count.label == "No Matches" }, "No Matches")
+        field.typeText(" budget")                                           // within its pause: not "No Matches"
+        XCTAssertFalse(count.exists && count.label == "No Matches", "the last words' count while searching")
+        XCTAssertFalse(app.buttons["Next Match"].isEnabled, "no arrows while searching")
+        shot("Find searching", app)
+        XCTAssertTrue(waitFor { count.exists && count.label == "Match 1 of 2" }, "then counted: \(count.label)")
+        XCTAssertTrue(app.buttons["Next Match"].isEnabled)
+        app.buttons["Next Match"].tap()
+        XCTAssertTrue(waitFor { count.label == "Match 2 of 2" })
+        // A word found nowhere and Return in one go: the new words' hits keep the current one, no step to the first.
+        field.typeText(" qqq\n")
+        XCTAssertTrue(waitFor { count.exists && count.label == "Match 2 of 2" }, "Return searched: \(count.label)")
+        sleep(1)                                                            // past the typing pause
+        XCTAssertEqual(count.label, "Match 2 of 2", "and didn't step")
+        XCTAssertTrue(hasFocus(field), "the field keeps the keys")
+    }
+
     /// In a card opened from a search result, Find starts with the search's words and the same current hit; closing it
     /// leaves the search's navigator as it was.
     @MainActor
@@ -362,34 +391,43 @@ final class SearchTests: ScribeUITestCase {
         assertHitNavigatorInBottomBar(app)
     }
 
-    /// With a hardware keyboard (this simulator has one): ⌘F opens Find, ⌘G and ⇧⌘G step. The simulator dropped the
-    /// first press of ⌘F and of ⌘G in every run (the second worked, and ⇧⌘G after ⌘G worked at once), so each is
-    /// pressed again when nothing happened; how a real keyboard behaves is a check on the iPhone.
+    /// With a hardware keyboard: ⌘F opens Find, ⌘G and ⇧⌘G step, and ⌘F with the bar up gives the field the keys back.
+    /// Each shortcut is pressed once, so a press the app swallows fails the test. The simulator drops the first key
+    /// combination after the keys change hands (a field taking them, typing into one): ⌘G right after typing was
+    /// dropped with or without a second's pause and with the arrows never disabled, also when ⌃G had been pressed
+    /// before the typing; ⌃G pressed after it took the drop and the ⌘G after it worked. So `primeKeys` presses ⌃G,
+    /// which nothing binds, after each of those; how a real keyboard behaves is a check on the iPhone.
     @MainActor
     func testFindKeyboardShortcuts() throws {
         let app = launch()
         open("Budget Review", in: app)
         XCTAssertTrue(app.buttons["FindButton"].waitForExistence(timeout: 5))
         let field = app.textFields["FindField"]
-        press("f", [.command], in: app, until: { field.exists })
+        primeKeys(app)
+        app.typeKey("f", modifierFlags: .command)
         XCTAssertTrue(field.waitForExistence(timeout: 5), "⌘F: the find bar")
+        XCTAssertTrue(waitFor { self.hasFocus(field) })
         field.typeText("budget")
         let count = app.staticTexts["FindCount"]
         XCTAssertTrue(waitFor { count.exists && count.label == "Match 1 of 2" })
-        press("g", [.command], in: app, until: { count.label == "Match 2 of 2" })
+        primeKeys(app)
+        app.typeKey("g", modifierFlags: .command)
         XCTAssertTrue(waitFor { count.label == "Match 2 of 2" }, "⌘G: \(count.label)")
-        press("g", [.command, .shift], in: app, until: { count.label == "Match 1 of 2" })
+        app.typeKey("g", modifierFlags: [.command, .shift])
         XCTAssertTrue(waitFor { count.label == "Match 1 of 2" }, "⇧⌘G: \(count.label)")
+        // ⌘F with the bar up: the field takes the keys back (here from the title), as in Safari.
+        app.textFields["Title"].tap()
+        XCTAssertTrue(waitFor { !self.hasFocus(field) }, "the title has the keys")
+        primeKeys(app)
+        app.typeKey("f", modifierFlags: .command)
+        XCTAssertTrue(waitFor { self.hasFocus(field) }, "⌘F: the find field again")
     }
 
-    /// A key combination, pressed once more if `condition` isn't met within 3 s (see testFindKeyboardShortcuts).
+    /// ⌃G, bound to nothing: takes the simulator's drop of the first key combination (see testFindKeyboardShortcuts).
     @MainActor
-    private func press(_ key: String, _ modifiers: XCUIElement.KeyModifierFlags, in app: XCUIApplication,
-                       until condition: () -> Bool) {
-        app.typeKey(key, modifierFlags: modifiers)
-        guard !waitFor(condition, timeout: 3) else { return }
-        note("Pressed again", "\(modifiers.rawValue) \(key)")
-        app.typeKey(key, modifierFlags: modifiers)
+    private func primeKeys(_ app: XCUIApplication) {
+        app.typeKey("g", modifierFlags: .control)
+        RunLoop.current.run(until: .now.addingTimeInterval(0.5))
     }
 
     /// The search field is at the top of the screen, right under the status bar (Apple Music), the close button

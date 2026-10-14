@@ -51,6 +51,19 @@ final class PlaybackTests: ScribeUITestCase {
         // Play at the end: from the beginning again.
         play.tap()
         XCTAssertTrue(time.wait(for: \.label, toEqual: "0:01", timeout: 4), "again from the start: \(time.label)")
+
+        // Find while it plays (FED-79): the find bar takes the player's place and playback goes on; closing Find brings
+        // the player back, still playing.
+        app.buttons["FindButton"].tap()
+        let field = app.textFields["FindField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "the find bar")
+        XCTAssertTrue(play.waitForNonExistence(timeout: 3), "in the player's place")
+        shot("Find while listening", app)
+        sleep(2)
+        app.buttons["Close Find"].tap()
+        XCTAssertTrue(play.waitForExistence(timeout: 5), "the player is back")
+        XCTAssertEqual(play.label, "Pause", "still playing")
+        XCTAssertGreaterThanOrEqual(seconds(time.label), 3, "it played on under the find bar: \(time.label)")
         play.tap()
 
         // The bar's close button ends Listen: the bar goes, a tap on a word plays nothing.
