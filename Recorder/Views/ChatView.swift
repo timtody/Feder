@@ -151,7 +151,7 @@ struct ChatView: View {
         }
         .frame(minHeight: minHeight)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: minHeight / 2))
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 20)                          // the edges of the accessory and the tab bar below
         .padding(.top, 4)
         .padding(.bottom, 8)
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)

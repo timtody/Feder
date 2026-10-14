@@ -15,7 +15,7 @@ extension MainView {
     /// and turns the card into it; `-minimizeAfter <seconds>` minimizes the card into the accessory after that long
     /// and reopens it 2 s later (counted into `-autoStopAfter`; with `-openFirstTranscript` it closes that card). Search: `-search <text>`, `-searchToken person:<name>` or `tag:<tag>` (several
     /// separated by commas), `-openFirstResult` (the search list opens its first result's card); `-addTag <tag>` tags
-    /// the newest transcript.
+    /// the newest transcript. Ask (with `-fakeGemma`): `-showAsk` selects the tab, `-askQuestion <text>` sends a question.
     func applyLaunchArguments() async {
         let arguments = ProcessInfo.processInfo.arguments
         #if targetEnvironment(simulator)                   // seeds the app's own store: never on an iPhone with real data
@@ -151,6 +151,13 @@ extension MainView {
                 try? await Task.sleep(for: .seconds(outside))
                 RecordingControl.shared.requestStart()
             }
+        }
+        // `-askQuestion <text>`: the Ask tab, with that question sent a second after launch, as if typed (screenshots
+        // of a streaming answer; `-fakeGemma`'s reply is long with "long" in the question).
+        if let question = UserDefaults.standard.string(forKey: "askQuestion"), ChatView.isAvailable {
+            tab = .ask
+            do { try await Task.sleep(for: .seconds(1)) } catch { return }
+            services.chat.send(question)
         }
         guard arguments.contains("-autoRecord") else { return }
         await services.prepareLiveDiarizer()           // live labels need the model loaded before the session is made

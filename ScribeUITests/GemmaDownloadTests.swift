@@ -38,3 +38,111 @@ final class GemmaDownloadTests: ScribeUITestCase {
         XCTAssertTrue(download.waitForExistence(timeout: 5), "cancelled: the Download button again")
     }
 }
+
+/// The Ask tab (FED-17, DEBUG builds on iPhones that run Gemma): a chat with Gemma, between Transcripts and Search.
+/// `-fakeGemma` answers with a canned reply streamed word by word that names the question and the count of earlier
+/// messages (FakeTextWriter.chat). Kept with Gemma's download tests, so the project needs no new test file.
+final class AskTests: ScribeUITestCase {
+    /// The tab sits between Transcripts and Search; a question gets a streamed answer (Stop while it streams, Send
+    /// again after), a follow-up carries the history, and New Chat clears the conversation.
+    @MainActor
+    func testAskTabAnswers() throws {
+        let app = launch(["-fakeGemma"])
+        let transcripts = app.buttons["Transcripts"].firstMatch, ask = app.buttons["Ask"].firstMatch
+        let search = app.buttons["Search"].firstMatch
+        XCTAssertTrue(ask.waitForExistence(timeout: 5), "the Ask tab with Gemma")
+        XCTAssertTrue(transcripts.frame.midX < ask.frame.midX && ask.frame.midX < search.frame.midX,
+                      "Transcripts, Ask, Search: \(transcripts.frame) \(ask.frame) \(search.frame)")
+        XCTAssertEqual(ask.frame.midY, search.frame.midY, accuracy: 2, "in the same bar")
+        ask.tap()
+        XCTAssertTrue(app.staticTexts["Ask Gemma"].waitForExistence(timeout: 5), "the empty chat")
+        XCTAssertFalse(app.buttons["New Chat"].isEnabled, "nothing to clear yet")
+        let field = app.textFields["ChatField"]
+        XCTAssertTrue(field.exists)
+        XCTAssertFalse(app.buttons["Send"].isEnabled, "no Send without text")
+        field.tap()
+        dismissKeyboardTip(app)
+        field.typeText("What can you do?")
+        shot("Typed", app)
+        app.buttons["Send"].tap()
+        XCTAssertTrue(app.staticTexts["What can you do?"].waitForExistence(timeout: 2), "the question in its bubble")
+        XCTAssertTrue(app.buttons["Stop Answer"].waitForExistence(timeout: 2), "Send turns into Stop")
+        let answer = app.staticTexts["ChatAnswer"].firstMatch
+        XCTAssertTrue(answer.waitForExistence(timeout: 5), "the answer streams in")
+        shot("Streaming", app)
+        XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 15), "Stop turns back into Send")
+        XCTAssertTrue(answer.label.contains("You asked: \u{201C}What can you do?\u{201D}"), answer.label)
+        XCTAssertTrue(answer.label.contains("Earlier messages: 0."), answer.label)
+
+        field.typeText("And then?")
+        app.buttons["Send"].tap()
+        XCTAssertTrue(app.buttons["Stop Answer"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 15))
+        let second = app.staticTexts.matching(identifier: "ChatAnswer").element(boundBy: 1)
+        XCTAssertTrue(second.label.contains("Earlier messages: 2."), "the history went along: \(second.label)")
+        shot("Two answers", app)
+
+        app.buttons["New Chat"].tap()
+        XCTAssertTrue(app.staticTexts["Ask Gemma"].waitForExistence(timeout: 5), "New Chat clears the conversation")
+        XCTAssertFalse(app.staticTexts["ChatAnswer"].exists)
+    }
+
+    /// Stop mid-answer keeps what was written so far, captioned Stopped.
+    @MainActor
+    func testStopKeepsPartialAnswer() throws {
+        let app = launch(["-fakeGemma", "-showAsk"])
+        let field = app.textFields["ChatField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        dismissKeyboardTip(app)
+        field.typeText("Tell me something long")
+        app.buttons["Send"].tap()
+        let answer = app.staticTexts["ChatAnswer"].firstMatch
+        XCTAssertTrue(answer.waitForExistence(timeout: 5))
+        app.buttons["Stop Answer"].tap()
+        XCTAssertTrue(app.staticTexts["Stopped"].waitForExistence(timeout: 3), "the answer is marked Stopped")
+        XCTAssertTrue(app.buttons["Send"].exists, "Send again")
+        XCTAssertFalse(answer.label.contains("That is all for now."), "only part of it: \(answer.label)")
+        XCTAssertTrue(answer.label.hasPrefix("You asked"), answer.label)
+        shot("Stopped", app)
+    }
+
+    /// Without Gemma the tab offers its download (as Settings › Summaries does); once it is there, the field.
+    @MainActor
+    func testAskOffersDownload() throws {
+        let app = launch(["-fakeGemmaDownload", "-fakeGemmaDownloadSeconds", "4", "-improvementsOnboardingShown", "YES",
+                          "-showAsk"])
+        XCTAssertTrue(app.staticTexts["Download Gemma to Chat"].waitForExistence(timeout: 5), "the download offer")
+        XCTAssertFalse(app.textFields["ChatField"].exists, "no field before Gemma is there")
+        app.buttons["Download Gemma 4 E2B (3.6 GB)"].tap()
+        XCTAssertTrue(app.staticTexts["Downloading Gemma 4 E2B…"].waitForExistence(timeout: 5), "the progress")
+        shot("Downloading", app)
+        XCTAssertTrue(app.textFields["ChatField"].waitForExistence(timeout: 15), "downloaded: the chat")
+        XCTAssertTrue(app.staticTexts["Ask Gemma"].exists)
+    }
+
+    /// German: the tab is "Fragen", the empty chat "Gemma fragen".
+    @MainActor
+    func testAskInGerman() throws {
+        let app = launch(["-fakeGemma", "-AppleLanguages", "(de)", "-AppleLocale", "de_DE"], waitsForList: false)
+        let ask = app.buttons["Fragen"].firstMatch
+        XCTAssertTrue(ask.waitForExistence(timeout: 15), "the tab in German")
+        ask.tap()
+        XCTAssertTrue(app.staticTexts["Gemma fragen"].waitForExistence(timeout: 5), "the empty chat in German")
+        XCTAssertTrue(app.buttons["Neuer Chat"].exists, "New Chat in German")
+        shot("Ask in German", app)
+    }
+
+    /// While recording Gemma doesn't run: the field is off and says why.
+    @MainActor
+    func testAskPausedWhileRecording() throws {
+        let app = launch(["-fakeGemma", "-showAsk", "-autoRecord"], waitsForList: false)
+        XCTAssertTrue(app.staticTexts["Recording"].waitForExistence(timeout: 15), "recording in the card")
+        closeCard(app)
+        let field = app.textFields["ChatField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertFalse(field.isEnabled, "no questions while recording")
+        XCTAssertEqual(field.placeholderValue, "Gemma pauses while you record.")
+        shot("Paused while recording", app)
+    }
+}
