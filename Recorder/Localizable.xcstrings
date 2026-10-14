@@ -452,12 +452,32 @@
     "Apple Speech": {
       "shouldTranslate": false
     },
+    "Ask": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fragen"
+          }
+        }
+      }
+    },
     "Ask First": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Erst fragen"
+          }
+        }
+      }
+    },
+    "Ask Gemma": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma fragen"
           }
         }
       }
@@ -982,6 +1002,16 @@
         }
       }
     },
+    "Download Gemma to Chat": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma zum Chatten laden"
+          }
+        }
+      }
+    },
     "Download Now (%lld MB)": {
       "localizations": {
         "de": {
@@ -1412,6 +1442,16 @@
         }
       }
     },
+    "Gemma couldn't answer. Try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma konnte nicht antworten. Versuche es noch einmal."
+          }
+        }
+      }
+    },
     "Gemma found no tasks in this transcript.": {
       "localizations": {
         "de": {
@@ -1422,12 +1462,52 @@
         }
       }
     },
+    "Gemma is available after the app is open again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma ist wieder verfügbar, wenn die App offen ist."
+          }
+        }
+      }
+    },
+    "Gemma isn't downloaded.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma ist nicht geladen."
+          }
+        }
+      }
+    },
     "Gemma needs 4 GB of free storage on this iPhone.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Gemma braucht 4 GB freien Speicherplatz auf diesem iPhone."
+          }
+        }
+      }
+    },
+    "Gemma pauses while you record.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma pausiert, während du aufnimmst."
+          }
+        }
+      }
+    },
+    "Gemma runs on this iPhone. Nothing you type leaves it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma läuft auf diesem iPhone. Nichts, was du eingibst, verlässt es."
           }
         }
       }
@@ -2068,6 +2148,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Verlässt nie dieses iPhone"
+          }
+        }
+      }
+    },
+    "New Chat": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neuer Chat"
           }
         }
       }
@@ -2775,6 +2865,16 @@
         }
       }
     },
+    "Send": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Senden"
+          }
+        }
+      }
+    },
     "Set a passcode in the iPhone's Settings to lock Feder.": {
       "localizations": {
         "de": {
@@ -3105,6 +3205,16 @@
         }
       }
     },
+    "Stop Answer": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antwort stoppen"
+          }
+        }
+      }
+    },
     "Stop Listening": {
       "localizations": {
         "de": {
@@ -3121,6 +3231,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Transkription beenden"
+          }
+        }
+      }
+    },
+    "Stopped": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Angehalten"
           }
         }
       }
@@ -3451,6 +3571,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "In Erinnerungen gibt es keine Liste zum Hinzufügen."
+          }
+        }
+      }
+    },
+    "Thinking…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Denkt nach …"
           }
         }
       }

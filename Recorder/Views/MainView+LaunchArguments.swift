@@ -72,6 +72,7 @@ extension MainView {
         let newest = (try? modelContext.fetch(FetchDescriptor<Recording>(sortBy: [SortDescriptor(\.createdAt,
                                                                                                   order: .reverse)])))?.first
         if arguments.contains("-showSettings") || arguments.contains("-showPeople") { tab = .settings }
+        if arguments.contains("-showAsk"), ChatView.isAvailable { tab = .ask }   // with `-fakeGemma` (FED-17)
         if let name = UserDefaults.standard.string(forKey: "showPerson"),   // `-showPerson "Anna Schmidt"`: her page
            let person = try? modelContext.fetch(FetchDescriptor<Person>(predicate: #Predicate { $0.name == name })).first {
             tab = .settings

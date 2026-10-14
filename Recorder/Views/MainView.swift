@@ -12,8 +12,10 @@ import UIKit
 /// bar is expanded and takes the search role only while it is minimized (`isBarMinimized`, from the accessory's
 /// placement). On iOS 27 that switch replaced the Search tab (UITab ↔ UISearchTab, a new object each time) in the
 /// middle of the bar's own morph, and the magnifier sometimes dropped into its place from above as the bar unfolded.
+/// Ask (a chat with Gemma, FED-17) sits between Transcripts and Search in DEBUG builds on iPhones that run Gemma
+/// (ChatView.isAvailable), so Search keeps the right end.
 enum AppTab: Hashable {
-    case transcripts, settings, search
+    case transcripts, settings, ask, search
 }
 
 /// The text and tokens of the search, shared by the tabs: a tag chip in the Transcripts list or a pull on it opens the
@@ -94,6 +96,11 @@ struct MainView: View {
             Tab("Transcripts", systemImage: "waveform", value: AppTab.transcripts) {
                 RecordingsListView(isSearch: false, searchState: searchState)
             }
+            if ChatView.isAvailable {
+                Tab("Ask", systemImage: "bubble.left.and.text.bubble.right", value: AppTab.ask) {
+                    ChatView()
+                }
+            }
             Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: searchRole) {
                 RecordingsListView(isSearch: true, searchState: searchState)
             }
@@ -161,6 +168,7 @@ struct MainView: View {
                 endEditing()                                     // the keyboard goes with the Search tab
                 searchReturns = []
             }
+            if old == .ask, new != .ask { endEditing() }         // and with the Ask tab's field, kept alive likewise
         }
         .onChange(of: card.session?.state) { _, state in
             guard let state else { return }
@@ -330,6 +338,7 @@ struct MainView: View {
 
     private func pushPerson(_ id: UUID) {
         InteractionTrace.begin("person")
+        if tab == .ask { tab = .transcripts }                    // the Ask tab has no pages: the Transcripts tab's
         navigation.push(PersonRoute(id: id), on: tab)
     }
 
