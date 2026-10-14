@@ -78,8 +78,7 @@ final class Recording {
     var speakerTurns: [SpeakerTurn] = [] // the final diarization (empty before it, and for transcripts diarized before it was kept)
     var alignmentOffset: TimeInterval = 0 // added to speakerTurns' times when aligning them with `words` (FileTranscript)
     var voicesVersion: Int = 0           // SpeakerIdentifier.voicesVersion of speakerVoices (0: diarizer centroids, or none)
-    var summary: String? = nil           // by the on-device language model (TranscriptTitler): 2-3 sentences, or a style's
-                                         // lines (summaryWrittenStyle); nil: none yet
+    var summary: String? = nil           // 2-3 sentences by the on-device language model (TranscriptTitler); nil: none yet
     var summaryVersion: Int = 0          // TranscriptTitler.version once title and summary were attempted with a model
     var nameIsUserSet: Bool = false      // the user edited the title; automatic titles never replace it
     var automaticTitle: String? = nil    // the last title TranscriptTitler gave it: a better model may replace that one
@@ -108,10 +107,11 @@ final class Recording {
     /// import's time, so it tops the list (FED-6). Only the action items' deadlines count from it. nil: recorded in
     /// Feder, imported before it was kept, or the file didn't say.
     var originalDate: Date? = nil
-    /// The summary style chosen for this transcript (SummaryStyle.rawValue: while recording, in the open summary, or
-    /// taken from a tag once); nil: never chosen, so a tag's style can still decide (FED-15).
+    /// Unused (kept, the store has it): the summary style chosen for this transcript, from summary styles, which
+    /// existed on 13 Oct 2026 only and were removed at the user's request (FED-15).
     var summaryStyleRaw: String? = nil
-    /// The style `summary` is written in; nil: Brief (every summary from before styles, FED-15).
+    /// The style the stored summary was written in during those styles; non-nil: `summary` holds a style's lines, and
+    /// SpeakerIdentifier's sweep writes it again as the one short paragraph, then sets this back to nil (FED-15).
     var summaryWrittenStyleRaw: String? = nil
 
     init(name: String, audioFileName: String, localeIdentifier: String) {
@@ -131,18 +131,6 @@ final class Recording {
     var speakerStatus: SpeakerStatus {
         get { SpeakerStatus(rawValue: speakerStatusRaw) ?? .failed }
         set { speakerStatusRaw = newValue.rawValue }
-    }
-
-    /// The style chosen for the summary, nil when none was (SpeakerIdentifier.describe then asks the tags, else Brief).
-    var summaryStyle: SummaryStyle? {
-        get { summaryStyleRaw.flatMap(SummaryStyle.init(rawValue:)) }
-        set { summaryStyleRaw = newValue?.rawValue }
-    }
-
-    /// The style the stored summary is written in.
-    var summaryWrittenStyle: SummaryStyle {
-        get { summaryWrittenStyleRaw.flatMap(SummaryStyle.init(rawValue:)) ?? .brief }
-        set { summaryWrittenStyleRaw = newValue == .brief ? nil : newValue.rawValue }
     }
 
     /// nil: diarized before this was kept (pyannote or live labels then), or not diarized yet.

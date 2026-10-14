@@ -29,13 +29,11 @@ final class TranscriptTitler {
     /// Tokens of a request that are not transcript: ~270 of instructions, at most 400 answered (measured with
     /// `tokenCount`), plus room for the speaker names' share and the chat template.
     nonisolated static let reservedTokens = 1_300
-    /// The same for a styled summary (FED-15): longer instructions (~450 tokens) and an answer of at most 700.
-    nonisolated static let styledReservedTokens = 1_750
 
     /// Transcript characters per request for a model reading `contextSize` tokens: 3.5 characters per token, below the
     /// 3.8-4.5 measured for German and English transcripts (Gemma's 20,000: 65,450).
-    nonisolated static func chunkCharacters(contextSize: Int, reserved: Int = reservedTokens) -> Int {
-        max(3_000, (contextSize - reserved) * 7 / 2)
+    nonisolated static func chunkCharacters(contextSize: Int) -> Int {
+        max(3_000, (contextSize - reservedTokens) * 7 / 2)
     }
 
     /// Gemma failed for another reason than being stopped (missing or damaged files): the transcript stays undescribed.
@@ -47,7 +45,6 @@ final class TranscriptTitler {
         var title: String?      // nil when the model's title failed the checks: the name stays
         var summary: String
         var topics: [String] = []   // the "Topics:" line's items (search); empty when the answer had none
-        var style: SummaryStyle = .brief   // how `summary` is written: Brief's is one paragraph, the others lines
     }
 
     /// describe() throws this when the model can't answer now but may later (stopped because the app left the
@@ -62,32 +59,20 @@ final class TranscriptTitler {
     /// so the card can show it growing.
     /// `bookmarked`: some paragraphs carry `bookmarkMarker` (moments marked while recording): the instructions then
     /// say that the summary must cover them. Without bookmarks the request is exactly the benched one.
-    /// `style` (FED-15): Brief is the benched request, unchanged; the others ask for the summary as lines between the
-    /// Topics and Title lines (`styledInstructions`) and are parsed into the stored lines (`parseStyled`).
-    /// `needsTitle`: false when the title won't be used (a rewrite in another style, a transcript the user named),
-    /// which then never asks again for a title the styled answer left out.
     func describe(paragraphs: [String], locale recordingLocale: Locale, writer: any TextWriter, bookmarked: Bool = false,
-                  style: SummaryStyle = .brief, needsTitle: Bool = true,
                   partial: (@Sendable (String) -> Void)? = nil) async throws -> Description? {
         // The app's language, not the transcript's: the summary is read in the app, next to its German or English
         // labels (an English recording on a German iPhone gets a German summary).
         let locale = Self.appLocale
-        let reserved = style == .brief ? Self.reservedTokens : Self.styledReservedTokens
-        return try await describe(paragraphs, locale: locale, writer: writer, bookmarked: bookmarked, style: style,
-                                  needsTitle: needsTitle,
-                                  limit: Self.chunkCharacters(contextSize: LocalLanguageModel.contextTokens,
-                                                              reserved: reserved),
-                                  partial: partial)
+        return try await describe(paragraphs, locale: locale, writer: writer, bookmarked: bookmarked,
+                                  limit: Self.chunkCharacters(contextSize: LocalLanguageModel.contextTokens), partial: partial)
     }
 
-    /// Internal, not private: the Mac summary bench (build/qa/summarybench) chooses the language with `locale`.
-    func describe(_ paragraphs: [String], locale: Locale, writer: any TextWriter, bookmarked: Bool,
-                  style: SummaryStyle, needsTitle: Bool = true, limit: Int,
-                  partial: (@Sendable (String) -> Void)?) async throws -> Description? {
+    private func describe(_ paragraphs: [String], locale: Locale, writer: any TextWriter, bookmarked: Bool, limit: Int,
+                          partial: (@Sendable (String) -> Void)?) async throws -> Description? {
         let german = Self.isGerman(locale)
         let bookmarkNote = bookmarked ? "\n" + Self.bookmarkNote(german: german) : ""
         let language = Self.languageName(locale)
-        let styled = style != .brief
         var parts = Self.chunks(paragraphs, limit: limit)
         guard !parts.isEmpty else { return nil }
         // Map-reduce: while the text does not fit one request, summarize each part, then work on the summaries.
@@ -95,7 +80,7 @@ final class TranscriptTitler {
         while parts.count > 1 {
             var summaries: [String] = []
             for part in parts {
-                if let summary = try await summarize(part, language: language, german: german, style: style,
+                if let summary = try await summarize(part, language: language, german: german,
                                                      fromSummaries: fromSummaries,
                                                      note: fromSummaries ? "" : bookmarkNote, writer: writer) {
                     summaries.append(summary)
@@ -107,40 +92,25 @@ final class TranscriptTitler {
             parts = next
             fromSummaries = true
         }
-        let request = Self.finalRequest(parts[0], style: style, language: language, locale: locale, german: german,
-                                        fromSummaries: fromSummaries, bookmarkNote: bookmarkNote)
-        // A styled answer is several lines long: 700 tokens (Brief's three lines stay within 400).
+        let heading = german
+            ? (fromSummaries ? "Zusammenfassungen der aufeinanderfolgenden Teile eines langen Gesprächs:\n" : "Transkript:\n")
+            : (fromSummaries ? "Summaries of the consecutive parts of one long conversation:\n" : "Transcript:\n")
+        let prompt = heading + parts[0]
+        // The bookmarks' note only where the marked lines are read: the parts' summaries carry no markers.
+        let instructions = (german ? Self.germanTitleInstructions(fromSummaries: fromSummaries)
+                                   : Self.localTitleInstructions(language: language, locale: locale,
+                                                                 fromSummaries: fromSummaries))
+            + (fromSummaries ? "" : bookmarkNote)
+        // The task again after the transcript: without it Gemma went on with the transcript ("Anna Schmidt: …").
+        let request = prompt + "\n\n" + (german ? Self.germanReminder : Self.localReminder)
         let text = try await Self.local {
-            try await writer.respond(instructions: request.instructions, prompt: request.prompt,
-                                     maxTokens: styled ? 700 : 400, temperature: 0) { text in
-                if !styled, let summary = Self.partialSummary(in: text) { partial?(summary) }
+            try await writer.respond(instructions: instructions, prompt: request, maxTokens: 400, temperature: 0) { text in
+                if let summary = Self.partialSummary(in: text) { partial?(summary) }
             }
         }
         #if DEBUG
-        print("[Scribe] title (Gemma, \(style.rawValue)): \(text)")
+        print("[Scribe] title (Gemma): \(text)")
         #endif
-        if styled {
-            guard let answer = Self.parseStyled(text, style: style, german: german) else { return nil }
-            var title = Self.cleanTitle(answer.title)
-            if title == nil, needsTitle {
-                // Gemma ended a styled answer without its title line (7 of 40 styled runs in the Mac bench, all with
-                // the German instructions) or with one cleanTitle rejects: Brief's request, the benched one, gives
-                // the title from the same text (the transcript, or its parts' summaries: no part is summarized
-                // again, so a long transcript's work isn't doubled); its summary is not used. A styled request's
-                // text fits Brief's: Brief reserves fewer tokens.
-                let brief = Self.finalRequest(parts[0], style: .brief, language: language, locale: locale,
-                                              german: german, fromSummaries: fromSummaries, bookmarkNote: bookmarkNote)
-                let briefAnswer = try await Self.local {
-                    try await writer.respond(instructions: brief.instructions, prompt: brief.prompt, maxTokens: 400,
-                                             temperature: 0, partial: nil)
-                }
-                #if DEBUG
-                print("[Scribe] title (Gemma, brief, for a styled summary): \(briefAnswer)")
-                #endif
-                title = Self.parseLabelled(briefAnswer).flatMap { Self.cleanTitle($0.title) }
-            }
-            return Description(title: title, summary: answer.summary, topics: answer.topics, style: style)
-        }
         let answer = Self.parseLabelled(text)
         guard let answer else { return nil }
         let summary = Self.plainSentences(answer.summary).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -152,34 +122,14 @@ final class TranscriptTitler {
         return Description(title: title, summary: first.uppercased() + summary.dropFirst(), topics: answer.topics)
     }
 
-    /// The request that writes the answer from `text` (the transcript, or its parts' summaries) in `style`. The
-    /// bookmarks' note only where the marked lines are read: the parts' summaries carry no markers.
-    nonisolated static func finalRequest(_ text: String, style: SummaryStyle, language: String, locale: Locale,
-                                         german: Bool, fromSummaries: Bool,
-                                         bookmarkNote: String) -> (instructions: String, prompt: String) {
-        let styled = style != .brief
-        let heading = german
-            ? (fromSummaries ? "Zusammenfassungen der aufeinanderfolgenden Teile eines langen Gesprächs:\n" : "Transkript:\n")
-            : (fromSummaries ? "Summaries of the consecutive parts of one long conversation:\n" : "Transcript:\n")
-        let instructions = (styled
-                ? styledInstructions(style, language: language, german: german, fromSummaries: fromSummaries)
-                : german ? germanTitleInstructions(fromSummaries: fromSummaries)
-                         : localTitleInstructions(language: language, locale: locale, fromSummaries: fromSummaries))
-            + (fromSummaries ? "" : bookmarkNote)
-        // The task again after the transcript: without it Gemma went on with the transcript ("Anna Schmidt: …").
-        let reminder = styled ? styledReminder(german: german) : german ? germanReminder : localReminder
-        return (instructions, heading + text + "\n\n" + reminder)
-    }
-
     /// A part's summary as plain text.
-    private func summarize(_ text: String, language: String, german: Bool, style: SummaryStyle, fromSummaries: Bool,
-                           note: String, writer: any TextWriter) async throws -> String? {
+    private func summarize(_ text: String, language: String, german: Bool, fromSummaries: Bool, note: String,
+                           writer: any TextWriter) async throws -> String? {
         let heading = german
             ? (fromSummaries ? "Zusammenfassungen aufeinanderfolgender Teile eines langen Gesprächs:\n" : "Teil eines Transkripts:\n")
             : (fromSummaries ? "Summaries of consecutive parts of one long conversation:\n" : "Part of a transcript:\n")
         let prompt = heading + text
-        let instructions = (style != .brief ? Self.styledPartInstructions(style, language: language, german: german)
-                            : german ? Self.germanPartInstructions : Self.partInstructions(language: language)) + note
+        let instructions = (german ? Self.germanPartInstructions : Self.partInstructions(language: language)) + note
         let answer = try await Self.local {
             try await writer.respond(instructions: instructions, prompt: prompt,
                                      maxTokens: 400, temperature: 0, partial: nil)
@@ -418,430 +368,4 @@ nonisolated struct TitleAndSummary {
     var topics: [String]
     var summary: String
     var title: String
-}
-
-// MARK: - Summary styles (FED-15)
-
-/// The styled summaries' requests and their parsing. Brief keeps the benched request above untouched; the other styles
-/// ask for the summary as lines between the Topics and the Title line (topics first and title last, as benched: listing
-/// the topics first makes a long meeting's summary cover more than its first part). No content examples in any style:
-/// a small model copies them into its answer (ActionItemExtractor has none either). The stored summary is the parsed
-/// lines joined with "\n": headings ("Decisions"), "• " bullets, and "Q: "/"F: " and "A: " lines; a Brief summary is
-/// one paragraph (`plainSentences`), so `Recording.summaryWrittenStyle` tells the card how to draw it.
-extension TranscriptTitler {
-    /// The style's lines as the answer shows them, per style and language: a heading Gemma reads as the block's name
-    /// (Lecture's, Interview's and Bullet Points' are dropped by the parser) and what goes under it.
-    nonisolated static func styleFormat(_ style: SummaryStyle, german: Bool) -> String {
-        switch (style, german) {
-        case (.meeting, false):
-            "Decisions:\n- one line per decision, with its numbers and dates\nTo-dos:\n- one line per task: who does " +
-            "what, and by when if it was said\nOpen questions:\n- one line per question that was left open"
-        case (.meeting, true):
-            "Entscheidungen:\n- eine Zeile je Entscheidung, mit ihren Zahlen und Terminen\nAufgaben:\n- eine Zeile " +
-            "je Aufgabe: wer was erledigt, und bis wann, wenn es gesagt wurde\nOffene Fragen:\n- eine Zeile je " +
-            "Frage, die offen geblieben ist"
-        case (.lecture, false):
-            "Key ideas:\n- one line per key idea, with the definitions, examples and numbers given; 3 to 8 lines in all"
-        case (.lecture, true):
-            "Kernaussagen:\n- eine Zeile je Kernaussage, mit den genannten Definitionen, Beispielen und Zahlen; " +
-            "insgesamt 3 bis 8 Zeilen"
-        case (.interview, false):
-            "Questions and answers:\nQ: a question that was asked, in short\nA: the answer, in one or two sentences"
-        case (.interview, true):
-            "Fragen und Antworten:\nF: eine gestellte Frage, kurz\nA: die Antwort, in ein oder zwei Sätzen"
-        case (.bulletPoints, false), (.brief, false):
-            "Key points:\n- one line per point, 3 to 8 lines in all"
-        case (.bulletPoints, true), (.brief, true):
-            "Kernpunkte:\n- eine Zeile je Punkt, insgesamt 3 bis 8 Zeilen"
-        }
-    }
-
-    /// The style's own rules, before the rules every style shares.
-    nonisolated static func styleRules(_ style: SummaryStyle, german: Bool) -> String {
-        switch (style, german) {
-        case (.meeting, false):
-            "Under a heading with nothing to list, write \"- none\". A decision is something agreed; a to-do is a " +
-            "concrete task someone takes on, agrees to or is asked to do, not a topic or something already done; an " +
-            "open question is something raised and not settled. Each decision, task and question once, at most 6 " +
-            "lines under each heading."
-        case (.meeting, true):
-            "Steht unter einer Überschrift nichts, schreib „- keine“. Eine Entscheidung ist etwas Vereinbartes; eine " +
-            "Aufgabe ist etwas Konkretes, das jemand übernimmt, zusagt oder erledigen soll, kein Thema und nichts " +
-            "schon Erledigtes; eine offene Frage ist etwas Angesprochenes, das nicht geklärt wurde. Jede " +
-            "Entscheidung, Aufgabe und Frage einmal, höchstens 6 Zeilen je Überschrift."
-        case (.lecture, false):
-            "The key ideas in the order they come; state each idea itself, never describe the talk (\"the lecturer " +
-            "explains\"). If reading or a task for next time was set, that is the last line."
-        case (.lecture, true):
-            "Die Kernaussagen in ihrer Reihenfolge; schreib jede Aussage selbst, beschreib nie den Vortrag („es wird " +
-            "erklärt“). Wurde Lektüre oder eine Aufgabe fürs nächste Mal genannt, ist das die letzte Zeile."
-        case (.interview, false):
-            "One Q line and one A line per question that was asked, in the order asked, at most 10 pairs; leave out " +
-            "greetings and small talk; name who answers where the text names them."
-        case (.interview, true):
-            "Eine F-Zeile und eine A-Zeile je gestellter Frage, in der gestellten Reihenfolge, höchstens 10 Paare; " +
-            "lass Begrüßung und Smalltalk weg; nenn, wer antwortet, wo der Text es sagt."
-        case (.bulletPoints, false), (.brief, false):
-            "The lines cover every topic in order, one line per topic or result, not one per thing said: results, " +
-            "decisions, dates, numbers, names, and who does what."
-        case (.bulletPoints, true), (.brief, true):
-            "Die Zeilen decken alle Themen in ihrer Reihenfolge ab, eine Zeile je Thema oder Ergebnis, nicht je " +
-            "Wortbeitrag: Ergebnisse, Entscheidungen, Termine, Zahlen, Namen und wer was übernimmt."
-        }
-    }
-
-    /// Gemma's instructions for a styled summary: Brief's (`localTitleInstructions`, `germanTitleInstructions`) with
-    /// the style's lines in place of the "Summary:" line, between Topics and Title. Not under a "Summary:" label: with
-    /// one, Gemma wrote a paragraph describing the meeting after it, before the headings (Mac bench, German
-    /// instructions). Not after the title either (so a long answer cut off at 700 tokens would keep it): with English
-    /// instructions Gemma then stopped after the title in four of eight runs. The title's rules and the prohibitions
-    /// are Brief's.
-    nonisolated static func styledInstructions(_ style: SummaryStyle, language: String, german: Bool,
-                                               fromSummaries: Bool) -> String {
-        let format = styleFormat(style, german: german)
-        let rules = styleRules(style, german: german)
-        if german {
-            let source = fromSummaries
-                ? "Du bekommst Zusammenfassungen der aufeinanderfolgenden Teile eines langen Gesprächs; fasse das " +
-                  "ganze Gespräch zusammen."
-                : "Das Transkript stammt aus einer Spracherkennung und kann falsch verstandene Wörter enthalten. Jede " +
-                  "Zeile beginnt mit dem Namen der sprechenden Person und einem Doppelpunkt („Sprecher 2“, solange " +
-                  "der Name unbekannt ist)."
-            return """
-            Du schreibst eine Zusammenfassung und einen Titel eines aufgenommenen Gesprächs für die Person, die es \
-            aufgenommen hat, auf Deutsch, auch wenn das Gespräch in einer anderen Sprache geführt wurde.
-            Antworte genau in dieser Form und sonst nichts:
-            Themen: alle Themen des Gesprächs, durch Semikolons getrennt
-            \(format)
-            Titel: 2 bis 6 Wörter
-
-            \(rules) Jede Zeile unter 25 Wörtern. Dritte Person, Aktiv. Schreib die Fakten selbst; beschreib nie das \
-            Gespräch („fasst zusammen“, „es wird besprochen“, „im Gespräch geht es um“). Nenn Personen beim Namen. \
-            Eine Person ohne Namen („Sprecher 3“) ist „ein Teilnehmer“; schreib nie „Sprecher“ mit einer Nummer.
-            Titel: das konkrete Thema wie eine Dokumentüberschrift, zum Beispiel „Kreditprojekt: Testphase und \
-            Abnahme“. Beginne nie mit „Zusammenfassung“, „Überblick“, „Meeting“, „Besprechung“ oder „Gespräch“.
-            Verwende nur, was im Text steht: erfinde nie Namen, Zahlen, Termine, Entscheidungen oder Aufgaben. \(source)
-            """
-        }
-        let source = fromSummaries
-            ? "You get summaries of the consecutive parts of one long conversation; cover the whole conversation."
-            : "The transcript comes from speech recognition and may contain misheard words. Each line starts with the " +
-              "speaker's name and a colon (\"Speaker 2\" while the name is unknown)."
-        return """
-        You write a summary and a title of a recorded conversation for the person who recorded it, in \(language).
-        Answer in exactly this form and nothing else:
-        Topics: every topic of the conversation, separated by semicolons
-        \(format)
-        Title: 2 to 6 words
-
-        \(rules) Each line under 25 words, numbers in digits. Third person, active voice. Write the facts themselves; \
-        never describe the conversation ("fasst zusammen", "es wird besprochen", "im Gespräch geht es um", "discussed", "the meeting \
-        covered"). Name people by their names. A speaker without a name ("Speaker 3") is "a participant"; never \
-        write "Speaker" with a number.
-        Title: the specific subject like a document heading, for example "Credit Project: Test Phase and Sign-off". \
-        Never begin with "Zusammenfassung", "Überblick", "Meeting", "Besprechung", "Gespräch", "Summary" or \
-        "Discussion".
-        Use only what the text says: never invent names, numbers, dates, decisions or tasks. \(source)
-        """
-    }
-
-    nonisolated static func styledReminder(german: Bool) -> String {
-        german
-            ? "Ende des Textes. Antworte jetzt in der vorgegebenen Form: „Themen: …“, dann die verlangten Zeilen, dann " +
-              "„Titel: …“, auf Deutsch und nach den Anweisungen."
-            : "End of the text. Now answer in the form given: \"Topics: …\", then the lines asked for, then \"Title: " +
-              "…\", following the instructions."
-    }
-
-    /// A part of a long transcript, for a styled summary: as Brief's parts, in up to five sentences, keeping what the
-    /// style lists (a part summary of three sentences dropped most tasks and questions).
-    nonisolated static func styledPartInstructions(_ style: SummaryStyle, language: String, german: Bool) -> String {
-        let keep: String
-        switch (style, german) {
-        case (.meeting, false): keep = "Keep every decision, every task with who and by when, and every question left open. "
-        case (.meeting, true): keep = "Behalte jede Entscheidung, jede Aufgabe mit wer und bis wann, und jede offene Frage. "
-        case (.lecture, false): keep = "Keep every key idea with its explanation. "
-        case (.lecture, true): keep = "Behalte jede Kernaussage mit ihrer Erklärung. "
-        case (.interview, false): keep = "Keep every question asked and the gist of its answer. "
-        case (.interview, true): keep = "Behalte jede gestellte Frage und den Kern ihrer Antwort. "
-        default: keep = ""
-        }
-        if german {
-            return """
-                Du fasst einen Teil eines langen aufgenommenen Gesprächs auf Deutsch zusammen, in höchstens fünf \
-                Sätzen Fließtext (ein Absatz, kein Markdown, keine Listen). Nenn jedes Thema dieses Teils mit seinen \
-                wichtigsten Fakten und Entscheidungen, in der Reihenfolge, in der sie vorkommen, und wer was gesagt \
-                oder entschieden hat, wo der Text Personen nennt (nie „Sprecher 1“ oder ähnlich). \(keep)Verwende \
-                nur, was im Text steht: erfinde nie Namen, Zahlen, Orte, Termine oder Details. Das Transkript stammt \
-                aus einer Spracherkennung und kann falsch verstandene Wörter enthalten. Jede Zeile beginnt mit dem \
-                Namen der sprechenden Person und einem Doppelpunkt.
-                """
-        }
-        return """
-            You summarize one part of a long recorded conversation in \(language), in at most five sentences of \
-            plain text (one paragraph, no Markdown, no lists). Name every topic of this part, each with its key \
-            facts and decisions, in the order they come up, and who said or decided what where the text names people \
-            (never "Speaker 1" or similar). \(keep)Use only what the text says: never invent names, numbers, places, \
-            dates or details. The transcript comes from speech recognition and may contain misheard words. Each line \
-            starts with the speaker's name and a colon.
-            """
-    }
-
-    // MARK: Parsing a styled answer (pure)
-
-    /// The Meeting style's headings as stored, in the summary's language (chosen like "Teil"/"Part": the stored
-    /// summary is not translated later).
-    nonisolated static func meetingHeadings(german: Bool) -> [String] {
-        german ? ["Entscheidungen", "Aufgaben", "Offene Fragen"] : ["Decisions", "To-dos", "Open questions"]
-    }
-
-    /// At most this many lines under a heading (Meeting), bullets (Lecture, Bullet Points) and question-answer pairs.
-    nonisolated static let styledSectionLimit = 8
-    nonisolated static let styledBulletLimit = 10
-    nonisolated static let interviewPairLimit = 10
-    /// A line longer than this is cut at a word (the instructions ask for under 25 words).
-    nonisolated static let styledLineLimit = 300
-
-    /// A styled answer: the Topics and Title lines as in `parseLabelled` (the title may be missing: a rewrite never
-    /// uses it, and an answer cut off at 700 tokens has none), the summary as every other line, in the style's stored form (a "Summary:" label Gemma adds anyway
-    /// goes, its text after the colon stays). Gemma's Markdown goes (`**`, `#`), list markers ("- ", "* ", "1.")
-    /// become "• ", repeated lines go, Meeting's headings are matched loosely ("Beschlüsse", "Action Items") and
-    /// written as `meetingHeadings`, lines that say there is nothing ("- none", "Keine offenen Fragen") are dropped
-    /// with their empty heading. nil when no line is left, also after reading the answer as bullets.
-    nonisolated static func parseStyled(_ text: String, style: SummaryStyle, german: Bool) -> TitleAndSummary? {
-        var title = "", topics: [String] = [], body: [String] = []
-        for raw in text.split(whereSeparator: \.isNewline) {
-            let line = styledClean(String(raw))
-            if let match = line.firstMatch(of: /^(?i:title|titel)\s*:\s*(.*)/) {
-                title = String(match.1)
-            } else if let match = line.firstMatch(of: /^(?i:topics|themen)\s*:\s*(.*)/) {
-                topics = topicList(String(match.1))
-            } else if let match = line.firstMatch(of: /^(?i:summary|zusammenfassung)\s*:\s*(.*)/) {
-                body.append(String(match.1))
-            } else {
-                body.append(line)
-            }
-        }
-        var summary = styledLines(body, style: style, german: german)
-        if summary.isEmpty { summary = styledLines(body, style: .bulletPoints, german: german) }
-        guard !summary.isEmpty else { return nil }
-        return TitleAndSummary(topics: topics, summary: summary.joined(separator: "\n"), title: title)
-    }
-
-    /// The summary's lines in the style's stored form.
-    nonisolated static func styledLines(_ body: [String], style: SummaryStyle, german: Bool) -> [String] {
-        switch style {
-        case .meeting: meetingLines(body, german: german)
-        case .interview: interviewLines(body, german: german)
-        case .lecture: bulletLines(body, keepingLast: true)
-        case .brief, .bulletPoints: bulletLines(body)
-        }
-    }
-
-    /// Markdown emphasis and heading marks gone, whitespace trimmed.
-    nonisolated static func styledClean(_ line: String) -> String {
-        line.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "__", with: "")
-            .replacing(/^\s*#+\s*/, with: "")
-            .trimmingCharacters(in: .whitespaces)
-    }
-
-    /// A line without its list marker ("- ", "* ", "• ", "1. ", "2) ", also "- 1: ", as Gemma numbered decisions),
-    /// and whether it had one. A number counts as a marker only where it can't be the line's content: before, any
-    /// leading "\d+[.):]" went, and "- 25. November: Abnahme" was stored as "November: Abnahme", "- 15.11. Abgabe"
-    /// as "Abgabe", "- 3.5 % mehr" as "5 % mehr" (review of FED-15). So "1. " and "2) " only at the line's start, with
-    /// a space after them and no month or digit next ("1. Dezember Go-live" is a date); after a dash only "1: " and
-    /// "1) " (Meeting's numbered decisions), never "2. " ("- 2. Quartal" is an ordinal). Dates, decimals, times and
-    /// years ("15.11.", "3.5", "9:30", "2027:") have no space after their first number and always stay.
-    nonisolated static func listItem(_ line: String) -> (text: String, marked: Bool) {
-        var text = line.trimmingCharacters(in: .whitespaces), marked = false
-        while let match = text.firstMatch(of: /^[-*•–—](?!\d)\s*(.*)$/) {   // not "-5 °C"
-            text = String(match.1)
-            marked = true
-        }
-        if marked {
-            if let match = text.firstMatch(of: /^\d{1,2}[:)]\s+([^\s\d].*)$/) { text = String(match.1) }
-        } else if let match = text.firstMatch(of: /^\d{1,2}([.)])\s+([^\s\d].*)$/),
-                  match.1 == ")" || !startsWithMonth(match.2) {
-            text = String(match.2)
-            marked = true
-        }
-        return (text.replacingOccurrences(of: "*", with: "").trimmingCharacters(in: .whitespaces), marked)
-    }
-
-    /// Whether `text` begins with a month's name, English or German, also abbreviated ("Dez."): "1. Dezember" is a
-    /// date, not the first item of a list.
-    nonisolated static func startsWithMonth(_ text: Substring) -> Bool {
-        let months: Set<String> = [
-            "january", "february", "march", "april", "may", "june", "july", "august", "september", "october",
-            "november", "december", "januar", "jänner", "februar", "märz", "mai", "juni", "juli", "oktober", "dezember",
-            "jan", "feb", "mar", "mär", "mrz", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "okt", "nov", "dec", "dez",
-        ]
-        return months.contains(text.prefix { $0.isLetter }.lowercased())
-    }
-
-    /// A line that only says there is nothing: "none", "-", "keine" (ActionItemExtractor's empty values; not
-    /// shared, so this file builds alone in the Mac bench), or "No decisions were made", "Keine offenen Fragen", "Es
-    /// wurden keine Entscheidungen getroffen": every word after the "no" from `noneWords` (what there is none of, and
-    /// words that say nothing more). A line naming a subject is content and stays: "No decision on the rent" under
-    /// Open questions, "No overtime until March", and "No." as an interview's answer.
-    nonisolated static func saysNone(_ text: String) -> Bool {
-        let lower = text.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".!;: \"'„“”"))
-        let empty: Set<String> = ["", "-", "–", "—", "none", "keine", "keiner", "nichts", "nothing", "n/a", "k.a.",
-                                  "k. a.", "entfällt"]
-        if empty.contains(lower) { return true }
-        var words = lower.split(whereSeparator: { $0.isWhitespace || $0 == "," }).map(String.init)
-        if words.count > 2, words[0] == "there" || words[0] == "es" { words.removeFirst(2) }   // "There were no …"
-        guard let first = words.first,
-              ["no", "none", "nothing", "nichts", "kein", "keine", "keinen", "keiner", "keinerlei"].contains(first)
-        else { return false }
-        let rest = words.dropFirst()
-        guard rest.allSatisfy({ noneSubjects.contains($0) || noneWords.contains($0) }) else { return false }
-        // "No"/"kein" need what there is none of ("No." answers a question); "Keine genannt" says it alone.
-        return (first != "no" && first != "kein") || rest.contains(where: noneSubjects.contains)
-    }
-
-    /// What a "none" line in a styled answer says there is none of.
-    nonisolated static let noneSubjects: Set<String> = [
-        "decision", "decisions", "task", "tasks", "to-do", "to-dos", "todo", "todos", "action", "actions", "item",
-        "items", "question", "questions", "point", "points", "step", "steps", "issue", "issues", "agreement",
-        "agreements", "entscheidung", "entscheidungen", "beschluss", "beschlüsse", "aufgabe", "aufgaben", "frage",
-        "fragen", "punkt", "punkte", "schritt", "schritte", "vereinbarung", "vereinbarungen",
-    ]
-
-    /// Words that add nothing to a "none" line: "open", "further", "were made", "wurden getroffen", "to report".
-    nonisolated static let noneWords: Set<String> = [
-        "open", "other", "further", "more", "specific", "concrete", "new", "clear", "explicit", "next", "key", "were",
-        "was", "are", "is", "has", "have", "been", "made", "assigned", "raised", "identified", "left", "mentioned",
-        "discussed", "recorded", "given", "agreed", "decided", "noted", "remain", "remaining", "yet", "so", "far", "to",
-        "report", "offen", "offene", "offenen", "offener", "weitere", "weiteren", "weiterer", "andere", "anderen",
-        "konkrete", "konkreten", "neue", "neuen", "klare", "klaren", "explizite", "expliziten", "nächste", "nächsten",
-        "wurden", "wurde", "sind", "gibt", "gab", "getroffen", "vereinbart", "genannt", "festgelegt", "gestellt",
-        "besprochen", "vergeben", "erwähnt", "geblieben", "mehr", "noch", "bisher", "zu", "berichten",
-    ]
-
-    /// A line that is only a heading Gemma added ("Key ideas:", "Kernaussagen:"): no marker, ends with a colon, a
-    /// few words.
-    nonisolated static func isHeading(_ item: (text: String, marked: Bool)) -> Bool {
-        !item.marked && item.text.hasSuffix(":") && item.text.split(separator: " ").count <= 4
-    }
-
-    /// A line as stored: a speaker number in front and a colon at the end gone (Gemma wrote "Speaker 1: …" before
-    /// every key idea, and a colon after each), a name written twice once, a sentence written twice once, the first letter capitalized, cut at a
-    /// word after `styledLineLimit` characters.
-    nonisolated static func styledText(_ text: String) -> String {
-        var line = text.replacing(/^(?i:speaker|sprecher|sprecherin)\s*\d+\s*:\s*/, with: "")
-            .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: ":;")))
-        // "Anna Schmidt: Anna Schmidt proposed …": the name once.
-        if let match = line.firstMatch(of: /^([^:]{2,40}):\s+(.+)$/), match.2.hasPrefix(match.1) { line = String(match.2) }
-        // "Lena soll … aktualisieren. Lena soll … aktualisieren." (Mac bench, German instructions): one of them.
-        let sentences = line.split(separator: ". ", omittingEmptySubsequences: true)
-        if sentences.count == 2, repeatKey(String(sentences[0])) == repeatKey(String(sentences[1])) {
-            line = String(sentences[1])
-        }
-        if line.count > styledLineLimit {
-            let cut = line.index(line.startIndex, offsetBy: styledLineLimit)
-            line = String(line[..<(line[..<cut].lastIndex(of: " ") ?? cut)]) + "…"
-        }
-        guard let first = line.first else { return line }
-        return first.uppercased() + line.dropFirst()
-    }
-
-    /// `keepingLast`: Lecture asks for the reading or task for next time as its last line; when Gemma wrote more
-    /// lines than are kept (it often ignores "3 to 8"), that one stays.
-    nonisolated static func bulletLines(_ body: [String], keepingLast: Bool = false) -> [String] {
-        var lines: [String] = [], seen: Set<String> = []
-        for raw in body {
-            let item = listItem(raw)
-            guard !item.text.isEmpty, !isHeading(item), !saysNone(item.text),
-                  seen.insert(repeatKey(item.text)).inserted else { continue }
-            lines.append("• " + styledText(item.text))
-        }
-        guard lines.count > styledBulletLimit else { return lines }
-        return keepingLast ? lines.prefix(styledBulletLimit - 1) + [lines[lines.count - 1]]
-                           : Array(lines.prefix(styledBulletLimit))
-    }
-
-    /// What makes two lines the same: Gemma repeated a decision three times under one heading (Mac bench).
-    nonisolated static func repeatKey(_ text: String) -> String {
-        text.lowercased().filter { $0.isLetter || $0.isNumber }
-    }
-
-    /// Decisions, to-dos, open questions, in this order, each under its heading; lines before any heading first, as
-    /// bullets without one.
-    nonisolated static func meetingLines(_ body: [String], german: Bool) -> [String] {
-        var sections: [[String]] = [[], [], [], []]       // before any heading, decisions, to-dos, open questions
-        var current = 0, seen: Set<String> = []
-        for raw in body {
-            var item = listItem(raw)
-            guard !item.text.isEmpty else { continue }
-            if let match = item.text.firstMatch(of: /^([^:]{1,40}?)\s*:\s*(.*)$/),
-               let section = meetingSection(String(match.1)) {
-                current = section                           // "Decisions:", or "Decisions: the budget moves"
-                item.text = String(match.2)
-                guard !item.text.isEmpty else { continue }
-            } else if !item.marked, let section = meetingSection(item.text) {
-                current = section                           // "Decisions" without a colon
-                continue
-            }
-            guard !isHeading(item), !saysNone(item.text), seen.insert(repeatKey(item.text)).inserted else { continue }
-            if sections[current].count < styledSectionLimit { sections[current].append("• " + styledText(item.text)) }
-        }
-        let headings = meetingHeadings(german: german)
-        var lines = sections[0]
-        for (index, heading) in headings.enumerated() where !sections[index + 1].isEmpty {
-            lines.append(heading)
-            lines += sections[index + 1]
-        }
-        return lines
-    }
-
-    /// Which of Meeting's headings `text` is (1 decisions, 2 to-dos, 3 open questions), if any.
-    nonisolated static func meetingSection(_ text: String) -> Int? {
-        let lower = text.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ":. "))
-        if lower.wholeMatch(of: /decisions?( made)?|entscheidungen?|beschl(ü|u)sse?|vereinbarungen|agreements?/) != nil {
-            return 1
-        }
-        if lower.wholeMatch(of: /to-?dos?|tasks?|aufgaben|action items?|next steps|nächste schritte|todos/) != nil {
-            return 2
-        }
-        if lower.wholeMatch(of: /(open|offene|offenen) (questions?|fragen|punkte|points)|questions|fragen/) != nil {
-            return 3
-        }
-        return nil
-    }
-
-    /// "Q: …"/"A: …" pairs (German "F: …"), in order; a line of neither kind goes with the answer before it, or
-    /// stands as a bullet before the first question.
-    nonisolated static func interviewLines(_ body: [String], german: Bool) -> [String] {
-        var pairs: [(question: String?, answer: String?)] = []
-        var lead: [String] = []
-        for raw in body {
-            let item = listItem(raw)
-            guard !item.text.isEmpty else { continue }
-            if let match = item.text.firstMatch(of: /^(?i:q|f|frage|question)\s*\d*\s*:\s*(.*)$/) {
-                let question = String(match.1).trimmingCharacters(in: .whitespaces)
-                if !question.isEmpty { pairs.append((question, nil)) }
-            } else if let match = item.text.firstMatch(of: /^(?i:a|antwort|answer)\s*\d*\s*:\s*(.*)$/) {
-                let answer = String(match.1).trimmingCharacters(in: .whitespaces)
-                guard !answer.isEmpty, !saysNone(answer) else { continue }
-                if let last = pairs.indices.last, pairs[last].answer == nil {
-                    pairs[last].answer = answer
-                } else {
-                    pairs.append((nil, answer))
-                }
-            } else if !isHeading(item), !saysNone(item.text) {
-                if let last = pairs.indices.last {
-                    pairs[last].answer = [pairs[last].answer, item.text].compactMap { $0 }.joined(separator: " ")
-                } else {
-                    lead.append("• " + styledText(item.text))
-                }
-            }
-        }
-        var lines = Array(lead.prefix(styledSectionLimit))
-        for pair in pairs.prefix(interviewPairLimit) {
-            if let question = pair.question { lines.append((german ? "F: " : "Q: ") + styledText(question)) }
-            if let answer = pair.answer { lines.append("A: " + styledText(answer)) }
-        }
-        return lines
-    }
 }

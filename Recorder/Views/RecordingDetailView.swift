@@ -145,7 +145,7 @@ struct RecordingDetailView: View {
                                 if statusText != nil {
                                     PipelineStatusLine(recording: recording)
                                 } else if let summary = recording.summary, !summary.isEmpty {
-                                    SummaryDisclosure(recording: recording, summary: summary, search: search)
+                                    SummaryDisclosure(summary: summary, highlights: search?.highlights(in: summary) ?? [])
                                 }
                             }
                             .animation(.easeInOut(duration: 0.25), value: statusText == nil)
@@ -204,10 +204,6 @@ struct RecordingDetailView: View {
                         .padding(.top, TranscriptStyle.turnSpacing)
                 }
             }
-            // A summary written again in another style (FED-15) is shorter or longer: the transcript below glides to
-            // its place with the new text. Animated only inside the summary row, the rows under it jumped there at
-            // once while the old text still faded out over them (iOS 27 simulator, frame by frame).
-            .animation(.snappy, value: recording.summary)
             .coordinateSpace(.named(TranscriptView.contentSpace))
             .padding(.horizontal, TranscriptStyle.margin)
             .padding(.bottom, 24)
@@ -254,7 +250,6 @@ struct RecordingDetailView: View {
         .onChange(of: recording.speakerStatusRaw) {        // Try Again re-runs identification: numbers change
             if recording.speakerStatus != .done { renaming = nil }
         }
-        .onChange(of: recording.tags) { old, new in takeStyle(ofTagsAddedTo: old, now: new) }
         .sheet(item: $renaming) { target in
             SpeakerNameSheet(recording: recording, speaker: target.speaker)
         }
@@ -497,19 +492,6 @@ struct RecordingDetailView: View {
     private var combinesActions: Bool { !hits.isEmpty }
 
     private var hasSummary: Bool { recording.summary?.isEmpty == false }
-
-    /// A tag with a summary style (Settings › Summaries › Styles for Tags) added to a transcript whose style was never
-    /// chosen: the style becomes the transcript's, and the summary is written again in it (FED-15). Without it a tag's
-    /// style would almost never apply: tags are mostly added after the summary is written. Only on this tap, never for
-    /// the archive; a removed tag rewrites nothing. Before the summary is there, describe takes the tags' style itself.
-    /// A dictionary lookup in the press; the rewrite is queued.
-    private func takeStyle(ofTagsAddedTo old: [String], now new: [String]) {
-        let added = new.filter { tag in !old.contains { $0.caseInsensitiveCompare(tag) == .orderedSame } }
-        guard !added.isEmpty, recording.summaryStyle == nil, hasSummary, recording.speakerStatus == .done,
-              services.betterSummaries.activeModel != nil, let style = SummaryStyles.style(forTags: added) else { return }
-        recording.summaryStyle = style
-        if style != recording.summaryWrittenStyle { services.identifier.rewriteSummary(of: recording) }
-    }
 
     // MARK: Edit Text
 

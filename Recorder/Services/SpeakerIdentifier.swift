@@ -41,14 +41,6 @@ final class SpeakerIdentifier {
         case stopped           // Feder left the foreground meanwhile (iOS takes the GPU away)
     }
 
-    /// A summary being written again in another style (`rewriteSummary`, FED-15): queued or running, or waiting for
-    /// the recording to end. No entry: the stored summary stands; when its style is not the one chosen, the open
-    /// summary says it is not finished (stopped by leaving the app, or Gemma's answer was unusable) and offers Try Again.
-    enum SummaryRewrite: Equatable {
-        case running
-        case afterRecording
-    }
-
     private(set) var modelError: RecorderError?      // last prepare() failure (typically: offline on first launch)
     private(set) var inFlight: Set<UUID> = []        // Recording.ids queued or being identified (or getting new voices)
     /// The steps after Stop per transcript in flight (the card's status row); dropped shortly after the last step.
@@ -61,9 +53,6 @@ final class SpeakerIdentifier {
     /// The card's Action Items per transcript (`findActionItems`): kept here, not in the sheet, so closing the sheet
     /// doesn't stop Gemma, and opening it again shows the search still running or its result.
     private(set) var actionItemsSearch: [UUID: ActionItemsSearch] = [:]
-    /// The open summary's rewrites per transcript (`rewriteSummary`): kept here, so closing the card doesn't stop Gemma.
-    /// Never shown through `progress`: the status line would take the open Summary row's place and fold it.
-    private(set) var summaryRewrites: [UUID: SummaryRewrite] = [:]
 
     private let diarizer: any SpeakerDiarizer
     private let fileTranscriber: any FileTranscriber
@@ -75,9 +64,8 @@ final class SpeakerIdentifier {
     @ObservationIgnored private var queue: Task<Void, Never>?       // the last queued job: identification and voice refreshes
     @ObservationIgnored private var backgroundQueued: Set<UUID> = []
     @ObservationIgnored private var freshPasses: [BackgroundPass] = []   // finished recordings: before the sweep
-    /// What the user asked Gemma for in the card (Action Items, a summary in another style): before every pass (the
-    /// user waits for them), after Gemma's running request, in the order asked.
-    @ObservationIgnored private var userRequests: [UserRequest] = []
+    /// Action Items asked for in the card: before every pass (the user waits for them), after Gemma's running request.
+    @ObservationIgnored private var actionItemRequests: [BackgroundPass] = []
     @ObservationIgnored private var sweepPasses: [BackgroundPass] = []   // older transcripts' titles, newest first
     @ObservationIgnored private var backgroundWorker: Task<Void, Never>?
     /// A recording is being made (RecordingSession): the card's player is off meanwhile.
@@ -90,7 +78,6 @@ final class SpeakerIdentifier {
     /// Passes asked for again while they were running (an Undo, the end of Edit Text): queued once more after it.
     @ObservationIgnored private var passAgain: Set<UUID> = []
     @ObservationIgnored private var waitingForGemma: [(id: UUID, recording: Recording)] = []   // described when the recording ends
-    @ObservationIgnored private var waitingRewrites: [BackgroundPass] = []   // rewritten when the recording ends
     @ObservationIgnored private var sweepWaiters: [CheckedContinuation<Void, Never>] = []   // sweeps waiting for Stop
     @ObservationIgnored private var migratingVoices = false        // refreshVoices() is running
     @ObservationIgnored private var fingerprintsMigrated = true    // false while it still refreshes people's samples
@@ -126,11 +113,6 @@ final class SpeakerIdentifier {
         waitingForGemma = []
         for entry in waiting where !isGone(entry.recording) {
             enqueueBackgroundPass(entry.recording, fresh: true)
-        }
-        let rewrites = waitingRewrites
-        waitingRewrites = []
-        for request in rewrites {
-            if isGone(request.recording) { summaryRewrites[request.id] = nil } else { queueRewrite(request) }
         }
         let waiters = sweepWaiters
         sweepWaiters = []
@@ -693,22 +675,6 @@ final class SpeakerIdentifier {
         let recording: Recording
     }
 
-    private enum UserRequest {
-        case actionItems(BackgroundPass)
-        case summary(BackgroundPass)
-
-        var id: UUID {
-            switch self {
-            case .actionItems(let request), .summary(let request): request.id
-            }
-        }
-
-        var isSummary: Bool {
-            if case .summary = self { return true }
-            return false
-        }
-    }
-
     /// One worker, one pass at a time. `fresh` (a recording that was just identified, or whose vocabulary pass a kill
     /// interrupted) goes before the sweep of older transcripts, which waits while a recording is being made.
     private func enqueueBackgroundPass(_ recording: Recording, fresh: Bool) {
@@ -734,11 +700,8 @@ final class SpeakerIdentifier {
         guard backgroundWorker == nil else { return }
         backgroundWorker = Task {
             while true {
-                if !userRequests.isEmpty {
-                    switch userRequests.removeFirst() {
-                    case .actionItems(let request): await searchActionItems(request)
-                    case .summary(let request): await rewrite(request)
-                    }
+                if !actionItemRequests.isEmpty {
+                    await searchActionItems(actionItemRequests.removeFirst())
                     continue
                 }
                 guard let pass = nextBackgroundPass() else { break }
@@ -826,28 +789,25 @@ final class SpeakerIdentifier {
             }
         }
         let locale = Locale(identifier: recording.localeIdentifier)
-        let (paragraphs, bookmarked) = Self.describeParagraphs(of: recording)
-        // The style chosen while recording, else the first of its tags with one (Settings › Summaries), else Brief.
-        let chosen = recording.summaryStyle
-        let tagStyle = chosen == nil ? SummaryStyles.style(forTags: recording.tags) : nil
-        let style = chosen ?? tagStyle ?? .brief
+        // The paragraphs with a bookmark carry TranscriptTitler's marker, so the summary covers what was marked.
+        let segments = recording.segments
+        let bookmarked = Set(Bookmarks.byParagraph(recording.bookmarks, in: segments).keys)
+        let paragraphs = segments.map { segment in
+            TranscriptTitler.paragraph(segment.text, speaker: segment.speakerIndex.map(recording.speakerName),
+                                       bookmarked: bookmarked.contains(segment.id))
+        }
         guard betterSummaries.activeModel != nil else { return }      // only Gemma writes them (TranscriptTitler)
         guard !isRecording else {                                   // Gemma never runs while recording: after Stop
             waitForGemma(recording, id: id)
             return
         }
-        // Whether a title would be used below: only then does a styled answer without one cost another Gemma request
-        // (TranscriptTitler.describe), not for a transcript the user named.
-        let needsTitle = !recording.nameIsUserSet
-            && (TranscriptTitler.isDefaultName(recording.name) || recording.name == recording.automaticTitle
-                || recording.calendarTitleOffer == .taken)
         let description: TranscriptTitler.Description?
         let version = TranscriptTitler.localVersion
         do {
             let titler = titler
             description = try await betterSummaries.run { model in
-                try await titler.describe(paragraphs: paragraphs, locale: locale, writer: model, bookmarked: bookmarked,
-                                          style: style, needsTitle: needsTitle)
+                try await titler.describe(paragraphs: paragraphs, locale: locale, writer: model,
+                                          bookmarked: !bookmarked.isEmpty)
             }
         } catch {
             // RetryLater: not marked described, tried again later; stopped because a recording started: again right
@@ -859,10 +819,6 @@ final class SpeakerIdentifier {
         guard !isGone(recording) else { return }
         if let description {
             recording.summary = description.summary
-            recording.summaryWrittenStyle = description.style
-            // A tag's style is kept as the transcript's own: removing the tag, or changing its style in Settings,
-            // then rewrites nothing.
-            if tagStyle != nil { recording.summaryStyle = description.style }
             recording.topics = description.topics           // searched (TranscriptSearch)
             #if DEBUG
             print("[Scribe] topics: \(description.topics)")
@@ -887,103 +843,6 @@ final class SpeakerIdentifier {
         recording.summaryVersion = max(recording.summaryVersion, version)
         try? modelContext.save()
         track(id) { $0.finish(.summary) }
-        // A tag with a style added while the summary was written: written again in it, as adding it later would.
-        if description != nil, recording.summaryStyle == nil,
-           let tagStyle = SummaryStyles.style(forTags: recording.tags), tagStyle != recording.summaryWrittenStyle {
-            recording.summaryStyle = tagStyle
-            rewriteSummary(of: recording)
-        }
-    }
-
-    /// The transcript as Gemma reads it: "Name: text" paragraphs, those with a bookmark marked (TranscriptTitler's
-    /// marker, so the summary covers what was marked), and whether any is.
-    private static func describeParagraphs(of recording: Recording) -> (paragraphs: [String], bookmarked: Bool) {
-        let segments = recording.segments
-        let bookmarked = Set(Bookmarks.byParagraph(recording.bookmarks, in: segments).keys)
-        let paragraphs = segments.map { segment in
-            TranscriptTitler.paragraph(segment.text, speaker: segment.speakerIndex.map(recording.speakerName),
-                                       bookmarked: bookmarked.contains(segment.id))
-        }
-        return (paragraphs, !bookmarked.isEmpty)
-    }
-
-    // MARK: Summary styles (the open summary's Style, a tag's style)
-
-    /// The summary written again in the style chosen for it (`Recording.summaryStyle`, set by the caller): the open
-    /// summary's Style menu, or a tag with a style added (FED-15). Only when asked, never in the background; queued
-    /// with the card's other requests before the background passes, behind Gemma's running request. Not while
-    /// recording (after Stop), never before the speakers are final. The title is never written again (the transcript
-    /// has its name by then), the topics only when it had none. The press only queues; the paragraphs and the style
-    /// are read in the pass. Every change writes it again: no earlier style's text is kept (the issue's "changed
-    /// afterwards, which writes the summary again"; nothing to go stale after a correction).
-    func rewriteSummary(of recording: Recording) {
-        guard !isGone(recording), recording.speakerStatus == .done, recording.summary?.isEmpty == false,
-              betterSummaries.activeModel != nil else { return }
-        let request = BackgroundPass(id: recording.id, recording: recording)
-        guard !isRecording else {
-            summaryRewrites[request.id] = .afterRecording
-            if !waitingRewrites.contains(where: { $0.id == request.id }) { waitingRewrites.append(request) }
-            return
-        }
-        queueRewrite(request)
-    }
-
-    private func queueRewrite(_ request: BackgroundPass) {
-        summaryRewrites[request.id] = .running
-        // Queued already: the pass reads the style when it starts. Running: it checks the style after its answer.
-        guard !userRequests.contains(where: { $0.isSummary && $0.id == request.id }) else { return }
-        userRequests.append(.summary(request))
-        startBackgroundWorker()
-    }
-
-    private func rewrite(_ request: BackgroundPass) async {
-        let id = request.id, recording = request.recording
-        guard !isGone(recording), recording.speakerStatus == .done, recording.summary?.isEmpty == false else {
-            summaryRewrites[id] = nil
-            return
-        }
-        guard !isRecording else {                            // started while queued
-            summaryRewrites[id] = .afterRecording
-            if !waitingRewrites.contains(where: { $0.id == id }) { waitingRewrites.append(request) }
-            return
-        }
-        let style = recording.summaryStyle ?? .brief
-        guard style != recording.summaryWrittenStyle else { summaryRewrites[id] = nil; return }   // chosen back
-        let locale = Locale(identifier: recording.localeIdentifier)
-        let (paragraphs, bookmarked) = Self.describeParagraphs(of: recording)
-        #if DEBUG
-        print("[Scribe] queue: summary in \(style.rawValue) \(id.uuidString.prefix(8))")
-        #endif
-        let description: TranscriptTitler.Description?
-        do {
-            let titler = titler
-            description = try await betterSummaries.run { model in
-                try await titler.describe(paragraphs: paragraphs, locale: locale, writer: model, bookmarked: bookmarked,
-                                          style: style, needsTitle: false)
-            }
-        } catch {
-            // A recording started: again after it. RetryLater (the app left the foreground) and LocalModelFailed
-            // (BetterSummaries offers the download again): the summary stays in its style, and the open summary
-            // says it isn't finished.
-            summaryRewrites[id] = nil
-            if isRecording, !isGone(recording) {
-                summaryRewrites[id] = .afterRecording
-                if !waitingRewrites.contains(where: { $0.id == id }) { waitingRewrites.append(request) }
-            }
-            return
-        }
-        guard !isGone(recording) else { summaryRewrites[id] = nil; return }
-        guard (recording.summaryStyle ?? .brief) == style else {   // chosen again meanwhile: that one now
-            queueRewrite(request)
-            return
-        }
-        summaryRewrites[id] = nil
-        guard let description else { return }               // no usable answer: "Not Finished", Try Again
-        recording.summary = description.summary
-        recording.summaryWrittenStyle = style
-        if recording.topics.isEmpty { recording.topics = description.topics }
-        recording.summaryVersion = max(recording.summaryVersion, TranscriptTitler.localVersion)
-        try? modelContext.save()
     }
 
     // MARK: Action items (the card's button)
@@ -1001,7 +860,7 @@ final class SpeakerIdentifier {
         guard betterSummaries.activeModel != nil else { actionItemsSearch[id] = .needsGemma; return }
         guard !isRecording else { actionItemsSearch[id] = .afterRecording; return }
         actionItemsSearch[id] = .running
-        userRequests.append(.actionItems(BackgroundPass(id: id, recording: recording)))
+        actionItemRequests.append(BackgroundPass(id: id, recording: recording))
         startBackgroundWorker()
     }
 

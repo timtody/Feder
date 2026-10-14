@@ -81,9 +81,6 @@ final class RecordingSession: Identifiable {
     private(set) var recordedDuration: TimeInterval?
     /// Moments marked while recording (Bookmarks), in seconds from its start; saved with the transcript at Stop.
     private(set) var bookmarks: [TimeInterval] = []
-    /// The summary style chosen on the recording card (the disc right of Stop, FED-15); saved with the transcript.
-    /// nil: not touched, so a tag's style can still decide when the summary is written.
-    var summaryStyle: SummaryStyle?
 
     private let capture: any AudioCapture
     private let transcriber: any Transcriber
@@ -323,7 +320,6 @@ final class RecordingSession: Identifiable {
         }
         recording.words = words
         recording.bookmarks = bookmarks.filter { $0 <= duration }
-        recording.summaryStyle = summaryStyle
         // Live labels (if any) are saved as preliminary segments; speakerStatus stays .pending (Recording.init), and
         // SpeakerIdentifier's offline pass replaces them (offline is the source of truth).
         recording.segments = TranscriptAligner.segments(words: words, turns: liveTurns.turns,
