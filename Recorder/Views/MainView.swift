@@ -89,7 +89,7 @@ struct MainView: View {
     /// (`askOnScreen`, also while it slides away). A card asked for meanwhile (a recording started from outside, an
     /// import, Spotlight) waits in `pendingCard` until the sheet is gone: one view can't present the transcript card
     /// while it presents the chat.
-    @State var showsAsk = false
+    @State private var showsAsk = false
     @State private var askOnScreen = false
 
     var body: some View {
