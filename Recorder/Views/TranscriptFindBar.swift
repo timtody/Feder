@@ -62,13 +62,6 @@ struct TranscriptFindBar: View {
                     step(1)
                     isFocused = true
                 }
-                // ⌘G and ⇧⌘G while the field has the keys: the arrows' shortcuts didn't reach them then (iOS 27
-                // simulator; the text field took the keys first).
-                .onKeyPress(keys: ["g"], phases: .down) { press in
-                    guard press.modifiers.contains(.command) else { return .ignored }
-                    step(press.modifiers.contains(.shift) ? -1 : 1)
-                    return .handled
-                }
                 .accessibilityIdentifier("FindField")
             if let matches {
                 Group {

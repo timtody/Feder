@@ -22,9 +22,8 @@ final class TagEditorTests: ScribeUITestCase {
         XCTAssertFalse(field.exists, "and with no tags left, no tag line at all")
         shot("No tags, no line", app)
 
-        let addTag = app.buttons["Add Tag"]
-        XCTAssertTrue(addTag.isHittable, "Add Tag in the bottom toolbar")
-        addTag.tap()
+        XCTAssertTrue(app.buttons["More"].isHittable, "Add Tag in the bottom toolbar's More menu")
+        tapMenuItem("Add Tag", in: app)
         XCTAssertTrue(field.waitForExistence(timeout: 5), "Add Tag inserts the line with its field")
         XCTAssertTrue(waitForFocus(field), "focused, ready to type")
         let suggestions = app.buttons.matching(identifier: "TagSuggestion")
@@ -82,25 +81,25 @@ final class TagEditorTests: ScribeUITestCase {
         open("Budget Review", in: app)
         app.buttons["Remove finance"].tap()
         let field = app.textFields["Add Tag"]
-        let addTag = app.buttons["Add Tag"]
+        let addTag = { self.tapMenuItem("Add Tag", in: app) }
 
-        addTag.tap()
+        addTag()
         XCTAssertTrue(waitForFocus(field), "the field")
         let title = app.textFields["Title"]
         title.tap()                                                          // leaving the empty field, no tags
         XCTAssertTrue(field.waitForNonExistence(timeout: 5), "leaving the empty field takes the line away")
         title.typeText("\n")                     // the title's edit ends too (a software keyboard covers the toolbar)
-        addTag.tap()
+        addTag()
         XCTAssertTrue(waitForFocus(field), "Add Tag again: the field, focused")
-        if addTag.isHittable {                    // pressed again while it is open (not under a software keyboard)
-            addTag.tap()
+        if app.buttons["More"].isHittable {       // pressed again while it is open (not under a software keyboard)
+            addTag()
             XCTAssertTrue(waitForFocus(field), "still focused")
         }
         field.typeText("\n")
         XCTAssertTrue(field.waitForNonExistence(timeout: 5), "Return in the empty field: the line goes again")
         XCTAssertFalse(app.buttons.matching(identifier: "TagSuggestion").firstMatch.exists, "with its suggestions")
 
-        addTag.tap()
+        addTag()
         XCTAssertTrue(waitForFocus(field), "the field again")
         // About 560 pt of text: wider than the line on every iPhone (362 pt on a 402 pt one).
         let long = "quarterly planning meeting with the finance team about the travel budget overrun"
@@ -119,7 +118,7 @@ final class TagEditorTests: ScribeUITestCase {
 
         // Dragging the keyboard away with the transcript.
         title.typeText("\n")
-        addTag.tap()
+        addTag()
         XCTAssertTrue(waitForFocus(field), "the field once more")
         field.typeText("delta")
         let keyboard = app.keyboards.firstMatch
@@ -143,13 +142,13 @@ final class TagEditorTests: ScribeUITestCase {
         app.buttons["Stop"].firstMatch.tap()
         let title = app.textFields["Title"]
         XCTAssertTrue(title.waitForExistence(timeout: 15), "the transcript in the card")
-        XCTAssertTrue(app.buttons["Add Tag"].waitForExistence(timeout: 15), "its toolbar")
+        XCTAssertTrue(app.buttons["More"].waitForExistence(timeout: 15), "its toolbar")
         RunLoop.current.run(until: .now + 1)
         app.swipeUp()
         app.swipeUp()
         XCTAssertTrue(waitUntil { !(title.exists && title.isHittable) }, "precondition: the header scrolled away")
 
-        app.buttons["Add Tag"].tap()
+        tapMenuItem("Add Tag", in: app)
         let field = app.textFields["Add Tag"]
         XCTAssertTrue(waitForFocus(field), "the field")
         XCTAssertTrue(waitUntil { field.isHittable }, "scrolled into view: \(field.frame)")

@@ -115,7 +115,7 @@ final class TranscriptListTests: ScribeUITestCase {
     /// into the accessory, which shows "Recording" and Stop while the list can be browsed; a tap on the accessory opens
     /// it again; Stop saves it and the SAME card turns into the transcript in place (no push, no Back): the same title
     /// and date line at the same place, the timer landed as the duration beside the date, and the bottom toolbar where
-    /// the Stop was, one Share, Add Tag and Delete each (the melt's stand-ins are gone). Minimize then closes
+    /// the Stop was, one Share, Find, More and Delete each (the melt's stand-ins are gone). Minimize then closes
     /// it to the list, where the new transcript is at the top with the start time.
     @MainActor
     func testRecordAccessoryFlow() throws {
@@ -177,7 +177,7 @@ final class TranscriptListTests: ScribeUITestCase {
         XCTAssertNil(reachable(app.staticTexts.matching(NSPredicate(format: "label == %@", name)), timeout: 0),
                      "only the transcript's title field shows the name (the recording's header is gone)")
         // One of each, hittable: the melt's glass stand-ins are gone and were never in the accessibility tree.
-        for label in ["Share Transcript", "Add Tag", "Delete Transcript"] {
+        for label in ["Share Transcript", "Find in Transcript", "More", "Delete Transcript"] {
             let matches = app.buttons.matching(NSPredicate(format: "label == %@", label))
             XCTAssertEqual(matches.count, 1, "exactly one \(label)")
             XCTAssertTrue(matches.firstMatch.isHittable && matches.firstMatch.isEnabled, "\(label) can be tapped")
@@ -291,10 +291,10 @@ final class TranscriptListTests: ScribeUITestCase {
         let app = launch()
         open("Project Kickoff", in: app)
         shot("Card", app)
-        // Project Kickoff runs on under the bottom toolbar: there, between the Share…Listen group and Delete, the text
+        // Project Kickoff runs on under the bottom toolbar: there, between the Share…More group and Delete, the text
         // is faded by the system's soft scroll edge (as in Notes and Mail), not crisp next to the glass.
-        let listen = app.buttons["Listen"].frame, delete = app.buttons["Delete Transcript"].frame
-        let gap = CGRect(x: listen.maxX + 12, y: listen.midY - 12, width: delete.minX - listen.maxX - 24, height: 24)
+        let more = app.buttons["More"].frame, delete = app.buttons["Delete Transcript"].frame
+        let gap = CGRect(x: more.maxX + 12, y: more.midY - 12, width: delete.minX - more.maxX - 24, height: 24)
         let crisp = crispShare(of: gap, in: app)
         note("Under the toolbar", "crisp share \(crisp) in \(gap)")
         XCTAssertLessThan(crisp, 0.002, "text under the bottom toolbar is faded (scroll edge effect): \(crisp)")
@@ -374,7 +374,8 @@ final class TranscriptListTests: ScribeUITestCase {
     }
 
     /// The card's actions are in the system's bottom toolbar (like Photos and Mail; Liquid Glass), not in a top menu:
-    /// Share, Add Tag and Delete, within thumb reach; the card covers the tab bar and the record accessory. No Action
+    /// Share, Find, More (Add Tag, Edit Text) and Delete, within thumb reach; the card covers the tab bar and the record
+    /// accessory. No Action
     /// Items on this simulator, which can't run Gemma (ActionItemsTests pretend it can), and no Speakers menu. Delete asks
     /// first, then the card closes and the transcript is gone from the list.
     @MainActor
@@ -382,16 +383,24 @@ final class TranscriptListTests: ScribeUITestCase {
         let app = launch()
         open("Budget Review", in: app)
         let share = app.buttons["Share Transcript"]
-        let addTag = app.buttons["Add Tag"], delete = app.buttons["Delete Transcript"]
+        let find = app.buttons["FindButton"], more = app.buttons["More"], delete = app.buttons["Delete Transcript"]
         let height = app.windows.firstMatch.frame.height
-        for (element, name) in [(share, "Share"), (addTag, "Add Tag"), (delete, "Delete")] {
+        for (element, name) in [(share, "Share"), (find, "Find"), (more, "More"), (delete, "Delete")] {
             XCTAssertTrue(element.waitForExistence(timeout: 5), name)
             XCTAssertTrue(element.isHittable, "\(name) is not hidden in an overflow menu")
             XCTAssertGreaterThan(element.frame.minY, height * 0.85, "\(name) at the bottom")
         }
-        XCTAssertLessThan(share.frame.minX, addTag.frame.minX, "Add Tag beside Share, in the left group")
-        XCTAssertLessThan(share.frame.minX, delete.frame.minX, "Delete on the right")
-        XCTAssertFalse(app.buttons["More"].exists, "no top-right menu")
+        XCTAssertLessThan(share.frame.minX, find.frame.minX, "Find beside Share, in the left group")
+        XCTAssertLessThan(find.frame.minX, more.frame.minX, "More last in the group")
+        XCTAssertLessThan(more.frame.maxX, delete.frame.minX, "Delete on the right")
+        XCTAssertGreaterThan(more.frame.minY, height * 0.85, "More in the bottom bar, not a top-right menu")
+        more.tap()                                                          // Add Tag and Edit Text in it
+        for label in ["Add Tag", "Edit Text"] {
+            XCTAssertTrue(app.buttons[label].waitForExistence(timeout: 5), "\(label) in More")
+        }
+        shot("Card toolbar's More menu", app)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.1)).tap()
+        XCTAssertTrue(app.buttons["Add Tag"].waitForNonExistence(timeout: 5), "the menu closed")
         shot("Card toolbar", app)
 
         XCTAssertFalse(app.buttons["Action Items"].exists, "no Action Items without Gemma, though items are stored")

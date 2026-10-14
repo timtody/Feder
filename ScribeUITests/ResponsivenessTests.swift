@@ -29,10 +29,20 @@ final class ResponsivenessTests: ScribeUITestCase {
         settle()
         open("Project Kickoff", in: app)
         settle()
-        app.buttons["Add Tag"].tap()                                         // the tag field after the pills
+        tapMenuItem("Add Tag", in: app)                                      // the tag field after the pills
         XCTAssertTrue(app.textFields["Add Tag"].waitForExistence(timeout: 5))
         settle()
         app.typeText("\n")                                                  // Return in the empty field: done
+        settle()
+        app.buttons["FindButton"].tap()                                      // Find: the find bar, its field focused
+        XCTAssertTrue(app.textFields["FindField"].waitForExistence(timeout: 5))
+        settle()
+        for character in "the" {                                             // keystrokes, then the hits ("findHits")
+            app.typeText(String(character))
+            settle(0.1)
+        }
+        settle(1)
+        app.buttons["Close Find"].tap()
         settle()
         app.buttons["SpeakerHeader.0"].press(forDuration: 1.0)
         app.buttons["Go to Person"].tap()                                    // the card shrinks, then her page

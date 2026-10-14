@@ -78,6 +78,27 @@ class ScribeUITestCase: XCTestCase {
                        file: file, line: line)
     }
 
+    /// Add Tag or Edit Text: in the card's More menu since Find took a place in its bar (FED-79). Opens the menu and
+    /// taps the item; with `waitsUntilEnabled`, closes and reopens the menu until the item can be tapped (Edit Text
+    /// waits for the steps after Stop).
+    @MainActor
+    func tapMenuItem(_ label: String, in app: XCUIApplication, waitsUntilEnabled: Bool = false, timeout: TimeInterval = 20,
+                     file: StaticString = #filePath, line: UInt = #line) {
+        let deadline = Date.now + timeout
+        while true {
+            app.buttons["More"].firstMatch.tap()
+            let item = app.buttons[label].firstMatch
+            XCTAssertTrue(item.waitForExistence(timeout: 5), "\(label) in the More menu", file: file, line: line)
+            if item.isEnabled || !waitsUntilEnabled || Date.now > deadline {
+                item.tap()
+                return
+            }
+            // Closes the menu: a tap on the card's empty top right.
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.1)).tap()
+            RunLoop.current.run(until: .now + 1)
+        }
+    }
+
     /// The back button closes the card; returns once it is gone.
     @MainActor
     func closeCard(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {

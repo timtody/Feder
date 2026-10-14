@@ -98,7 +98,7 @@ final class ActionItemsTests: ScribeUITestCase {
         return true
     }
 
-    /// Budget Review's items were found before: the toolbar's Action Items (between Edit Text and Listen, where the
+    /// Budget Review's items were found before: the toolbar's Action Items (between Find and Listen, where the
     /// speaker-count menu was) opens the sheet with them at once, without Gemma (`-fakeGemmaDownload`: not downloaded),
     /// each with who and when (the first one's due date is a Friday), Add All, and the AI note; no Find Again while Gemma
     /// can't run. Nothing of them under the summary any more. The close button closes the sheet.
@@ -110,7 +110,7 @@ final class ActionItemsTests: ScribeUITestCase {
         XCTAssertFalse(app.buttons["Speakers"].exists, "no speaker-count menu")
         let button = actionItemsButton(app)
         XCTAssertTrue(button.waitForExistence(timeout: 5) && button.isEnabled, "the Action Items button")
-        XCTAssertLessThan(app.buttons["Edit Text"].frame.minX, button.frame.minX, "after Edit Text")
+        XCTAssertLessThan(app.buttons["FindButton"].frame.minX, button.frame.minX, "after Find")
         XCTAssertLessThan(button.frame.minX, app.buttons["Listen"].frame.minX, "before Listen")
         button.tap()
         XCTAssertTrue(app.navigationBars["Action Items"].waitForExistence(timeout: 5), "the sheet")

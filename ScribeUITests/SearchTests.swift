@@ -56,22 +56,23 @@ final class SearchTests: ScribeUITestCase {
     }
 
     /// The hit navigator ("n of m", Previous Match, Next Match) is in the card's bottom toolbar between the More menu
-    /// (Share, Add Tag, Edit Text, Action Items and Listen: seven items fit no iPhone's bar) and Delete, all reachable
-    /// (not in an overflow menu).
+    /// (Share, Add Tag, Edit Text, Action Items and Listen: eight items fit no iPhone's bar) with Find, and Delete, all
+    /// reachable (not in an overflow menu).
     @MainActor
     private func assertHitNavigatorInBottomBar(_ app: XCUIApplication) {
         let height = app.windows.firstMatch.frame.height
         let count = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Match '")).firstMatch
         let more = app.buttons["More"]
         let items = [("n of m", count), ("Previous Match", app.buttons["Previous Match"]),
-                     ("Next Match", app.buttons["Next Match"]), ("More", more),
+                     ("Next Match", app.buttons["Next Match"]), ("More", more), ("Find", app.buttons["FindButton"]),
                      ("Delete", app.buttons["Delete Transcript"])]
         for (name, element) in items {
             XCTAssertTrue(element.waitForExistence(timeout: 5), name)
             XCTAssertGreaterThan(element.frame.minY, height * 0.85, "\(name) in the bottom bar: \(element.frame)")
             if name != "n of m" { XCTAssertTrue(element.isHittable, "\(name) is reachable") }
         }
-        XCTAssertLessThan(more.frame.minX, app.buttons["Previous Match"].frame.minX, "More on the left")
+        XCTAssertLessThan(more.frame.minX, app.buttons["FindButton"].frame.minX, "More on the left, then Find")
+        XCTAssertLessThan(app.buttons["FindButton"].frame.minX, app.buttons["Previous Match"].frame.minX)
         XCTAssertLessThan(app.buttons["Previous Match"].frame.minX, app.buttons["Next Match"].frame.minX)
         XCTAssertLessThan(app.buttons["Next Match"].frame.minX, app.buttons["Delete Transcript"].frame.minX,
                           "Delete stays outermost")
@@ -270,6 +271,125 @@ final class SearchTests: ScribeUITestCase {
         // Clearing applies at once: the whole list is back.
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "budget review".count))
         XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 2))
+    }
+
+    // MARK: Find in a transcript (FED-79)
+
+    /// Find (the card's magnifier): the find bar replaces the toolbar with its field focused; typed words are
+    /// highlighted and counted by paragraph ("1 of 2"), Next, Return and Previous step through them (wrapping around),
+    /// the current paragraph marked. Close Find brings the toolbar back and the highlights go.
+    @MainActor
+    func testFindStepsThroughHits() throws {
+        let app = launch()
+        open("Budget Review", in: app)
+        let find = app.buttons["FindButton"]
+        XCTAssertTrue(find.waitForExistence(timeout: 5) && find.isHittable, "Find in the bottom bar")
+        find.tap()
+        let field = app.textFields["FindField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "the find bar")
+        XCTAssertTrue(waitFor { self.hasFocus(field) }, "its field focused")
+        XCTAssertFalse(app.buttons["Share Transcript"].isHittable, "the toolbar gives way to the find bar")
+        let height = app.windows.firstMatch.frame.height
+        XCTAssertGreaterThan(field.frame.minY, height * 0.5, "at the bottom (on the keyboard): \(field.frame)")
+        XCTAssertTrue(app.buttons["Close Find"].exists && app.buttons["Previous Match"].exists
+                      && app.buttons["Next Match"].exists, "close, previous and next beside it")
+
+        field.typeText("budget")
+        let count = app.staticTexts["FindCount"]
+        XCTAssertTrue(waitFor { count.exists && count.label == "Match 1 of 2" }, "counted: \(count.label)")
+        XCTAssertEqual(app.staticTexts["Paragraph.0"].value as? String, "Current match")
+        shot("Find typed", app)
+        app.buttons["Next Match"].tap()
+        XCTAssertTrue(waitFor { count.label == "Match 2 of 2" }, "Next: \(count.label)")
+        XCTAssertNotEqual(app.staticTexts["Paragraph.0"].value as? String, "Current match", "the mark moved on")
+        field.typeText("\n")                                                // Return: the next one, wrapping around
+        XCTAssertTrue(waitFor { count.label == "Match 1 of 2" }, "Return wraps to the first: \(count.label)")
+        XCTAssertTrue(hasFocus(field), "and keeps the keyboard")
+        app.buttons["Previous Match"].tap()
+        XCTAssertTrue(waitFor { count.label == "Match 2 of 2" }, "Previous wraps to the last: \(count.label)")
+
+        app.buttons["Close Find"].tap()
+        XCTAssertTrue(field.waitForNonExistence(timeout: 5), "the find bar goes")
+        XCTAssertTrue(app.buttons["Share Transcript"].waitForExistence(timeout: 5)
+                      && app.buttons["Share Transcript"].isHittable, "the toolbar is back")
+        XCTAssertFalse(app.staticTexts["Match 2 of 2"].exists, "no hit navigator: the card wasn't opened from a search")
+        XCTAssertTrue(waitFor { (0..<4).allSatisfy { (app.staticTexts["Paragraph.\($0)"].value as? String ?? "") == "" } },
+                      "no paragraph marked")
+        find.tap()                                                          // the words are kept for the next Find
+        XCTAssertTrue(waitFor { (field.value as? String) == "budget" && count.label.hasPrefix("Match ") },
+                      "the last words again: \(field.value ?? "")")
+    }
+
+    /// Words found nowhere: "No Matches", the arrows disabled; cleared, nothing is counted.
+    @MainActor
+    func testFindNoMatches() throws {
+        let app = launch()
+        open("Project Kickoff", in: app)
+        app.buttons["FindButton"].tap()
+        let field = app.textFields["FindField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.typeText("zebraquartz")
+        let count = app.staticTexts["FindCount"]
+        XCTAssertTrue(waitFor { count.exists && count.label == "No Matches" }, "No Matches")
+        XCTAssertFalse(app.buttons["Next Match"].isEnabled, "Next disabled")
+        XCTAssertFalse(app.buttons["Previous Match"].isEnabled, "Previous disabled")
+        shot("Find no matches", app)
+        app.buttons["Clear Text"].tap()
+        XCTAssertTrue(waitFor { !count.exists }, "an empty field counts nothing")
+    }
+
+    /// In a card opened from a search result, Find starts with the search's words and the same current hit; closing it
+    /// leaves the search's navigator as it was.
+    @MainActor
+    func testFindKeepsSearchContext() throws {
+        let app = launch()
+        _ = openSearch(app)
+        app.typeText("budget")
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForNonExistence(timeout: 5))
+        open("Budget Review", in: app)
+        XCTAssertTrue(app.staticTexts["Match 1 of 2"].waitForExistence(timeout: 5))
+        app.buttons["Next Match"].tap()
+        XCTAssertTrue(app.staticTexts["Match 2 of 2"].waitForExistence(timeout: 5))
+        app.buttons["FindButton"].tap()
+        let field = app.textFields["FindField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertEqual(field.value as? String, "budget", "the search's words")
+        let count = app.staticTexts["FindCount"]
+        XCTAssertTrue(waitFor { count.exists && count.label == "Match 2 of 2" }, "the same hit: \(count.label)")
+        shot("Find from a search result", app)
+        app.buttons["Close Find"].tap()
+        XCTAssertTrue(app.staticTexts["Match 2 of 2"].waitForExistence(timeout: 5), "the search's navigator again")
+        assertHitNavigatorInBottomBar(app)
+    }
+
+    /// With a hardware keyboard (this simulator has one): ⌘F opens Find, ⌘G and ⇧⌘G step. The simulator dropped the
+    /// first press of ⌘F and of ⌘G in every run (the second worked, and ⇧⌘G after ⌘G worked at once), so each is
+    /// pressed again when nothing happened; how a real keyboard behaves is a check on the iPhone.
+    @MainActor
+    func testFindKeyboardShortcuts() throws {
+        let app = launch()
+        open("Budget Review", in: app)
+        XCTAssertTrue(app.buttons["FindButton"].waitForExistence(timeout: 5))
+        let field = app.textFields["FindField"]
+        press("f", [.command], in: app, until: { field.exists })
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "⌘F: the find bar")
+        field.typeText("budget")
+        let count = app.staticTexts["FindCount"]
+        XCTAssertTrue(waitFor { count.exists && count.label == "Match 1 of 2" })
+        press("g", [.command], in: app, until: { count.label == "Match 2 of 2" })
+        XCTAssertTrue(waitFor { count.label == "Match 2 of 2" }, "⌘G: \(count.label)")
+        press("g", [.command, .shift], in: app, until: { count.label == "Match 1 of 2" })
+        XCTAssertTrue(waitFor { count.label == "Match 1 of 2" }, "⇧⌘G: \(count.label)")
+    }
+
+    /// A key combination, pressed once more if `condition` isn't met within 3 s (see testFindKeyboardShortcuts).
+    @MainActor
+    private func press(_ key: String, _ modifiers: XCUIElement.KeyModifierFlags, in app: XCUIApplication,
+                       until condition: () -> Bool) {
+        app.typeKey(key, modifierFlags: modifiers)
+        guard !waitFor(condition, timeout: 3) else { return }
+        note("Pressed again", "\(modifiers.rawValue) \(key)")
+        app.typeKey(key, modifierFlags: modifiers)
     }
 
     /// The search field is at the top of the screen, right under the status bar (Apple Music), the close button

@@ -73,7 +73,7 @@ final class SpeakerCorrectionTests: ScribeUITestCase {
     func testParagraphChipAndUndo() throws {
         let app = launch()
         open("Project Kickoff", in: app)
-        app.buttons["Edit Text"].tap()
+        tapMenuItem("Edit Text", in: app)
         let chip = app.buttons["SpeakerChip.1"]
         XCTAssertTrue(chip.waitForExistence(timeout: 5), "a speaker chip above each paragraph")
         XCTAssertEqual(chip.label, "Jonas Weber")
@@ -139,9 +139,7 @@ final class SpeakerCorrectionTests: ScribeUITestCase {
         merged.buttons["Undo"].tap()
         XCTAssertTrue(waitFor { self.names(app) == four }, "merge undone: \(names(app))")
 
-        let editText = app.buttons["Edit Text"]
-        XCTAssertTrue(waitFor { editText.isEnabled }, "Edit Text, once nothing runs on the transcript")
-        editText.tap()
+        tapMenuItem("Edit Text", in: app, waitsUntilEnabled: true)   // once nothing runs on the transcript
         let chip = app.buttons["SpeakerChip.1"]
         XCTAssertTrue(chip.waitForExistence(timeout: 5))
         chip.tap()
@@ -221,7 +219,7 @@ final class SpeakerCorrectionTests: ScribeUITestCase {
         XCTAssertTrue(app.buttons["CancelRename"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(undo.waitForNonExistence(timeout: 5), "the rename dropped the Undo")
 
-        app.buttons["Edit Text"].tap()
+        tapMenuItem("Edit Text", in: app)
         let done = app.buttons.matching(NSPredicate(format: "label == 'Done Editing'")).allElementsBoundByIndex
             .filter(\.isHittable).min { $0.frame.minY < $1.frame.minY } ?? app.buttons["Done Editing"].firstMatch
         done.tap()
@@ -235,7 +233,7 @@ final class SpeakerCorrectionTests: ScribeUITestCase {
     func testAppendedWordStaysWithItsSpeaker() throws {
         let app = launch()
         open("Project Kickoff", in: app)
-        app.buttons["Edit Text"].tap()
+        tapMenuItem("Edit Text", in: app)
         let field = app.textFields["ParagraphField.0"].exists ? app.textFields["ParagraphField.0"]
                                                               : app.textViews["ParagraphField.0"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))

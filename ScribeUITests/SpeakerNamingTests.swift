@@ -162,7 +162,7 @@ final class SpeakerNamingTests: ScribeUITestCase {
         XCTAssertFalse(rename.exists, "no rename menu over the text")
         shot("Text selection menu", app)
         copy.tap()
-        app.buttons["Add Tag"].tap()                                          // the tag line, with its field
+        tapMenuItem("Add Tag", in: app)                                      // the tag line, with its field
         let tagField = app.textFields["Add Tag"]
         XCTAssertTrue(tagField.waitForExistence(timeout: 5))
         tagField.tap()

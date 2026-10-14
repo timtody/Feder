@@ -9,7 +9,7 @@ final class EditTextTests: ScribeUITestCase {
         let word = "Cofin" + String((0..<4).map { _ in "abcdefghijklmnopqrstuvwxyz".randomElement()! })
         let app = launch()
         open("Budget Review", in: app)
-        app.buttons["Edit Text"].tap()
+        tapMenuItem("Edit Text", in: app)
         let field = app.textFields["ParagraphField.0"].exists ? app.textFields["ParagraphField.0"]
                                                               : app.textViews["ParagraphField.0"]
         XCTAssertTrue(field.waitForExistence(timeout: 5), "the paragraphs are fields")
@@ -49,7 +49,7 @@ final class EditTextTests: ScribeUITestCase {
     func testCancelKeepsTheText() throws {
         let app = launch()
         open("Budget Review", in: app)
-        app.buttons["Edit Text"].tap()
+        tapMenuItem("Edit Text", in: app)
         let field = app.textFields["ParagraphField.0"].exists ? app.textFields["ParagraphField.0"]
                                                               : app.textViews["ParagraphField.0"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
