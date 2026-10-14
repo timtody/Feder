@@ -125,31 +125,38 @@ struct PersonView: View {
 
     // MARK: Voice profile
 
-    /// Whether Feder keeps their voice profile, and Delete Voice Profile while it does. `touchid` (Touch ID's
-    /// fingerprint; SF Symbols has no symbol named "fingerprint") on both says biometric data, as Settings › Face ID &
-    /// Passcode's Delete Fingerprint does. `saved` is the fingerprint's presence, a cheap attribute People's rows read
-    /// too; the delete fetches every transcript, so it runs after the press (a Task), and the @Query redraws the row.
+    /// Whether Feder keeps their voice profile, and its Delete, in one row: the fingerprint (`touchid`, Touch ID's; SF
+    /// Symbols has no "fingerprint") once, saying biometric data, the status and a red Delete trailing, as a Settings
+    /// row with an action. A second row with the same fingerprint for the button looked doubled and cluttered (the
+    /// user's review, FED-12). `saved` is the fingerprint's presence, a cheap attribute People's rows read too; the
+    /// delete fetches every transcript, so it runs after the press (a Task), and the @Query redraws the row.
     private func voiceProfile(name: String, saved: Bool) -> some View {
         Section {
-            LabeledContent {
-                Text(saved ? "Saved" : "Not Saved")
-            } label: {
-                Label("Voice Profile", systemImage: "touchid")
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("VoiceProfile")
-            if saved {
-                Button("Delete Voice Profile", systemImage: "touchid", role: .destructive) { confirmDeleteVoice = true }
-                    .accessibilityIdentifier("DeleteVoiceProfile")
-                    .confirmationDialog("Delete Voice Profile of \(name)?", isPresented: $confirmDeleteVoice,
-                                        titleVisibility: .visible) {
-                        Button("Delete Voice Profile", role: .destructive) {
-                            guard let person else { return }
-                            Task { services.people.deleteVoiceProfile(of: person) }
+            HStack {
+                HStack {
+                    Label("Voice Profile", systemImage: "touchid")
+                    Spacer()
+                    Text(saved ? "Saved" : "Not Saved")
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("VoiceProfile")
+                if saved {
+                    Button("Delete", role: .destructive) { confirmDeleteVoice = true }
+                        .buttonStyle(.borderless)                     // the row itself isn't tappable, only Delete
+                        .padding(.leading, 8)
+                        .accessibilityLabel("Delete Voice Profile")
+                        .accessibilityIdentifier("DeleteVoiceProfile")
+                        .confirmationDialog("Delete Voice Profile of \(name)?", isPresented: $confirmDeleteVoice,
+                                            titleVisibility: .visible) {
+                            Button("Delete Voice Profile", role: .destructive) {
+                                guard let person else { return }
+                                Task { services.people.deleteVoiceProfile(of: person) }
+                            }
+                        } message: {
+                            Text("Feder will no longer recognize \(name) by voice, and their voice is removed from your transcripts. Names stay.")
                         }
-                    } message: {
-                        Text("Feder will no longer recognize \(name) by voice, and their voice is removed from your transcripts. Names stay.")
-                    }
+                }
             }
         } footer: {
             if saved {
