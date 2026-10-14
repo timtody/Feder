@@ -2432,6 +2432,16 @@
         }
       }
     },
+    "Opens the keyboard to ask Gemma": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffnet die Tastatur, um Gemma zu fragen"
+          }
+        }
+      }
+    },
     "Optional Improvements": {
       "localizations": {
         "de": {

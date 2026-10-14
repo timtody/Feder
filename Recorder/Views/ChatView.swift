@@ -2,15 +2,21 @@ import SwiftUI
 
 /// The Ask tab (FED-17, a prototype): a chat with Gemma on this iPhone, to try how talking to it feels before it answers
 /// from the transcripts. Laid out like Messages: the questions in tinted bubbles on the right, Gemma's answers as plain
-/// text on the left (as Apple Intelligence's and other assistants' answers read), and the field in a glass capsule in
-/// the bottom safe-area bar, so it rides on the keyboard and the conversation scrolls under it with the scroll edge
-/// effect. SwiftUI has no chat component; the pieces are system ones. DEBUG builds only, on iPhones that run Gemma
+/// text on the left (as Apple Intelligence's and other assistants' answers read). The field is the tab bar's bottom
+/// accessory on this tab (`ChatAccessory`, where the other tabs show Transcribe, as Music's mini player sits there);
+/// a tap on it brings up the keyboard with the editing field (`composer`) riding on it in the bottom safe-area bar.
+/// SwiftUI has no chat component; the pieces are system ones. DEBUG builds only, on iPhones that run Gemma
 /// (`isAvailable`); no CHANGELOG line until it ships.
+///
+/// Why two fields: a TextField inside `tabViewBottomAccessory` takes the focus, but the accessory stays where the tab
+/// bar is, so the keyboard covers it (and what is typed), and the system keeps it one capsule high, so the text can't
+/// grow to five lines (iOS 27 simulator, iPhone 17: the field stayed at y 735–783 under a keyboard from y 590). So the
+/// accessory shows the draft and opens the composer, which lives over the keyboard while editing, as the search
+/// field of a search tab rises from the tab bar's place with the keyboard; the keyboard covers the accessory meanwhile.
 struct ChatView: View {
     @Environment(AppServices.self) private var services
-    @State private var draft = ""
     @FocusState private var isFocused: Bool
-    /// The field grows with the text up to five lines; the button stays a 34 pt circle (as in Messages).
+    /// The composer grows with the text up to five lines; the button stays a 32 pt circle (as in Messages).
     @ScaledMetric(relativeTo: .body) private var minHeight: CGFloat = 44
 
     /// Whether the tab exists: DEBUG builds on an iPhone that runs Gemma (8 GB; the simulator with `-fakeGemma`).
@@ -31,14 +37,36 @@ struct ChatView: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("New Chat", systemImage: "square.and.pencil") {
                             chat.newChat()
-                            draft = ""
                         }
                         .disabled(chat.messages.isEmpty)
                     }
                 }
                 .safeAreaBar(edge: .bottom) {
-                    if services.betterSummaries.state == .ready { inputBar }
+                    if chat.isComposing { composer }
                 }
+        }
+        // The keyboard went away (a scroll, another tab, the card): the draft goes back into the accessory.
+        // Both a moment late: in one run of four (iOS 27 simulator, the first keyboard after launch) the composer came
+        // and went at once, the focus dropped while the accessory stepped aside under it.
+        .onChange(of: isFocused) { _, focused in
+            guard !focused else { return }
+            Task {
+                try? await Task.sleep(for: .milliseconds(300))
+                if !isFocused { chat.isComposing = false }
+            }
+        }
+        .onChange(of: chat.isComposing) { _, composing in
+            guard composing else { return }
+            Task {
+                for _ in 0..<4 where !isFocused {
+                    isFocused = true
+                    try? await Task.sleep(for: .milliseconds(150))
+                }
+            }
+        }
+        // A recording started from outside (the Action Button, Control Center) takes the accessory: the keyboard goes.
+        .onChange(of: isRecording) { _, recording in
+            if recording { isFocused = false }
         }
     }
 
@@ -55,16 +83,18 @@ struct ChatView: View {
         } else {
             // The empty chat's text over the (empty) conversation, not instead of it: swapping the views on the first
             // Send put the keyboard away (iOS 27 simulator), and Messages keeps it up.
-            conversation
-                .overlay {
-                    if services.chat.messages.isEmpty {
-                        ContentUnavailableView {
-                            Label("Ask Gemma", systemImage: "bubble.left.and.text.bubble.right")
-                        } description: {
-                            Text("Gemma runs on this iPhone. Nothing you type leaves it.")
-                        }
+            ZStack {
+                conversation
+                if services.chat.messages.isEmpty {
+                    ContentUnavailableView {
+                        Label("Ask Gemma", systemImage: "bubble.left")
+                    } description: {
+                        Text(isRecording ? "Gemma pauses while you record."
+                                         : "Gemma runs on this iPhone. Nothing you type leaves it.")
                     }
+                    .allowsHitTesting(false)          // a drag over it reaches the scroll view and puts the keyboard away
                 }
+            }
         }
     }
 
@@ -99,6 +129,14 @@ struct ChatView: View {
                         ChatMessageRow(message: message, retry: chat.retry)
                             .id(message.id)
                     }
+                    // The recording took the accessory's place (MainView): said under the conversation.
+                    if isRecording, !chat.messages.isEmpty {
+                        Label("Gemma pauses while you record.", systemImage: "pause.circle")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .id("paused")
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
@@ -115,15 +153,12 @@ struct ChatView: View {
 
     private var isRecording: Bool { services.identifier.isRecording }
 
-    private var canSend: Bool {
-        !isRecording && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private var inputBar: some View {
-        let chat = services.chat
+    /// The field while typing, over the keyboard: up to five lines, Return is a new line, ⌘↩ sends.
+    private var composer: some View {
+        @Bindable var chat = services.chat
         return HStack(alignment: .bottom, spacing: 0) {
             TextField(isRecording ? LocalizedStringKey("Gemma pauses while you record.") : "Ask Gemma",
-                      text: $draft, axis: .vertical)
+                      text: $chat.draft, axis: .vertical)
                 .lineLimit(1...5)
                 .focused($isFocused)
                 .disabled(isRecording)
@@ -131,35 +166,113 @@ struct ChatView: View {
                 .padding(.trailing, 8)
                 .padding(.vertical, 11)
                 .accessibilityIdentifier("ChatField")
-            Button {
-                if chat.isAnswering {
-                    chat.stop()
-                } else {
-                    InteractionTrace.begin("send"); InteractionTrace.shown("send")
-                    chat.send(draft)
-                    draft = ""
-                }
-            } label: {
-                Image(systemName: chat.isAnswering ? "stop.fill" : "arrow.up")
-                    .font(.system(size: chat.isAnswering ? 13 : 16, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 32, height: 32)
-                    .background(Circle().fill(chat.isAnswering || canSend ? Color.accentFill : Color(.systemGray3)))
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .disabled(!chat.isAnswering && !canSend)
-            .keyboardShortcut(.return, modifiers: .command)        // ⌘↩ with a hardware keyboard; ↩ is a new line
-            .padding(6)
-            .accessibilityLabel(chat.isAnswering ? "Stop Answer" : "Send")
-            .accessibilityShowsLargeContentViewer()
+            ChatSendButton(isRecording: isRecording)
+                .padding(6)
         }
         .frame(minHeight: minHeight)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: minHeight / 2))
-        .padding(.horizontal, 20)                          // the edges of the accessory and the tab bar below
-        .padding(.top, 4)
-        .padding(.bottom, 8)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+    }
+}
+
+/// Send (an accent circle with an arrow), Stop while Gemma answers: in the accessory and in the composer.
+struct ChatSendButton: View {
+    @Environment(AppServices.self) private var services
+    var isRecording = false
+
+    private var canSend: Bool {
+        !isRecording && services.betterSummaries.state == .ready
+            && !services.chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        let chat = services.chat
+        Button {
+            if chat.isAnswering {
+                chat.stop()
+            } else {
+                InteractionTrace.begin("send"); InteractionTrace.shown("send")
+                chat.send(chat.draft)
+                chat.draft = ""
+            }
+        } label: {
+            Image(systemName: chat.isAnswering ? "stop.fill" : "arrow.up")
+                .font(.system(size: chat.isAnswering ? 13 : 16, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 32, height: 32)
+                .background(Circle().fill(chat.isAnswering || canSend ? Color.accentFill : Color(.systemGray3)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!chat.isAnswering && !canSend)
+        .keyboardShortcut(.return, modifiers: .command)        // ⌘↩ with a hardware keyboard; ↩ is a new line
+        .accessibilityLabel(chat.isAnswering ? "Stop Answer" : "Send")
+        .accessibilityShowsLargeContentViewer()
+    }
+}
+
+/// The Ask tab's field at rest, as the tab bar's bottom accessory (MainView puts it there instead of Transcribe on
+/// this tab, while nothing records): the system's capsule, size and glass, and it minimizes with the tab bar, as
+/// Music's mini player does. It shows the draft (or "Ask Gemma") and Send / Stop; a tap on the rest opens the
+/// composer over the keyboard (see ChatView).
+struct ChatAccessory: View {
+    @Environment(AppServices.self) private var services
+    @Environment(\.tabViewBottomAccessoryPlacement) private var placement
+    /// Reports whether the bar is minimized, as RecordAccessory does (MainView's Search role on iOS 26).
+    @Binding var isInline: Bool
+
+    private var inline: Bool { placement == .inline }
+
+    var body: some View {
+        let chat = services.chat
+        let ready = services.betterSummaries.state == .ready
+        // While the composer is up MainView takes the accessory away (iOS 26.1+); on 26.0 it stays under the keyboard,
+        // empty: its text and Send showed through the keyboard's glass, and hidden by opacity only, VoiceOver and the
+        // UI tests still found two Send buttons.
+        if chat.isComposing {
+            Color.clear
+                .onChange(of: inline, initial: true) { _, value in
+                    if isInline != value { isInline = value }
+                }
+        } else {
+            rest(chat, ready: ready)
+        }
+    }
+
+    private func rest(_ chat: GemmaChat, ready: Bool) -> some View {
+        HStack(spacing: 0) {
+            Button {
+                InteractionTrace.begin("compose"); InteractionTrace.shown("compose")
+                chat.isComposing = true
+            } label: {
+                HStack(spacing: 0) {
+                    Text(chat.draft.isEmpty ? String(localized: "Ask Gemma") : chat.draft)
+                        .font(inline ? .subheadline : .body)
+                        .foregroundStyle(chat.draft.isEmpty ? Color(.placeholderText) : Color.primary)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .padding(.leading, inline ? 14 : 16)
+                .frame(maxHeight: .infinity)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!ready)
+            .accessibilityLabel(chat.draft.isEmpty ? Text("Ask Gemma") : Text(chat.draft))
+            .accessibilityHint("Opens the keyboard to ask Gemma")
+            .accessibilityIdentifier("ChatAccessory")
+            ChatSendButton()
+                .scaleEffect(inline ? 0.85 : 1)
+                .frame(width: 44, height: 44)
+        }
+        .padding(.trailing, inline ? 0 : 2)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)    // as the composer: the capsule's height is the system's
+        .onChange(of: inline, initial: true) { _, value in
+            if isInline != value { isInline = value }
+        }
     }
 }
 

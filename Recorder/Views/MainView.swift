@@ -13,7 +13,7 @@ import UIKit
 /// placement). On iOS 27 that switch replaced the Search tab (UITab ↔ UISearchTab, a new object each time) in the
 /// middle of the bar's own morph, and the magnifier sometimes dropped into its place from above as the bar unfolded.
 /// Ask (a chat with Gemma, FED-17) sits between Transcripts and Search in DEBUG builds on iPhones that run Gemma
-/// (ChatView.isAvailable), so Search keeps the right end.
+/// (ChatView.isAvailable), so Search keeps the right end; on that tab the accessory is its field (ChatAccessory).
 enum AppTab: Hashable {
     case transcripts, settings, ask, search
 }
@@ -61,6 +61,9 @@ struct MainView: View {
     /// before it snapped to its width (iPhone 17 simulator, iOS 27, frame by frame); every later collapse was fine.
     @State private var isBarMinimized = true
 
+    /// The Ask tab's field takes the accessory's place (ChatAccessory) while nothing records.
+    private var showsChatField: Bool { tab == .ask && card.session == nil }
+
     /// See the type's comment: constant on iOS 27, following the bar on iOS 26.
     private var searchRole: TabRole? {
         if #available(iOS 27, *) { return .search }
@@ -97,7 +100,7 @@ struct MainView: View {
                 RecordingsListView(isSearch: false, searchState: searchState)
             }
             if ChatView.isAvailable {
-                Tab("Ask", systemImage: "bubble.left.and.text.bubble.right", value: AppTab.ask) {
+                Tab("Ask", systemImage: "bubble.left", value: AppTab.ask) {
                     ChatView()
                 }
             }
@@ -111,12 +114,20 @@ struct MainView: View {
         .environment(\.searchActions, SearchActions(open: openSearch, close: closeSearch, search: freshSearch))
         .environment(navigation)
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory {
-            RecordAccessory(session: card.session, start: startRecording, open: openRecorder,
-                            importAudio: { showsImporter = true }, isImporting: isImporting,
-                            isInline: $isBarMinimized)
-                .cardSource(TranscriptCardContent.recorderSource)
-        }
+        // On the Ask tab the accessory is the chat's field instead of Transcribe (as Music's mini player takes that
+        // place), unless a recording runs: the recording wins on every tab, as Music's mini player always shows what
+        // plays. While the composer is up over the keyboard the accessory goes (the keyboard covers it anyway; with a
+        // hardware keyboard the composer and an empty capsule stacked over the tab bar).
+        .modifier(BottomAccessory(isEnabled: !(showsChatField && services.chat.isComposing)) {
+            if showsChatField {
+                ChatAccessory(isInline: $isBarMinimized)
+            } else {
+                RecordAccessory(session: card.session, start: startRecording, open: openRecorder,
+                                importAudio: { showsImporter = true }, isImporting: isImporting,
+                                isInline: $isBarMinimized)
+                    .cardSource(TranscriptCardContent.recorderSource)
+            }
+        })
         // Full screen like Now Playing: the tab bar and the accessory are covered while the card is up.
         .fullScreenCover(isPresented: Binding(get: { cardPhase == .open }, set: { shows in
             if shows { cardPhase = .open } else { closeCard() }
@@ -516,5 +527,20 @@ struct MainView: View {
         // Pushed again, with the push's slide over the search it was on (that is where its Back leads). The slide
         // stayed under `withTransaction(\.disablesAnimations, true)` too (iOS 27 simulator, frame by frame).
         navigation.search = back.path
+    }
+}
+
+/// `tabViewBottomAccessory(isEnabled:)` where it exists (iOS 26.1); on iOS 26.0 the accessory stays (ChatAccessory
+/// is empty while the composer is up).
+private struct BottomAccessory<Accessory: View>: ViewModifier {
+    let isEnabled: Bool
+    @ViewBuilder let accessory: () -> Accessory
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.1, *) {
+            content.tabViewBottomAccessory(isEnabled: isEnabled, content: accessory)
+        } else {
+            content.tabViewBottomAccessory(content: accessory)
+        }
     }
 }
