@@ -37,8 +37,9 @@ enum SearchHighlight {
 }
 
 /// What a transcript opened from a search result highlights: the typed words, the speakers whose names matched, and
-/// the result's snippet paragraph to start at.
-struct TranscriptSearchContext: Equatable {
+/// the result's snippet paragraph to start at. Also what the card's Find highlights (its words alone). Nonisolated: the
+/// paragraphs with hits are found off the main actor (`find`).
+nonisolated struct TranscriptSearchContext: Equatable, Sendable {
     var terms: [String]
     var speakers: Set<Int>
     var firstHit: UUID?
@@ -58,5 +59,19 @@ struct TranscriptSearchContext: Equatable {
             return i == 0 || segments[i - 1].speakerIndex != speaker
         }
         .map { segments[$0].id }
+    }
+
+    /// The hits and which of them is current: `keep` while it is still a hit, else the result's paragraph
+    /// (`firstHit`), else, like Safari's Find on Page, the first hit at or below the top of what is on screen (`visible`:
+    /// the paragraphs on screen), else the first. Off the main actor: every paragraph's text is folded and searched,
+    /// which on a long transcript is more than a keystroke's frame.
+    @concurrent
+    func find(in segments: [TranscriptSegment], keep: UUID?, visible: Set<UUID>) async -> (hits: [UUID], index: Int) {
+        let hits = hits(in: segments)
+        if let keep, let index = hits.firstIndex(of: keep) { return (hits, index) }
+        if let firstHit, let index = hits.firstIndex(of: firstHit) { return (hits, index) }
+        guard !visible.isEmpty, let top = segments.firstIndex(where: { visible.contains($0.id) }) else { return (hits, 0) }
+        let below = Set(segments[top...].map(\.id))
+        return (hits, hits.firstIndex(where: { below.contains($0) }) ?? 0)
     }
 }

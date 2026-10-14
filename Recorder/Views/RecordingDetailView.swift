@@ -4,11 +4,11 @@ import SwiftData
 /// One saved recording, the transcript card's content (`TranscriptCard`; Music's "Now Playing" for a transcript): the
 /// back button at the top left, inline-editable title, date and duration, the automatic summary, tags, speaker-identification
 /// status and the transcript grouped by speaker; its actions in the system's bottom toolbar (Liquid Glass): Share,
-/// Add Tag, Edit Text, Action Items, Listen and Delete. No top bar. Tapping a speaker's name row (or "Rename Speaker…" in its long-press menu) opens
-/// the rename sheet for that speaker, once speakers are final.
+/// Find, Action Items, Listen and a More menu (Add Tag, Edit Text), and Delete. No top bar. Tapping a speaker's name row
+/// (or "Rename Speaker…" in its long-press menu) opens the rename sheet for that speaker, once speakers are final.
 /// Opened from a search result (`search`), the transcript highlights the hits, starts at the result's paragraph and
 /// steps through the paragraphs with hits from the bottom toolbar ("2 of 5"), between a More menu (Share, Add Tag, Edit
-/// Text, Action Items and Listen) and Delete.
+/// Text, Action Items and Listen) with Find, and Delete. Find (TranscriptFindBar) does the same for typed words.
 /// Turned from the recording (TranscriptCard), its title and date line lie exactly where the recording had them, what
 /// the recording didn't have fades in below them, and its toolbar takes over from the melted Stop.
 struct RecordingDetailView: View {
@@ -34,6 +34,16 @@ struct RecordingDetailView: View {
     @State private var deleteOnDisappear = false
     @State private var hits: [UUID] = []             // paragraphs with search hits, in transcript order
     @State private var hitIndex = 0
+    /// What `hits` were found for (nil: none), and a count of the paragraphs' rewrites: they are found again for either.
+    @State private var hitsContext: TranscriptSearchContext?
+    @State private var segmentsVersion = 0
+    /// Find (the toolbar's magnifier): the find bar in place of the toolbar, the words typed there highlighted and
+    /// stepped through instead of the search the card was opened from (back to that once Find closes). The text stays
+    /// for the next Find in this card.
+    @State private var finding = false
+    @State private var findText = ""
+    @State private var findTerms: [String] = []         // the text's words once typing pauses
+    @State private var findFocusRequest = 0
     @State private var scroller: ScrollViewProxy?    // scrolls to a search hit (reveal)
     @State private var renaming: SpeakerRenameTarget?
     @State private var editingTags = false           // the toolbar's Add Tag: the tag line is there with its field
@@ -145,7 +155,7 @@ struct RecordingDetailView: View {
                                 if statusText != nil {
                                     PipelineStatusLine(recording: recording)
                                 } else if let summary = recording.summary, !summary.isEmpty {
-                                    SummaryDisclosure(summary: summary, highlights: search?.highlights(in: summary) ?? [])
+                                    SummaryDisclosure(summary: summary, highlights: highlighted?.highlights(in: summary) ?? [])
                                 }
                             }
                             .animation(.easeInOut(duration: 0.25), value: statusText == nil)
@@ -228,6 +238,11 @@ struct RecordingDetailView: View {
                     .frame(height: 52)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
+            } else if finding {
+                // In the player's place while Listen is on (playback goes on; the player is back when Find closes).
+                TranscriptFindBar(text: $findText, matches: findTerms.isEmpty ? nil : (hitIndex, hits.count),
+                                  focusRequest: findFocusRequest, step: step, close: endFinding)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             } else if listening, hasAudio, !isEditingText {
                 // Listen: the player above the bottom toolbar; its close button ends Listen.
                 PlayerBar(player: services.player, recording: recording, isDisabled: services.identifier.isRecording,
@@ -242,9 +257,10 @@ struct RecordingDetailView: View {
         // The back button floats over the top left: the content starts below it and scrolls under its glass.
         .contentMargins(.top, CardCloseButton.contentTop, for: .scrollContent)
         .cardCloseButton(hint: "Back to the transcripts", action: onClose)
-        .task(id: search) { await showFirstHit() }
+        .task(id: HitSource(context: highlighted, segmentsVersion: segmentsVersion)) { await findHits() }
+        .task(id: findText) { await applyFindText() }
         .onAppear { InteractionTrace.shown("open") }
-        .onChange(of: segments) { findHits() }              // the vocabulary pass or a correction rewrote them
+        .onChange(of: segments) { segmentsVersion += 1 }   // the vocabulary pass or a correction rewrote them
         .modifier(PlaybackFollowing(card: self, segments: segments))
         .onChange(of: statusText != nil, initial: true) { _, shown in if shown { keepsStatusRow = true } }
         .onChange(of: recording.speakerStatusRaw) {        // Try Again re-runs identification: numbers change
@@ -258,6 +274,7 @@ struct RecordingDetailView: View {
         }
         #if DEBUG
         .task { await renameFirstSpeakerForQA() }
+        .task { await findForQA() }
         #endif
         // Like Photos, Mail and Notes: the transcript's actions in the system's bottom toolbar (Liquid Glass), within
         // thumb reach, where the recording had its large Stop.
@@ -285,7 +302,8 @@ struct RecordingDetailView: View {
         } message: {
             Text("Feder then expects \((vocabularyOffer ?? []).formatted(.list(type: .and))) in your next transcripts.")
         }
-        .toolbar(turning ? .hidden : .visible, for: .bottomBar)
+        // Hidden under the melt's replicas, and while the find bar is up (it has the bar's place, like Safari's).
+        .toolbar(turning || finding ? .hidden : .visible, for: .bottomBar)
         .task(id: holdsBody) {
             // Started when it is let go rather than with a `.delay`: with a delay the value is already set, and a part
             // re-made in the meantime (the speaker status row, as identification starts) appeared at once. A task, so
@@ -325,8 +343,8 @@ struct RecordingDetailView: View {
 
     // MARK: Bottom toolbar
 
-    /// Share, Add Tag, Edit Text, Action Items and Listen on the left (one glass group), Delete on the right; opened from a
-    /// search, the hits' "n of m" with previous/next between them (like Safari's Find on Page).
+    /// Share, Find, Action Items, Listen and More (Add Tag, Edit Text) on the left (one glass group), Delete on the right;
+    /// opened from a search, the hits' "n of m" with previous/next between them (like Safari's Find on Page).
     @ToolbarContentBuilder
     private var bottomBar: some ToolbarContent {
         if isEditingText {
@@ -347,10 +365,10 @@ struct RecordingDetailView: View {
     @ToolbarContentBuilder
     private var regularBar: some ToolbarContent {
         if combinesActions {
-            // With the hit navigator the bar would have seven items, which fit no iPhone: iOS moved Next Match (and
+            // With the hit navigator the bar would have eight items, which fit no iPhone: iOS moved Next Match (and
             // Previous Match) into an overflow menu on the iPhone 17, the iPhone Air and the iPhone 18 Pro Max alike
-            // (iOS 27 simulators). Share, Add Tag, Edit Text, Action Items and Listen share one menu instead, so the
-            // navigator and Delete stay visible. (Before Add Tag, six items fit from 402 pt on.)
+            // (iOS 27 simulators). Share, Add Tag, Edit Text, Action Items and Listen share one menu instead, so Find,
+            // the navigator and Delete stay visible. (Six items fit from 402 pt on.)
             ToolbarItem(placement: .bottomBar) {
                 Menu {
                     shareButton
@@ -362,14 +380,24 @@ struct RecordingDetailView: View {
                     Label("More", systemImage: "ellipsis")
                 }
             }
+            ToolbarItem(placement: .bottomBar) { findButton }
         } else {
+            // Five in the group at most: a sixth (Find beside the others, FED-79) left too little room for Delete on
+            // an iPhone 17. Add Tag and Edit Text went into More, as the less used ones on a finished transcript.
             ToolbarItem(placement: .bottomBar) { shareButton }
-            ToolbarItem(placement: .bottomBar) { addTagButton }
-            ToolbarItem(placement: .bottomBar) { editTextButton }
+            ToolbarItem(placement: .bottomBar) { findButton }
             if BetterSummaries.isSupported {
                 ToolbarItem(placement: .bottomBar) { actionItemsButton }
             }
             ToolbarItem(placement: .bottomBar) { listenButton }
+            ToolbarItem(placement: .bottomBar) {
+                Menu {
+                    addTagButton
+                    editTextButton
+                } label: {
+                    Label("More", systemImage: "ellipsis")
+                }
+            }
         }
         ToolbarSpacer(.flexible, placement: .bottomBar)
         if !hits.isEmpty {
@@ -491,6 +519,48 @@ struct RecordingDetailView: View {
     /// With the hit navigator (opened from a search result), on every iPhone.
     private var combinesActions: Bool { !hits.isEmpty }
 
+    /// Find: the find bar replaces the toolbar, its field focused. In a card opened from a search result it starts
+    /// with the search's words (when nothing was typed in it yet), so the same hits stay current. ⌘F with a keyboard.
+    private var findButton: some View {
+        Button("Find in Transcript", systemImage: "magnifyingglass", action: startFinding)
+            .keyboardShortcut("f", modifiers: .command)
+            .accessibilityIdentifier("FindButton")
+    }
+
+    private func startFinding() {
+        InteractionTrace.begin("find")
+        titleFocused = false
+        if findText.isEmpty, let terms = search?.terms, !terms.isEmpty {
+            findText = terms.joined(separator: " ")
+            findTerms = terms                               // at once: the hits stay as they are, no pause
+        }
+        findFocusRequest += 1
+        withAnimation(.snappy) { finding = true }
+    }
+
+    private func endFinding() {
+        withAnimation(.snappy) { finding = false }
+    }
+
+    /// What the transcript highlights and steps through: Find's words while it is open (nothing while its field is
+    /// empty), otherwise the search the card was opened from.
+    private var highlighted: TranscriptSearchContext? {
+        guard finding else { return search }
+        return findTerms.isEmpty ? nil : TranscriptSearchContext(terms: findTerms, speakers: [], firstHit: nil)
+    }
+
+    /// The typed words, once typing pauses for the Search tab's 0.3 s: each keystroke would otherwise search the
+    /// whole transcript and redraw the highlights. Cleared, at once.
+    private func applyFindText() async {
+        let terms = findText.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard terms != findTerms else { return }
+        if !terms.isEmpty {
+            do { try await Task.sleep(for: RecordingsListView.typingPause) } catch { return }
+        }
+        InteractionTrace.begin("findHits")                 // the typing pause over: until the hits are drawn
+        findTerms = terms
+    }
+
     private var hasSummary: Bool { recording.summary?.isEmpty == false }
 
     // MARK: Edit Text
@@ -516,6 +586,7 @@ struct RecordingDetailView: View {
     private var editTextButton: some View {
         Button("Edit Text", systemImage: "pencil") {
             titleFocused = false
+            finding = false
             // No Undo while editing: it would change the paragraphs under the open drafts (keyed by their ids).
             withdrawUndo()
             speakerEdits = [:]
@@ -553,10 +624,11 @@ struct RecordingDetailView: View {
         let currentHit: UUID? = hits.indices.contains(hitIndex) ? hits[hitIndex] : nil
         // The paragraphs' frames: for revealing a search hit, and the spoken word while the audio plays (from the
         // first layout: the paragraphs on the first screen are laid out once).
-        let tracksFrames = search != nil || hasAudio
-        let hitFrame: ((UUID, CGRect) -> Void)? = tracksFrames ? { id, frame in hitGeometry.frames[id] = frame } : nil
+        // Always: Find can start at any time, and a paragraph laid out before then reports its frame only when it
+        // changes. (Into a plain class: a frame changes nothing drawn.)
+        let hitFrame: ((UUID, CGRect) -> Void)? = { id, frame in hitGeometry.frames[id] = frame }
         let changes: ((TranscriptSegment) -> [ChangeFlash])? = isEditingText ? nil : flashes
-        let showsTip = search == nil && recording.speakerNames.isEmpty && !isEditingText
+        let showsTip = highlighted == nil && !finding && recording.speakerNames.isEmpty && !isEditingText
         let speakerEdits: Binding<[UUID: Int]>? = isEditingText ? $speakerEdits : nil
         let words = listening && wordsShown && hasAudio && !isEditingText
         let onWordTap: ((TranscriptSegment, Int) -> Void)? = words ? { playWord($0, $1) } : nil
@@ -567,7 +639,7 @@ struct RecordingDetailView: View {
         }
         return TranscriptView(segments: segments, speakerName: recording.speakerName(_:),
                               preliminary: recording.speakerStatus != .done, preliminaryNotice: preliminaryNotice,
-                              renameSpeaker: renameAction, search: search, currentHit: currentHit, hitFrame: hitFrame,
+                              renameSpeaker: renameAction, search: highlighted, currentHit: currentHit, hitFrame: hitFrame,
                               flashes: changes, showsNameTip: showsTip, correctSpeaker: speakerCorrection,
                               edits: textEditsBinding, speakerEdits: speakerEdits, playing: playing,
                               onWordTap: onWordTap, people: people, showPerson: showPerson,
@@ -643,7 +715,7 @@ struct RecordingDetailView: View {
     fileprivate func follow(_ place: PlaybackMap.Place?) {
         // Nor while a field is being typed in (the title, a tag, Edit Text): scrolled away under the typing.
         guard let place, services.player.isPlaying, !hitGeometry.userScrolledRecently, !isEditingText, !titleFocused,
-              !editingTags else { return }
+              !editingTags, !finding else { return }
         guard let frame = hitGeometry.frames[place.segment] else {
             withAnimation(.snappy) { scroller?.scrollTo(place.segment, anchor: .center) }   // not laid out yet
             return
@@ -706,7 +778,7 @@ struct RecordingDetailView: View {
         // A field, the rename sheet or a question has the keys: the shake's first responder waits (taken, it would end
         // the edit). Not the Action Items sheet, which has no field: the card's view stays first responder under it
         // (iOS 27 simulator), and takes it at a Remove there when it didn't have it yet, so a shake in the sheet finds it.
-        let keysElsewhere = titleFocused || editingTags || isEditingText || renaming != nil || pendingMerge != nil
+        let keysElsewhere = titleFocused || editingTags || isEditingText || finding || renaming != nil || pendingMerge != nil
             || vocabularyOffer != nil || confirmDelete
         return UndoOffer(toast: undoToast, shownKind: shown, correctionID: correction?.id,
                          correctionHere: correction?.recordingID == recording.id,
@@ -792,24 +864,38 @@ struct RecordingDetailView: View {
 
     // MARK: Search hits
 
-    private func findHits() {
-        guard let search else { hits = []; return }
-        let current = hits.indices.contains(hitIndex) ? hits[hitIndex] : search.firstHit
-        hits = search.hits(in: recording.segments)
-        hitIndex = current.flatMap { hits.firstIndex(of: $0) } ?? 0
-    }
-
-    /// Starts at the result's snippet paragraph (or the first hit). The short wait lets the lazy transcript lay out
-    /// before scrolling to a paragraph far down.
-    private func showFirstHit() async {
-        hits = []
-        findHits()
-        guard hits.indices.contains(hitIndex) else { return }
-        do { try await Task.sleep(for: .milliseconds(50)) } catch { return }
-        reveal(hits[hitIndex])
+    /// The paragraphs with hits, found off the main actor (TranscriptSearchContext.find) whenever what is highlighted
+    /// changes or the paragraphs are rewritten. The current hit stays while it is still one; for a new search or new
+    /// words it is the result's paragraph, else the first hit from the top of the screen on, and is scrolled to.
+    private func findHits() async {
+        let context = highlighted
+        let isNew = context != hitsContext
+        guard let context else {
+            hits = []
+            hitIndex = 0
+            hitsContext = nil
+            return
+        }
+        let current = isNew && hitsContext == nil ? nil : (hits.indices.contains(hitIndex) ? hits[hitIndex] : nil)
+        let visible = Set(hitGeometry.frames.filter { $0.value.intersects(hitGeometry.visible) }.keys)
+        let found = await context.find(in: recording.segments, keep: current, visible: visible)
+        guard !Task.isCancelled else { return }
+        hits = found.hits
+        hitIndex = found.index
+        hitsContext = context
+        if finding { InteractionTrace.shown("findHits") }
+        guard isNew, hits.indices.contains(hitIndex) else { return }
+        // Opened from a search: the short wait lets the lazy transcript lay out before scrolling to a paragraph far
+        // down. Typed in Find: at once.
+        if !finding {
+            do { try await Task.sleep(for: .milliseconds(50)) } catch { return }
+            reveal(hits[hitIndex])
+        } else {
+            withAnimation { reveal(hits[hitIndex]) }
+        }
         #if DEBUG
         let steps = UserDefaults.standard.integer(forKey: "stepHits")   // QA hook: `-stepHits 5` taps Next 5 times
-        if steps > 0 {
+        if steps > 0, !finding, context == search {
             do { try await Task.sleep(for: .seconds(1)) } catch { return }
             for _ in 0..<steps { step(1) }
         }
@@ -864,6 +950,14 @@ struct RecordingDetailView: View {
     }
 
     #if DEBUG
+    /// QA hook: `-findText <words>` opens Find with them a moment after the card (screenshots of the find bar).
+    private func findForQA() async {
+        guard let text = UserDefaults.standard.string(forKey: "findText"), !turning else { return }
+        do { try await Task.sleep(for: .milliseconds(600)) } catch { return }
+        startFinding()
+        findText = text
+    }
+
     /// QA hook: `-renameFirstSpeaker` opens the rename sheet for the first speaker once speakers are final.
     private func renameFirstSpeakerForQA() async {
         guard ProcessInfo.processInfo.arguments.contains("-renameFirstSpeaker") else { return }
@@ -1114,6 +1208,12 @@ private struct UndoTimer: Equatable {
     var toast: UUID?
     var alert: Bool
     var waits: Bool
+}
+
+/// What the hits are found for: what is highlighted, and the paragraphs' rewrites.
+private struct HitSource: Equatable {
+    let context: TranscriptSearchContext?
+    let segmentsVersion: Int
 }
 
 /// What the bookmarks' sentences are found from: the paragraphs, and whether the text is final.

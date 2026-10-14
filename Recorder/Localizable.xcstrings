@@ -672,12 +672,32 @@
         }
       }
     },
+    "Clear Text": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text löschen"
+          }
+        }
+      }
+    },
     "Close": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Schließen"
+          }
+        }
+      }
+    },
+    "Close Find": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suche schließen"
           }
         }
       }
@@ -1288,6 +1308,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Transkripte in der iPhone-Suche finden"
+          }
+        }
+      }
+    },
+    "Find in Transcript": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Transkript suchen"
           }
         }
       }
@@ -2088,6 +2118,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Keine Internetverbindung"
+          }
+        }
+      }
+    },
+    "No Matches": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Treffer"
           }
         }
       }
