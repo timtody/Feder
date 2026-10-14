@@ -23,6 +23,11 @@ final class Person {
     /// theirs is taken again until they name them in a transcript (a new consent). Additive with a default: the
     /// store migrates lightweight.
     var voiceProfileDeleted: Bool = false
+    /// The transcripts whose voices of this person that deletion removed. They stay withheld after the flag is cleared:
+    /// naming them in a new transcript is consent for that one, not for the old audio again (a hand correction or the
+    /// voice migration there would otherwise recompute their voice from it and add it as a sample). Additive, default
+    /// empty.
+    var voiceWithheldIn: [UUID] = []
 
     init(name: String) {
         self.id = UUID()
@@ -31,6 +36,7 @@ final class Person {
         self.samples = []
         self.fingerprint = []
         self.voiceProfileDeleted = false
+        self.voiceWithheldIn = []
     }
 
     /// Replaces the sample for (recording, speaker) and recomputes the fingerprint.
