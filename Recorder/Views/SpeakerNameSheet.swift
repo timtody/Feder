@@ -219,7 +219,9 @@ struct SpeakerNameSheet: View {
     /// turn of the main actor (`Recording` is a main-actor model), as TagEditor reads its suggestions. A `@Query` of
     /// every transcript fetched them in the sheet's first body and decoded their speakers there, 10 ms of the press
     /// with 70 transcripts (Time Profiler, iPhone 17 simulator, FED-9), the decoding again with every keystroke. The
-    /// captions come in while the sheet rises.
+    /// captions come in while the sheet rises. Only the speakers' links are fetched: a whole `Recording` brings its
+    /// words and paragraphs along, which for long meetings would cost frames of the rise. Not on a context of its own
+    /// off the main actor: `Recording` is main-actor isolated (the project's default), so its fields can't be read there.
     private func loadCounts() async {
         var counts: [UUID: Int] = [:]
         var offset = 0
@@ -229,6 +231,7 @@ struct SpeakerNameSheet: View {
             var descriptor = FetchDescriptor<Recording>(sortBy: [SortDescriptor(\.createdAt)])
             descriptor.fetchOffset = offset
             descriptor.fetchLimit = Self.batch
+            descriptor.propertiesToFetch = [\.speakerPeople]   // not the words and paragraphs of long meetings
             let batch = (try? modelContext.fetch(descriptor)) ?? []
             for recording in batch { for id in Set(recording.speakerPeople.values) { counts[id, default: 0] += 1 } }
             offset += batch.count
