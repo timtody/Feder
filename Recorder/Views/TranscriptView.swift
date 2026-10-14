@@ -375,9 +375,13 @@ private struct TranscriptText: ViewModifier {
     }
 }
 
-/// One system colour per speaker index, cycling after six.
+/// One colour per speaker index, cycling after six. The system colours' hue order (blue, orange, green, purple, pink,
+/// teal) so a speaker keeps the colour they had, but softer: the system ones are saturated (orange on white about
+/// 2.2:1) and speaker 1's system blue fought the accent. The first is the accent itself; each reaches 4.5:1 as text
+/// on white, black and #1C1C1E (FED-107; values and candidates in README › Look).
 enum SpeakerPalette {
-    static let colors: [Color] = [.blue, .orange, .green, .purple, .pink, .teal]
+    static let colors: [Color] = [.accentColor, Color(.speakerOrange), Color(.speakerGreen), Color(.speakerPurple),
+                                  Color(.speakerPink), Color(.speakerTeal)]
 
     static func color(_ index: Int) -> Color {
         colors[index % colors.count]
