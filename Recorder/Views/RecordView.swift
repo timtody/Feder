@@ -144,7 +144,7 @@ struct RecordView: View {
             geometry?.wrappedValue.safeArea = value.safeArea
             geometry?.wrappedValue.bottomInset = value.bottomInset
         }
-        .background(Color(uiColor: .systemBackground).ignoresSafeArea())
+        .background(Color(.appBackground).ignoresSafeArea())
         // A failure after Stop (the turn had begun) crossfades to its screen instead of cutting to it.
         .animation(.easeOut(duration: 0.25), value: isFailed)
         .onAppear { InteractionTrace.shown("transcribe"); InteractionTrace.shown("reopen") }

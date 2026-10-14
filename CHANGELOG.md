@@ -40,8 +40,9 @@ release carries a later version's features, its notes are the 1.0 text plus thos
   back, at once or after a minute or more, as you choose. Anything you had open is there again after Face ID.
   Recording from Control Center, the Action Button or Siri still starts right away, and the Lock Screen and Dynamic
   Island then show the time but no words.
-- Softer colours: a calmer blue that matches the app icon, and gentler speaker colours, in Light and Dark Mode. Text
-  on tinted chips and highlighted search words is darker in Light Mode, so it stays easy to read.
+- Softer colours: a calmer blue that matches the app icon, and gentler speaker colours, in Light and Dark Mode.
+  Screens are a cool light grey in Light Mode and a deep blue instead of pure black in Dark Mode. Text on tinted chips
+  and highlighted search words is darker in Light Mode, so it stays easy to read.
 
 ### Deutsch
 
@@ -81,8 +82,8 @@ release carries a later version's features, its notes are the 1.0 text plus thos
   Face ID wieder da. Eine Aufnahme aus dem Kontrollzentrum, mit der Aktionstaste oder über Siri startet weiterhin
   sofort, und Sperrbildschirm und Dynamic Island zeigen dann die Zeit, aber keine Wörter.
 - Sanftere Farben: ein ruhigeres Blau passend zum App-Symbol und dezentere Sprecherfarben, im hellen und im dunklen
-  Erscheinungsbild. Text auf farbigen Chips und hervorgehobene Suchwörter sind im hellen Erscheinungsbild dunkler und
-  damit gut lesbar.
+  Erscheinungsbild. Der Hintergrund ist hell ein kühles Hellgrau und dunkel ein tiefes Blau statt reinem Schwarz. Text
+  auf farbigen Chips und hervorgehobene Suchwörter sind im hellen Erscheinungsbild dunkler und damit gut lesbar.
 
 ## 1.1
 

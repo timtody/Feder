@@ -78,9 +78,11 @@ struct PersonView: View {
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("LastConversation")
                 }
+                .appRows()
             }
             if recognizesVoices {                         // off: nobody has a profile (People hides it too)
                 voiceProfile(name: name, saved: hasVoiceProfile)
+                    .appRows()
             }
             if !mine.isEmpty {
                 Section {
@@ -90,9 +92,11 @@ struct PersonView: View {
                 } header: {
                     Text("^[\(mine.count) Transcript](inflect: true)")
                 }
+                .appRows()
             }
         }
         .listStyle(.insetGrouped)
+        .appScreenBackground()
         .overlay {
             if mine.isEmpty {
                 ContentUnavailableView("No Transcripts", systemImage: "waveform",

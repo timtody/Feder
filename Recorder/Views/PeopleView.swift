@@ -40,6 +40,7 @@ struct PeopleView: View {
             .swipeActions(edge: .trailing) {
                 Button("Delete", systemImage: "trash", role: .destructive) { pendingDelete = person }
             }
+            .appRows()
         }
         .overlay {
             if people.isEmpty {
@@ -51,6 +52,7 @@ struct PeopleView: View {
                 ContentUnavailableView.search(text: query)
             }
         }
+        .appScreenBackground()
         .searchable(text: $query, prompt: "Name")
         .navigationTitle("People")
         .navigationBarTitleDisplayMode(.inline)

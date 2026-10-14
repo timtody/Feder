@@ -68,6 +68,7 @@ struct TranscriptCard: View {
                         .transition(.identity)              // its title and date line lie exactly over the recording's
                 }
             }
+            .appScreenBackground()
             .toolbar(.hidden, for: .navigationBar)
         }
         .overlay {

@@ -61,6 +61,7 @@ struct LegalTextView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
+        .appScreenBackground()
         .navigationTitle(loaded?.title ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .task { loaded = await Self.read(document) }
@@ -148,6 +149,7 @@ struct AcknowledgementsView: View {
                         }
                     }
                 }
+                .appRows()
                 Section("Code") {
                     ForEach(loaded.code, id: \.self) { code in
                         NavigationLink {
@@ -158,8 +160,10 @@ struct AcknowledgementsView: View {
                         }
                     }
                 }
+                .appRows()
             }
         }
+        .appScreenBackground()
         .navigationTitle("Acknowledgements")
         .navigationBarTitleDisplayMode(.inline)
         .task { loaded = await Self.read() }
@@ -203,6 +207,7 @@ private struct AcknowledgementDetail: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
+        .appScreenBackground()
         .navigationTitle(name)
         .navigationBarTitleDisplayMode(.inline)
     }

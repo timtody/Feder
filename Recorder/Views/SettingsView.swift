@@ -31,7 +31,7 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var navigation = navigation
         NavigationStack(path: $navigation.settings) {
-            Form {
+            AppForm {
                 Section {
                     Toggle("Recognize People by Voice", isOn: recognition)
                     NavigationLink(value: SettingsRoute.people) {
@@ -307,7 +307,7 @@ struct TranscriptionModelView: View {
     }
 
     var body: some View {
-        Form {
+        AppForm {
             Section {
                 Picker("Model", selection: selection) {
                     Text("Apple Speech").tag("apple")
@@ -342,7 +342,7 @@ struct SpeakerModelView: View {
     }
 
     var body: some View {
-        Form {
+        AppForm {
             Section {
                 LabeledContent("Model", value: services.nemotron.state == .ready ? "NVIDIA Nemotron" : String(localized: "Standard"))
                 if waitingMB > 0 {
@@ -387,7 +387,7 @@ struct SummariesModelView: View {
 
     var body: some View {
         @Bindable var better = services.betterSummaries
-        Form {
+        AppForm {
             Section {
                 if BetterSummaries.isSupported {
                     if better.state == .ready {
@@ -441,7 +441,7 @@ struct VocabularyView: View {
     @FocusState private var isAdding: Bool
 
     var body: some View {
-        Form {
+        AppForm {
             Section {
                 ForEach(words, id: \.self) { word in
                     Text(word)

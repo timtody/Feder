@@ -152,6 +152,7 @@ struct RecordingsListView: View {
             }
             .sensoryFeedback(.impact(weight: .light), trigger: pullArmed) { _, armed in armed }
             .listStyle(.plain)                                 // Voice Memos: rows on the screen's own background
+            .appScreenBackground()
             .scrollDismissesKeyboard(.immediately)             // Search: scrolling the results puts the keyboard away (Music)
             .navigationTitle(isSearch ? "Search" : "Transcripts")   // for VoiceOver only
             // Search: no top bar (the tab bar shows where one is), so its search bar starts right under the status bar.
