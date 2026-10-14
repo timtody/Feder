@@ -12,9 +12,14 @@ struct TranscriptFindBar: View {
     @Binding var text: String
     /// The paragraphs with hits, and which one is current; nil while nothing is searched (an empty field).
     let matches: (index: Int, count: Int)?
-    /// Changes on each press of the toolbar's Find: the field takes the focus again.
+    /// The hits for the field's text aren't known yet (its typing pause, then the search): no count and the arrows
+    /// off, since the last words' "No Matches" or "2 of 5" would be wrong for the new ones.
+    var searching = false
+    /// Changes on each press of the toolbar's Find (⌘F while the bar is up): the field takes the focus again.
     var focusRequest = 0
     let step: (Int) -> Void
+    /// Return: the next hit, or, within the typing pause, the hits for the text at once.
+    let submit: () -> Void
     let close: () -> Void
 
     @FocusState private var isFocused: Bool
@@ -44,6 +49,9 @@ struct TranscriptFindBar: View {
             isFocused = true
             InteractionTrace.shown("find")
         }
+        // ⌘F while the bar is up: the field takes the keys again, as in Safari. The toolbar's Find gets the press
+        // even while the toolbar is hidden (logged during testFindKeyboardShortcuts, 2026-10-15); a ⌘F of the bar's
+        // own (on the magnifier) was never called, the toolbar's took every press.
         .onChange(of: focusRequest) { isFocused = true }
     }
 
@@ -59,11 +67,11 @@ struct TranscriptFindBar: View {
                 .textInputAutocapitalization(.never)
                 // Return goes to the next hit, as in Safari; the field keeps the keyboard (a submit ends its editing).
                 .onSubmit {
-                    step(1)
+                    submit()
                     isFocused = true
                 }
                 .accessibilityIdentifier("FindField")
-            if let matches {
+            if let matches, !searching {
                 Group {
                     if matches.count == 0 {
                         Text("No Matches")
@@ -113,7 +121,7 @@ struct TranscriptFindBar: View {
 
     /// Previous and Next in one capsule; ⇧⌘G and ⌘G with a hardware keyboard, as in Safari.
     private var arrows: some View {
-        let enabled = (matches?.count ?? 0) > 0
+        let enabled = !searching && (matches?.count ?? 0) > 0
         return HStack(spacing: 0) {
             Button {
                 step(-1)

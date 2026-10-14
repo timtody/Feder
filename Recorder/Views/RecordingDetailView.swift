@@ -242,7 +242,8 @@ struct RecordingDetailView: View {
             } else if finding {
                 // In the player's place while Listen is on (playback goes on; the player is back when Find closes).
                 TranscriptFindBar(text: $findText, matches: findTerms.isEmpty ? nil : (hitIndex, hits.count),
-                                  focusRequest: findFocusRequest, step: step, close: endFinding)
+                                  searching: findSearching, focusRequest: findFocusRequest, step: step,
+                                  submit: submitFind, close: endFinding)
                     .capped
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             } else if listening, hasAudio, !isEditingText {
@@ -535,13 +536,18 @@ struct RecordingDetailView: View {
     }
 
     private func startFinding() {
+        // ⌘F with the find bar up (the hidden toolbar's Find still has the shortcut): its field takes the keys again,
+        // as in Safari.
+        guard !finding else {
+            findFocusRequest += 1
+            return
+        }
         InteractionTrace.begin("find")
         titleFocused = false
         if findText.isEmpty, let terms = search?.terms, !terms.isEmpty {
             findText = terms.joined(separator: " ")
             findTerms = terms                               // at once: the hits stay as they are, no pause
         }
-        findFocusRequest += 1
         withAnimation(.snappy) { finding = true }
     }
 
@@ -559,13 +565,40 @@ struct RecordingDetailView: View {
     /// The typed words, once typing pauses for the Search tab's 0.3 s: each keystroke would otherwise search the
     /// whole transcript and redraw the highlights. Cleared, at once.
     private func applyFindText() async {
-        let terms = findText.split(whereSeparator: \.isWhitespace).map(String.init)
+        let terms = Self.findTerms(of: findText)
         guard terms != findTerms else { return }
         if !terms.isEmpty {
             do { try await Task.sleep(for: RecordingsListView.typingPause) } catch { return }
         }
-        InteractionTrace.begin("findHits")                 // the typing pause over: until the hits are drawn
+        setFindTerms(terms)
+    }
+
+    private func setFindTerms(_ terms: [String]) {
+        // The typing pause over: until the hits are drawn. Not for a cleared field: nothing is searched, so no
+        // "findHits" frame would end the interval.
+        if !terms.isEmpty { InteractionTrace.begin("findHits") }
         findTerms = terms
+    }
+
+    nonisolated private static func findTerms(of text: String) -> [String] {
+        text.split(whereSeparator: \.isWhitespace).map(String.init)
+    }
+
+    /// The find bar's count and arrows wait while the hits for its text aren't known: within the typing pause, and
+    /// until the search for the words has come back (`hitsContext` is what `hits` were found for).
+    private var findSearching: Bool {
+        Self.findTerms(of: findText) != findTerms || (!findTerms.isEmpty && hitsContext != highlighted)
+    }
+
+    /// Return in the find field: the next hit, as in Safari; within the typing pause the text's own hits first (its
+    /// first hit becomes current), rather than stepping through the last words' ones.
+    private func submitFind() {
+        let terms = Self.findTerms(of: findText)
+        if terms != findTerms {
+            setFindTerms(terms)                            // the pausing task then finds nothing left to do
+        } else if !findSearching {
+            step(1)
+        }
     }
 
     private var hasSummary: Bool { recording.summary?.isEmpty == false }
