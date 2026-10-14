@@ -148,7 +148,7 @@ struct TranscriptView: View {
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.caption2.weight(.semibold))
             }
-            .foregroundStyle(SpeakerPalette.color(chosen))
+            .foregroundStyle(SpeakerPalette.onTint(chosen))
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .background(SpeakerPalette.color(chosen).opacity(0.14), in: Capsule())
@@ -236,7 +236,8 @@ struct TranscriptView: View {
     private func header(index: Int, segment: UUID, speaker: Int, name: String, start: TimeInterval,
                         showsTip: Bool) -> some View {
         let line = SpeakerNameLine(name: name, color: preliminary ? .secondary : SpeakerPalette.color(speaker),
-                                   start: start, matched: search?.speakers.contains(speaker) == true, showsTip: showsTip)
+                                   textOnTint: preliminary ? .secondary : SpeakerPalette.onTint(speaker), start: start,
+                                   matched: search?.speakers.contains(speaker) == true, showsTip: showsTip)
             .padding(.top, TranscriptStyle.turnSpacing)
             .padding(.bottom, TranscriptStyle.nameToText)
             .padding(.trailing, 16)                               // a little room after the time, not the whole width
@@ -302,6 +303,8 @@ struct TranscriptView: View {
 private struct SpeakerNameLine: View {
     let name: String
     let color: Color
+    /// The name's colour on the matched capsule (`SpeakerPalette.onTint`).
+    let textOnTint: Color
     let start: TimeInterval
     let matched: Bool
     var showsTip = false
@@ -312,7 +315,7 @@ private struct SpeakerNameLine: View {
         HStack(spacing: 8) {
             Text(name)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(color)
+                .foregroundStyle(matched ? textOnTint : color)
                 .padding(.horizontal, matched ? 7 : 0)
                 .padding(.vertical, matched ? 2 : 0)
                 .background(matched ? color.opacity(0.16) : .clear, in: Capsule())
@@ -386,13 +389,22 @@ private struct TranscriptText: ViewModifier {
 /// One colour per speaker index, cycling after six. The system colours' hue order (blue, orange, green, purple, pink,
 /// teal) so a speaker keeps the colour they had, but softer: the system ones are saturated (orange on white about
 /// 2.2:1) and speaker 1's system blue fought the accent. The first is the accent itself; each reaches 4.5:1 as text
-/// on white, black and #1C1C1E (FED-107; values and candidates in README › Look).
+/// on the bare page (white 4.6-5.3, black, #1C1C1E), but not on its own 14-16 % capsule in Light Mode (3.7-4.4), so
+/// text on one (the editor's chip, a matched name) takes `onTint`: the same hue darker in Light Mode (5.0-5.3:1 there),
+/// unchanged in Dark Mode (4.8:1 or more on #1C1C1E). FED-107; values in README › Look.
 enum SpeakerPalette {
     static let colors: [Color] = [.accentColor, Color(.speakerOrange), Color(.speakerGreen), Color(.speakerPurple),
                                   Color(.speakerPink), Color(.speakerTeal)]
+    static let onTintColors: [Color] = [Color(.accentOnTint), Color(.speakerOrangeOnTint), Color(.speakerGreenOnTint),
+                                        Color(.speakerPurpleOnTint), Color(.speakerPinkOnTint), Color(.speakerTealOnTint)]
 
     static func color(_ index: Int) -> Color {
         colors[index % colors.count]
+    }
+
+    /// Text on a capsule of `color(index)`.
+    static func onTint(_ index: Int) -> Color {
+        onTintColors[index % onTintColors.count]
     }
 }
 

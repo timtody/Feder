@@ -2,10 +2,13 @@ import SwiftUI
 
 /// Highlighted text for search results and the transcript opened from one: hits in the tint colour, semibold
 /// (size-preserving: the run keeps the surrounding `.font`, unlike setting the `font` attribute), on a light tint
-/// background. Built as one AttributedString: `Text + Text` is deprecated in iOS 26.
+/// background. The text is `AccentOnTint`, darker than the accent in Light Mode: the accent on its own 16 % reached
+/// only 4.0:1, and 3.6:1 inside the current hit's paragraph band (WCAG AA is 4.5; the darker one 5.1 and 4.6).
+/// Built as one AttributedString: `Text + Text` is deprecated in iOS 26.
 enum SearchHighlight {
     static func attributed(_ text: String, _ ranges: [Range<String.Index>]) -> AttributedString {
         let tint = Color.accentColor
+        let textColor = Color(.accentOnTint)
         var result = AttributedString(text)
         for range in ranges {
             // Character offsets map String ranges onto the AttributedString built from the same text.
@@ -14,7 +17,7 @@ enum SearchHighlight {
             let start = result.characters.index(result.startIndex, offsetBy: lower)
             let end = result.characters.index(start, offsetBy: length)
             result[start..<end].inlinePresentationIntent = .stronglyEmphasized
-            result[start..<end].foregroundColor = tint
+            result[start..<end].foregroundColor = textColor
             result[start..<end].backgroundColor = tint.opacity(0.16)
         }
         return result

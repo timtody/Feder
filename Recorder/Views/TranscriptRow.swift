@@ -137,7 +137,7 @@ struct TranscriptRow: View {
     private func chip(_ content: some View, matched: Bool) -> some View {
         content
             .font(.caption.weight(matched ? .semibold : .regular))
-            .foregroundStyle(matched ? AnyShapeStyle(.white) : AnyShapeStyle(.tint))
+            .foregroundStyle(matched ? AnyShapeStyle(.white) : AnyShapeStyle(Color(.accentOnTint)))   // 5.4:1 on the 12 % tint (the accent 4.2)
             .padding(.horizontal, 7)
             .padding(.vertical, 2)
             .background(matched ? AnyShapeStyle(Color.accentFill) : AnyShapeStyle(.tint.opacity(0.12)), in: Capsule())   // no glass
