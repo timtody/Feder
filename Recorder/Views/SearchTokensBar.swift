@@ -45,7 +45,7 @@ struct SearchTokensBar: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .glassEffect(.regular.tint(.accentColor).interactive(), in: Capsule())
+        .glassEffect(.regular.tint(.accentFill).interactive(), in: Capsule())   // white on it: AccentFill.swift
         .accessibilityLabel("Remove \(token.value)")
         .accessibilityHint(token.kind == .person ? "Person filter" : "Tag filter")
         .accessibilityIdentifier("SearchToken")

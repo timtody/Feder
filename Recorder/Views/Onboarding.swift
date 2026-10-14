@@ -453,6 +453,7 @@ private struct ProminentButton: View {
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.glassProminent)
+        .tint(.accentFill)                                   // white title: AccentFill.swift
         .controlSize(.large)
     }
 }

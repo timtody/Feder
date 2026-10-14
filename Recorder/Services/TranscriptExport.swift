@@ -74,10 +74,20 @@ nonisolated enum TranscriptExport {
         var bookmarks: [Bookmark] = []
     }
 
-    /// The app's accent (AccentColor, light): the bookmark and the list's times. The highlight behind a bookmarked
-    /// sentence is it at 12 % over white, as the card's (BookmarkHighlight.tint).
-    static var accent: UIColor { UIColor(red: 0, green: 108 / 255, blue: 1, alpha: 1) }
-    static let accentHex = "006CFF", tintHex = "E0EDFF"
+    /// The app's accent (AccentColor, light: paper is white): the bookmark and the list's times. The highlight behind
+    /// a bookmarked sentence is it at 12 % over white, as the card's (BookmarkHighlight.tint). Read from the asset, so
+    /// the exports follow when the accent changes (they were hard-coded and fell out of step).
+    static let accent = UIColor.accentLight
+    static let accentHex = hex(accent), tintHex = hex(accent, overWhite: 0.12)
+
+    /// `RRGGBB` of `color` (sRGB), laid at `alpha` over white.
+    private static func hex(_ color: UIColor, overWhite alpha: CGFloat = 1) -> String {
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, own: CGFloat = 0
+        color.getRed(&red, green: &green, blue: &blue, alpha: &own)
+        return [red, green, blue]
+            .map { String(format: "%02X", Int((alpha * min(max($0, 0), 1) + 1 - alpha) * 255 + 0.5)) }
+            .joined()
+    }
 
     // MARK: Writing
 

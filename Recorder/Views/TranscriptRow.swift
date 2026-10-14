@@ -140,7 +140,7 @@ struct TranscriptRow: View {
             .foregroundStyle(matched ? AnyShapeStyle(.white) : AnyShapeStyle(.tint))
             .padding(.horizontal, 7)
             .padding(.vertical, 2)
-            .background(matched ? AnyShapeStyle(.tint) : AnyShapeStyle(.tint.opacity(0.12)), in: Capsule())   // no glass
+            .background(matched ? AnyShapeStyle(Color.accentFill) : AnyShapeStyle(.tint.opacity(0.12)), in: Capsule())   // no glass
     }
 }
 

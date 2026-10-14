@@ -429,6 +429,7 @@ struct RecordView: View {
                     if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(.accentFill)
                 Button("Cancel") { onClose() }
             }
         case .transcriberUnavailable:
@@ -447,6 +448,7 @@ struct RecordView: View {
             } actions: {
                 Button("Try Again") { onRetry() }
                     .buttonStyle(.borderedProminent)
+                    .tint(.accentFill)
                 Button("Close") { onClose() }
             }
         }
@@ -488,7 +490,7 @@ private struct BookmarkButtonLabel: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 5)
                     .frame(minWidth: 18, minHeight: 18)
-                    .background(.tint, in: Capsule())
+                    .background(Color.accentFill, in: Capsule())
                     .offset(x: 4, y: -4)
                     .transition(.scale.combined(with: .opacity))
             }
