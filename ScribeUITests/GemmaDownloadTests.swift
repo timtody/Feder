@@ -211,12 +211,19 @@ final class AskTests: ScribeUITestCase {
     }
 
     /// A drag from the conversation down into the keyboard puts it away (`scrollDismissesKeyboard(.interactively)`;
-    /// the tab bar is under the keyboard meanwhile).
+    /// the tab bar is under the keyboard meanwhile). With a hardware keyboard (the test simulator's, README › UI tests)
+    /// the software keyboard is parked off screen and the drag never reaches it: the conversation scrolls, the field
+    /// keeps the focus (3 of 3 runs on 2026-10-14). There the keyboard goes as with another tab: Transcripts and back.
     @MainActor
     private func dismissKeyboard(_ app: XCUIApplication) {
+        let keyboard = app.keyboards.firstMatch
         let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
         from.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.98)),
                    withVelocity: .default, thenHoldForDuration: 0.1)
-        _ = app.keyboards.firstMatch.waitForNonExistence(timeout: 3)
+        if keyboard.waitForNonExistence(timeout: 3) { return }
+        guard keyboard.exists, keyboard.frame.minY >= app.frame.maxY - 1 else { return }   // on screen: the drag failed
+        app.buttons["Transcripts"].firstMatch.tap()
+        app.buttons["Ask"].firstMatch.tap()
+        _ = keyboard.waitForNonExistence(timeout: 3)
     }
 }
