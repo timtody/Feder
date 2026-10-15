@@ -181,7 +181,8 @@ nonisolated struct FakeDiarizer: SpeakerDiarizer {
 /// Simulator stand-in for LSEENDLiveDiarizer (and SortformerLiveDiarizer: `sampleRate` follows the chosen model, so the
 /// capture's 16 kHz path runs too): alternates two speakers every 5 s of RECEIVED audio (so it follows the real
 /// microphone stream, after FakeTranscriber's backlog), ~1 s behind like LS-EEND, one snapshot per 0.5 s of audio.
-/// 5 s on purpose: FakeDiarizer's 4 s turns then visibly replace the live labels after Stop.
+/// 5 s on purpose: FakeDiarizer's 4 s turns then visibly replace the live labels after Stop. `-fakeLiveSkipSlot`: the
+/// second speaker in slot 2, as LS-EEND sometimes puts them (FED-108).
 nonisolated struct FakeLiveDiarizer: LiveDiarizer {
     var sampleRate = LSEENDLiveDiarizer.sampleRate
 
@@ -210,10 +211,11 @@ nonisolated struct FakeLiveDiarizer: LiveDiarizer {
     }
 
     private static func snapshot(until end: TimeInterval) -> LiveSpeakerTurns {
+        let step = UserDefaults.standard.bool(forKey: "fakeLiveSkipSlot") ? 2 : 1
         var turns: [SpeakerTurn] = []
         var t: TimeInterval = 0
         while t < end {
-            turns.append(SpeakerTurn(speakerIndex: turns.count % 2, start: t, end: min(t + 5, end)))
+            turns.append(SpeakerTurn(speakerIndex: turns.count % 2 * step, start: t, end: min(t + 5, end)))
             t += 5
         }
         return LiveSpeakerTurns(turns: turns, processedUntil: end)

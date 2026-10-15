@@ -61,6 +61,22 @@ final class TranscriptListTests: ScribeUITestCase {
         shot("Settings scrolled, large text", large)
     }
 
+    /// Two voices are "Speaker 1" and "Speaker 2" on the live screen, also when the live diarizer puts the second one in
+    /// its third slot (`-fakeLiveSkipSlot`, as LS-EEND sometimes does): numbered by first appearance (FED-108).
+    @MainActor
+    func testLiveSpeakersNumberedInOrder() throws {
+        let app = launch(["-fakeLiveSkipSlot", "YES", "-resetVoiceRecognition"])
+        startRecording(app)
+        let live = { (n: Int) in app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Speaker \(n): ")).firstMatch }
+        XCTAssertTrue(live(1).waitForExistence(timeout: 15), "the first voice")
+        XCTAssertTrue(live(2).waitForExistence(timeout: 15), "the second voice is Speaker 2")
+        XCTAssertFalse(live(3).exists, "no Speaker 3 for two voices")
+        shot("Live: Speaker 1 and 2", app)
+        app.buttons["Stop"].firstMatch.tap()
+        XCTAssertTrue(app.textFields["Title"].waitForExistence(timeout: 15), "saved")
+        deleteOpenTranscript(app)
+    }
+
     /// Gone, or above the top safe area (under the status bar), once the scroll settles.
     @MainActor
     private func scrolledAway(_ element: XCUIElement, _ app: XCUIApplication) -> Bool {

@@ -107,6 +107,7 @@ private struct BottomState: Equatable {
 struct LiveParagraph: Identifiable, Equatable {
     let id: Int                    // position: the live transcript only grows at the end, so rows keep their place
     var speakerIndex: Int?         // confirmed live label (SteadyLabels), nil = none yet
+    var number: Int?               // its speaker as named on screen, 0-based: by first appearance (`numbered`)
     var startsTurn = false         // a different speaker than the last labelled paragraph above: extra space
     var showsName = false          // first paragraph of a labelled speaker turn: the coloured name goes above it
     var text: String               // finalized words, then the provisional ones, separated by single spaces
@@ -146,7 +147,7 @@ private struct LiveParagraphRow: View, Equatable {
         let _ = LiveTrace.body(paragraph: paragraph.id)
         let text = paragraph.styledText            // built once per change, not once per frame
         VStack(alignment: .leading, spacing: 6) {
-            if paragraph.showsName, let speaker = paragraph.speakerIndex {
+            if paragraph.showsName, let speaker = paragraph.number {
                 Text("Speaker \(speaker + 1)")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(SpeakerPalette.color(speaker))
@@ -158,7 +159,7 @@ private struct LiveParagraphRow: View, Equatable {
         }
         .accessibilityElement(children: .ignore)          // one element: VoiceOver reads the name and text once
         .accessibilityAddTraits(.isStaticText)
-        .accessibilityLabel(paragraph.speakerIndex.map { Text("Speaker \($0 + 1): \(paragraph.text)") }
+        .accessibilityLabel(paragraph.number.map { Text("Speaker \($0 + 1): \(paragraph.text)") }
                             ?? Text(verbatim: paragraph.text))
     }
 }
@@ -221,11 +222,14 @@ final class LiveTranscriptModel {
             drafts[i].showsName = speaker != index
             speaker = index
         }
+        Self.number(&drafts)
+        // A speaker numbered anew (one before it went away) changes paragraphs that were kept as they were.
+        var same = drafts.indices.prefix(kept).first { drafts[$0].number != paragraphs[$0].number } ?? kept
         let now = Date.now
         if fades { assignBirths(to: &drafts, from: kept, now: now) }
         // Births older than the fade become .distantPast, all-settled ones (all, without fades) [].
         let settled = now - WordFadeRenderer.duration
-        var same = kept                            // drafts before this index equal `paragraphs`
+        // `same`: drafts before this index equal `paragraphs`.
         var newest: Date?
         for i in drafts.indices where drafts[i].isFading {
             let births = fades && drafts[i].births.contains { $0 > settled }
@@ -249,6 +253,20 @@ final class LiveTranscriptModel {
                 paragraph.births = []
                 return paragraph
             }
+        }
+    }
+
+    /// Speakers are numbered by when they first appear on screen, not by the live diarizer's slot: LS-EEND can open a
+    /// slot for a moment and settle the second voice in the third, which read "Speaker 1, Speaker 3" for two people
+    /// until the speakers after Stop numbered them again (FED-108). Their colours follow the number, as they will after
+    /// Stop. A slot whose paragraphs all went numbers nothing, so the next speakers move up.
+    static func number(_ paragraphs: inout [LiveParagraph]) {
+        var numbers: [Int: Int] = [:]
+        for i in paragraphs.indices {
+            guard let speaker = paragraphs[i].speakerIndex else { paragraphs[i].number = nil; continue }
+            let number = numbers[speaker] ?? numbers.count
+            numbers[speaker] = number
+            paragraphs[i].number = number
         }
     }
 
