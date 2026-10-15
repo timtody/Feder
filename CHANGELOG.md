@@ -43,6 +43,9 @@ release carries a later version's features, its notes are the 1.0 text plus thos
 - Softer colours: a calmer blue that matches the app icon, and gentler speaker colours, in Light and Dark Mode.
   Screens are a cool light grey in Light Mode and a deep blue instead of pure black in Dark Mode. Text on tinted chips
   and highlighted search words is darker in Light Mode, so it stays easy to read.
+- Swiping a transcript away to the right shows your list beside it as it goes, instead of an empty white or black
+  screen.
+- Two people speaking are Speaker 1 and Speaker 2 while you record, never Speaker 1 and Speaker 3.
 
 ### Deutsch
 
@@ -84,6 +87,9 @@ release carries a later version's features, its notes are the 1.0 text plus thos
 - Sanftere Farben: ein ruhigeres Blau passend zum App-Symbol und dezentere Sprecherfarben, im hellen und im dunklen
   Erscheinungsbild. Der Hintergrund ist hell ein kühles Hellgrau und dunkel ein tiefes Blau statt reinem Schwarz. Text
   auf farbigen Chips und hervorgehobene Suchwörter sind im hellen Erscheinungsbild dunkler und damit gut lesbar.
+- Wischst du ein Transkript nach rechts weg, ist dabei deine Liste daneben zu sehen statt einer leeren weißen oder
+  schwarzen Fläche.
+- Zwei Personen sind während der Aufnahme Sprecher 1 und Sprecher 2, nie Sprecher 1 und Sprecher 3.
 
 ## 1.1
 

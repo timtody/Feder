@@ -320,6 +320,14 @@ final class TranscriptListTests: ScribeUITestCase {
             XCTAssertTrue(back.exists && app.textFields["Title"].exists, "swiping down doesn't close the card")
         }
         shot("Swiped down, still up", app)
+        // A short swipe to the right springs back and leaves the card up. While it is held the list shows beside the
+        // card, not the window's empty background (FED-136; seen in a recording of this test, XCUITest can't look
+        // while the finger is down).
+        let edge = app.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.45))
+        edge.press(forDuration: 0.05, thenDragTo: edge.withOffset(CGVector(dx: 110, dy: 0)), withVelocity: .slow,
+                   thenHoldForDuration: 1.5)
+        RunLoop.current.run(until: .now + 1)
+        XCTAssertTrue(back.exists && back.isHittable, "a short swipe springs back")
         swipeCardRight(app)
         XCTAssertTrue(back.waitForNonExistence(timeout: 5), "swiping right closes the card")
         XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 5))

@@ -122,11 +122,14 @@ struct MainView: View {
             if shows { cardPhase = .open } else { closeCard() }
         }), onDismiss: cardDismissed) {
             TranscriptCard(content: card, onClose: closeCard, onRetry: retryRecording, namespace: cardZoom)
+                // The card draws its own background; the cover's (white, black in Dark) stood beside it while it was
+                // swiped to the right (FED-136). Clear, the tabs show there (CardSwipeToClose).
+                .presentationBackground(.clear)
         }
         // Ask: the chat as a sheet that zooms out of the accessory's Ask button (as iOS 26 sheets morph out of the
         // button that opens them), half height first, pulled up to full (ChatView).
         .sheet(isPresented: $showsAsk, onDismiss: askDismissed) {
-            ChatView()
+            ChatView(chat: services.chat)
                 .navigationTransition(.zoom(sourceID: ChatView.askSource, in: cardZoom))
         }
         .sheet(isPresented: Binding(get: { !onboardingPages.isEmpty }, set: { if !$0 { onboardingPages = [] } })) {
