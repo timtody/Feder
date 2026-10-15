@@ -452,9 +452,10 @@ final class TranscriptListTests: ScribeUITestCase {
         row.swipeLeft()
         let share = app.buttons["Share"]
         XCTAssertTrue(share.appears(timeout: 3))
+        XCTAssertTrue(waitFor { share.isHittable }, "the pill has slid in")
         share.tap()
         let sheet = app.otherElements["ActivityListView"]
-        XCTAssertTrue(sheet.appears(timeout: 5) || app.navigationBars["UIActivityContentView"].exists,
+        XCTAssertTrue(waitFor(timeout: 10) { sheet.exists || app.navigationBars["UIActivityContentView"].exists },
                       "the share sheet")
         shot("Share sheet", app)
     }

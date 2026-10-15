@@ -297,9 +297,15 @@ extension XCUIElement {
     /// `waitForExistence(timeout:)`, but at once when the element is there already, then every 0.2 s: XCUITest's own
     /// waits look first after about a second, also for an element already on screen, which was most of the suite's
     /// time waiting (1,179 waits, 28 of 81 minutes summed, in October 2026's parallel run).
+    /// When it had to wait, a quarter of a second more: what just appeared is usually still coming in (a menu, a
+    /// swipe pill, the next of two pills), and a tap or a check at once raced it (October 2026's first full run with
+    /// these waits: three tests).
     @MainActor
     func appears(timeout: TimeInterval) -> Bool {
-        poll(timeout: timeout) { $0.exists }
+        if exists { return true }
+        guard poll(timeout: timeout, { $0.exists }) else { return false }
+        RunLoop.current.run(until: .now.addingTimeInterval(0.25))
+        return true
     }
 
     /// `waitForNonExistence(timeout:)`, polled the same way.

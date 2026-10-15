@@ -35,7 +35,7 @@ final class TagEditorTests: ScribeUITestCase {
 
         field.typeText("alpha, beta,")
         XCTAssertTrue(app.buttons["Remove alpha"].appears(timeout: 5), "a comma makes the word before it a pill")
-        XCTAssertTrue(app.buttons["Remove beta"].exists)
+        XCTAssertTrue(app.buttons["Remove beta"].appears(timeout: 3), "and the one after it")
         XCTAssertEqual(field.value as? String ?? "", "Add Tag", "the field is empty again (its placeholder)")
         XCTAssertTrue(hasFocus(field), "and still focused")
         XCTAssertLessThan(app.buttons["Remove alpha"].frame.minX, app.buttons["Remove beta"].frame.minX, "in order")

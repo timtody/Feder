@@ -125,6 +125,7 @@ final class SpeakerNamingTests: ScribeUITestCase {
         let paste = app.menuItems["Paste"]
         XCTAssertTrue(paste.appears(timeout: 5), "the edit menu offers Paste")
         paste.tap()
+        _ = waitFor { !["", "Add Tag"].contains(tagField.value as? String ?? "") }   // the paste lands a moment later
         let pasted = tagField.value as? String ?? ""
         XCTAssertFalse(pasted.isEmpty || pasted == "Add Tag", "something was copied")
         XCTAssertTrue(paragraph.label.contains(pasted), "Copy copied (part of) the paragraph: \(pasted)")

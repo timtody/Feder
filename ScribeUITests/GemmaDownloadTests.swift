@@ -121,11 +121,8 @@ final class AskTests: ScribeUITestCase {
     func testAskAboutTranscript() throws {
         let app = launch(["-fakeGemma"])
         open("Project Kickoff", in: app)
-        app.buttons["More"].tap()
-        let item = app.buttons["AskAboutTranscript"]
-        XCTAssertTrue(item.appears(timeout: 5), "in More")
-        item.tap()
-        XCTAssertTrue(app.navigationBars["Ask Gemma"].appears(timeout: 5), "the Ask card")
+        tapMenuItem("Ask About Transcript", in: app)
+        XCTAssertTrue(app.navigationBars["Ask Gemma"].appears(timeout: 10), "the Ask card")
         XCTAssertTrue(app.staticTexts["Project Kickoff"].exists, "about Project Kickoff")
         XCTAssertTrue(app.staticTexts["Ask About This Transcript"].exists, "the empty chat says so")
         shot("Ask about a transcript", app)
@@ -150,8 +147,7 @@ final class AskTests: ScribeUITestCase {
         app.buttons["CloseAsk"].tap()
         XCTAssertTrue(app.navigationBars["Ask Gemma"].disappears(timeout: 5))
         open("Project Kickoff", in: app)
-        app.buttons["More"].tap()
-        app.buttons["AskAboutTranscript"].tap()
+        tapMenuItem("Ask About Transcript", in: app)
         XCTAssertTrue(app.staticTexts["Who owns what?"].appears(timeout: 5), "the transcript's chat is kept")
     }
 
