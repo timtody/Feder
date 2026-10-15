@@ -27,8 +27,8 @@ build/qa/build.sh          # build gate: Debug, generic iOS Simulator; prints ap
 ```
 
 - **UI tests (XCUITest, `ScribeUITests/`).** Test on **iOS 27 only** unless the user asks for 26.5. Use the iOS 27 test simulator `3DAF994D-A851-4F3E-9AF3-4755207A00D1` with derived data `build/DerivedDataUITests`. It has a hardware keyboard connected, so the software keyboard sits off-screen.
-- **Skip the slow hit-area test (~7 min) in intermediate runs:** `-skip-testing:ScribeUITests/SpeakerNamingTests/testNameRowHitArea`. Run the full suite only for the final check.
-- **`build/qa/uitests.sh` runs iOS 27 and 26.5 sequentially (~25 min).** Use it only when both runtimes are wanted.
+- **Skip the slow hit-area test (~3 min) in intermediate runs:** `-skip-testing:ScribeUITests/NameRowHitAreaTests`. Run the full suite only for the final check.
+- **`build/qa/uitests.sh` runs the full suite: builds once, then each runtime in 4 parallel simulator clones, no diagnostics after a failure.** `uitests.sh 27` for iOS 27 only (the usual final check); without an argument also 26.5, only when both runtimes are wanted. In focused runs pass `-collect-test-diagnostics never` too: a failure otherwise holds xcodebuild 10 minutes.
 - **Visual checks:** use the iPhone 17 iOS 27 simulator `69C35674-CE05-437A-B1F2-C37D41BE149B` (derived data `build/DerivedDataSwipe`). It matches the user's device and has many transcripts, so lists scroll and the tab bar minimizes.
 - **One `xcodebuild` per simulator at a time.** Parallel runs on the same simulator interrupt each other.
 - **Run long `xcodebuild test` runs in the background and poll the log.** A foreground command dies after 10 minutes. xcodebuild sometimes lingers after the last test has finished; kill it once the log shows the final suite line.

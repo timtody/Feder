@@ -10,11 +10,7 @@ import XCTest
 /// launch only (the argument domain), `-fakeCalendarAccess` answers the permission without the system alert.
 /// Recordings are made with `-resetVoiceRecognition`, so naming a speaker of the fake recording stores no voice that
 /// later tests' fake speakers would be recognized as.
-final class CalendarTests: ScribeUITestCase {
-    /// The event's attendees as EventKit could give them: two people (one "Last, First"), an address, the user, a room,
-    /// someone who declined, someone copied in without taking part, and a known person with Exchange's company suffix.
-    static let attendees = "Maria Lopez|Berger, Tom|tom@example.com|*Julius Taylor|#Room 4.12|-Paul Declined|~Carla Copied|Schmidt, Anna (Cofinpro)"
-
+final class CalendarTests: CalendarTestCase {
     /// Transcribe during "Design Review": the card keeps "New Transcript N" and offers the event under its date line;
     /// so does the saved transcript, also once the fake Gemma has titled it "Live Transcript Test". Use as Title names it
     /// "Design Review", and the row goes (FED-135: nothing more to take, renamed like any other name). The rename sheet offers the invitees (cleaned up, without the address, the user, the room and the one
@@ -26,7 +22,7 @@ final class CalendarTests: ScribeUITestCase {
                           "-fakeGemma", "-resetVoiceRecognition"])
         startRecording(app)
         let row = calendarRow(app)
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "the event is offered while recording")
+        XCTAssertTrue(row.appears(timeout: 5), "the event is offered while recording")
         XCTAssertEqual(row.label, "Calendar event “Design Review”")
         XCTAssertTrue(app.buttons["UseCalendarTitle"].exists && app.buttons["DismissCalendarTitle"].exists)
         XCTAssertTrue(hasDefaultTitle(app), "the card keeps New Transcript N")
@@ -36,12 +32,12 @@ final class CalendarTests: ScribeUITestCase {
         app.buttons["Stop"].firstMatch.tap()
 
         let field = app.textFields["Title"]
-        XCTAssertTrue(field.waitForExistence(timeout: 15), "the transcript in the card")
+        XCTAssertTrue(field.appears(timeout: 15), "the transcript in the card")
         XCTAssertTrue((field.value as? String)?.hasPrefix("New Transcript ") == true, "saved with the app's own name")
         XCTAssertTrue(waitFor { row.exists && row.label == "Calendar event “Design Review”" }, "offered in the transcript")
         shot("Saved: the event offered", app)
         // The summary comes after the speakers are final and the vocabulary pass, with Gemma's title.
-        XCTAssertTrue(app.buttons["Summary"].waitForExistence(timeout: 40), "the summary is written")
+        XCTAssertTrue(app.buttons["Summary"].appears(timeout: 40), "the summary is written")
         XCTAssertTrue(waitFor { (field.value as? String) == "Live Transcript Test" }, "Gemma titles it")
         XCTAssertEqual(row.label, "Calendar event “Design Review”", "still offered next to Gemma's title")
         XCTAssertLessThan(field.frame.maxY, row.frame.minY, "under the title")
@@ -49,16 +45,16 @@ final class CalendarTests: ScribeUITestCase {
         shot("Gemma's title, the event offered", app)
         app.buttons["UseCalendarTitle"].tap()
         XCTAssertTrue(waitFor { (field.value as? String) == "Design Review" }, "Use as Title names it after the event")
-        XCTAssertTrue(row.waitForNonExistence(timeout: 5), "the row goes")
+        XCTAssertTrue(row.disappears(timeout: 5), "the row goes")
         XCTAssertFalse(app.buttons["DismissCalendarTitle"].exists, "no ⊗ either")
         shot("Named after the event", app)
 
         app.buttons["SpeakerHeader.0"].tap()
-        XCTAssertTrue(nameField(app).waitForExistence(timeout: 5), "the rename sheet")
+        XCTAssertTrue(nameField(app).appears(timeout: 5), "the rename sheet")
         dismissKeyboardTip(app)
         let maria = app.buttons["PersonChoice.Maria Lopez"], tom = app.buttons["PersonChoice.Tom Berger"]
         let anna = app.buttons["PersonChoice.Anna Schmidt"]
-        XCTAssertTrue(maria.waitForExistence(timeout: 3) && tom.exists, "the invitees, \"Berger, Tom\" as Tom Berger")
+        XCTAssertTrue(maria.appears(timeout: 3) && tom.exists, "the invitees, \"Berger, Tom\" as Tom Berger")
         XCTAssertTrue(app.staticTexts["Invitees"].exists, "in their own section")
         XCTAssertTrue(app.staticTexts["From the calendar event “Design Review”."].exists, "the footer names the event")
         XCTAssertTrue(maria.label.contains("Invited"), maria.label)
@@ -77,15 +73,15 @@ final class CalendarTests: ScribeUITestCase {
         shot("Invitees", app)
 
         maria.tap()
-        XCTAssertTrue(nameField(app).waitForNonExistence(timeout: 5))
+        XCTAssertTrue(nameField(app).disappears(timeout: 5))
         XCTAssertEqual(app.buttons["SpeakerHeader.0"].label, "Maria Lopez", "named like a typed name")
         app.buttons["SpeakerHeader.1"].tap()
-        XCTAssertTrue(nameField(app).waitForExistence(timeout: 5))
-        XCTAssertTrue(maria.waitForExistence(timeout: 3))
+        XCTAssertTrue(nameField(app).appears(timeout: 5))
+        XCTAssertTrue(maria.appears(timeout: 3))
         XCTAssertTrue(maria.label.contains("Already in this transcript"), maria.label)
         shot("Invitee already in this transcript", app)
         app.buttons["CancelRename"].tap()
-        XCTAssertTrue(nameField(app).waitForNonExistence(timeout: 5))
+        XCTAssertTrue(nameField(app).disappears(timeout: 5))
         deleteOpenTranscript(app)                           // Maria goes with it
     }
 
@@ -98,26 +94,26 @@ final class CalendarTests: ScribeUITestCase {
                           "-resetVoiceRecognition"])
         startRecording(app)
         let row = calendarRow(app)
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "the event is offered")
+        XCTAssertTrue(row.appears(timeout: 5), "the event is offered")
         app.buttons["UseCalendarTitle"].tap()
         XCTAssertTrue(waitFor(timeout: 2) { self.recordingTitle(app).label == "Design Review" },
                       "the card is named after the event at once")
-        XCTAssertTrue(row.waitForNonExistence(timeout: 3), "the row goes")
+        XCTAssertTrue(row.disappears(timeout: 3), "the row goes")
         XCTAssertFalse(app.buttons["DismissCalendarTitle"].exists, "no ⊗ either")
         shot("Recording named after the event", app)
         sleep(5)
         app.buttons["Stop"].firstMatch.tap()
 
         let field = app.textFields["Title"]
-        XCTAssertTrue(field.waitForExistence(timeout: 15), "the transcript in the card")
+        XCTAssertTrue(field.appears(timeout: 15), "the transcript in the card")
         XCTAssertEqual(field.value as? String, "Design Review", "saved with the event's name")
         XCTAssertFalse(row.exists, "no row in the transcript")
-        XCTAssertTrue(app.buttons["Summary"].waitForExistence(timeout: 40), "the summary is written")
+        XCTAssertTrue(app.buttons["Summary"].appears(timeout: 40), "the summary is written")
         XCTAssertEqual(field.value as? String, "Design Review", "Gemma keeps the name taken from the calendar")
         shot("Gemma kept the event's name", app)
         closeCard(app)
         open("Design Review", in: app)
-        XCTAssertFalse(row.waitForExistence(timeout: 2), "for good")
+        XCTAssertFalse(row.appears(timeout: 2), "for good")
         deleteOpenTranscript(app)
     }
 
@@ -130,32 +126,32 @@ final class CalendarTests: ScribeUITestCase {
                           "-resetVoiceRecognition"])
         startRecording(app)
         let row = calendarRow(app)
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "the event is offered")
+        XCTAssertTrue(row.appears(timeout: 5), "the event is offered")
         let before = recordingTitle(app).label
         XCTAssertTrue(before.hasPrefix("New Transcript "), before)
         app.buttons["DismissCalendarTitle"].tap()
-        XCTAssertTrue(row.waitForNonExistence(timeout: 3), "⊗ hides the offer")
+        XCTAssertTrue(row.disappears(timeout: 3), "⊗ hides the offer")
         XCTAssertEqual(recordingTitle(app).label, before, "the name stays")
         shot("Dismissed before taking, while recording", app)
         sleep(5)
         app.buttons["Stop"].firstMatch.tap()
 
         let field = app.textFields["Title"]
-        XCTAssertTrue(field.waitForExistence(timeout: 15), "the transcript in the card")
+        XCTAssertTrue(field.appears(timeout: 15), "the transcript in the card")
         XCTAssertEqual(field.value as? String, before, "saved with the app's own name")
-        XCTAssertFalse(row.waitForExistence(timeout: 2), "not offered in the transcript")
-        XCTAssertTrue(app.buttons["Summary"].waitForExistence(timeout: 40), "the summary is written")
+        XCTAssertFalse(row.appears(timeout: 2), "not offered in the transcript")
+        XCTAssertTrue(app.buttons["Summary"].appears(timeout: 40), "the summary is written")
         XCTAssertTrue(waitFor { (field.value as? String) == "Live Transcript Test" }, "Gemma titles it")
         XCTAssertFalse(row.exists, "still not offered next to Gemma's title")
         app.buttons["SpeakerHeader.0"].tap()
-        XCTAssertTrue(nameField(app).waitForExistence(timeout: 5), "the rename sheet")
+        XCTAssertTrue(nameField(app).appears(timeout: 5), "the rename sheet")
         dismissKeyboardTip(app)
-        XCTAssertTrue(app.buttons["PersonChoice.Maria Lopez"].waitForExistence(timeout: 3), "the event was saved")
+        XCTAssertTrue(app.buttons["PersonChoice.Maria Lopez"].appears(timeout: 3), "the event was saved")
         app.buttons["CancelRename"].tap()
-        XCTAssertTrue(nameField(app).waitForNonExistence(timeout: 5))
+        XCTAssertTrue(nameField(app).disappears(timeout: 5))
         closeCard(app)
         open("Live Transcript Test", in: app)
-        XCTAssertFalse(row.waitForExistence(timeout: 2), "for good")
+        XCTAssertFalse(row.appears(timeout: 2), "for good")
         shot("Saved after ⊗ before taking: no row", app)
         deleteOpenTranscript(app)
     }
@@ -168,44 +164,44 @@ final class CalendarTests: ScribeUITestCase {
         var app = launch(["-seedInvitees", "Maria Lopez|Jonas Weber"])
         open("Project Kickoff", in: app)
         var field = app.textFields["Title"], row = calendarRow(app)
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "the event is offered")
+        XCTAssertTrue(row.appears(timeout: 5), "the event is offered")
         XCTAssertEqual(row.label, "Calendar event “Kickoff Meeting”")
         XCTAssertLessThan(field.frame.maxY, row.frame.minY, "under the title")
         XCTAssertLessThan(row.frame.maxY, app.staticTexts["AINotice"].frame.minY, "above the AI notice")
         shot("Seeded offer", app)
         app.buttons["UseCalendarTitle"].tap()
         XCTAssertTrue(waitFor { (field.value as? String) == "Kickoff Meeting" }, "named after the event")
-        XCTAssertTrue(row.waitForNonExistence(timeout: 5), "the row goes")
+        XCTAssertTrue(row.disappears(timeout: 5), "the row goes")
         closeCard(app)
-        XCTAssertTrue(app.staticTexts["Kickoff Meeting"].waitForExistence(timeout: 5), "the list says so too")
+        XCTAssertTrue(app.staticTexts["Kickoff Meeting"].appears(timeout: 5), "the list says so too")
         open("Kickoff Meeting", in: app)
-        XCTAssertFalse(row.waitForExistence(timeout: 2), "the row stays gone")
+        XCTAssertFalse(row.appears(timeout: 2), "the row stays gone")
 
         app = launch(["-seedInvitees", "Maria Lopez|Jonas Weber"])
         (field, row) = (app.textFields["Title"], calendarRow(app))
         open("Project Kickoff", in: app)
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         app.buttons["DismissCalendarTitle"].tap()
-        XCTAssertTrue(row.waitForNonExistence(timeout: 5), "⊗ hides the offer")
+        XCTAssertTrue(row.disappears(timeout: 5), "⊗ hides the offer")
         XCTAssertEqual(field.value as? String, "Project Kickoff", "the name stays")
         closeCard(app)
         open("Project Kickoff", in: app)
-        XCTAssertFalse(row.waitForExistence(timeout: 2), "for good")
+        XCTAssertFalse(row.appears(timeout: 2), "for good")
 
         app = launch(["-seedInvitees", "Maria Lopez|Jonas Weber"])
         (field, row) = (app.textFields["Title"], calendarRow(app))
         open("Project Kickoff", in: app)
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         field.tap()
         field.typeText(" Notes")
-        XCTAssertTrue(row.waitForNonExistence(timeout: 5), "a typed title takes the offer away")
+        XCTAssertTrue(row.disappears(timeout: 5), "a typed title takes the offer away")
         shot("Typed title: no offer", app)
 
         app = launch(["-seedInvitees", "Maria Lopez|Jonas Weber", "-AppleLanguages", "(de)"])
         row = calendarRow(app)
         app.staticTexts["Project Kickoff"].firstMatch.tap()
         let use = app.buttons["UseCalendarTitle"], dismiss = app.buttons["DismissCalendarTitle"]
-        XCTAssertTrue(use.waitForExistence(timeout: 10), "the German transcript offers it")
+        XCTAssertTrue(use.appears(timeout: 10), "the German transcript offers it")
         XCTAssertEqual(use.label, "Als Titel verwenden")
         XCTAssertEqual(row.label, "Kalenderereignis „Kickoff Meeting“")
         XCTAssertEqual(dismiss.label, "Ignorieren")
@@ -226,18 +222,18 @@ final class CalendarTests: ScribeUITestCase {
         let app = launch(["-calendarContext", "YES", "-fakeCalendarEvent", "Standup", "-fakeCalendarDelay", "25",
                           "-fakeSilence"])
         app.open(URL(string: "feder://record")!)
-        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 10), "the card is up")
-        XCTAssertTrue(app.staticTexts["Listening…"].waitForExistence(timeout: 15), "recording, not waiting for the read")
+        XCTAssertTrue(app.buttons["Minimize"].appears(timeout: 10), "the card is up")
+        XCTAssertTrue(app.staticTexts["Listening…"].appears(timeout: 15), "recording, not waiting for the read")
         let row = calendarRow(app)
         XCTAssertFalse(row.exists, "pressed during the read: nothing offered yet")
         XCTAssertTrue(hasDefaultTitle(app), "New Transcript N")
         shot("Recording before the read", app)
-        XCTAssertTrue(row.waitForExistence(timeout: 40), "offered once the read has it")
+        XCTAssertTrue(row.appears(timeout: 40), "offered once the read has it")
         XCTAssertEqual(row.label, "Calendar event “Standup”")
         XCTAssertTrue(hasDefaultTitle(app), "the name stays New Transcript N")
         shot("Recording, the event offered after the read", app)
         app.buttons["Stop"].firstMatch.tap()                // -fakeSilence: nothing saved, the card closes
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10), "the card closes")
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 10), "the card closes")
     }
 
     /// On, with access but no event now: the transcript keeps "New Transcript N", and nothing is offered.
@@ -248,7 +244,7 @@ final class CalendarTests: ScribeUITestCase {
         XCTAssertTrue(waitFor { self.hasDefaultTitle(app) }, "no event: New Transcript N")
         XCTAssertFalse(calendarRow(app).exists, "nothing offered")
         app.buttons["Stop"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10), "nothing saved, the card closes")
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 10), "nothing saved, the card closes")
     }
 
     /// Project Kickoff as if started during "Kickoff Meeting" with Maria Lopez and Jonas Weber invited
@@ -260,11 +256,11 @@ final class CalendarTests: ScribeUITestCase {
         let app = launch(["-seedInvitees", "Maria Lopez|Jonas Weber"])
         open("Project Kickoff", in: app)
         app.buttons["SpeakerHeader.0"].tap()
-        XCTAssertTrue(nameField(app).waitForExistence(timeout: 5))
+        XCTAssertTrue(nameField(app).appears(timeout: 5))
         dismissKeyboardTip(app)
         let maria = app.buttons["PersonChoice.Maria Lopez"], jonas = app.buttons["PersonChoice.Jonas Weber"]
         let anna = app.buttons["PersonChoice.Anna Schmidt"]
-        XCTAssertTrue(jonas.waitForExistence(timeout: 3), "the invitees")
+        XCTAssertTrue(jonas.appears(timeout: 3), "the invitees")
         XCTAssertEqual(app.buttons.matching(identifier: "PersonChoice.Jonas Weber").count, 1, "Jonas once")
         let header = app.staticTexts["Invitees"]
         XCTAssertTrue(header.exists)
@@ -282,7 +278,7 @@ final class CalendarTests: ScribeUITestCase {
             header.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
                 .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)))
         }
-        XCTAssertTrue(maria.waitForExistence(timeout: 3), "Maria, the other invitee")
+        XCTAssertTrue(maria.appears(timeout: 3), "Maria, the other invitee")
         XCTAssertTrue(maria.label.contains("Invited"), maria.label)
         XCTAssertLessThan(jonas.frame.minY, maria.frame.minY, "by name")
         XCTAssertLessThan(header.frame.minY, jonas.frame.minY)
@@ -290,9 +286,9 @@ final class CalendarTests: ScribeUITestCase {
         shot("Seeded invitees, sheet pulled up", app)
 
         nameField(app).typeText("Ma")
-        XCTAssertTrue(maria.waitForExistence(timeout: 3))
-        XCTAssertTrue(jonas.waitForNonExistence(timeout: 3), "typing filters the invitees")
-        XCTAssertTrue(anna.waitForNonExistence(timeout: 3), "and the suggestions")
+        XCTAssertTrue(maria.appears(timeout: 3))
+        XCTAssertTrue(jonas.disappears(timeout: 3), "typing filters the invitees")
+        XCTAssertTrue(anna.disappears(timeout: 3), "and the suggestions")
         shot("Invitees filtered", app)
         app.buttons["CancelRename"].tap()
     }
@@ -311,8 +307,9 @@ final class CalendarTests: ScribeUITestCase {
             ("Workshop@-60+420;Standup@+4+15", "Standup", ["Workshop"]),
             ("Workshop@-60+420;Too Early@+6+30;Offsite@-1+600!allday;Cancelled@-1+30!canceled;Declined@-1+30!declined",
              "Workshop", ["Too Early", "Offsite", "Cancelled", "Declined"]),
-            ("Therapy@-1+60!shared", nil, ["Therapy"]),
-            ("Client Call@-1+60!cal=Outlook", nil, ["Client Call"]),
+            // Neither counts while it isn't the Preferred Calendar: someone else's in a shared calendar, a subscribed one
+            // (one launch for both: either one offered fails it).
+            ("Therapy@-1+60!shared;Client Call@-1+60!cal=Outlook", nil, ["Therapy", "Client Call"]),
             ("Therapy@-1+60!shared;Board Meeting@-2+60!others|Anna Schmidt|Tom Berger;Team Sync@-3+30!shared|*Julius Taylor|Maria Lopez",
              "Team Sync", ["Therapy", "Board Meeting"]),
         ]
@@ -324,11 +321,11 @@ final class CalendarTests: ScribeUITestCase {
             if index == 0 {
                 let title = recordingTitle(app).label
                 app.buttons["DismissCalendarTitle"].tap()
-                XCTAssertTrue(calendarRow(app).waitForNonExistence(timeout: 3), "⊗ hides the offer")
+                XCTAssertTrue(calendarRow(app).disappears(timeout: 3), "⊗ hides the offer")
                 XCTAssertEqual(recordingTitle(app).label, title, "the name stays")
             }
             app.buttons["Stop"].firstMatch.tap()            // -fakeSilence: nothing saved, the card closes
-            XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10), "the card closes")
+            XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 10), "the card closes")
         }
     }
 
@@ -347,19 +344,24 @@ final class CalendarTests: ScribeUITestCase {
         XCTAssertTrue(waitFor(timeout: 15) { [.runningBackground, .runningBackgroundSuspended].contains(app.state) },
                       "in the background")
         XCUIDevice.shared.system.open(URL(string: "feder://record")!)
-        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 10), "the card is up")
+        XCTAssertTrue(app.buttons["Minimize"].appears(timeout: 10), "the card is up")
         let row = calendarRow(app)
         XCTAssertTrue(row.exists && row.label == "Calendar event “Weekly Sync”",
                       "the press picked from the cache read before the change")
         shot("Picked from the old read", app)
-        XCTAssertTrue(row.waitForNonExistence(timeout: 15), "gone once the new read has ended")
+        XCTAssertTrue(row.disappears(timeout: 15), "gone once the new read has ended")
         XCTAssertTrue(app.staticTexts["Listening…"].exists, "recording meanwhile")
         XCTAssertTrue(hasDefaultTitle(app), "New Transcript N")
         shot("Recording, the moved meeting gone", app)
         app.buttons["Stop"].firstMatch.tap()                // -fakeSilence: nothing saved, the card closes
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10), "the card closes")
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 10), "the card closes")
     }
+}
 
+/// Name from Calendar's switch and Settings: turned off while recording, turned on (also from the iPhone's Settings),
+/// the Preferred Calendar and a subscribed one. Apart from CalendarTests so a parallel run gives each half a worker
+/// (the class was the longest, 14 minutes of 18).
+final class CalendarSettingsTests: CalendarTestCase {
     /// Name from Calendar turned off while recording (the card minimized, Settings, back): the card's row is gone, and
     /// the transcript keeps the name it showed (the event's, taken with Use as Title), but no event is saved with it,
     /// as Save Location keeps no place then: no row in the transcript, and its rename sheet has no Invitees.
@@ -369,7 +371,7 @@ final class CalendarTests: ScribeUITestCase {
         let app = launch(["-calendarOn", "-fakeCalendarEvent", "Design Review|Maria Lopez|Berger, Tom",
                           "-fakeGemma", "-resetVoiceRecognition"])
         startRecording(app)
-        XCTAssertTrue(calendarRow(app).waitForExistence(timeout: 5), "the event is offered")
+        XCTAssertTrue(calendarRow(app).appears(timeout: 5), "the event is offered")
         app.buttons["UseCalendarTitle"].tap()
         XCTAssertTrue(waitFor(timeout: 3) { self.recordingTitle(app).label == "Design Review" },
                       "the card is named after the event")
@@ -380,19 +382,19 @@ final class CalendarTests: ScribeUITestCase {
         app.buttons["Stop"].firstMatch.tap()
 
         let field = app.textFields["Title"]
-        XCTAssertTrue(field.waitForExistence(timeout: 15), "the transcript in the card")
+        XCTAssertTrue(field.appears(timeout: 15), "the transcript in the card")
         XCTAssertEqual(field.value as? String, "Design Review", "the name stays as shown")
-        XCTAssertFalse(calendarRow(app).waitForExistence(timeout: 2), "no event saved: no row")
+        XCTAssertFalse(calendarRow(app).appears(timeout: 2), "no event saved: no row")
         // Names can be changed once the speakers are final; the summary comes after that.
-        XCTAssertTrue(app.buttons["Summary"].waitForExistence(timeout: 40), "the speakers are final")
+        XCTAssertTrue(app.buttons["Summary"].appears(timeout: 40), "the speakers are final")
         app.buttons["SpeakerHeader.0"].tap()
-        XCTAssertTrue(nameField(app).waitForExistence(timeout: 5), "the rename sheet")
+        XCTAssertTrue(nameField(app).appears(timeout: 5), "the rename sheet")
         dismissKeyboardTip(app)
         XCTAssertFalse(app.staticTexts["Invitees"].exists, "no invitees saved")
         XCTAssertFalse(app.buttons["PersonChoice.Maria Lopez"].exists)
         shot("No invitees after turning it off", app)
         app.buttons["CancelRename"].tap()
-        XCTAssertTrue(nameField(app).waitForNonExistence(timeout: 5))
+        XCTAssertTrue(nameField(app).disappears(timeout: 5))
         deleteOpenTranscript(app)
     }
 
@@ -405,19 +407,19 @@ final class CalendarTests: ScribeUITestCase {
         let app = launch(["-calendarOn", "-fakeCalendarEvent", "Design Review", "-fakeSilence"])
         startRecording(app)
         let row = calendarRow(app)
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "the event is offered")
+        XCTAssertTrue(row.appears(timeout: 5), "the event is offered")
         setCalendarSwitch(false, whileRecording: app)
-        XCTAssertFalse(row.waitForExistence(timeout: 2), "the row went with the switch")
+        XCTAssertFalse(row.appears(timeout: 2), "the row went with the switch")
         XCTAssertFalse(app.buttons["UseCalendarTitle"].exists, "nothing to take")
         XCTAssertTrue(hasDefaultTitle(app), "New Transcript N")
         shot("Recording after Name from Calendar was turned off", app)
         setCalendarSwitch(true, whileRecording: app)
-        XCTAssertTrue(row.waitForExistence(timeout: 10), "on again: offered again")
+        XCTAssertTrue(row.appears(timeout: 10), "on again: offered again")
         XCTAssertEqual(row.label, "Calendar event “Design Review”")
         setCalendarSwitch(false, whileRecording: app)
-        XCTAssertFalse(row.waitForExistence(timeout: 2), "off for the next tests")
+        XCTAssertFalse(row.appears(timeout: 2), "off for the next tests")
         app.buttons["Stop"].firstMatch.tap()                // -fakeSilence: nothing saved, the card closes
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10), "the card closes")
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 10), "the card closes")
     }
 
     /// Settings' switch asks for access (answered by `-fakeCalendarAccess granted`, no system alert) and turns on;
@@ -427,7 +429,7 @@ final class CalendarTests: ScribeUITestCase {
         let app = launch(["-resetCalendar", "-fakeCalendarAccess", "granted"])
         app.buttons["Settings"].firstMatch.tap()
         let toggle = app.switches["Name from Calendar"].firstMatch
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertTrue(toggle.appears(timeout: 5))
         XCTAssertEqual(toggle.value as? String, "0", "off")
         toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
         XCTAssertTrue(waitFor { (toggle.value as? String) == "1" }, "on once access is given")
@@ -444,15 +446,15 @@ final class CalendarTests: ScribeUITestCase {
         let app = launch(["-resetCalendar", "-fakeCalendarAccess", "deniedFirst"])
         app.buttons["Settings"].firstMatch.tap()
         let toggle = app.switches["Name from Calendar"].firstMatch
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertTrue(toggle.appears(timeout: 5))
         toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
         let alert = app.alerts["Allow Calendar Access"]
-        XCTAssertTrue(alert.waitForExistence(timeout: 5), "it offers the iPhone's Settings")
+        XCTAssertTrue(alert.appears(timeout: 5), "it offers the iPhone's Settings")
         alert.buttons["Open Settings"].tap()
         let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
         XCTAssertTrue(settings.wait(for: .runningForeground, timeout: 15), "the Settings app")
         app.activate()
-        XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        XCTAssertTrue(toggle.appears(timeout: 10))
         XCTAssertTrue(waitFor(timeout: 10) { (toggle.value as? String) == "1" }, "on when back with access given")
         shot("Back from Settings: on", app)
         toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
@@ -471,13 +473,13 @@ final class CalendarTests: ScribeUITestCase {
         app.buttons["Settings"].firstMatch.tap()
         let toggle = app.switches["Name from Calendar"].firstMatch
         let row = preferredRow(app)
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "below the switch while it is on")
+        XCTAssertTrue(row.appears(timeout: 5), "below the switch while it is on")
         XCTAssertTrue(shown(row).contains("None"), "None by default: \(shown(row))")
         XCTAssertLessThanOrEqual(toggle.frame.maxY, row.frame.minY + 1, "below Name from Calendar")
         XCTAssertLessThanOrEqual(row.frame.maxY, app.switches["Save Location"].firstMatch.frame.minY + 1, "above Save Location")
         row.tap()
 
-        XCTAssertTrue(app.navigationBars["Preferred Calendar"].waitForExistence(timeout: 5), "its own page")
+        XCTAssertTrue(app.navigationBars["Preferred Calendar"].appears(timeout: 5), "its own page")
         let none = app.buttons["None"].firstMatch, calendar = app.buttons["Calendar"].firstMatch
         let home = app.buttons["Home"].firstMatch, work = app.buttons["Work"].firstMatch
         XCTAssertTrue(none.exists && calendar.exists && home.exists && work.exists, "None and the three calendars")
@@ -490,9 +492,8 @@ final class CalendarTests: ScribeUITestCase {
                           "\(account)'s section")
         }
         shot("Preferred Calendar", app)
-        note("Preferred Calendar tree", app.debugDescription)
         work.tap()
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "back in Settings")
+        XCTAssertTrue(row.appears(timeout: 5), "back in Settings")
         XCTAssertTrue(waitFor { self.shown(row).contains("Work") }, "Work chosen: \(shown(row))")
         shot("Preferred Calendar: Work", app)
 
@@ -500,15 +501,15 @@ final class CalendarTests: ScribeUITestCase {
         assertOffers("Planning", not: ["Standup"], app, "the event in the preferred calendar, not the closer one in Home")
         shot("The preferred calendar's event offered", app)
         app.buttons["Stop"].firstMatch.tap()                // -fakeSilence: nothing saved, the card closes
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10), "the card closes")
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 10), "the card closes")
 
         app.buttons["Settings"].firstMatch.tap()
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         row.tap()
-        XCTAssertTrue(none.waitForExistence(timeout: 5))
+        XCTAssertTrue(none.appears(timeout: 5))
         XCTAssertTrue(work.isSelected, "Work checked")
         none.tap()
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         XCTAssertTrue(waitFor { self.shown(row).contains("None") }, "None again: \(shown(row))")
     }
 
@@ -527,17 +528,17 @@ final class CalendarTests: ScribeUITestCase {
 
         app.buttons["Settings"].firstMatch.tap()
         let row = preferredRow(app)
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         row.tap()
-        XCTAssertTrue(app.navigationBars["Preferred Calendar"].waitForExistence(timeout: 5), "its own page")
+        XCTAssertTrue(app.navigationBars["Preferred Calendar"].appears(timeout: 5), "its own page")
         let work = app.buttons["Work"].firstMatch, outlook = app.buttons["Outlook"].firstMatch
         let section = app.staticTexts.matching(NSPredicate(format: "label ==[c] %@", "Subscribed Calendars")).firstMatch
-        XCTAssertTrue(outlook.waitForExistence(timeout: 5) && section.exists, "Outlook under Subscribed Calendars")
+        XCTAssertTrue(outlook.appears(timeout: 5) && section.exists, "Outlook under Subscribed Calendars")
         XCTAssertLessThan(work.frame.maxY, section.frame.minY, "after the accounts")
         XCTAssertLessThan(section.frame.maxY, outlook.frame.minY)
         shot("Preferred Calendar with a subscription", app)
         outlook.tap()
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "back in Settings")
+        XCTAssertTrue(row.appears(timeout: 5), "back in Settings")
         XCTAssertTrue(waitFor { self.shown(row).contains("Outlook") }, "Outlook chosen: \(shown(row))")
         shot("Preferred Calendar: Outlook", app)
         record(named: "Client Call", not: ["Planning", "Therapy"], app)
@@ -553,20 +554,20 @@ final class CalendarTests: ScribeUITestCase {
         startRecording(app)
         assertOffers(name, not: others, app, name)
         app.buttons["Stop"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10), "the card closes")
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 10), "the card closes")
     }
 
     /// Settings › Preferred Calendar › `calendar`, back in Settings with it shown.
     @MainActor
     private func choose(_ calendar: String, _ row: XCUIElement, _ app: XCUIApplication) {
         app.buttons["Settings"].firstMatch.tap()
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         row.tap()
-        XCTAssertTrue(app.navigationBars["Preferred Calendar"].waitForExistence(timeout: 5), "its own page")
+        XCTAssertTrue(app.navigationBars["Preferred Calendar"].appears(timeout: 5), "its own page")
         let option = app.buttons[calendar].firstMatch
-        XCTAssertTrue(option.waitForExistence(timeout: 5), calendar)
+        XCTAssertTrue(option.appears(timeout: 5), calendar)
         option.tap()
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "back in Settings")
+        XCTAssertTrue(row.appears(timeout: 5), "back in Settings")
         XCTAssertTrue(waitFor { self.shown(row).contains(calendar) }, "\(calendar) chosen: \(shown(row))")
     }
 
@@ -582,43 +583,50 @@ final class CalendarTests: ScribeUITestCase {
             startRecording(app)
             assertOffers(name, not: [], app, "\(preferred)")
             app.buttons["Stop"].firstMatch.tap()
-            XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10), "the card closes")
+            XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 10), "the card closes")
             app.buttons["Settings"].firstMatch.tap()
             let row = preferredRow(app)
-            XCTAssertTrue(row.waitForExistence(timeout: 5))
+            XCTAssertTrue(row.appears(timeout: 5))
             XCTAssertTrue(shown(row).contains(preferred == "Gone" ? "None" : "Work"), "\(preferred): \(shown(row))")
             shot("Preferred \(preferred) after a resync", app)
         }
     }
+}
+
+/// What both calendar classes share: the fake event's attendees, the row, the recording card's title, the switch.
+class CalendarTestCase: ScribeUITestCase {
+    /// The event's attendees as EventKit could give them: two people (one "Last, First"), an address, the user, a room,
+    /// someone who declined, someone copied in without taking part, and a known person with Exchange's company suffix.
+    static let attendees = "Maria Lopez|Berger, Tom|tom@example.com|*Julius Taylor|#Room 4.12|-Paul Declined|~Carla Copied|Schmidt, Anna (Cofinpro)"
 
     /// The calendar row's event (CalendarTitleRow), under the date line of the recording card or
     /// the transcript.
-    private func calendarRow(_ app: XCUIApplication) -> XCUIElement {
+    func calendarRow(_ app: XCUIApplication) -> XCUIElement {
         app.descendants(matching: .any)["CalendarTitle"].firstMatch
     }
 
     /// The recording card's title (not a list row under the card: test runs that failed left transcripts behind).
-    private func recordingTitle(_ app: XCUIApplication) -> XCUIElement {
+    func recordingTitle(_ app: XCUIApplication) -> XCUIElement {
         app.staticTexts["RecordingTitle"].firstMatch
     }
 
     /// The recording card's title is the app's own ("New Transcript N").
     @MainActor
-    private func hasDefaultTitle(_ app: XCUIApplication) -> Bool {
+    func hasDefaultTitle(_ app: XCUIApplication) -> Bool {
         let title = recordingTitle(app)
         return title.exists && title.label.hasPrefix("New Transcript ") && title.isHittable
     }
 
     /// The recording card offers `name` (nil: nothing) under its date line, none of `others`, and keeps its own name.
     @MainActor
-    private func assertOffers(_ name: String?, not others: [String], _ app: XCUIApplication, _ message: String,
+    func assertOffers(_ name: String?, not others: [String], _ app: XCUIApplication, _ message: String,
                               file: StaticString = #filePath, line: UInt = #line) {
         let row = calendarRow(app)
         if let name {
-            XCTAssertTrue(row.waitForExistence(timeout: 10), "\(message): offered", file: file, line: line)
+            XCTAssertTrue(row.appears(timeout: 10), "\(message): offered", file: file, line: line)
             XCTAssertEqual(row.label, "Calendar event “\(name)”", message, file: file, line: line)
         } else {
-            XCTAssertFalse(row.waitForExistence(timeout: 2), "\(message): nothing offered", file: file, line: line)
+            XCTAssertFalse(row.appears(timeout: 2), "\(message): nothing offered", file: file, line: line)
         }
         for other in others {
             XCTAssertFalse(row.exists && row.label.contains(other), "\(message): not \(other)", file: file, line: line)
@@ -629,35 +637,27 @@ final class CalendarTests: ScribeUITestCase {
     /// Minimizes the recording card, turns Settings' Name from Calendar `on` or off, and goes back to the card from the
     /// accessory; it records all along.
     @MainActor
-    private func setCalendarSwitch(_ on: Bool, whileRecording app: XCUIApplication, file: StaticString = #filePath,
+    func setCalendarSwitch(_ on: Bool, whileRecording app: XCUIApplication, file: StaticString = #filePath,
                                    line: UInt = #line) {
         app.buttons["Minimize"].tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "minimized", file: file, line: line)
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5), "minimized", file: file, line: line)
         app.buttons["Settings"].firstMatch.tap()
         let toggle = app.switches["Name from Calendar"].firstMatch
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "Settings", file: file, line: line)
+        XCTAssertTrue(toggle.appears(timeout: 5), "Settings", file: file, line: line)
         XCTAssertEqual(toggle.value as? String, on ? "0" : "1", on ? "was off" : "was on", file: file, line: line)
         toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
         XCTAssertTrue(waitFor { (toggle.value as? String) == (on ? "1" : "0") }, on ? "on" : "off", file: file, line: line)
         app.buttons["Recording"].firstMatch.tap()           // back to the card from the accessory
-        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 5), "the card again", file: file, line: line)
+        XCTAssertTrue(app.buttons["Minimize"].appears(timeout: 5), "the card again", file: file, line: line)
     }
 
     /// Settings' Preferred Calendar row (a navigation-link picker: a button labelled with its name, the choice its value).
-    private func preferredRow(_ app: XCUIApplication) -> XCUIElement {
+    func preferredRow(_ app: XCUIApplication) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Preferred Calendar'")).firstMatch
     }
 
-    private func shown(_ row: XCUIElement) -> String {
+    func shown(_ row: XCUIElement) -> String {
         "\(row.label) \(row.value as? String ?? "")"
     }
 
-    private func waitFor(timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
-        let end = Date().addingTimeInterval(timeout)
-        while Date() < end {
-            if condition() { return true }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-        }
-        return condition()
-    }
 }

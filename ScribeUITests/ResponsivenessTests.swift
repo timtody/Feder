@@ -11,31 +11,31 @@ final class ResponsivenessTests: ScribeUITestCase {
     func testInteractionPathsTrace() throws {
         let app = launch(["-interactionTrace"])
         let record = transcribe(app)
-        XCTAssertTrue(record.waitForExistence(timeout: 5))
+        XCTAssertTrue(record.appears(timeout: 5))
         settle()
         record.tap()
-        XCTAssertTrue(app.buttons["Stop"].firstMatch.waitForExistence(timeout: 10), "the card with the large Stop")
+        XCTAssertTrue(app.buttons["Stop"].firstMatch.appears(timeout: 10), "the card with the large Stop")
         settle(2)                                                            // a few words are transcribed
         app.buttons["Minimize"].tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5))
         settle()
         app.buttons["Recording"].firstMatch.tap()                            // reopen from the accessory
-        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Minimize"].appears(timeout: 5))
         settle()
         app.buttons["Stop"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["Share Transcript"].waitForExistence(timeout: 15), "the transcript's toolbar")
+        XCTAssertTrue(app.buttons["Share Transcript"].appears(timeout: 15), "the transcript's toolbar")
         settle(2)
         closeCard(app)
         settle()
         open("Project Kickoff", in: app)
         settle()
         tapMenuItem("Add Tag", in: app)                                      // the tag field after the pills
-        XCTAssertTrue(app.textFields["Add Tag"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["Add Tag"].appears(timeout: 5))
         settle()
         app.typeText("\n")                                                  // Return in the empty field: done
         settle()
         app.buttons["FindButton"].tap()                                      // Find: the find bar, its field focused
-        XCTAssertTrue(app.textFields["FindField"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["FindField"].appears(timeout: 5))
         settle()
         for character in "the" {                                             // keystrokes, then the hits ("findHits")
             app.typeText(String(character))
@@ -45,13 +45,13 @@ final class ResponsivenessTests: ScribeUITestCase {
         app.buttons["Close Find"].tap()
         settle()
         app.buttons["FindButton"].tap()                                      // again: the session's second find bar
-        XCTAssertTrue(app.textFields["FindField"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["FindField"].appears(timeout: 5))
         settle()
         app.buttons["Close Find"].tap()
         settle()
         app.buttons["SpeakerHeader.0"].press(forDuration: 1.0)
         app.buttons["Go to Person"].tap()                                    // the card shrinks, then her page
-        XCTAssertTrue(app.navigationBars["Anna Schmidt"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Anna Schmidt"].appears(timeout: 10))
         settle(2)                                                            // her quotes are read
         app.navigationBars["Anna Schmidt"].buttons.firstMatch.tap()          // Back to the list
         settle()
@@ -59,7 +59,7 @@ final class ResponsivenessTests: ScribeUITestCase {
             app.buttons[tab].firstMatch.tap()
             settle()
         }
-        XCTAssertTrue(app.textFields["SearchField"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["SearchField"].appears(timeout: 5))
         dismissKeyboardTip(app)
         for character in "budget" {                                          // one keystroke at a time
             app.typeText(String(character))
@@ -78,15 +78,15 @@ final class ResponsivenessTests: ScribeUITestCase {
     @MainActor
     func testRenameTraceWithTip() throws {
         let app = launch(["-interactionTrace", "-showTips", "-resetTips", "-autoRecord", "-autoStopAfter", "4"])
-        XCTAssertTrue(app.buttons["Delete Transcript"].waitForExistence(timeout: 25), "saved: the card shows the transcript")
-        XCTAssertTrue(app.staticTexts["Name the Speakers"].waitForExistence(timeout: 15), "the tip")
+        XCTAssertTrue(app.buttons["Delete Transcript"].appears(timeout: 25), "saved: the card shows the transcript")
+        XCTAssertTrue(app.staticTexts["Name the Speakers"].appears(timeout: 15), "the tip")
         settle(6)                                                            // its fade-in; profile.sh's profiler attaching
         renameTwice(app)
         app.buttons["Delete Transcript"].tap()
         let confirm = app.buttons["Delete"].firstMatch
-        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        XCTAssertTrue(confirm.appears(timeout: 5))
         confirm.tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5))
     }
 
     /// A name → the rename sheet without the tip, twice: the session's first sheet, then a later one.
@@ -105,10 +105,10 @@ final class ResponsivenessTests: ScribeUITestCase {
         let cancel = app.buttons["CancelRename"]
         for _ in 0..<2 {
             app.buttons["SpeakerHeader.0"].tap()
-            XCTAssertTrue(cancel.waitForExistence(timeout: 5), "the rename sheet")
+            XCTAssertTrue(cancel.appears(timeout: 5), "the rename sheet")
             settle(2)                                                        // the keyboard and the selected name
             cancel.tap()
-            XCTAssertTrue(cancel.waitForNonExistence(timeout: 5))
+            XCTAssertTrue(cancel.disappears(timeout: 5))
             settle(2)
         }
     }
@@ -121,11 +121,11 @@ final class ResponsivenessTests: ScribeUITestCase {
     func testTranscribeOpensCardBeforePreparationFinishes() throws {
         let app = launch(["-fakePrepareSeconds", "6"])
         let record = transcribe(app)
-        XCTAssertTrue(record.waitForExistence(timeout: 5))
+        XCTAssertTrue(record.appears(timeout: 5))
         let tapped = Date.now
         record.tap()
         let minimize = app.buttons["Minimize"]
-        XCTAssertTrue(minimize.waitForExistence(timeout: 3), "the card opens without waiting for preparation")
+        XCTAssertTrue(minimize.appears(timeout: 3), "the card opens without waiting for preparation")
         let opened = Date.now.timeIntervalSince(tapped)
         note("Card opened", "\(opened) s after the tap (preparation takes 6 s)")
         XCTAssertLessThan(opened, 4, "the card is up long before preparation is over: \(opened) s")
@@ -133,10 +133,10 @@ final class ResponsivenessTests: ScribeUITestCase {
                       "the name the transcript will get is shown from the start")
         XCTAssertFalse(app.buttons["Stop"].firstMatch.exists, "no Stop before the model is prepared")
         shot("Card before preparation", app)
-        XCTAssertTrue(app.buttons["Stop"].firstMatch.waitForExistence(timeout: 12), "the Stop once prepared")
+        XCTAssertTrue(app.buttons["Stop"].firstMatch.appears(timeout: 12), "the Stop once prepared")
         XCTAssertGreaterThan(Date.now.timeIntervalSince(tapped), 5, "preparation really took its time")
         app.buttons["Stop"].firstMatch.tap()
-        XCTAssertTrue(minimize.waitForNonExistence(timeout: 15) || app.buttons["Share Transcript"].waitForExistence(timeout: 15))
+        XCTAssertTrue(minimize.disappears(timeout: 15) || app.buttons["Share Transcript"].appears(timeout: 15))
         if app.buttons["Share Transcript"].exists {
             closeCard(app)
             deleteNewestRecording(app)
@@ -154,13 +154,13 @@ final class ResponsivenessTests: ScribeUITestCase {
     @MainActor
     private func deleteNewestRecording(_ app: XCUIApplication) {
         let rows = app.buttons.matching(NSPredicate(format: "label CONTAINS ', Today at '"))
-        guard rows.firstMatch.waitForExistence(timeout: 5), !rows.element(boundBy: 0).label.hasPrefix("Project Kickoff") else { return }
+        guard rows.firstMatch.appears(timeout: 5), !rows.element(boundBy: 0).label.hasPrefix("Project Kickoff") else { return }
         rows.element(boundBy: 0).tap()
-        XCTAssertTrue(app.buttons["Delete Transcript"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Delete Transcript"].appears(timeout: 10))
         app.buttons["Delete Transcript"].tap()
         let confirm = app.buttons["Delete"].firstMatch
-        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        XCTAssertTrue(confirm.appears(timeout: 5))
         confirm.tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5))
     }
 }

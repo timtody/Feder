@@ -17,10 +17,10 @@ final class BookmarkTests: ScribeUITestCase {
     private func openBookmarks(_ app: XCUIApplication, count: Int, file: StaticString = #filePath,
                                line: UInt = #line) -> [String] {
         let row = app.buttons["Bookmarks"]
-        XCTAssertTrue(row.waitForExistence(timeout: 10), "the Bookmarks row", file: file, line: line)
+        XCTAssertTrue(row.appears(timeout: 10), "the Bookmarks row", file: file, line: line)
         XCTAssertEqual(row.value as? String, "\(count)", "its count", file: file, line: line)
         row.tap()
-        XCTAssertTrue(app.buttons["BookmarkRow.\(count - 1)"].waitForExistence(timeout: 5), "opened", file: file, line: line)
+        XCTAssertTrue(app.buttons["BookmarkRow.\(count - 1)"].appears(timeout: 5), "opened", file: file, line: line)
         return (0..<count).map { app.buttons["BookmarkRow.\($0)"].label }
     }
 
@@ -28,9 +28,9 @@ final class BookmarkTests: ScribeUITestCase {
     private func deleteTranscript(_ app: XCUIApplication) {
         app.buttons["Delete Transcript"].tap()
         let confirm = app.buttons["Delete"].firstMatch
-        XCTAssertTrue(confirm.waitForExistence(timeout: 5), "asks first")
+        XCTAssertTrue(confirm.appears(timeout: 5), "asks first")
         confirm.tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "the card closes")
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5), "the card closes")
     }
 
     /// The card's bookmark button sits left of the Stop, the Stop still centred; each press counts (VoiceOver: "1
@@ -43,7 +43,7 @@ final class BookmarkTests: ScribeUITestCase {
         let app = launch(["-resetVoiceRecognition", "-fakeGemma"])
         startRecording(app)
         let button = bookmarkButton(app)
-        XCTAssertTrue(button.waitForExistence(timeout: 10), "the bookmark button")
+        XCTAssertTrue(button.appears(timeout: 10), "the bookmark button")
         let stop = app.buttons["Stop"].firstMatch
         XCTAssertLessThan(button.frame.maxX, stop.frame.minX, "left of the Stop")
         XCTAssertEqual(stop.frame.midX, app.windows.firstMatch.frame.midX, accuracy: 1, "the Stop stays centred")
@@ -60,7 +60,7 @@ final class BookmarkTests: ScribeUITestCase {
         sleep(2)
         stop.tap()
 
-        XCTAssertTrue(app.textFields["Title"].waitForExistence(timeout: 15), "the transcript")
+        XCTAssertTrue(app.textFields["Title"].appears(timeout: 15), "the transcript")
         XCTAssertFalse(app.staticTexts["Bookmark"].exists, "no line above the paragraph any more")
         // While the steps after Stop still rewrite the paragraphs, no Bookmarks row (FED-73: it jumped from pass to
         // pass); it comes once they are final, during the vocabulary check at the latest.
@@ -92,12 +92,12 @@ final class BookmarkTests: ScribeUITestCase {
         let app = launch(["-resetVoiceRecognition", "-fakeOutsidePressAfter", "16"])
         startRecording(app)
         let button = bookmarkButton(app)
-        XCTAssertTrue(button.waitForExistence(timeout: 10))
+        XCTAssertTrue(button.appears(timeout: 10))
         XCTAssertTrue(waitFor(timeout: 30) { (button.value as? String) == "1 bookmark" },
                       "the outside press set one: \(button.value ?? "")")
         XCTAssertTrue(app.buttons["Stop"].firstMatch.isHittable, "still recording")
         app.buttons["Stop"].firstMatch.tap()
-        XCTAssertTrue(app.textFields["Title"].waitForExistence(timeout: 15), "the transcript")
+        XCTAssertTrue(app.textFields["Title"].appears(timeout: 15), "the transcript")
         _ = openBookmarks(app, count: 1)
         deleteTranscript(app)
     }
@@ -108,7 +108,7 @@ final class BookmarkTests: ScribeUITestCase {
     func testLiveActivityBookmark() throws {
         XCUIApplication().terminate()                       // see SystemIntegrationTests.testLiveActivityStop
         let app = launch(["-autoRecord", "-fakeSilence"])    // nothing saved
-        XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout: 20), "recording")
+        XCTAssertTrue(app.buttons["Stop"].appears(timeout: 20), "recording")
         sleep(3)
         XCUIDevice.shared.press(.home)
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
@@ -120,7 +120,7 @@ final class BookmarkTests: ScribeUITestCase {
         let bookmark = springboard.buttons.matching(NSPredicate(format: "label IN {'Add Bookmark', 'Lesezeichen setzen'}"))
             .firstMatch
         let stop = springboard.buttons.matching(NSPredicate(format: "label IN {'Stop', 'Stoppen'}")).firstMatch
-        XCTAssertTrue(bookmark.waitForExistence(timeout: 5), "the bookmark in the expanded island")
+        XCTAssertTrue(bookmark.appears(timeout: 5), "the bookmark in the expanded island")
         XCTAssertLessThan(bookmark.frame.maxX, stop.frame.minX, "left of Stop")
         shot("Dynamic Island with bookmark", springboard)
         bookmark.tap()
@@ -128,10 +128,10 @@ final class BookmarkTests: ScribeUITestCase {
         shot("Dynamic Island after bookmark", springboard)
         app.activate()
         let button = bookmarkButton(app)
-        XCTAssertTrue(button.waitForExistence(timeout: 10))
+        XCTAssertTrue(button.appears(timeout: 10))
         XCTAssertTrue(waitFor { (button.value as? String) == "1 bookmark" }, "counted: \(button.value ?? "")")
         app.buttons["Stop"].firstMatch.tap()                 // -fakeSilence: nothing saved, the card closes
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 10))
     }
 
     /// Budget Review's four bookmarks (`-seedBookmarks`, no Gemma: no titles): two on one sentence are one row, at the
@@ -157,13 +157,4 @@ final class BookmarkTests: ScribeUITestCase {
         XCTAssertTrue(app.staticTexts["Paragraph.3"].isHittable, "scrolled to it")
     }
 
-    @MainActor
-    private func waitFor(timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
-        let end = Date.now.addingTimeInterval(timeout)
-        while Date.now < end {
-            if condition() { return true }
-            RunLoop.current.run(until: .now.addingTimeInterval(0.2))
-        }
-        return condition()
-    }
 }

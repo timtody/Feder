@@ -10,16 +10,16 @@ final class GemmaDownloadTests: ScribeUITestCase {
         let app = launch(["-fakeGemmaDownload", "-fakeGemmaDownloadSeconds", "12", "-improvementsOnboardingShown", "YES"])
         app.buttons["Settings"].firstMatch.tap()
         let row = app.buttons["Summaries"].firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         XCTAssertTrue(row.label.contains("Not downloaded"), row.label)
         row.tap()
         let download = app.buttons["Download Gemma 4 E2B (3.6 GB)"]
-        XCTAssertTrue(download.waitForExistence(timeout: 5), "the download names the model and its size")
+        XCTAssertTrue(download.appears(timeout: 5), "the download names the model and its size")
         download.tap()
-        XCTAssertTrue(app.staticTexts["Downloading Gemma 4 E2B…"].waitForExistence(timeout: 5), "the progress row")
+        XCTAssertTrue(app.staticTexts["Downloading Gemma 4 E2B…"].appears(timeout: 5), "the progress row")
         XCTAssertTrue(app.buttons["Cancel Download"].exists, "a running download can be cancelled")
         shot("Downloading", app)
-        XCTAssertTrue(app.switches["Titles and Summaries"].waitForExistence(timeout: 20), "ready: the on/off switch")
+        XCTAssertTrue(app.switches["Titles and Summaries"].appears(timeout: 20), "ready: the on/off switch")
         XCTAssertFalse(app.buttons["Cancel Download"].exists)
         shot("Downloaded", app)
     }
@@ -30,12 +30,12 @@ final class GemmaDownloadTests: ScribeUITestCase {
         app.buttons["Settings"].firstMatch.tap()
         app.buttons["Summaries"].firstMatch.tap()
         let download = app.buttons["Download Gemma 4 E2B (3.6 GB)"]
-        XCTAssertTrue(download.waitForExistence(timeout: 5))
+        XCTAssertTrue(download.appears(timeout: 5))
         download.tap()
-        XCTAssertTrue(app.staticTexts["Waiting for Wi-Fi…"].waitForExistence(timeout: 5), "no Wi-Fi: it waits")
+        XCTAssertTrue(app.staticTexts["Waiting for Wi-Fi…"].appears(timeout: 5), "no Wi-Fi: it waits")
         shot("Waiting for Wi-Fi", app)
         app.buttons["Cancel Download"].tap()
-        XCTAssertTrue(download.waitForExistence(timeout: 5), "cancelled: the Download button again")
+        XCTAssertTrue(download.appears(timeout: 5), "cancelled: the Download button again")
     }
 }
 
@@ -52,23 +52,23 @@ final class AskTests: ScribeUITestCase {
     func testAskCardAnswers() throws {
         let app = launch(["-fakeGemma", "-seedFiller", "12"])
         let ask = app.buttons["AskGemma"], language = app.buttons["Language"]
-        XCTAssertTrue(ask.waitForExistence(timeout: 5), "Ask in the accessory")
+        XCTAssertTrue(ask.appears(timeout: 5), "Ask in the accessory")
         XCTAssertLessThan(app.buttons["ImportAudio"].frame.maxY, app.frame.height * 0.2, "Import is at the top, not here")
         XCTAssertGreaterThan(ask.frame.minX, language.frame.maxX - 1, "right of the language")
         XCTAssertLessThan(abs(ask.frame.midY - language.frame.midY), 3, "on the language's line")
         XCTAssertLessThan(ask.frame.maxY, app.buttons["Transcripts"].firstMatch.frame.minY + 4, "over the tab bar")
         XCTAssertEqual(app.tabBars.buttons.count, 3, "Settings, Transcripts, Search: no Ask tab")
         app.swipeUp()                                            // the list scrolls: the bar minimizes
-        XCTAssertTrue(waitUntil { !language.isHittable }, "minimized: no language")
+        XCTAssertTrue(waitFor { !language.isHittable }, "minimized: no language")
         XCTAssertTrue(ask.isHittable, "Ask stays")
         XCTAssertGreaterThan(ask.frame.midX, app.frame.width * 0.5, "on the right")
         shot("Minimized with Ask", app)
 
         ask.tap()
         let title = app.navigationBars["Ask Gemma"]
-        XCTAssertTrue(title.waitForExistence(timeout: 5), "the card")
+        XCTAssertTrue(title.appears(timeout: 5), "the card")
         let height = app.frame.height
-        XCTAssertTrue(waitUntil { abs(title.frame.minY - height * 0.5) < height * 0.12 },
+        XCTAssertTrue(waitFor { abs(title.frame.minY - height * 0.5) < height * 0.12 },
                       "at half height: \(title.frame) in \(height)")
         XCTAssertTrue(app.staticTexts["Ask Gemma"].exists, "the empty chat")
         XCTAssertFalse(app.buttons["New Chat"].isEnabled, "nothing to clear yet")
@@ -81,36 +81,36 @@ final class AskTests: ScribeUITestCase {
         field.tap()
         dismissKeyboardTip(app)
         let keyboard = app.keyboards.firstMatch
-        XCTAssertTrue(keyboard.waitForExistence(timeout: 5), "the keyboard")
-        XCTAssertTrue(waitUntil { title.frame.minY < height * 0.15 }, "typing: the card goes to full height: \(title.frame)")
+        XCTAssertTrue(keyboard.appears(timeout: 5), "the keyboard")
+        XCTAssertTrue(waitFor { title.frame.minY < height * 0.15 }, "typing: the card goes to full height: \(title.frame)")
         XCTAssertLessThan(field.frame.maxY, keyboard.frame.minY + 1, "the field over the keyboard")
         field.typeText("What can you do?")
         shot("Typed", app)
         app.buttons["Send"].tap()
         // Stop first: the fake answer is done in about 3.5 s, and with the keyboard up each query takes a while.
-        XCTAssertTrue(app.buttons["Stop Answer"].waitForExistence(timeout: 3), "Send turns into Stop")
+        XCTAssertTrue(app.buttons["Stop Answer"].appears(timeout: 3), "Send turns into Stop")
         XCTAssertTrue(app.staticTexts["What can you do?"].exists, "the question in its bubble")
         let answer = app.staticTexts["ChatAnswer"].firstMatch
-        XCTAssertTrue(answer.waitForExistence(timeout: 5), "the answer streams in")
+        XCTAssertTrue(answer.appears(timeout: 5), "the answer streams in")
         shot("Streaming", app)
-        XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 15), "Stop turns back into Send")
+        XCTAssertTrue(app.buttons["Send"].appears(timeout: 15), "Stop turns back into Send")
         XCTAssertTrue(answer.label.contains("You asked: \u{201C}What can you do?\u{201D}"), answer.label)
         XCTAssertTrue(answer.label.contains("Earlier messages: 0."), answer.label)
 
         XCTAssertTrue(keyboard.exists, "the keyboard stays up after Send, as in Messages")
         field.typeText("And then?")
         app.buttons["Send"].tap()
-        XCTAssertTrue(app.buttons["Stop Answer"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["Stop Answer"].appears(timeout: 3))
+        XCTAssertTrue(app.buttons["Send"].appears(timeout: 15))
         let second = app.staticTexts.matching(identifier: "ChatAnswer").element(boundBy: 1)
         XCTAssertTrue(second.label.contains("Earlier messages: 2."), "the history went along: \(second.label)")
         shot("Two answers", app)
 
         app.buttons["New Chat"].tap()
-        XCTAssertTrue(app.staticTexts["Ask Gemma"].waitForExistence(timeout: 5), "New Chat clears the conversation")
+        XCTAssertTrue(app.staticTexts["Ask Gemma"].appears(timeout: 5), "New Chat clears the conversation")
         XCTAssertFalse(app.staticTexts["ChatAnswer"].exists)
         app.buttons["CloseAsk"].tap()
-        XCTAssertTrue(title.waitForNonExistence(timeout: 5), "Close puts the card away")
+        XCTAssertTrue(title.disappears(timeout: 5), "Close puts the card away")
         XCTAssertTrue(ask.isHittable, "back to the accessory")
     }
 
@@ -123,9 +123,9 @@ final class AskTests: ScribeUITestCase {
         open("Project Kickoff", in: app)
         app.buttons["More"].tap()
         let item = app.buttons["AskAboutTranscript"]
-        XCTAssertTrue(item.waitForExistence(timeout: 5), "in More")
+        XCTAssertTrue(item.appears(timeout: 5), "in More")
         item.tap()
-        XCTAssertTrue(app.navigationBars["Ask Gemma"].waitForExistence(timeout: 5), "the Ask card")
+        XCTAssertTrue(app.navigationBars["Ask Gemma"].appears(timeout: 5), "the Ask card")
         XCTAssertTrue(app.staticTexts["Project Kickoff"].exists, "about Project Kickoff")
         XCTAssertTrue(app.staticTexts["Ask About This Transcript"].exists, "the empty chat says so")
         shot("Ask about a transcript", app)
@@ -134,25 +134,25 @@ final class AskTests: ScribeUITestCase {
         dismissKeyboardTip(app)
         field.typeText("Who owns what?")
         app.buttons["Send"].tap()
-        XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 15) && app.buttons["Stop Answer"].waitForNonExistence(timeout: 15),
+        XCTAssertTrue(app.buttons["Send"].appears(timeout: 15) && app.buttons["Stop Answer"].disappears(timeout: 15),
                       "answered")
         let answer = app.staticTexts["ChatAnswer"].firstMatch
         XCTAssertTrue(answer.label.contains("The transcript begins:") && answer.label.contains("Okay, let"),
                       "the transcript went along: \(answer.label)")
         shot("Answered from the transcript", app)
         app.buttons["CloseAsk"].tap()
-        XCTAssertTrue(app.navigationBars["Ask Gemma"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Ask Gemma"].disappears(timeout: 5))
 
         closeCard(app)
         app.buttons["AskGemma"].tap()
-        XCTAssertTrue(app.staticTexts["Ask Gemma"].waitForExistence(timeout: 5), "Ask's own chat is still empty")
+        XCTAssertTrue(app.staticTexts["Ask Gemma"].appears(timeout: 5), "Ask's own chat is still empty")
         XCTAssertFalse(app.staticTexts["ChatAnswer"].exists)
         app.buttons["CloseAsk"].tap()
-        XCTAssertTrue(app.navigationBars["Ask Gemma"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Ask Gemma"].disappears(timeout: 5))
         open("Project Kickoff", in: app)
         app.buttons["More"].tap()
         app.buttons["AskAboutTranscript"].tap()
-        XCTAssertTrue(app.staticTexts["Who owns what?"].waitForExistence(timeout: 5), "the transcript's chat is kept")
+        XCTAssertTrue(app.staticTexts["Who owns what?"].appears(timeout: 5), "the transcript's chat is kept")
     }
 
     /// The field grows to five lines over the keyboard; a draft survives closing the card (a swipe down) and is sent
@@ -161,23 +161,23 @@ final class AskTests: ScribeUITestCase {
     func testFieldGrowsAndDraftSurvives() throws {
         let app = launch(["-fakeGemma"])
         let ask = app.buttons["AskGemma"]
-        XCTAssertTrue(ask.waitForExistence(timeout: 5))
+        XCTAssertTrue(ask.appears(timeout: 5))
         ask.tap()
         let title = app.navigationBars["Ask Gemma"]
-        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertTrue(title.appears(timeout: 5))
         let height = app.frame.height
-        XCTAssertTrue(waitUntil { title.frame.minY > height * 0.3 }, "half height first")
+        XCTAssertTrue(waitFor { title.frame.minY > height * 0.3 }, "half height first")
         // Pulled up from the top of the card: full height.
         let top = title.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
         top.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.05)))
-        XCTAssertTrue(waitUntil { title.frame.minY < height * 0.15 }, "pulled up to full: \(title.frame)")
+        XCTAssertTrue(waitFor { title.frame.minY < height * 0.15 }, "pulled up to full: \(title.frame)")
         XCTAssertFalse(app.keyboards.firstMatch.exists, "no keyboard for that")
         shot("Card at full height", app)
 
         let field = app.textFields["ChatField"]
         field.tap()
         dismissKeyboardTip(app)
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.keyboards.firstMatch.appears(timeout: 5))
         let oneLine = field.frame.height
         field.typeText("One\ntwo\nthree\nfour\nfive\nsix")
         XCTAssertGreaterThan(field.frame.height, oneLine * 3.5, "grows: \(oneLine) → \(field.frame.height)")
@@ -185,16 +185,16 @@ final class AskTests: ScribeUITestCase {
         XCTAssertLessThan(field.frame.maxY, app.keyboards.firstMatch.frame.minY + 1, "over the keyboard")
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 30) + "A draft")
         app.buttons["CloseAsk"].tap()
-        XCTAssertTrue(title.waitForNonExistence(timeout: 5), "closed")
+        XCTAssertTrue(title.disappears(timeout: 5), "closed")
         ask.tap()
-        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(field.appears(timeout: 5))
         XCTAssertEqual(field.value as? String, "A draft", "the draft survives closing the card")
         app.buttons["Send"].tap()
-        XCTAssertTrue(app.staticTexts["A draft"].waitForExistence(timeout: 3), "sent")
+        XCTAssertTrue(app.staticTexts["A draft"].appears(timeout: 3), "sent")
         // A swipe down on the grabber closes it, as any sheet.
         app.swipeDown(velocity: .fast)
         app.swipeDown(velocity: .fast)
-        XCTAssertTrue(title.waitForNonExistence(timeout: 5), "swiped away")
+        XCTAssertTrue(title.disappears(timeout: 5), "swiped away")
     }
 
     /// Stop mid-answer keeps what was written so far, captioned Stopped.
@@ -202,9 +202,9 @@ final class AskTests: ScribeUITestCase {
     func testStopKeepsPartialAnswer() throws {
         let app = launch(["-fakeGemma", "-askQuestion", "Tell me something long"])
         let answer = app.staticTexts["ChatAnswer"].firstMatch
-        XCTAssertTrue(answer.waitForExistence(timeout: 10))
+        XCTAssertTrue(answer.appears(timeout: 10))
         app.buttons["Stop Answer"].tap()
-        XCTAssertTrue(app.staticTexts["Stopped"].waitForExistence(timeout: 3), "the answer is marked Stopped")
+        XCTAssertTrue(app.staticTexts["Stopped"].appears(timeout: 3), "the answer is marked Stopped")
         XCTAssertTrue(app.buttons["Send"].exists, "Send again")
         XCTAssertFalse(answer.label.contains("That is all for now."), "only part of it: \(answer.label)")
         XCTAssertTrue(answer.label.hasPrefix("You asked"), answer.label)
@@ -217,13 +217,13 @@ final class AskTests: ScribeUITestCase {
     func testAskOffersDownload() throws {
         let app = launch(["-fakeGemmaDownload", "-fakeGemmaDownloadSeconds", "4", "-improvementsOnboardingShown", "YES",
                           "-showAsk"])
-        XCTAssertTrue(app.staticTexts["Download Gemma to Chat"].waitForExistence(timeout: 15), "the download offer")
+        XCTAssertTrue(app.staticTexts["Download Gemma to Chat"].appears(timeout: 15), "the download offer")
         XCTAssertFalse(app.textFields["ChatField"].exists, "no field before Gemma is there")
         app.buttons["Download Gemma 4 E2B (3.6 GB)"].tap()
-        XCTAssertTrue(app.staticTexts["Downloading Gemma 4 E2B…"].waitForExistence(timeout: 5), "the progress")
+        XCTAssertTrue(app.staticTexts["Downloading Gemma 4 E2B…"].appears(timeout: 5), "the progress")
         shot("Downloading", app)
-        XCTAssertTrue(app.staticTexts["Ask Gemma"].waitForExistence(timeout: 15), "downloaded: the chat")
-        XCTAssertTrue(app.textFields["ChatField"].waitForExistence(timeout: 5), "and the field")
+        XCTAssertTrue(app.staticTexts["Ask Gemma"].appears(timeout: 15), "downloaded: the chat")
+        XCTAssertTrue(app.textFields["ChatField"].appears(timeout: 5), "and the field")
     }
 
     /// German: the button and the card are "Gemma fragen", New Chat "Neuer Chat".
@@ -231,10 +231,10 @@ final class AskTests: ScribeUITestCase {
     func testAskInGerman() throws {
         let app = launch(["-fakeGemma", "-AppleLanguages", "(de)", "-AppleLocale", "de_DE"])
         let ask = app.buttons["AskGemma"]
-        XCTAssertTrue(ask.waitForExistence(timeout: 15))
+        XCTAssertTrue(ask.appears(timeout: 15))
         XCTAssertEqual(ask.label, "Gemma fragen", "the button in German")
         ask.tap()
-        XCTAssertTrue(app.navigationBars["Gemma fragen"].waitForExistence(timeout: 5), "the card in German")
+        XCTAssertTrue(app.navigationBars["Gemma fragen"].appears(timeout: 5), "the card in German")
         XCTAssertTrue(app.buttons["Neuer Chat"].exists, "New Chat in German")
         shot("Ask in German", app)
     }
@@ -244,27 +244,18 @@ final class AskTests: ScribeUITestCase {
     @MainActor
     func testNoAskWhileRecording() throws {
         let app = launch(["-fakeGemma", "-showAsk", "-fakeOutsidePressAfter", "4"])
-        XCTAssertTrue(app.navigationBars["Ask Gemma"].waitForExistence(timeout: 5), "the card is up")
-        XCTAssertTrue(app.staticTexts["Recording"].waitForExistence(timeout: 15), "the recording's card instead")
+        XCTAssertTrue(app.navigationBars["Ask Gemma"].appears(timeout: 5), "the card is up")
+        XCTAssertTrue(app.staticTexts["Recording"].appears(timeout: 15), "the recording's card instead")
         XCTAssertFalse(app.navigationBars["Ask Gemma"].exists, "the Ask card went")
         closeCard(app)
-        XCTAssertTrue(app.buttons["Recording"].firstMatch.waitForExistence(timeout: 5)
+        XCTAssertTrue(app.buttons["Recording"].firstMatch.appears(timeout: 5)
                       || app.otherElements["Recording"].firstMatch.exists, "the recording in the accessory")
         XCTAssertFalse(app.buttons["AskGemma"].exists, "no Ask while recording")
         shot("Recording without Ask", app)
         app.buttons["Stop"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 15), "saved: the card opens on the transcript")
+        XCTAssertTrue(app.buttons["Minimize"].appears(timeout: 15), "saved: the card opens on the transcript")
         closeCard(app)
-        XCTAssertTrue(app.buttons["AskGemma"].waitForExistence(timeout: 5), "Ask is back after Stop")
+        XCTAssertTrue(app.buttons["AskGemma"].appears(timeout: 5), "Ask is back after Stop")
     }
 
-    @MainActor
-    private func waitUntil(_ condition: () -> Bool, timeout: TimeInterval = 5) -> Bool {
-        let end = Date.now.addingTimeInterval(timeout)
-        while Date.now < end {
-            if condition() { return true }
-            RunLoop.current.run(until: .now.addingTimeInterval(0.2))
-        }
-        return condition()
-    }
 }

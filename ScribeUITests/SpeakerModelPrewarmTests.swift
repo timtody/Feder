@@ -10,14 +10,14 @@ final class SpeakerModelPrewarmTests: ScribeUITestCase {
     func testPreparingSpeakerModelIsShown() throws {
         let app = launch(["-fakeSpeakerModelSeconds", "25", "-fakeDiarizeSeconds", "40"])
         let accessoryLine = app.staticTexts["Preparing speaker model…"].firstMatch
-        XCTAssertTrue(accessoryLine.waitForExistence(timeout: 5), "the accessory says the model is being prepared")
+        XCTAssertTrue(accessoryLine.appears(timeout: 5), "the accessory says the model is being prepared")
         shot("Accessory while preparing", app)
 
         startRecording(app)
         sleep(3)
         app.buttons["Stop"].firstMatch.tap()
         let status = app.staticTexts["PipelineStatus"]
-        XCTAssertTrue(waitFor { (status.label) == "Preparing speaker model…" }, "the status line: \(status.label)")
+        XCTAssertTrue(waitFor(timeout: 15) { (status.label) == "Preparing speaker model…" }, "the status line: \(status.label)")
         shot("Status line while preparing", app)
 
         // Once prepared, the speakers step reads as usual.
@@ -25,13 +25,4 @@ final class SpeakerModelPrewarmTests: ScribeUITestCase {
                       "back to the speakers step: \(status.label)")
     }
 
-    @MainActor
-    private func waitFor(timeout: TimeInterval = 15, _ condition: () -> Bool) -> Bool {
-        let end = Date.now.addingTimeInterval(timeout)
-        while Date.now < end {
-            if condition() { return true }
-            RunLoop.current.run(until: .now.addingTimeInterval(0.2))
-        }
-        return condition()
-    }
 }

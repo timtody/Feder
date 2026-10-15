@@ -36,15 +36,15 @@ final class AppLockTests: ScribeUITestCase {
         knob.tap()                                         // Face ID succeeds
         XCTAssertTrue(waitFor { (toggle.value as? String) == "1" }, "on")
         let picker = app.buttons["AppLockGrace"].firstMatch
-        XCTAssertTrue(picker.waitForExistence(timeout: 5), "the Lock picker")
+        XCTAssertTrue(picker.appears(timeout: 5), "the Lock picker")
         XCTAssertTrue("\(picker.label) \(picker.value as? String ?? "")".contains("Immediately"),
                       "locks immediately by default: \(picker.label) \(String(describing: picker.value))")
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Feder asks for Face ID'")).firstMatch
-                        .waitForExistence(timeout: 5), "the footer says when it asks")
+                        .appears(timeout: 5), "the footer says when it asks")
         shot("App Lock on", app)
         picker.tap()
         for choice in ["Immediately", "After 1 Minute", "After 5 Minutes", "After 15 Minutes"] {
-            XCTAssertTrue(app.buttons[choice].firstMatch.waitForExistence(timeout: 5), "the choice \(choice)")
+            XCTAssertTrue(app.buttons[choice].firstMatch.appears(timeout: 5), "the choice \(choice)")
         }
         shot("Lock choices", app)
         app.buttons["After 5 Minutes"].firstMatch.tap()
@@ -52,7 +52,7 @@ final class AppLockTests: ScribeUITestCase {
 
         knob.tap()                                         // off: nothing asked
         XCTAssertTrue(waitFor { (toggle.value as? String) == "0" }, "off at once")
-        XCTAssertTrue(app.staticTexts["Off: anyone using this iPhone can open Feder."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Off: anyone using this iPhone can open Feder."].appears(timeout: 5))
     }
 
     /// Turned on while Show in iPhone Search is on, it asks whether to take the transcripts out of iPhone Search. Kept:
@@ -67,21 +67,21 @@ final class AppLockTests: ScribeUITestCase {
 
         knob.tap()
         let alert = app.alerts["Hide Transcripts from iPhone Search?"]
-        XCTAssertTrue(alert.waitForExistence(timeout: 5), "it asks about iPhone Search")
+        XCTAssertTrue(alert.appears(timeout: 5), "it asks about iPhone Search")
         shot("Hide from iPhone Search?", app)
         alert.buttons["Keep in iPhone Search"].tap()
         XCTAssertEqual(toggle.value as? String, "1", "App Lock on")
         XCTAssertEqual(search.value as? String, "1", "kept in iPhone Search")
         let footer = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'also while Feder is locked'")).firstMatch
         for _ in 0..<3 where !footer.isHittable { app.swipeUp() }
-        XCTAssertTrue(footer.waitForExistence(timeout: 5), "the iPhone Search footer says it")
+        XCTAssertTrue(footer.appears(timeout: 5), "the iPhone Search footer says it")
         shot("iPhone Search while locked", app)
 
         knob.tap()                                         // off, and on again
         XCTAssertTrue(waitFor { (toggle.value as? String) == "0" })
         XCTAssertFalse(footer.exists, "only while App Lock is on")
         knob.tap()
-        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        XCTAssertTrue(alert.appears(timeout: 5))
         alert.buttons["Remove from iPhone Search"].tap()
         XCTAssertTrue(waitFor { (search.value as? String) == "0" }, "removed: Show in iPhone Search is off")
         XCTAssertEqual(toggle.value as? String, "1", "App Lock stays on")
@@ -101,7 +101,7 @@ final class AppLockTests: ScribeUITestCase {
         XCTAssertFalse(transcribe(app).exists, "nor the record accessory")
         shot("Locked", app)
         app.buttons["Unlock"].tap()
-        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 10), "unlocked: the list")
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].appears(timeout: 10), "unlocked: the list")
         XCTAssertFalse(app.staticTexts["Feder Is Locked"].exists)
         XCTAssertTrue(isOnScreen(transcribe(app), app), "and the record accessory")
     }
@@ -110,7 +110,7 @@ final class AppLockTests: ScribeUITestCase {
     @MainActor
     func testLeavingLocksAndKeepsTheCard() throws {
         let app = launch(["-appLockOn", "-fakeAuthentication", "success,cancel,success"], waitsForList: false)
-        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15), "unlocked at launch")
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].appears(timeout: 15), "unlocked at launch")
         open("Project Kickoff", in: app)
         XCUIDevice.shared.press(.home)
         sleep(1)
@@ -121,7 +121,7 @@ final class AppLockTests: ScribeUITestCase {
         XCTAssertFalse(app.buttons["Minimize"].exists)
         shot("Locked over the card", app)
         app.buttons["Unlock"].tap()
-        XCTAssertTrue(app.textFields["Title"].waitForExistence(timeout: 10), "unlocked: the card")
+        XCTAssertTrue(app.textFields["Title"].appears(timeout: 10), "unlocked: the card")
         XCTAssertEqual(app.textFields["Title"].value as? String, "Project Kickoff", "the same card")
         assertCard(app)
     }
@@ -133,7 +133,7 @@ final class AppLockTests: ScribeUITestCase {
     @MainActor
     func testShakeUndoesAfterUnlock() throws {
         let app = launch(["-appLockOn", "-fakeAuthentication", "success,cancel,success"], waitsForList: false)
-        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15), "unlocked at launch")
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].appears(timeout: 15), "unlocked at launch")
         open("Project Kickoff", in: app)
         let names = {
             app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'SpeakerHeader.'")).allElementsBoundByIndex
@@ -143,10 +143,10 @@ final class AppLockTests: ScribeUITestCase {
         XCTAssertTrue(waitFor { names() == four }, "\(names())")
         app.buttons["SpeakerHeader.1"].press(forDuration: 1.0)
         let assign = app.buttons["Assign This Part To"]
-        XCTAssertTrue(assign.waitForExistence(timeout: 5))
+        XCTAssertTrue(assign.appears(timeout: 5))
         assign.tap()
         let anna = app.buttons["Anna Schmidt"].firstMatch
-        XCTAssertTrue(anna.waitForExistence(timeout: 5))
+        XCTAssertTrue(anna.appears(timeout: 5))
         anna.tap()
         XCTAssertTrue(waitFor { names() == ["Anna Schmidt", "Jonas Weber"] }, "assigned: \(names())")
 
@@ -156,7 +156,7 @@ final class AppLockTests: ScribeUITestCase {
         let unlock = app.buttons["Unlock"]
         XCTAssertTrue(waitFor({ unlock.exists && unlock.isEnabled }, timeout: 15), "locked on return (Face ID cancelled)")
         unlock.tap()
-        XCTAssertTrue(app.textFields["Title"].waitForExistence(timeout: 10), "unlocked: the card")
+        XCTAssertTrue(app.textFields["Title"].appears(timeout: 10), "unlocked: the card")
         let alert = try XCTUnwrap(shake(app), "a shake after the unlock offers the Undo")
         XCTAssertEqual(alert.label, "Undo Speaker Changed")
         shot("Shake after the unlock", app)
@@ -169,7 +169,7 @@ final class AppLockTests: ScribeUITestCase {
     @MainActor
     func testAppSwitcherShowsTheLock() throws {
         let app = launch(["-appLockOn", "-fakeAuthentication", "success"], waitsForList: false)
-        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15), "unlocked at launch")
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].appears(timeout: 15), "unlocked at launch")
         open("Project Kickoff", in: app)
         XCUIDevice.shared.press(.home)
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
@@ -186,7 +186,7 @@ final class AppLockTests: ScribeUITestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
         app.activate()
-        XCTAssertTrue(app.textFields["Title"].waitForExistence(timeout: 10), "unlocked again: the card")
+        XCTAssertTrue(app.textFields["Title"].appears(timeout: 10), "unlocked again: the card")
     }
 
     /// With a grace period (10 s here; Settings offers 1, 5 and 15 minutes), a short trip away doesn't lock; a longer
@@ -196,11 +196,11 @@ final class AppLockTests: ScribeUITestCase {
         let app = launch(["-appLockOn", "-appLockGrace", "10", "-fakeAuthentication", "success,cancel"],
                          waitsForList: false)
         let kickoff = app.staticTexts["Project Kickoff"]
-        XCTAssertTrue(kickoff.waitForExistence(timeout: 15), "unlocked at launch")
+        XCTAssertTrue(kickoff.appears(timeout: 15), "unlocked at launch")
         XCUIDevice.shared.press(.home)
         sleep(1)
         app.activate()
-        XCTAssertTrue(kickoff.waitForExistence(timeout: 5), "back within 10 s: not locked")
+        XCTAssertTrue(kickoff.appears(timeout: 5), "back within 10 s: not locked")
         sleep(2)                                            // the prompt would have come by now
         XCTAssertFalse(app.buttons["Unlock"].exists)
         XCTAssertTrue(isOnScreen(transcribe(app), app))
@@ -208,7 +208,7 @@ final class AppLockTests: ScribeUITestCase {
         XCUIDevice.shared.press(.home)
         sleep(12)
         app.activate()
-        XCTAssertTrue(app.buttons["Unlock"].waitForExistence(timeout: 10), "back after 12 s: locked")
+        XCTAssertTrue(app.buttons["Unlock"].appears(timeout: 10), "back after 12 s: locked")
         XCTAssertFalse(kickoff.exists)
     }
 
@@ -222,7 +222,7 @@ final class AppLockTests: ScribeUITestCase {
         let app = launch(["-appLockOn", "-fakeAuthentication", "success,cancel,success,cancel,success,cancel,success"],
                          waitsForList: false)
         let kickoff = app.staticTexts["Project Kickoff"]
-        XCTAssertTrue(kickoff.waitForExistence(timeout: 15), "unlocked at launch")
+        XCTAssertTrue(kickoff.appears(timeout: 15), "unlocked at launch")
         let unlock = app.buttons["Unlock"]
         for round in 1...3 {
             XCUIDevice.shared.press(.home)
@@ -232,7 +232,7 @@ final class AppLockTests: ScribeUITestCase {
                           "return \(round): locked, Face ID asked (cancelled)")
             XCTAssertFalse(kickoff.exists, "return \(round): no transcript")
             unlock.tap()
-            XCTAssertTrue(kickoff.waitForExistence(timeout: 10), "return \(round): Unlock opens it")
+            XCTAssertTrue(kickoff.appears(timeout: 10), "return \(round): Unlock opens it")
         }
     }
 
@@ -267,7 +267,7 @@ final class AppLockTests: ScribeUITestCase {
     @MainActor
     private func assertRecordsBehindTheLock(_ app: XCUIApplication) {
         let lockStop = app.buttons["LockStop"]
-        XCTAssertTrue(lockStop.waitForExistence(timeout: 20), "the lock view's recording bar, with Stop")
+        XCTAssertTrue(lockStop.appears(timeout: 20), "the lock view's recording bar, with Stop")
         XCTAssertTrue(app.staticTexts["Recording"].exists, "it says Recording")
         XCTAssertFalse(app.buttons["Minimize"].exists, "the recording card is behind the lock")
         let unlock = app.buttons["Unlock"]
@@ -277,12 +277,12 @@ final class AppLockTests: ScribeUITestCase {
         XCTAssertFalse(app.buttons["Minimize"].exists)
         shot("Recording while locked", app)
         unlock.tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 10), "unlocked: the card")
+        XCTAssertTrue(app.buttons["Minimize"].appears(timeout: 10), "unlocked: the card")
         XCTAssertFalse(lockStop.exists)
         let stop = app.buttons["Stop"].firstMatch
-        XCTAssertTrue(stop.waitForExistence(timeout: 5), "recording, with the large Stop")
+        XCTAssertTrue(stop.appears(timeout: 5), "recording, with the large Stop")
         stop.tap()
-        XCTAssertTrue(transcribe(app).waitForExistence(timeout: 15), "stopped")
+        XCTAssertTrue(transcribe(app).appears(timeout: 15), "stopped")
     }
 
     /// The iPhone locking locks Feder whatever the grace period. The simulator has no passcode and never reports it, so
@@ -295,7 +295,7 @@ final class AppLockTests: ScribeUITestCase {
         let app = launch(["-appLockOn", "-appLockGrace", "60", "-fakeAuthentication", "success,cancel,success,cancel"],
                          waitsForList: false)
         let kickoff = app.staticTexts["Project Kickoff"]
-        XCTAssertTrue(kickoff.waitForExistence(timeout: 15), "unlocked at launch")
+        XCTAssertTrue(kickoff.appears(timeout: 15), "unlocked at launch")
         XCUIDevice.shared.press(.home)
         sleep(2)
         notify_post("de.timtody.feder.test.iPhoneLocked")
@@ -306,7 +306,7 @@ final class AppLockTests: ScribeUITestCase {
                       "locked within the grace period: the iPhone locked meanwhile (Face ID cancelled)")
         XCTAssertFalse(kickoff.exists)
         unlock.tap()
-        XCTAssertTrue(kickoff.waitForExistence(timeout: 10), "unlocked")
+        XCTAssertTrue(kickoff.appears(timeout: 10), "unlocked")
 
         notify_post("de.timtody.feder.test.iPhoneUnlocked")
         XCTAssertTrue(waitFor({ unlock.exists && unlock.isEnabled }, timeout: 15),
@@ -323,9 +323,9 @@ final class AppLockTests: ScribeUITestCase {
     func testIPhoneLockedWhileARecordingStarts() throws {
         let app = launch(["-appLockOn", "-appLockGrace", "60", "-fakePrepareSeconds", "15", "-fakeSilence",
                           "-fakeAuthentication", "success,cancel,success"], waitsForList: false)
-        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15), "unlocked at launch")
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].appears(timeout: 15), "unlocked at launch")
         transcribe(app).tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 10), "the card, preparing")
+        XCTAssertTrue(app.buttons["Minimize"].appears(timeout: 10), "the card, preparing")
         notify_post("de.timtody.feder.test.iPhoneUnlocked")
         let unlock = app.buttons["Unlock"]
         XCTAssertTrue(waitFor({ unlock.exists && unlock.isEnabled }, timeout: 10),
@@ -337,16 +337,16 @@ final class AppLockTests: ScribeUITestCase {
         sleep(1)
         XCTAssertTrue(waitFor { unlock.exists && unlock.isEnabled }, "still locked")
         let lockStop = app.buttons["LockStop"]
-        XCTAssertTrue(lockStop.waitForExistence(timeout: 30), "recording behind the lock")
+        XCTAssertTrue(lockStop.appears(timeout: 30), "recording behind the lock")
         sleep(4)                                            // a request by itself would unlock
         XCTAssertTrue(unlock.exists && unlock.isEnabled, "not asked again by itself once it records")
         XCTAssertFalse(app.buttons["Minimize"].exists)
         unlock.tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 10), "unlocked: the card")
+        XCTAssertTrue(app.buttons["Minimize"].appears(timeout: 10), "unlocked: the card")
         let stop = app.buttons["Stop"].firstMatch
-        XCTAssertTrue(stop.waitForExistence(timeout: 5), "recording, with the large Stop")
+        XCTAssertTrue(stop.appears(timeout: 5), "recording, with the large Stop")
         stop.tap()
-        XCTAssertTrue(transcribe(app).waitForExistence(timeout: 15), "stopped")
+        XCTAssertTrue(transcribe(app).appears(timeout: 15), "stopped")
     }
 
     /// The passcode removed after App Lock was turned on (`nopasscode`: LocalAuthentication's `passcodeNotSet`): Feder
@@ -355,7 +355,7 @@ final class AppLockTests: ScribeUITestCase {
     @MainActor
     func testPasscodeRemoved() throws {
         let app = launch(["-appLockOn", "-fakeAuthentication", "nopasscode,success"], waitsForList: false)
-        XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15), "opened: nothing could unlock it")
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].appears(timeout: 15), "opened: nothing could unlock it")
         let toggle = appLockSwitch(app)
         XCTAssertEqual(toggle.value as? String, "0", "off")
         XCTAssertFalse(toggle.isEnabled, "and disabled")
@@ -367,7 +367,7 @@ final class AppLockTests: ScribeUITestCase {
         XCTAssertTrue(waitFor({ toggle.isEnabled }, timeout: 10), "a passcode again: the switch can be turned on")
         XCTAssertEqual(toggle.value as? String, "0", "still off: App Lock was turned off, not only shown off")
         XCTAssertFalse(app.buttons["Unlock"].exists, "not locked at the return")
-        XCTAssertTrue(app.staticTexts["Off: anyone using this iPhone can open Feder."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Off: anyone using this iPhone can open Feder."].appears(timeout: 5))
     }
 
     /// While App Lock is on, the Live Activity shows no words: "Recording" stands in their place, with the time, the
@@ -376,9 +376,9 @@ final class AppLockTests: ScribeUITestCase {
     func testLiveActivityHidesWords() throws {
         XCUIApplication().terminate()                      // see RecordingFromOutsideTests.testLiveActivityStop
         let app = launch(["-appLockOn", "-fakeAuthentication", "success", "-autoRecord"], waitsForList: false)
-        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 20), "unlocked, recording")
+        XCTAssertTrue(app.buttons["Minimize"].appears(timeout: 20), "unlocked, recording")
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'quick'")).firstMatch
-                        .waitForExistence(timeout: 15), "words in the app")
+                        .appears(timeout: 15), "words in the app")
         sleep(2)
         XCUIDevice.shared.press(.home)
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
@@ -387,7 +387,7 @@ final class AppLockTests: ScribeUITestCase {
         springboard.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: springboard.frame.midX, dy: 24))
             .press(forDuration: 1.0)                       // expands the Live Activity
         let stop = springboard.buttons.matching(NSPredicate(format: "label IN {'Stop', 'Stoppen'}")).firstMatch
-        XCTAssertTrue(stop.waitForExistence(timeout: 5), "Stop in the expanded island")
+        XCTAssertTrue(stop.appears(timeout: 5), "Stop in the expanded island")
         // The island speaks the simulator's language, not the app's launch argument.
         let recording = springboard.staticTexts.matching(NSPredicate(format: "label IN {'Recording', 'Aufnahme'}"))
         XCTAssertTrue(recording.firstMatch.exists, "Recording in place of the words")
@@ -399,10 +399,10 @@ final class AppLockTests: ScribeUITestCase {
         stop.tap()
         app.activate()
         let delete = app.buttons["Delete Transcript"]
-        XCTAssertTrue(delete.waitForExistence(timeout: 20), "stopped and saved; unlocked again")
+        XCTAssertTrue(delete.appears(timeout: 20), "stopped and saved; unlocked again")
         delete.tap()                                       // the samples stay on top for the other tests
         app.buttons["Delete"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5))
     }
 
     /// LocalAuthentication itself, without `-fakeAuthentication`: the iOS 27 simulator has Face ID (Features › Face ID
@@ -433,7 +433,7 @@ final class AppLockTests: ScribeUITestCase {
             #if targetEnvironment(simulator)
             notify_post("com.apple.BiometricKit_Sim.pearl.match")
             #endif
-            XCTAssertTrue(kickoff.waitForExistence(timeout: 10), "a matching face unlocks at the \(moment)")
+            XCTAssertTrue(kickoff.appears(timeout: 10), "a matching face unlocks at the \(moment)")
         }
     }
 
@@ -454,21 +454,12 @@ final class AppLockTests: ScribeUITestCase {
         let toggle = app.switches["AppLock"].firstMatch
         // Below the first screen (Name from Calendar's row above it), where the lazy list hasn't made it yet: scrolled
         // to until it exists and can be tapped.
-        XCTAssertTrue(app.buttons["Settings"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Settings"].firstMatch.appears(timeout: 5))
         for _ in 0..<6 where !(toggle.exists && toggle.isHittable) { app.swipeUp() }
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "the App Lock switch")
+        XCTAssertTrue(toggle.appears(timeout: 5), "the App Lock switch")
         // The iPhone Search section under it on screen too.
         if !app.switches["Show in iPhone Search"].firstMatch.isHittable { app.swipeUp() }
         return toggle
     }
 
-    @MainActor
-    private func waitFor(_ condition: () -> Bool, timeout: TimeInterval = 5) -> Bool {
-        let end = Date.now.addingTimeInterval(timeout)
-        while Date.now < end {
-            if condition() { return true }
-            RunLoop.current.run(until: .now.addingTimeInterval(0.2))
-        }
-        return condition()
-    }
 }

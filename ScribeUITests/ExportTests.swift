@@ -9,7 +9,7 @@ final class ExportTests: ScribeUITestCase {
         open("Budget Review", in: app)
         app.buttons["Share Transcript"].tap()
         for format in ["Text", "PDF", "Word Document", "Markdown", "Subtitles"] {
-            XCTAssertTrue(app.buttons[format].waitForExistence(timeout: 5), "\(format) in the menu")
+            XCTAssertTrue(app.buttons[format].appears(timeout: 5), "\(format) in the menu")
         }
         let names = app.switches["Speaker Names"].exists ? app.switches["Speaker Names"] : app.buttons["Speaker Names"]
         XCTAssertTrue(names.exists, "the speaker names option")
@@ -18,16 +18,16 @@ final class ExportTests: ScribeUITestCase {
         // An option keeps the menu open: toggled, the formats are still there.
         let timestamps = app.buttons["Timestamps"].exists ? app.buttons["Timestamps"] : app.switches["Timestamps"]
         timestamps.tap()
-        XCTAssertTrue(app.buttons["PDF"].waitForExistence(timeout: 2), "the menu stays open after an option")
+        XCTAssertTrue(app.buttons["PDF"].appears(timeout: 2), "the menu stays open after an option")
         sleep(1)
         XCTAssertTrue(app.buttons["PDF"].isHittable, "still open a moment later")
         timestamps.tap()                                    // back to off, as the next tests expect
         app.buttons["PDF"].tap()
         let sheet = app.otherElements["ActivityListView"]
-        XCTAssertTrue(sheet.waitForExistence(timeout: 10) || app.navigationBars["UIActivityContentView"].exists,
+        XCTAssertTrue(sheet.appears(timeout: 10) || app.navigationBars["UIActivityContentView"].exists,
                       "the share sheet")
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Budget Review'")).firstMatch
-                        .waitForExistence(timeout: 5), "with the file, named after the transcript")
+                        .appears(timeout: 5), "with the file, named after the transcript")
         shot("Share PDF", app)
     }
 }

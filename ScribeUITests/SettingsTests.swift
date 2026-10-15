@@ -7,7 +7,7 @@ final class SettingsTests: ScribeUITestCase {
     @MainActor
     func testTabBarLayout() throws {
         let app = launch()
-        XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.cells.firstMatch.appears(timeout: 5))
         let transcripts = app.buttons["Transcripts"].firstMatch, settings = app.buttons["Settings"].firstMatch
         let search = app.buttons["Search"].firstMatch, record = transcribe(app)
         for (element, name) in [(transcripts, "Transcripts"), (settings, "Settings"), (search, "Search"), (record, "Transcribe")] {
@@ -32,11 +32,11 @@ final class SettingsTests: ScribeUITestCase {
     @MainActor
     func testTabBarMinimizesLikeMusic() throws {
         let app = launch(["-seedFiller", "12"])
-        XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.cells.firstMatch.appears(timeout: 5))
         let search = app.buttons["Search"].firstMatch, record = transcribe(app)
         let transcripts = app.buttons["Transcripts"].firstMatch, settings = app.buttons["Settings"].firstMatch
         let width = app.windows.firstMatch.frame.width
-        XCTAssertTrue(search.waitForExistence(timeout: 5) && record.exists)
+        XCTAssertTrue(search.appears(timeout: 5) && record.exists)
         let expandedSearch = search.frame
         XCTAssertGreaterThan(expandedSearch.midX, width * 0.6, "Search at the right end: \(expandedSearch)")
 
@@ -64,9 +64,9 @@ final class SettingsTests: ScribeUITestCase {
         XCTAssertFalse(settings.exists && settings.isHittable, "three items only")
 
         search.tap()                                        // Search's circle opens the Search tab
-        XCTAssertTrue(app.textFields["SearchField"].waitForExistence(timeout: 5), "Search from the minimized bar")
+        XCTAssertTrue(app.textFields["SearchField"].appears(timeout: 5), "Search from the minimized bar")
         app.buttons["Close"].firstMatch.tap()
-        XCTAssertTrue(app.textFields["SearchField"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["SearchField"].disappears(timeout: 5))
         app.swipeDown()
         XCTAssertTrue(waitFor { settings.exists && settings.isHittable }, "scrolling up expands the bar again")
         shot("Expanded again", app)
@@ -77,14 +77,14 @@ final class SettingsTests: ScribeUITestCase {
     @MainActor
     func testGermanLocalization() throws {
         let app = launch(["-AppleLanguages", "(de)", "-AppleLocale", "de_DE", "-fakeAuthentication", "success"])
-        XCTAssertTrue(app.buttons["Transkripte"].firstMatch.waitForExistence(timeout: 5), "the Transcripts tab in German")
+        XCTAssertTrue(app.buttons["Transkripte"].firstMatch.appears(timeout: 5), "the Transcripts tab in German")
         XCTAssertTrue(app.buttons["Transkribieren"].firstMatch.exists, "the record control in German")
         XCTAssertTrue(app.collectionViews.staticTexts["Transkripte"].exists, "the heading in German")
         let dates = app.staticTexts.matching(NSPredicate(format: "label CONTAINS ' um '"))
         XCTAssertTrue(dates.firstMatch.exists, "dates read \"… um 12:00\"")
         shot("Transcripts in German", app)
         app.buttons["Einstellungen"].firstMatch.tap()
-        XCTAssertTrue(app.switches["Sprecher live anzeigen"].waitForExistence(timeout: 5), "Settings in German")
+        XCTAssertTrue(app.switches["Sprecher live anzeigen"].appears(timeout: 5), "Settings in German")
         XCTAssertTrue(app.staticTexts["Aufnahme"].exists, "the Recording section's header")
         shot("Settings in German", app)
         let lock = app.switches["AppLock"].firstMatch        // App Lock, in iOS's words for its own ("Face ID anfordern")
@@ -103,7 +103,7 @@ final class SettingsTests: ScribeUITestCase {
         let app = launch()
         app.buttons["Settings"].firstMatch.tap()
         let transcription = app.buttons["Transcription"].firstMatch
-        XCTAssertTrue(transcription.waitForExistence(timeout: 5), "the Transcription row")
+        XCTAssertTrue(transcription.appears(timeout: 5), "the Transcription row")
         for gone in ["Smart Corrections", "Reading", "Developer", "New York", "Libron", "Local Model",
                      "Consulting & Banking Terms", "While Recording", "After Recording"] {
             XCTAssertFalse(app.descendants(matching: .any)[gone].exists, "\(gone) is gone")
@@ -121,7 +121,7 @@ final class SettingsTests: ScribeUITestCase {
 
         transcription.tap()
         let apple = app.buttons["Apple Speech"]
-        XCTAssertTrue(apple.waitForExistence(timeout: 5) && apple.isSelected, "Apple Speech chosen")
+        XCTAssertTrue(apple.appears(timeout: 5) && apple.isSelected, "Apple Speech chosen")
         XCTAssertFalse(app.buttons["Parakeet"].exists, "Parakeet is not in the picker before it is downloaded")
         XCTAssertTrue(app.buttons["Download Parakeet (610 MB)"].exists, "the download names the model and its size")
         shot("Transcription", app)
@@ -130,7 +130,7 @@ final class SettingsTests: ScribeUITestCase {
         let yourWords = app.staticTexts["Your Words"].firstMatch   // the row is a link, not a button
         for _ in 0..<3 where !yourWords.isHittable { app.swipeUp() }
         yourWords.tap()
-        XCTAssertTrue(app.textFields["Add a word or name"].waitForExistence(timeout: 5), "the Your Words page")
+        XCTAssertTrue(app.textFields["Add a word or name"].appears(timeout: 5), "the Your Words page")
         XCTAssertFalse(app.switches["Consulting & Banking Terms"].exists, "not under Your Words either")
         shot("Your Words", app)
     }
@@ -143,11 +143,11 @@ final class SettingsTests: ScribeUITestCase {
         var app = launch()
         app.buttons["Settings"].firstMatch.tap()
         var row = app.buttons["Summaries"].firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "the Summaries row under Recording")
+        XCTAssertTrue(row.appears(timeout: 5), "the Summaries row under Recording")
         XCTAssertTrue(row.label.contains("Not available"), "no Gemma on the simulator: \(row.label)")
         row.tap()
         let footer = app.staticTexts["Automatic titles and summaries need an iPhone with at least 8 GB of memory."]
-        XCTAssertTrue(footer.waitForExistence(timeout: 5), "the page's footer without Gemma")
+        XCTAssertTrue(footer.appears(timeout: 5), "the page's footer without Gemma")
         XCTAssertTrue(app.staticTexts["Titles and Summaries"].exists, "the section header")
         shot("Summaries without Gemma", app)
 
@@ -155,10 +155,10 @@ final class SettingsTests: ScribeUITestCase {
         app = launch(["-fakeGemma"])
         app.buttons["Settings"].firstMatch.tap()
         row = app.buttons["Summaries"].firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         XCTAssertTrue(row.label.contains("Gemma 4 E2B"), "Gemma there: \(row.label)")
         row.tap()
-        XCTAssertTrue(app.switches["Titles and Summaries"].waitForExistence(timeout: 5), "the on/off switch")
+        XCTAssertTrue(app.switches["Titles and Summaries"].appears(timeout: 5), "the on/off switch")
         shot("Summaries with Gemma", app)
     }
 
@@ -167,7 +167,7 @@ final class SettingsTests: ScribeUITestCase {
         let app = launch()
         app.buttons["Settings"].firstMatch.tap()
         let toggle = app.switches["Live Speaker Labels"]
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "Live Speaker Labels toggle in Settings")
+        XCTAssertTrue(toggle.appears(timeout: 5), "Live Speaker Labels toggle in Settings")
         let before = toggle.value as? String
         let knob = toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5))   // the switch at the row's end
         knob.tap()
@@ -176,12 +176,12 @@ final class SettingsTests: ScribeUITestCase {
         XCTAssertEqual(toggle.value as? String, before)
 
         app.buttons["People"].tap()
-        XCTAssertTrue(app.navigationBars["People"].waitForExistence(timeout: 5), "People pushed inside Settings")
+        XCTAssertTrue(app.navigationBars["People"].appears(timeout: 5), "People pushed inside Settings")
         let anna = app.staticTexts["Anna Schmidt"]
-        XCTAssertTrue(anna.waitForExistence(timeout: 5), "seeded person listed")
+        XCTAssertTrue(anna.appears(timeout: 5), "seeded person listed")
         shot("people in settings", app)
         anna.tap()
-        XCTAssertTrue(app.navigationBars["Anna Schmidt"].waitForExistence(timeout: 5), "person view")
+        XCTAssertTrue(app.navigationBars["Anna Schmidt"].appears(timeout: 5), "person view")
         XCTAssertTrue(app.staticTexts["Project Kickoff"].exists && app.staticTexts["Budget Review"].exists,
                       "Anna's transcripts are listed")
         shot("person in settings", app)
@@ -193,35 +193,26 @@ final class SettingsTests: ScribeUITestCase {
         XCTAssertTrue(app.buttons["SpeakerHeader.0"].exists, "the transcript")
         shot("card from a person", app)
         closeCard(app)
-        XCTAssertTrue(app.navigationBars["Anna Schmidt"].waitForExistence(timeout: 5), "back at the person")
+        XCTAssertTrue(app.navigationBars["Anna Schmidt"].appears(timeout: 5), "back at the person")
     }
 
     @MainActor
     func testSearchFieldOnlyWhileOpen() throws {
         let app = launch()
-        XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.cells.firstMatch.appears(timeout: 5))
         XCTAssertFalse(app.textFields["SearchField"].exists)
         app.buttons["Search"].firstMatch.tap()
         let field = app.textFields["SearchField"]
-        XCTAssertTrue(field.waitForExistence(timeout: 5), "Search shows the field")
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "focused, keyboard up")
+        XCTAssertTrue(field.appears(timeout: 5), "Search shows the field")
+        XCTAssertTrue(app.keyboards.firstMatch.appears(timeout: 5), "focused, keyboard up")
         dismissKeyboardTip(app)
         shot("search open", app)
         XCTAssertTrue(app.buttons["Close"].firstMatch.exists, "search has a close button")
         app.buttons["Close"].firstMatch.tap()
-        XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 5), "back to the Transcripts tab")
+        XCTAssertTrue(app.cells.firstMatch.appears(timeout: 5), "back to the Transcripts tab")
         XCTAssertFalse(app.keyboards.firstMatch.exists, "keyboard gone")
     }
 
-    @MainActor
-    private func waitFor(_ condition: () -> Bool, timeout: TimeInterval = 4) -> Bool {
-        let end = Date.now.addingTimeInterval(timeout)
-        while Date.now < end {
-            if condition() { return true }
-            RunLoop.current.run(until: .now.addingTimeInterval(0.2))
-        }
-        return condition()
-    }
 
     /// Settings › About: Welcome again, the privacy policy and legal notice (shipped in the app, Legal.json),
     /// the acknowledgements (Acknowledgements.json); and Save Location under Recording.
@@ -229,7 +220,7 @@ final class SettingsTests: ScribeUITestCase {
     func testAboutSection() throws {
         let app = launch()
         app.buttons["Settings"].firstMatch.tap()
-        XCTAssertTrue(app.switches["Save Location"].waitForExistence(timeout: 5), "Save Location under Recording")
+        XCTAssertTrue(app.switches["Save Location"].appears(timeout: 5), "Save Location under Recording")
         let privacy = app.buttons["Privacy Policy"].firstMatch
         for _ in 0..<4 where !privacy.isHittable { app.swipeUp() }
         XCTAssertTrue(app.buttons["Welcome"].exists && app.buttons["Legal Notice"].exists
@@ -237,25 +228,25 @@ final class SettingsTests: ScribeUITestCase {
         shot("About section", app)
 
         privacy.tap()
-        XCTAssertTrue(app.navigationBars["Privacy Policy"].waitForExistence(timeout: 5), "the policy, in the app")
+        XCTAssertTrue(app.navigationBars["Privacy Policy"].appears(timeout: 5), "the policy, in the app")
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Hugging Face'")).firstMatch
-                        .waitForExistence(timeout: 5), "it names the model downloads")
+                        .appears(timeout: 5), "it names the model downloads")
         shot("Privacy Policy", app)
         app.navigationBars.buttons.firstMatch.tap()
 
         app.buttons["Acknowledgements"].firstMatch.tap()
-        XCTAssertTrue(app.staticTexts["Gemma 4 E2B"].waitForExistence(timeout: 5), "models first")
+        XCTAssertTrue(app.staticTexts["Gemma 4 E2B"].appears(timeout: 5), "models first")
         app.staticTexts["Gemma 4 E2B"].tap()
-        XCTAssertTrue(app.staticTexts["Apache License 2.0"].waitForExistence(timeout: 5), "its licence text")
+        XCTAssertTrue(app.staticTexts["Apache License 2.0"].appears(timeout: 5), "its licence text")
         shot("Acknowledgement", app)
         app.navigationBars.buttons.firstMatch.tap()
         app.navigationBars.buttons.firstMatch.tap()
 
         app.buttons["Welcome"].firstMatch.tap()
         let welcome = app.staticTexts["Welcome to Feder"]
-        XCTAssertTrue(welcome.waitForExistence(timeout: 5), "the onboarding again")
+        XCTAssertTrue(welcome.appears(timeout: 5), "the onboarding again")
         app.buttons["Done"].tap()                          // a replay can be left without going through it
-        XCTAssertTrue(welcome.waitForNonExistence(timeout: 5), "Done closes the replay")
+        XCTAssertTrue(welcome.disappears(timeout: 5), "Done closes the replay")
     }
 
     /// Settings › People: "Recognize People by Voice" first (on here: -voiceRecognitionOn). The seeded people have voice profiles, so
@@ -266,7 +257,7 @@ final class SettingsTests: ScribeUITestCase {
         let app = launch()
         app.buttons["Settings"].firstMatch.tap()
         let toggle = app.switches["Recognize People by Voice"].firstMatch
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "the switch in Settings")
+        XCTAssertTrue(toggle.appears(timeout: 5), "the switch in Settings")
         XCTAssertEqual(toggle.value as? String, "1", "on (the tests run with it on, -voiceRecognitionOn)")
         let people = app.buttons["People"].firstMatch
         XCTAssertLessThan(toggle.frame.minY, people.frame.minY, "first, above People")
@@ -276,23 +267,23 @@ final class SettingsTests: ScribeUITestCase {
 
         knob.tap()
         let alert = app.alerts["Delete Voice Profiles?"]
-        XCTAssertTrue(alert.waitForExistence(timeout: 5), "voice profiles exist: it asks before deleting them")
+        XCTAssertTrue(alert.appears(timeout: 5), "voice profiles exist: it asks before deleting them")
         shot("Delete voice profiles", app)
         alert.buttons["Cancel"].tap()
         XCTAssertEqual(toggle.value as? String, "1", "cancelled: still on")
 
         knob.tap()
-        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        XCTAssertTrue(alert.appears(timeout: 5))
         alert.buttons["Turn Off and Delete"].tap()
         XCTAssertTrue(waitFor { (toggle.value as? String) == "0" }, "off")
         XCTAssertTrue(app.staticTexts["Off: we keep no voice profiles and recognize no one. Speakers are still told apart."]
-                        .waitForExistence(timeout: 5))
+                        .appears(timeout: 5))
 
         knob.tap()                                         // on again: no question
         XCTAssertTrue(waitFor { (toggle.value as? String) == "1" }, "on again")
         people.tap()
         let anna = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'voice not known yet'")).firstMatch
-        XCTAssertTrue(anna.waitForExistence(timeout: 5), "the profiles are gone: voices unknown until named again")
+        XCTAssertTrue(anna.appears(timeout: 5), "the profiles are gone: voices unknown until named again")
         shot("People without voices", app)
     }
 
@@ -302,7 +293,7 @@ final class SettingsTests: ScribeUITestCase {
         let app = launch(["-resetVoiceRecognition"])
         app.buttons["Settings"].firstMatch.tap()
         let toggle = app.switches["Recognize People by Voice"].firstMatch
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertTrue(toggle.appears(timeout: 5))
         XCTAssertEqual(toggle.value as? String, "0", "off by default")
         XCTAssertTrue(app.staticTexts["Off: we keep no voice profiles and recognize no one. Speakers are still told apart."].exists)
     }
@@ -315,13 +306,13 @@ final class SettingsTests: ScribeUITestCase {
         let reset = app.buttons["Reset Onboarding"].firstMatch
         for _ in 0..<4 where !reset.isHittable { app.swipeUp() }
         reset.tap()
-        XCTAssertTrue(app.staticTexts["Welcome to Feder"].waitForExistence(timeout: 5), "the onboarding from the start")
+        XCTAssertTrue(app.staticTexts["Welcome to Feder"].appears(timeout: 5), "the onboarding from the start")
         app.buttons["Continue"].tap()
-        XCTAssertTrue(app.staticTexts["Before You Record"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Before You Record"].appears(timeout: 5))
         app.buttons["Continue"].tap()
-        XCTAssertTrue(app.buttons["No Thanks"].waitForExistence(timeout: 5), "and the voice page")
+        XCTAssertTrue(app.buttons["No Thanks"].appears(timeout: 5), "and the voice page")
         app.buttons["No Thanks"].tap()
-        XCTAssertTrue(app.buttons["Show in iPhone Search"].waitForExistence(timeout: 5), "and the iPhone Search page")
+        XCTAssertTrue(app.buttons["Show in iPhone Search"].appears(timeout: 5), "and the iPhone Search page")
     }
 
     /// Show in iPhone Search is off until turned on (opt-in, like voice profiles); its footer says what it means.
@@ -331,12 +322,12 @@ final class SettingsTests: ScribeUITestCase {
         app.buttons["Settings"].firstMatch.tap()
         let toggle = app.switches["Show in iPhone Search"].firstMatch
         for _ in 0..<4 where !toggle.isHittable { app.swipeUp() }
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertTrue(toggle.appears(timeout: 5))
         XCTAssertEqual(toggle.value as? String, "0", "off by default")
         XCTAssertTrue(app.staticTexts["Off: your transcripts are not in the iPhone's search."].exists)
         toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Your transcripts can be found'"))
-                        .firstMatch.waitForExistence(timeout: 5), "on: the footer says where it stays and what typing sends")
+                        .firstMatch.appears(timeout: 5), "on: the footer says where it stays and what typing sends")
         shot("iPhone Search on", app)
     }
 
@@ -347,7 +338,7 @@ final class SettingsTests: ScribeUITestCase {
         let app = launch(["-resetCalendar"])
         app.buttons["Settings"].firstMatch.tap()
         let toggle = app.switches["Name from Calendar"].firstMatch
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "the switch under Recording")
+        XCTAssertTrue(toggle.appears(timeout: 5), "the switch under Recording")
         XCTAssertEqual(toggle.value as? String, "0", "off by default")
         let labels = app.switches["Live Speaker Labels"].firstMatch, location = app.switches["Save Location"].firstMatch
         XCTAssertLessThanOrEqual(labels.frame.maxY, toggle.frame.minY + 1, "after Live Speaker Labels")
@@ -365,10 +356,10 @@ final class SettingsTests: ScribeUITestCase {
         let app = launch(["-resetCalendar", "-fakeCalendarAccess", "denied"])
         app.buttons["Settings"].firstMatch.tap()
         let toggle = app.switches["Name from Calendar"].firstMatch
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertTrue(toggle.appears(timeout: 5))
         toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
         let alert = app.alerts["Allow Calendar Access"]
-        XCTAssertTrue(alert.waitForExistence(timeout: 5), "it offers the iPhone's Settings")
+        XCTAssertTrue(alert.appears(timeout: 5), "it offers the iPhone's Settings")
         XCTAssertTrue(alert.buttons["Open Settings"].exists && alert.buttons["Cancel"].exists)
         shot("Allow Calendar Access", app)
         alert.buttons["Cancel"].tap()

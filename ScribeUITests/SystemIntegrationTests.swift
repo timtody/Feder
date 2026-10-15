@@ -8,11 +8,11 @@ final class SystemIntegrationTests: ScribeUITestCase {
     @MainActor
     func testSpotlightFindsTranscript() throws {
         let app = launch(["-spotlightOn", "-openSpotlightResult", "workshops"])     // a word only in Budget Review's text
-        XCTAssertTrue(app.buttons["SpeakerHeader.0"].waitForExistence(timeout: 20), "the result's card opens")
+        XCTAssertTrue(app.buttons["SpeakerHeader.0"].appears(timeout: 20), "the result's card opens")
         XCTAssertEqual(app.textFields["Title"].value as? String, "Budget Review")
         closeCard(app)
         // (Budget Review itself may be below the screen: the tests' recordings are newer.)
-        XCTAssertTrue(transcribe(app).waitForExistence(timeout: 5), "back in the list, with the record accessory")
+        XCTAssertTrue(transcribe(app).appears(timeout: 5), "back in the list, with the record accessory")
     }
 }
 
@@ -25,7 +25,7 @@ final class RecordingFromOutsideTests: ScribeUITestCase {
         // samples and pushes Budget Review further down the list other tests open it from).
         let app = launch(["-fakeSilence"])
         app.open(URL(string: "feder://record")!)
-        XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout: 10), "recording, with the large Stop")
+        XCTAssertTrue(app.buttons["Stop"].appears(timeout: 10), "recording, with the large Stop")
         app.buttons["Stop"].firstMatch.tap()
     }
 
@@ -37,7 +37,7 @@ final class RecordingFromOutsideTests: ScribeUITestCase {
         // while recording) would otherwise be what the launch finds: German, not recording.
         XCUIApplication().terminate()
         let app = launch(["-autoRecord", "-fakeSilence"])            // nothing saved, see above
-        if !app.buttons["Stop"].waitForExistence(timeout: 20) { print("APP-TREE", app.debugDescription) }
+        if !app.buttons["Stop"].appears(timeout: 20) { print("APP-TREE", app.debugDescription) }
         XCTAssertTrue(app.buttons["Stop"].exists, "recording")
         sleep(3)
         XCUIDevice.shared.press(.home)
@@ -51,10 +51,10 @@ final class RecordingFromOutsideTests: ScribeUITestCase {
             .press(forDuration: 1.0)                         // expands it
         // The island speaks the simulator's language (German here), not the app's launch argument.
         let stop = springboard.buttons.matching(NSPredicate(format: "label IN {'Stop', 'Stoppen'}")).firstMatch
-        XCTAssertTrue(stop.waitForExistence(timeout: 5), "Stop in the expanded island")
+        XCTAssertTrue(stop.appears(timeout: 5), "Stop in the expanded island")
         shot("Dynamic Island expanded", springboard)
         stop.tap()
         app.activate()
-        XCTAssertTrue(transcribe(app).waitForExistence(timeout: 15), "stopped: Transcribe again")
+        XCTAssertTrue(transcribe(app).appears(timeout: 15), "stopped: Transcribe again")
     }
 }

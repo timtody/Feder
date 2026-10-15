@@ -27,9 +27,9 @@ final class ActionItemsTests: ScribeUITestCase {
     private func openBudgetItems(_ app: XCUIApplication) {
         open("Budget Review", in: app)
         let button = actionItemsButton(app)
-        XCTAssertTrue(button.waitForExistence(timeout: 5), "the Action Items button")
+        XCTAssertTrue(button.appears(timeout: 5), "the Action Items button")
         button.tap()
-        XCTAssertTrue(item(0, app).waitForExistence(timeout: 5), "the sheet shows the items")
+        XCTAssertTrue(item(0, app).appears(timeout: 5), "the sheet shows the items")
     }
 
     /// The visible items' count (ActionItem.0, .1, …).
@@ -42,10 +42,10 @@ final class ActionItemsTests: ScribeUITestCase {
     @MainActor
     private func choose(_ choice: String, forItem index: Int, _ app: XCUIApplication) {
         let menu = app.buttons["ActionItemMenu.\(index)"]
-        XCTAssertTrue(menu.waitForExistence(timeout: 3), "the item's menu")
+        XCTAssertTrue(menu.appears(timeout: 3), "the item's menu")
         menu.tap()
         let button = app.buttons[choice].firstMatch
-        XCTAssertTrue(button.waitForExistence(timeout: 3), "\(choice) in the menu")
+        XCTAssertTrue(button.appears(timeout: 3), "\(choice) in the menu")
         button.tap()
     }
 
@@ -66,11 +66,11 @@ final class ActionItemsTests: ScribeUITestCase {
         app.launchArguments = arguments + ["-federRemindersReport"]
         app.launch()
         let alert = app.alerts["Feder Reminders"]
-        XCTAssertTrue(alert.waitForExistence(timeout: 20), "the report")
+        XCTAssertTrue(alert.appears(timeout: 20), "the report")
         let message = alert.staticTexts.allElementsBoundByIndex.map(\.label).first { $0 != "Feder Reminders" } ?? ""
         note("Feder's reminders", message)
         alert.buttons["OK"].tap()
-        XCTAssertTrue(alert.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(alert.disappears(timeout: 5))
         return message.split(separator: "\n").map(String.init)
     }
 
@@ -85,7 +85,7 @@ final class ActionItemsTests: ScribeUITestCase {
     private func answerRemindersAlert(allow: Bool) -> Bool {
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let alert = springboard.alerts.firstMatch
-        guard alert.waitForExistence(timeout: 15) else { return false }
+        guard alert.appears(timeout: 15) else { return false }
         note("Reminders alert", alert.debugDescription)
         screenShot(allow ? "Reminders question" : "Reminders question (denied)")
         let denies = "(label BEGINSWITH[c] 'don' OR label BEGINSWITH[c] 'nicht')"
@@ -109,13 +109,13 @@ final class ActionItemsTests: ScribeUITestCase {
         XCTAssertFalse(app.buttons["ActionItems"].exists, "no Action Items row under the summary")
         XCTAssertFalse(app.buttons["Speakers"].exists, "no speaker-count menu")
         let button = actionItemsButton(app)
-        XCTAssertTrue(button.waitForExistence(timeout: 5) && button.isEnabled, "the Action Items button")
+        XCTAssertTrue(button.appears(timeout: 5) && button.isEnabled, "the Action Items button")
         XCTAssertLessThan(app.buttons["FindButton"].frame.minX, button.frame.minX, "after Find")
         XCTAssertLessThan(button.frame.minX, app.buttons["Listen"].frame.minX, "before Listen")
         button.tap()
-        XCTAssertTrue(app.navigationBars["Action Items"].waitForExistence(timeout: 5), "the sheet")
+        XCTAssertTrue(app.navigationBars["Action Items"].appears(timeout: 5), "the sheet")
         let first = item(0, app)
-        XCTAssertTrue(first.waitForExistence(timeout: 3), "the stored items at once")
+        XCTAssertTrue(first.appears(timeout: 3), "the stored items at once")
         XCTAssertFalse(app.descendants(matching: .any)["FindingActionItems"].exists, "Gemma isn't asked")
         XCTAssertTrue(first.label.contains("Send the numbers to finance"), first.label)
         XCTAssertTrue(first.label.contains("Anna Schmidt"), "who: \(first.label)")
@@ -128,7 +128,7 @@ final class ActionItemsTests: ScribeUITestCase {
         shot("Action items sheet", app)
 
         app.buttons["CloseActionItems"].tap()
-        XCTAssertTrue(first.waitForNonExistence(timeout: 5), "closed")
+        XCTAssertTrue(first.disappears(timeout: 5), "closed")
         XCTAssertTrue(app.buttons["SpeakerHeader.0"].isHittable, "back on the card")
     }
 
@@ -144,7 +144,7 @@ final class ActionItemsTests: ScribeUITestCase {
         choose("Add to Reminders", forItem: 0, app)
         XCTAssertTrue(answerRemindersAlert(allow: true), "iOS asks for Reminders")
         let added = NSPredicate(format: "label CONTAINS 'In Reminders'")
-        XCTAssertTrue(app.descendants(matching: .any).matching(added).firstMatch.waitForExistence(timeout: 10),
+        XCTAssertTrue(app.descendants(matching: .any).matching(added).firstMatch.appears(timeout: 10),
                       "the item says In Reminders: \(item(0, app).label)")
         XCTAssertTrue(item(0, app).label.contains("In Reminders"), item(0, app).label)
         XCTAssertFalse(item(1, app).label.contains("In Reminders"), "only that one")
@@ -159,7 +159,7 @@ final class ActionItemsTests: ScribeUITestCase {
         // Once added, the choice says so (one tap on it can't add it twice by mistake), still there for a reminder
         // deleted in Reminders.
         menu.tap()
-        XCTAssertTrue(app.buttons["Add to Calendar"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Add to Calendar"].appears(timeout: 3))
         XCTAssertTrue(app.buttons["Add to Reminders Again"].isEnabled, "offered again")
         XCTAssertFalse(app.buttons["Add to Reminders"].exists, "not as the first time")
         shot("Menu of an added item", app)
@@ -178,7 +178,7 @@ final class ActionItemsTests: ScribeUITestCase {
         XCTAssertFalse(reminders.contains { $0.hasPrefix("Add the third-quarter forecast |") }, "only that one")
 
         // Stored: after a relaunch without re-seeding (takeReminders' launch), still in Reminders.
-        XCTAssertTrue(app.staticTexts["Budget Review"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["Budget Review"].appears(timeout: 15))
         openBudgetItems(app)
         XCTAssertTrue(item(0, app).label.contains("In Reminders"), "stored: \(item(0, app).label)")
     }
@@ -193,12 +193,12 @@ final class ActionItemsTests: ScribeUITestCase {
         choose("Add to Reminders", forItem: 1, app)
         XCTAssertTrue(answerRemindersAlert(allow: false), "iOS asks for Reminders: Don't Allow")
         let alert = app.alerts["Allow Access to Reminders"]
-        XCTAssertFalse(alert.waitForExistence(timeout: 4), "no second alert right after Don't Allow")
-        XCTAssertTrue(app.buttons["ActionItemMenu.1"].waitForExistence(timeout: 5), "the menu's back (no spinner)")
+        XCTAssertFalse(alert.appears(timeout: 4), "no second alert right after Don't Allow")
+        XCTAssertTrue(app.buttons["ActionItemMenu.1"].appears(timeout: 5), "the menu's back (no spinner)")
         XCTAssertFalse(item(1, app).label.contains("In Reminders"), item(1, app).label)
 
         choose("Add to Reminders", forItem: 1, app)
-        XCTAssertTrue(alert.waitForExistence(timeout: 10), "the next try: Feder's alert")
+        XCTAssertTrue(alert.appears(timeout: 10), "the next try: Feder's alert")
         XCTAssertTrue(alert.buttons["Open Settings"].exists)
         XCTAssertTrue(alert.buttons["Cancel"].exists)
         shot("Reminders denied", app)
@@ -272,31 +272,31 @@ final class ActionItemsTests: ScribeUITestCase {
         XCTAssertEqual(itemCount(app), 1, "one left")
         XCTAssertFalse(app.buttons["AddAllToReminders"].exists, "Add All needs two")
         let undo = app.buttons["UndoRemoveActionItem"]
-        XCTAssertTrue(undo.waitForExistence(timeout: 3), "the Undo toast")
+        XCTAssertTrue(undo.appears(timeout: 3), "the Undo toast")
         XCTAssertTrue(app.staticTexts["Action Item Removed"].exists, "saying what was done")
         shot("Item removed", app)
         undo.tap()
-        XCTAssertTrue(item(1, app).waitForExistence(timeout: 3), "Undo puts it back")
+        XCTAssertTrue(item(1, app).appears(timeout: 3), "Undo puts it back")
         XCTAssertEqual(itemCount(app), 2, "two again")
-        XCTAssertTrue(undo.waitForNonExistence(timeout: 3), "the toast goes")
+        XCTAssertTrue(undo.disappears(timeout: 3), "the toast goes")
 
         // Both: No Action Items; Undo brings back the last one.
         choose("Remove", forItem: 1, app)
         XCTAssertTrue(waitFor({ !self.item(1, app).exists }, timeout: 3))
         choose("Remove", forItem: 0, app)
         let none = app.staticTexts["No Action Items"]
-        XCTAssertTrue(none.waitForExistence(timeout: 3), "no items left")
-        XCTAssertTrue(undo.waitForExistence(timeout: 3))
+        XCTAssertTrue(none.appears(timeout: 3), "no items left")
+        XCTAssertTrue(undo.appears(timeout: 3))
         shot("All items removed", app)
         undo.tap()
-        XCTAssertTrue(item(0, app).waitForExistence(timeout: 3), "the item is back")
+        XCTAssertTrue(item(0, app).appears(timeout: 3), "the item is back")
         XCTAssertTrue(item(0, app).label.contains("Send the numbers to finance"), item(0, app).label)
         XCTAssertFalse(item(1, app).exists, "only the last Remove is undone by the toast")
 
         // Left alone, the toast goes and the item stays removed.
         choose("Remove", forItem: 0, app)
-        XCTAssertTrue(undo.waitForExistence(timeout: 3))
-        XCTAssertTrue(undo.waitForNonExistence(timeout: 12), "the toast times out")
+        XCTAssertTrue(undo.appears(timeout: 3))
+        XCTAssertTrue(undo.disappears(timeout: 12), "the toast times out")
         XCTAssertTrue(none.exists, "still removed")
     }
 
@@ -312,23 +312,23 @@ final class ActionItemsTests: ScribeUITestCase {
         let app = launch(["-fakeGemmaDownload"])
         open("Budget Review", in: app)
         actionItemsButton(app).tap()
-        XCTAssertTrue(item(1, app).waitForExistence(timeout: 5))
+        XCTAssertTrue(item(1, app).appears(timeout: 5))
         choose("Remove", forItem: 1, app)
         XCTAssertTrue(waitFor({ !self.item(1, app).exists }, timeout: 3), "removed")
         let inSheet = try XCTUnwrap(shake(app), "a shake in the sheet")
         XCTAssertEqual(inSheet.label, "Undo Action Item Removed")
         shot("Shake in the sheet", app)
         inSheet.buttons["Undo"].tap()
-        XCTAssertTrue(item(1, app).waitForExistence(timeout: 3), "the item is back")
-        XCTAssertTrue(app.buttons["UndoRemoveActionItem"].waitForNonExistence(timeout: 3), "its toast goes")
+        XCTAssertTrue(item(1, app).appears(timeout: 3), "the item is back")
+        XCTAssertTrue(app.buttons["UndoRemoveActionItem"].disappears(timeout: 3), "its toast goes")
         choose("Remove", forItem: 1, app)
         XCTAssertTrue(waitFor({ !self.item(1, app).exists }, timeout: 3), "removed again")
         app.buttons["CloseActionItems"].tap()
-        XCTAssertTrue(item(0, app).waitForNonExistence(timeout: 5), "the sheet closed")
+        XCTAssertTrue(item(0, app).disappears(timeout: 5), "the sheet closed")
         let closed = try XCTUnwrap(shake(app), "a shake once the sheet is closed")
         XCTAssertEqual(closed.label, "Undo Action Item Removed")
         closed.buttons["Undo"].tap()
-        XCTAssertTrue(closed.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(closed.disappears(timeout: 3))
         XCTAssertNil(shake(app, timeout: 2), "nothing left to undo")
 
         let names = {
@@ -337,20 +337,20 @@ final class ActionItemsTests: ScribeUITestCase {
         }
         app.buttons["SpeakerHeader.1"].press(forDuration: 1.0)
         let assign = app.buttons["Assign This Part To"]
-        XCTAssertTrue(assign.waitForExistence(timeout: 5))
+        XCTAssertTrue(assign.appears(timeout: 5))
         assign.tap()
         let lena = app.buttons["Lena Vogel"].firstMatch
-        XCTAssertTrue(lena.waitForExistence(timeout: 5))
+        XCTAssertTrue(lena.appears(timeout: 5))
         lena.tap()
         XCTAssertTrue(waitFor({ names() == ["Lena Vogel", "Anna Schmidt"] }, timeout: 5), "corrected: \(names())")
-        XCTAssertTrue(app.buttons["UndoCorrection"].waitForExistence(timeout: 5), "the correction's toast")
+        XCTAssertTrue(app.buttons["UndoCorrection"].appears(timeout: 5), "the correction's toast")
 
         actionItemsButton(app).tap()
-        XCTAssertTrue(item(1, app).waitForExistence(timeout: 5), "the item the closed sheet's shake put back")
+        XCTAssertTrue(item(1, app).appears(timeout: 5), "the item the closed sheet's shake put back")
         choose("Remove", forItem: 1, app)
-        XCTAssertTrue(app.buttons["UndoRemoveActionItem"].waitForExistence(timeout: 3), "the Remove's toast")
+        XCTAssertTrue(app.buttons["UndoRemoveActionItem"].appears(timeout: 3), "the Remove's toast")
         app.buttons["CloseActionItems"].tap()
-        XCTAssertTrue(item(0, app).waitForNonExistence(timeout: 5), "the sheet closed")
+        XCTAssertTrue(item(0, app).disappears(timeout: 5), "the sheet closed")
 
         let first = try XCTUnwrap(shake(app), "the first shake")
         XCTAssertEqual(first.label, "Undo Action Item Removed", "the Remove first")
@@ -364,7 +364,7 @@ final class ActionItemsTests: ScribeUITestCase {
                       "the correction undone: \(names())")
         XCTAssertNil(shake(app, timeout: 2), "nothing left to undo")
         actionItemsButton(app).tap()
-        XCTAssertTrue(item(1, app).waitForExistence(timeout: 5), "the item is back")
+        XCTAssertTrue(item(1, app).appears(timeout: 5), "the item is back")
         XCTAssertEqual(itemCount(app), 2)
     }
 
@@ -378,7 +378,7 @@ final class ActionItemsTests: ScribeUITestCase {
     func testButtonFindsActionItems() throws {
         XCUIApplication().terminate()
         let app = launch(["-fakeGemma", "-autoRecord", "-autoStopAfter", "6"])
-        XCTAssertTrue(app.buttons["Delete Transcript"].waitForExistence(timeout: 30), "saved: the transcript")
+        XCTAssertTrue(app.buttons["Delete Transcript"].appears(timeout: 30), "saved: the transcript")
         let button = actionItemsButton(app)
         XCTAssertTrue(button.exists, "the Action Items button")
         let status = app.staticTexts["PipelineStatus"]
@@ -389,17 +389,17 @@ final class ActionItemsTests: ScribeUITestCase {
             RunLoop.current.run(until: .now.addingTimeInterval(0.2))
         }
         XCTAssertTrue(app.buttons["Summary"].exists, "the summary is written")
-        XCTAssertTrue(status.waitForNonExistence(timeout: 10), "and nothing runs after it")
+        XCTAssertTrue(status.disappears(timeout: 10), "and nothing runs after it")
         XCTAssertFalse(labels.contains("Finding action items…"), "no action items after Stop: \(labels)")
         XCTAssertTrue(button.isEnabled, "the button once the speakers are final")
         shot("Summary, no action items", app)
 
         button.tap()
         let finding = app.descendants(matching: .any)["FindingActionItems"]
-        XCTAssertTrue(finding.waitForExistence(timeout: 5), "the sheet asks Gemma at once")
+        XCTAssertTrue(finding.appears(timeout: 5), "the sheet asks Gemma at once")
         shot("Finding action items", app)
         let first = item(0, app)
-        XCTAssertTrue(first.waitForExistence(timeout: 20), "the items found")
+        XCTAssertTrue(first.appears(timeout: 20), "the items found")
         XCTAssertFalse(finding.exists)
         XCTAssertTrue(first.label.contains("Send the test results to the team"), first.label)
         var calendar = Calendar.current
@@ -413,15 +413,15 @@ final class ActionItemsTests: ScribeUITestCase {
         shot("Action items found", app)
 
         app.buttons["CloseActionItems"].tap()
-        XCTAssertTrue(first.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(first.disappears(timeout: 5))
         button.tap()
-        XCTAssertTrue(first.waitForExistence(timeout: 3), "opened again: at once")
+        XCTAssertTrue(first.appears(timeout: 3), "opened again: at once")
         XCTAssertFalse(finding.exists, "not asked again")
 
         // Add All: both in one go (iOS asks first when no earlier test was allowed access).
         app.buttons["AddAllToReminders"].tap()
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        if springboard.alerts.firstMatch.waitForExistence(timeout: 5) { XCTAssertTrue(answerRemindersAlert(allow: true)) }
+        if springboard.alerts.firstMatch.appears(timeout: 5) { XCTAssertTrue(answerRemindersAlert(allow: true)) }
         XCTAssertTrue(waitFor({ self.item(1, app).label.contains("In Reminders") }, timeout: 10),
                       "both added: \(item(1, app).label)")
         XCTAssertTrue(item(0, app).label.contains("In Reminders"), item(0, app).label)
@@ -429,10 +429,10 @@ final class ActionItemsTests: ScribeUITestCase {
         shot("All added to Reminders", app)
 
         app.buttons["CloseActionItems"].tap()
-        XCTAssertTrue(first.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(first.disappears(timeout: 5))
         app.buttons["Delete Transcript"].tap()                   // the samples stay on top for the other tests
         app.buttons["Delete"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5))
 
         let reminders = takeReminders(app).map { $0.components(separatedBy: " | ") }
         let tomorrow = Self.ymd(calendar.date(byAdding: .day, value: 1, to: today)!) + " 10:00"
@@ -459,8 +459,8 @@ final class ActionItemsTests: ScribeUITestCase {
         choose("Remove", forItem: 1, app)
         XCTAssertTrue(waitFor({ self.itemCount(app) == 1 }, timeout: 3), "removed")
         app.buttons["Find Again"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["FindingActionItems"].waitForExistence(timeout: 5), "Gemma asked")
-        XCTAssertTrue(item(0, app).waitForExistence(timeout: 40), "found again")
+        XCTAssertTrue(app.descendants(matching: .any)["FindingActionItems"].appears(timeout: 5), "Gemma asked")
+        XCTAssertTrue(item(0, app).appears(timeout: 40), "found again")
         sleep(1)
         XCTAssertEqual(itemCount(app), 1, "the removed one stays removed")
         XCTAssertTrue(item(0, app).label.contains("Send the numbers to finance"), item(0, app).label)
@@ -476,21 +476,21 @@ final class ActionItemsTests: ScribeUITestCase {
         let app = launch(["-fakeGemma", "-seedOldTranscripts"])
         open("Project Kickoff", in: app)
         // Seeded without a summary: one appears once the sweep has described it (it may be done before the card is up).
-        XCTAssertTrue(app.buttons["Summary"].waitForExistence(timeout: 40), "the launch sweep wrote its summary")
+        XCTAssertTrue(app.buttons["Summary"].appears(timeout: 40), "the launch sweep wrote its summary")
         let status = app.staticTexts["PipelineStatus"]
-        XCTAssertTrue(status.waitForNonExistence(timeout: 30), "and is done")
+        XCTAssertTrue(status.disappears(timeout: 30), "and is done")
         sleep(2)
         actionItemsButton(app).tap()
-        XCTAssertTrue(app.descendants(matching: .any)["FindingActionItems"].waitForExistence(timeout: 5),
+        XCTAssertTrue(app.descendants(matching: .any)["FindingActionItems"].appears(timeout: 5),
                       "nothing stored: the sheet asks Gemma now")
         shot("Older transcript, asked by the button", app)
         app.buttons["CloseActionItems"].tap()
         closeCard(app)
         open("Budget Review", in: app)
-        XCTAssertFalse(status.waitForExistence(timeout: 10), "ten days old: nothing written again")
+        XCTAssertFalse(status.appears(timeout: 10), "ten days old: nothing written again")
         XCTAssertEqual(app.buttons["Summary"].value as? String, SummaryTests.summary, "its own summary stays")
         actionItemsButton(app).tap()
-        XCTAssertTrue(item(1, app).waitForExistence(timeout: 5), "its own two")
+        XCTAssertTrue(item(1, app).appears(timeout: 5), "its own two")
         XCTAssertEqual(itemCount(app), 2)
     }
 
@@ -501,9 +501,9 @@ final class ActionItemsTests: ScribeUITestCase {
         let app = launch(["-fakeGemmaDownload", "-seedOldTranscripts"])
         open("Project Kickoff", in: app)
         let button = actionItemsButton(app)
-        XCTAssertTrue(button.waitForExistence(timeout: 5) && button.isEnabled, "the button: Gemma can run here")
+        XCTAssertTrue(button.appears(timeout: 5) && button.isEnabled, "the button: Gemma can run here")
         button.tap()
-        XCTAssertTrue(app.staticTexts["Gemma Needed"].waitForExistence(timeout: 5), "it says Gemma is needed")
+        XCTAssertTrue(app.staticTexts["Gemma Needed"].appears(timeout: 5), "it says Gemma is needed")
         XCTAssertFalse(app.descendants(matching: .any)["FindingActionItems"].exists)
         shot("Gemma needed", app)
     }
@@ -513,19 +513,10 @@ final class ActionItemsTests: ScribeUITestCase {
     func testDeepLinkOpensTranscript() throws {
         let app = launch()
         app.open(URL(string: "feder://transcript/5C0FFEE0-0000-4000-8000-000000000002")!)   // Budget Review
-        XCTAssertTrue(app.buttons["SpeakerHeader.0"].waitForExistence(timeout: 10), "the card opens")
+        XCTAssertTrue(app.buttons["SpeakerHeader.0"].appears(timeout: 10), "the card opens")
         assertCard(app)
         XCTAssertEqual(app.textFields["Title"].value as? String, "Budget Review")
         closeCard(app)
     }
 
-    @MainActor
-    private func waitFor(_ condition: () -> Bool, timeout: TimeInterval = 5) -> Bool {
-        let end = Date.now.addingTimeInterval(timeout)
-        while Date.now < end {
-            if condition() { return true }
-            RunLoop.current.run(until: .now.addingTimeInterval(0.2))
-        }
-        return condition()
-    }
 }

@@ -42,7 +42,7 @@ class ScribeUITestCase: XCTestCase {
         app.launchArguments = ["-seedSamples"] + language + onboarding + voices + lock + network + arguments
         app.launch()
         if waitsForList {
-            XCTAssertTrue(app.staticTexts["Project Kickoff"].waitForExistence(timeout: 15), "the seeded transcripts are listed")
+            XCTAssertTrue(app.staticTexts["Project Kickoff"].appears(timeout: 15), "the seeded transcripts are listed")
         }
         return app
     }
@@ -52,7 +52,7 @@ class ScribeUITestCase: XCTestCase {
     @MainActor
     func open(_ title: String, in app: XCUIApplication) {
         app.staticTexts[title].firstMatch.tap()
-        XCTAssertTrue(app.buttons["SpeakerHeader.0"].waitForExistence(timeout: 10), "\(title) opened")
+        XCTAssertTrue(app.buttons["SpeakerHeader.0"].appears(timeout: 10), "\(title) opened")
         assertCard(app)
         XCTAssertEqual(app.textFields["Title"].value as? String, title, "the card shows \(title)")
     }
@@ -62,12 +62,12 @@ class ScribeUITestCase: XCTestCase {
     @MainActor
     func assertCard(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
         let back = app.buttons["Minimize"]
-        XCTAssertTrue(back.waitForExistence(timeout: 10), "the card's back button", file: file, line: line)
+        XCTAssertTrue(back.appears(timeout: 10), "the card's back button", file: file, line: line)
         XCTAssertLessThan(back.frame.minY, 100, "the back button at the top: \(back.frame)", file: file, line: line)
         XCTAssertLessThan(back.frame.minX, 40, "at the leading edge: \(back.frame)", file: file, line: line)
         XCTAssertGreaterThanOrEqual(back.frame.width, 40, "a 44 pt glass circle: \(back.frame)", file: file, line: line)
         // Delete: in the bar in every mode (opened from a search result, Share is in the More menu).
-        XCTAssertTrue(app.buttons["Delete Transcript"].waitForExistence(timeout: 10), "the bottom toolbar",
+        XCTAssertTrue(app.buttons["Delete Transcript"].appears(timeout: 10), "the bottom toolbar",
                       file: file, line: line)
         // The navigation bar of the screen the card covers (Settings › People › person) stays in the tree: only a
         // reachable one counts.
@@ -88,7 +88,7 @@ class ScribeUITestCase: XCTestCase {
         while true {
             app.buttons["More"].firstMatch.tap()
             let item = app.buttons[label].firstMatch
-            XCTAssertTrue(item.waitForExistence(timeout: 5), "\(label) in the More menu", file: file, line: line)
+            XCTAssertTrue(item.appears(timeout: 5), "\(label) in the More menu", file: file, line: line)
             if item.isEnabled || !waitsUntilEnabled || Date.now > deadline {
                 item.tap()
                 return
@@ -106,7 +106,7 @@ class ScribeUITestCase: XCTestCase {
         // which missed the button on a card scrolled to its end with the title under the button (Budget Review with its
         // action items); a tap on the middle closed it there every time.
         app.buttons["Minimize"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "the card closed", file: file, line: line)
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5), "the card closed", file: file, line: line)
     }
 
     /// Swipes the card away to the right: a pan from the left screen edge (the back gesture) across most of the width.
@@ -122,9 +122,26 @@ class ScribeUITestCase: XCTestCase {
     func deleteOpenTranscript(_ app: XCUIApplication) {
         app.buttons["Delete Transcript"].tap()
         let confirm = app.buttons["Delete"].firstMatch
-        XCTAssertTrue(confirm.waitForExistence(timeout: 5), "asks first")
+        XCTAssertTrue(confirm.appears(timeout: 5), "asks first")
         confirm.tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "the card closes")
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5), "the card closes")
+    }
+
+    /// Polls `condition` every 0.2 s until it holds or `timeout` has passed (once per class until October 2026, the
+    /// same in each). XCUITest's own expectations poll about once a second.
+    @MainActor
+    func waitFor(timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
+        let end = Date.now.addingTimeInterval(timeout)
+        while Date.now < end {
+            if condition() { return true }
+            RunLoop.current.run(until: .now.addingTimeInterval(0.2))
+        }
+        return condition()
+    }
+
+    @MainActor
+    func waitFor(_ condition: () -> Bool, timeout: TimeInterval) -> Bool {
+        waitFor(timeout: timeout, condition)
     }
 
     /// Taps Transcribe and answers the microphone permission alert, should the simulator ask.
@@ -139,7 +156,7 @@ class ScribeUITestCase: XCTestCase {
         }
         transcribe(app).tap()
         app.tap()                                                           // lets the monitor answer a permission alert
-        XCTAssertTrue(app.staticTexts["Recording"].waitForExistence(timeout: 10), "the card's live view")
+        XCTAssertTrue(app.staticTexts["Recording"].appears(timeout: 10), "the card's live view")
     }
 
     /// The record accessory without a recording ("● Transcribe").
@@ -164,7 +181,7 @@ class ScribeUITestCase: XCTestCase {
     @MainActor
     func dismissKeyboardTip(_ app: XCUIApplication) {
         let tip = app.keyboards.buttons["Continue"]
-        if tip.waitForExistence(timeout: 1) { tip.tap() }
+        if tip.appears(timeout: 1) { tip.tap() }
     }
 
     /// Shakes the simulated iPhone as Device › Shake does: UIKit registers for this Darwin notification in the simulator
@@ -178,7 +195,7 @@ class ScribeUITestCase: XCTestCase {
     func shake(_ app: XCUIApplication, timeout: TimeInterval = 3) -> XCUIElement? {
         notify_post("com.apple.UIKit.SimulatorShake")
         let alert = app.alerts.firstMatch
-        return alert.waitForExistence(timeout: timeout) ? alert : nil
+        return alert.appears(timeout: timeout) ? alert : nil
     }
 
     /// A screenshot kept in the result bundle.
@@ -273,5 +290,32 @@ class ScribeUITestCase: XCTestCase {
              "row \(row.frame), text at x \(textX): line share left of the text \(left), right of it \(right)")
         XCTAssertLessThan(left, 0.2, "\(title): no separator left of the text (x 1-\(textX - 3))", file: file, line: line)
         XCTAssertGreaterThan(right, 0.8, "\(title): the separator from the text on", file: file, line: line)
+    }
+}
+
+extension XCUIElement {
+    /// `waitForExistence(timeout:)`, but at once when the element is there already, then every 0.2 s: XCUITest's own
+    /// waits look first after about a second, also for an element already on screen, which was most of the suite's
+    /// time waiting (1,179 waits, 28 of 81 minutes summed, in October 2026's parallel run).
+    @MainActor
+    func appears(timeout: TimeInterval) -> Bool {
+        poll(timeout: timeout) { $0.exists }
+    }
+
+    /// `waitForNonExistence(timeout:)`, polled the same way.
+    @MainActor
+    func disappears(timeout: TimeInterval) -> Bool {
+        poll(timeout: timeout) { !$0.exists }
+    }
+
+    @MainActor
+    private func poll(timeout: TimeInterval, _ condition: (XCUIElement) -> Bool) -> Bool {
+        if condition(self) { return true }
+        let end = Date.now.addingTimeInterval(timeout)
+        while Date.now < end {
+            RunLoop.current.run(until: .now.addingTimeInterval(0.2))
+            if condition(self) { return true }
+        }
+        return false
     }
 }

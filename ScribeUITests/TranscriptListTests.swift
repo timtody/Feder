@@ -13,7 +13,7 @@ final class TranscriptListTests: ScribeUITestCase {
     func testHeadingsScrollAway() throws {
         let app = launch(["-seedFiller", "12"])
         let heading = app.collectionViews.staticTexts["Transcripts"]   // not the tab
-        XCTAssertTrue(heading.waitForExistence(timeout: 5), "the Transcripts heading")
+        XCTAssertTrue(heading.appears(timeout: 5), "the Transcripts heading")
         let importButton = app.buttons["ImportAudio"]
         XCTAssertLessThan(abs(heading.frame.midY - importButton.frame.midY), 4, "Import on the heading's line: \(heading.frame) \(importButton.frame)")
         XCTAssertGreaterThan(importButton.frame.minX, app.frame.width * 0.7, "at the right: \(importButton.frame)")
@@ -28,20 +28,20 @@ final class TranscriptListTests: ScribeUITestCase {
         shot("List scrolled", app)
 
         app.buttons["Search"].firstMatch.tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.keyboards.firstMatch.appears(timeout: 5))
         dismissKeyboardTip(app)
         let suggested = app.staticTexts["Suggested"]
-        XCTAssertTrue(suggested.waitForExistence(timeout: 5))
+        XCTAssertTrue(suggested.appears(timeout: 5))
         XCTAssertGreaterThan(suggested.frame.minY, app.textFields["SearchField"].frame.maxY, "content under the bar")
         XCTAssertLessThan(suggested.frame.minY, 200, "right under it: \(suggested.frame)")
         XCTAssertFalse(app.collectionViews.staticTexts["Search"].exists, "no Search heading")
         shot("Searching", app)
         app.buttons["Close"].firstMatch.tap()
-        XCTAssertTrue(app.textFields["SearchField"].waitForNonExistence(timeout: 5), "back from search")
+        XCTAssertTrue(app.textFields["SearchField"].disappears(timeout: 5), "back from search")
 
         app.buttons["Settings"].firstMatch.tap()
         let settings = app.collectionViews.staticTexts["Settings"]
-        XCTAssertTrue(app.switches["Live Speaker Labels"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.switches["Live Speaker Labels"].appears(timeout: 5))
         XCTAssertTrue(settings.exists, "the Settings heading")
         XCTAssertLessThan(abs(settings.frame.minY - transcriptsTop), 3, "where Transcripts' heading is: \(settings.frame) \(transcriptsTop)")
         XCTAssertFalse(app.navigationBars.staticTexts["Settings"].exists, "no navigation bar title")
@@ -53,7 +53,7 @@ final class TranscriptListTests: ScribeUITestCase {
         let large = launch(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityM"])
         large.buttons["Settings"].firstMatch.tap()
         let largeHeading = large.collectionViews.staticTexts["Settings"]
-        XCTAssertTrue(largeHeading.waitForExistence(timeout: 5), "the Settings heading at a large text size")
+        XCTAssertTrue(largeHeading.appears(timeout: 5), "the Settings heading at a large text size")
         let rest = largeHeading.frame
         large.swipeUp()
         XCTAssertTrue(scrolledAway(largeHeading, large) || largeHeading.frame.minY < rest.minY - 30,
@@ -68,12 +68,12 @@ final class TranscriptListTests: ScribeUITestCase {
         let app = launch(["-fakeLiveSkipSlot", "YES", "-resetVoiceRecognition"])
         startRecording(app)
         let live = { (n: Int) in app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Speaker \(n): ")).firstMatch }
-        XCTAssertTrue(live(1).waitForExistence(timeout: 15), "the first voice")
-        XCTAssertTrue(live(2).waitForExistence(timeout: 15), "the second voice is Speaker 2")
+        XCTAssertTrue(live(1).appears(timeout: 15), "the first voice")
+        XCTAssertTrue(live(2).appears(timeout: 15), "the second voice is Speaker 2")
         XCTAssertFalse(live(3).exists, "no Speaker 3 for two voices")
         shot("Live: Speaker 1 and 2", app)
         app.buttons["Stop"].firstMatch.tap()
-        XCTAssertTrue(app.textFields["Title"].waitForExistence(timeout: 15), "saved")
+        XCTAssertTrue(app.textFields["Title"].appears(timeout: 15), "saved")
         deleteOpenTranscript(app)
     }
 
@@ -93,15 +93,15 @@ final class TranscriptListTests: ScribeUITestCase {
     func testSwipeShowsShareAndDelete() throws {
         let app = launch()
         let row = app.cells.containing(.staticText, identifier: "Budget Review").firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         row.swipeLeft()
         let delete = app.buttons["Delete"], share = app.buttons["Share"]
-        XCTAssertTrue(delete.waitForExistence(timeout: 3), "Delete")
+        XCTAssertTrue(delete.appears(timeout: 3), "Delete")
         XCTAssertTrue(share.exists, "Share")
         XCTAssertGreaterThan(delete.frame.minX, share.frame.minX, "Delete outermost")
         shot("Swiped", app)
         delete.tap()
-        XCTAssertTrue(app.staticTexts["Budget Review"].waitForNonExistence(timeout: 5), "deleted")
+        XCTAssertTrue(app.staticTexts["Budget Review"].disappears(timeout: 5), "deleted")
         XCTAssertTrue(app.staticTexts["Project Kickoff"].exists)
     }
 
@@ -114,19 +114,19 @@ final class TranscriptListTests: ScribeUITestCase {
         let app = launch(["-seedPendingSample", "-fakeDiarizeSeconds", "60"])
         for title in ["Weekly Sync", "Project Kickoff"] {                   // no tags; two tags
             let row = app.cells.containing(.staticText, identifier: title).firstMatch
-            XCTAssertTrue(row.waitForExistence(timeout: 5))
+            XCTAssertTrue(row.appears(timeout: 5))
             assertSeparatorStartsAtText(under: title, app)
             XCTAssertEqual(row.frame.height, 62, accuracy: 3, "\(title): a two-line row like Voice Memos': \(row.frame)")
             row.swipeLeft()
             let delete = app.buttons["Delete"]
-            XCTAssertTrue(delete.waitForExistence(timeout: 3))
+            XCTAssertTrue(delete.appears(timeout: 3))
             shot("Swiped \(title)", app)
             note("Swipe \(title)", "row \(row.frame), Delete \(delete.frame), Share \(app.buttons["Share"].frame)")
             XCTAssertGreaterThan(delete.frame.width, delete.frame.height + 10, "\(title): a wide pill: \(delete.frame)")
             XCTAssertEqual(delete.frame.height, 34, accuracy: 3, "\(title): Voice Memos' pill height: \(delete.frame)")
             XCTAssertTrue(app.staticTexts["Delete"].exists || delete.label == "Delete", "the title")
             row.swipeRight()                                                 // closes it
-            XCTAssertTrue(delete.waitForNonExistence(timeout: 3))
+            XCTAssertTrue(delete.disappears(timeout: 3))
         }
     }
 
@@ -142,11 +142,11 @@ final class TranscriptListTests: ScribeUITestCase {
     func testRecordAccessoryFlow() throws {
         let app = launch()
         let record = transcribe(app)
-        XCTAssertTrue(record.waitForExistence(timeout: 5), "the accessory says Transcribe")
+        XCTAssertTrue(record.appears(timeout: 5), "the accessory says Transcribe")
         let tapped = Date.now
         startRecording(app)
         let bigStop = app.buttons["Stop"].firstMatch
-        XCTAssertTrue(bigStop.waitForExistence(timeout: 10), "a large Stop")
+        XCTAssertTrue(bigStop.appears(timeout: 10), "a large Stop")
         XCTAssertGreaterThanOrEqual(bigStop.frame.width, 70, "large: \(bigStop.frame)")
         XCTAssertTrue(app.buttons["Minimize"].exists, "the back button")
         XCTAssertFalse(isOnScreen(app.buttons["Settings"].firstMatch, app), "full screen, like Now Playing")
@@ -168,10 +168,10 @@ final class TranscriptListTests: ScribeUITestCase {
         shot("Recording", app)
 
         app.buttons["Minimize"].tap()                                       // back into the accessory, still recording
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "the card closed")
-        XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5), "the card closed")
+        XCTAssertTrue(app.cells.firstMatch.appears(timeout: 5))
         let accessory = app.buttons["Recording"].firstMatch
-        XCTAssertTrue(accessory.waitForExistence(timeout: 5), "the accessory shows the recording")
+        XCTAssertTrue(accessory.appears(timeout: 5), "the accessory shows the recording")
         let accessoryStop = app.buttons["Stop"].firstMatch
         XCTAssertTrue(accessoryStop.exists, "with Stop")
         XCTAssertLessThan(accessoryStop.frame.width, 70, "the accessory's small Stop: \(accessoryStop.frame)")
@@ -179,7 +179,7 @@ final class TranscriptListTests: ScribeUITestCase {
         shot("Recording minimized", app)
 
         accessory.tap()                                                     // opens it again
-        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 5), "the card again")
+        XCTAssertTrue(app.buttons["Minimize"].appears(timeout: 5), "the card again")
         let stop = app.buttons["Stop"].firstMatch
         XCTAssertGreaterThanOrEqual(stop.frame.width, 70, "the card's large Stop: \(stop.frame)")
         XCTAssertFalse(app.staticTexts["Listening…"].exists, "words were transcribed (or Stop discards it)")
@@ -188,10 +188,10 @@ final class TranscriptListTests: ScribeUITestCase {
         // The same card turns into the transcript with the name it showed. Read at once: the automatic title (after
         // speaker identification) may replace it a few seconds later.
         let field = app.textFields["Title"]
-        XCTAssertTrue(field.waitForExistence(timeout: 15), "the transcript in the card")
+        XCTAssertTrue(field.appears(timeout: 15), "the transcript in the card")
         XCTAssertEqual(field.value as? String, name, "saved with the name the recording showed")
         // Its bottom toolbar replaces the Stop (shown once the turn is over), the back button stays.
-        XCTAssertTrue(app.buttons["Share Transcript"].waitForExistence(timeout: 15), "the transcript's toolbar")
+        XCTAssertTrue(app.buttons["Share Transcript"].appears(timeout: 15), "the transcript's toolbar")
         assertCard(app)
         XCTAssertFalse(app.buttons["Stop"].exists, "the Stop gave way to the toolbar")
         XCTAssertFalse(app.staticTexts["Recording"].exists, "the recording's timer is gone")
@@ -226,12 +226,12 @@ final class TranscriptListTests: ScribeUITestCase {
         shot("After Stop", app)
 
         closeCard(app)
-        XCTAssertTrue(record.waitForExistence(timeout: 5), "the accessory is back to Transcribe")
+        XCTAssertTrue(record.appears(timeout: 5), "the accessory is back to Transcribe")
         XCTAssertTrue(record.isHittable)
         // The new transcript tops the list, above Project Kickoff (seeded at launch, the newest until now), with the
         // start time. Its title may already be the automatic one, so it is found by its place, not by its name.
         let rows = app.buttons.matching(NSPredicate(format: "label CONTAINS ', Today at '"))
-        XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(rows.firstMatch.appears(timeout: 5))
         let newest = rows.element(boundBy: 0), kickoff = app.staticTexts["Project Kickoff"].firstMatch
         XCTAssertFalse(newest.label.hasPrefix("Project Kickoff"), "the new transcript is at the top: \(newest.label)")
         XCTAssertTrue(newest.label.contains(", \(day), "), "listed with the start time \(day): \(newest.label)")
@@ -244,10 +244,10 @@ final class TranscriptListTests: ScribeUITestCase {
         assertCard(app)
         app.buttons["Delete Transcript"].tap()
         let confirm = app.buttons["Delete"].firstMatch
-        XCTAssertTrue(confirm.waitForExistence(timeout: 5), "asks first")
+        XCTAssertTrue(confirm.appears(timeout: 5), "asks first")
         confirm.tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "the card closes")
-        XCTAssertTrue(kickoff.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5), "the card closes")
+        XCTAssertTrue(kickoff.appears(timeout: 5))
         let top = rows.element(boundBy: 0)
         for _ in 0..<25 where !top.label.hasPrefix("Project Kickoff") { RunLoop.current.run(until: .now + 0.2) }
         XCTAssertTrue(top.label.hasPrefix("Project Kickoff"), "deleted: Project Kickoff tops the list again: \(top.label)")
@@ -260,11 +260,11 @@ final class TranscriptListTests: ScribeUITestCase {
     func testStopWithNothingTranscribedClosesCard() throws {
         let app = launch(["-fakeSilence"])
         let record = transcribe(app)
-        XCTAssertTrue(record.waitForExistence(timeout: 5), "the accessory says Transcribe")
+        XCTAssertTrue(record.appears(timeout: 5), "the accessory says Transcribe")
         let tapped = Date.now
         startRecording(app)
         let stop = app.buttons["Stop"].firstMatch
-        XCTAssertTrue(stop.waitForExistence(timeout: 10), "the large Stop")
+        XCTAssertTrue(stop.appears(timeout: 10), "the large Stop")
         XCTAssertNotNil(reachable(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'New Transcript '"))),
                         "the name the transcript would get")
         let date = reachable(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Today at '")))
@@ -274,12 +274,12 @@ final class TranscriptListTests: ScribeUITestCase {
         shot("Recording silence", app)
         stop.tap()
 
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 10), "the card closes")
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 10), "the card closes")
         XCTAssertFalse(app.buttons["Share Transcript"].exists, "no transcript")
         XCTAssertFalse(app.textFields["Title"].exists, "no transcript")
-        XCTAssertTrue(record.waitForExistence(timeout: 5) && record.isHittable, "the accessory is back to Transcribe")
+        XCTAssertTrue(record.appears(timeout: 5) && record.isHittable, "the accessory is back to Transcribe")
         let rows = app.buttons.matching(NSPredicate(format: "label CONTAINS ', Today at '"))
-        XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(rows.firstMatch.appears(timeout: 5))
         XCTAssertTrue(rows.element(boundBy: 0).label.hasPrefix("Project Kickoff"),
                       "nothing saved: Project Kickoff still tops the list: \(rows.element(boundBy: 0).label)")
         shot("After Stop, nothing saved", app)
@@ -323,7 +323,7 @@ final class TranscriptListTests: ScribeUITestCase {
              + "hittable \(transcribe(app).exists && transcribe(app).isHittable), tab bars \(app.tabBars.count)")
         closeCard(app)
         XCTAssertTrue(app.cells.firstMatch.isHittable, "back in the list")
-        XCTAssertTrue(transcribe(app).waitForExistence(timeout: 5) && transcribe(app).isHittable, "with the accessory")
+        XCTAssertTrue(transcribe(app).appears(timeout: 5) && transcribe(app).isHittable, "with the accessory")
 
         open("Project Kickoff", in: app)                                    // (on a simulator with many transcripts
         let back = app.buttons["Minimize"]                                  // Budget Review is below the screen)
@@ -345,8 +345,8 @@ final class TranscriptListTests: ScribeUITestCase {
         RunLoop.current.run(until: .now + 1)
         XCTAssertTrue(back.exists && back.isHittable, "a short swipe springs back")
         swipeCardRight(app)
-        XCTAssertTrue(back.waitForNonExistence(timeout: 5), "swiping right closes the card")
-        XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(back.disappears(timeout: 5), "swiping right closes the card")
+        XCTAssertTrue(app.cells.firstMatch.appears(timeout: 5))
         XCTAssertTrue(app.staticTexts["Project Kickoff"].exists, "still listed")
         XCTAssertTrue(transcribe(app).isHittable, "the accessory is back")
         shot("Swiped right", app)
@@ -358,49 +358,40 @@ final class TranscriptListTests: ScribeUITestCase {
     func testSwipeRightClosesRecordingAndLongTranscriptScrolls() throws {
         let app = launch(["-fakeBacklogMinutes", "3"])                      // a transcript long enough to scroll
         startRecording(app)
-        XCTAssertTrue(app.buttons["Stop"].firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Stop"].firstMatch.appears(timeout: 10))
         swipeCardRight(app)
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "swiping right closes the recording card")
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5), "swiping right closes the recording card")
         let accessory = app.buttons["Recording"].firstMatch
-        XCTAssertTrue(accessory.waitForExistence(timeout: 5), "recording goes on in the accessory")
+        XCTAssertTrue(accessory.appears(timeout: 5), "recording goes on in the accessory")
         accessory.tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Minimize"].appears(timeout: 5))
         app.buttons["Stop"].firstMatch.tap()
         let title = app.textFields["Title"]
-        XCTAssertTrue(title.waitForExistence(timeout: 15), "the transcript in the card")
-        XCTAssertTrue(app.buttons["Share Transcript"].waitForExistence(timeout: 15))
+        XCTAssertTrue(title.appears(timeout: 15), "the transcript in the card")
+        XCTAssertTrue(app.buttons["Share Transcript"].appears(timeout: 15))
         RunLoop.current.run(until: .now + 1)
         app.swipeUp()                                                       // scrolls the transcript: the title goes
-        XCTAssertTrue(waitUntil { !(title.exists && title.isHittable) }, "swiping up scrolls the transcript")
+        XCTAssertTrue(waitFor { !(title.exists && title.isHittable) }, "swiping up scrolls the transcript")
         XCTAssertTrue(app.buttons["Minimize"].exists, "the card is still up")
         app.swipeDown()
         app.swipeDown()
-        XCTAssertTrue(waitUntil { title.exists && title.isHittable }, "swiping down scrolls back up")
+        XCTAssertTrue(waitFor { title.exists && title.isHittable }, "swiping down scrolls back up")
         XCTAssertTrue(app.buttons["Minimize"].exists, "swiping down doesn't close the card")
         shot("Scrolled back", app)
         swipeCardRight(app)
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "swiping right closes the transcript")
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5), "swiping right closes the transcript")
         // Delete the recording, so test recordings don't pile up in the simulator's store.
         let rows = app.buttons.matching(NSPredicate(format: "label CONTAINS ', Today at '"))
-        XCTAssertTrue(rows.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(rows.firstMatch.appears(timeout: 5))
         rows.element(boundBy: 0).tap()
         assertCard(app)
         app.buttons["Delete Transcript"].tap()
         let confirm = app.buttons["Delete"].firstMatch
-        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        XCTAssertTrue(confirm.appears(timeout: 5))
         confirm.tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5))
     }
 
-    @MainActor
-    private func waitUntil(timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
-        let end = Date.now.addingTimeInterval(timeout)
-        while Date.now < end {
-            if condition() { return true }
-            RunLoop.current.run(until: .now + 0.2)
-        }
-        return condition()
-    }
 
     /// The card's actions are in the system's bottom toolbar (like Photos and Mail; Liquid Glass), not in a top menu:
     /// Share, Find, More (Add Tag, Edit Text) and Delete, within thumb reach; the card covers the tab bar and the record
@@ -415,7 +406,7 @@ final class TranscriptListTests: ScribeUITestCase {
         let find = app.buttons["FindButton"], more = app.buttons["More"], delete = app.buttons["Delete Transcript"]
         let height = app.windows.firstMatch.frame.height
         for (element, name) in [(share, "Share"), (find, "Find"), (more, "More"), (delete, "Delete")] {
-            XCTAssertTrue(element.waitForExistence(timeout: 5), name)
+            XCTAssertTrue(element.appears(timeout: 5), name)
             XCTAssertTrue(element.isHittable, "\(name) is not hidden in an overflow menu")
             XCTAssertGreaterThan(element.frame.minY, height * 0.85, "\(name) at the bottom")
         }
@@ -425,11 +416,11 @@ final class TranscriptListTests: ScribeUITestCase {
         XCTAssertGreaterThan(more.frame.minY, height * 0.85, "More in the bottom bar, not a top-right menu")
         more.tap()                                                          // Add Tag and Edit Text in it
         for label in ["Add Tag", "Edit Text"] {
-            XCTAssertTrue(app.buttons[label].waitForExistence(timeout: 5), "\(label) in More")
+            XCTAssertTrue(app.buttons[label].appears(timeout: 5), "\(label) in More")
         }
         shot("Card toolbar's More menu", app)
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.1)).tap()
-        XCTAssertTrue(app.buttons["Add Tag"].waitForNonExistence(timeout: 5), "the menu closed")
+        XCTAssertTrue(app.buttons["Add Tag"].disappears(timeout: 5), "the menu closed")
         shot("Card toolbar", app)
 
         XCTAssertFalse(app.buttons["Action Items"].exists, "no Action Items without Gemma, though items are stored")
@@ -438,7 +429,7 @@ final class TranscriptListTests: ScribeUITestCase {
         let trash = delete.frame                                            // the dialog grows out of it, replacing it
         delete.tap()
         let confirm = app.buttons["Delete"].firstMatch
-        XCTAssertTrue(confirm.waitForExistence(timeout: 5), "asks first")
+        XCTAssertTrue(confirm.appears(timeout: 5), "asks first")
         shot("Delete confirmation", app)
         note("Delete confirmation", "confirm \(confirm.frame), trash \(trash)")
         // It comes out of the trash button (like Photos and Notes): on its side of the card, not floating mid-card.
@@ -446,9 +437,9 @@ final class TranscriptListTests: ScribeUITestCase {
                              "anchored to Delete on the right: \(confirm.frame)")
         XCTAssertGreaterThan(confirm.frame.maxX, trash.midX, "reaching to the trash button: \(confirm.frame) \(trash)")
         confirm.tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "the card closes")
-        XCTAssertTrue(transcribe(app).waitForExistence(timeout: 5), "back in the list, with the accessory")
-        XCTAssertTrue(app.staticTexts["Budget Review"].waitForNonExistence(timeout: 5), "deleted")
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5), "the card closes")
+        XCTAssertTrue(transcribe(app).appears(timeout: 5), "back in the list, with the accessory")
+        XCTAssertTrue(app.staticTexts["Budget Review"].disappears(timeout: 5), "deleted")
         XCTAssertTrue(app.staticTexts["Project Kickoff"].exists)
     }
 
@@ -457,13 +448,13 @@ final class TranscriptListTests: ScribeUITestCase {
     func testSwipeShare() throws {
         let app = launch()
         let row = app.cells.containing(.staticText, identifier: "Project Kickoff").firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.appears(timeout: 5))
         row.swipeLeft()
         let share = app.buttons["Share"]
-        XCTAssertTrue(share.waitForExistence(timeout: 3))
+        XCTAssertTrue(share.appears(timeout: 3))
         share.tap()
         let sheet = app.otherElements["ActivityListView"]
-        XCTAssertTrue(sheet.waitForExistence(timeout: 5) || app.navigationBars["UIActivityContentView"].exists,
+        XCTAssertTrue(sheet.appears(timeout: 5) || app.navigationBars["UIActivityContentView"].exists,
                       "the share sheet")
         shot("Share sheet", app)
     }

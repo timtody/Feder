@@ -14,50 +14,50 @@ final class TagEditorTests: ScribeUITestCase {
         open("Budget Review", in: app)
         let field = app.textFields["Add Tag"]
         let finance = app.buttons["Remove finance"]
-        XCTAssertTrue(finance.waitForExistence(timeout: 5), "the tag's pill")
+        XCTAssertTrue(finance.appears(timeout: 5), "the tag's pill")
         XCTAssertFalse(field.exists, "no field while not adding tags")
 
         finance.tap()
-        XCTAssertTrue(finance.waitForNonExistence(timeout: 5), "the tag is removed")
+        XCTAssertTrue(finance.disappears(timeout: 5), "the tag is removed")
         XCTAssertFalse(field.exists, "and with no tags left, no tag line at all")
         shot("No tags, no line", app)
 
         XCTAssertTrue(app.buttons["More"].isHittable, "Add Tag in the bottom toolbar's More menu")
         tapMenuItem("Add Tag", in: app)
-        XCTAssertTrue(field.waitForExistence(timeout: 5), "Add Tag inserts the line with its field")
+        XCTAssertTrue(field.appears(timeout: 5), "Add Tag inserts the line with its field")
         XCTAssertTrue(waitForFocus(field), "focused, ready to type")
         let suggestions = app.buttons.matching(identifier: "TagSuggestion")
-        XCTAssertTrue(suggestions.firstMatch.waitForExistence(timeout: 5), "the other transcripts' tags are suggested")
+        XCTAssertTrue(suggestions.firstMatch.appears(timeout: 5), "the other transcripts' tags are suggested")
         let suggested = suggestions.allElementsBoundByIndex.map(\.label)
         XCTAssertTrue(suggested.contains("work") && suggested.contains("planning"), "Project Kickoff's tags: \(suggested)")
         XCTAssertFalse(suggested.contains("finance"), "a removed tag on no other transcript is not suggested: \(suggested)")
         shot("Adding tags", app)
 
         field.typeText("alpha, beta,")
-        XCTAssertTrue(app.buttons["Remove alpha"].waitForExistence(timeout: 5), "a comma makes the word before it a pill")
+        XCTAssertTrue(app.buttons["Remove alpha"].appears(timeout: 5), "a comma makes the word before it a pill")
         XCTAssertTrue(app.buttons["Remove beta"].exists)
         XCTAssertEqual(field.value as? String ?? "", "Add Tag", "the field is empty again (its placeholder)")
         XCTAssertTrue(hasFocus(field), "and still focused")
         XCTAssertLessThan(app.buttons["Remove alpha"].frame.minX, app.buttons["Remove beta"].frame.minX, "in order")
 
         app.buttons["Remove alpha"].tap()                                    // removed while adding
-        XCTAssertTrue(app.buttons["Remove alpha"].waitForNonExistence(timeout: 5), "alpha is removed")
+        XCTAssertTrue(app.buttons["Remove alpha"].disappears(timeout: 5), "alpha is removed")
         XCTAssertTrue(hasFocus(field), "the field keeps the focus")
         let now = suggestions.allElementsBoundByIndex.map(\.label)
         XCTAssertFalse(now.contains("alpha"), "this transcript's own tags are not suggested back: \(now)")
 
         field.typeText("plan")
         let planning = suggestions.matching(NSPredicate(format: "label == 'planning'")).firstMatch
-        XCTAssertTrue(planning.waitForExistence(timeout: 5), "typing filters the suggestions")
+        XCTAssertTrue(planning.appears(timeout: 5), "typing filters the suggestions")
         XCTAssertFalse(suggestions.matching(NSPredicate(format: "label == 'work'")).firstMatch.exists, "work doesn't match")
         shot("Filtered suggestions", app)
         planning.tap()
-        XCTAssertTrue(app.buttons["Remove planning"].waitForExistence(timeout: 5), "a tapped suggestion becomes a pill")
+        XCTAssertTrue(app.buttons["Remove planning"].appears(timeout: 5), "a tapped suggestion becomes a pill")
         XCTAssertEqual(field.value as? String ?? "", "Add Tag", "and replaces what was typed")
 
         field.typeText("gamma\n")
-        XCTAssertTrue(app.buttons["Remove gamma"].waitForExistence(timeout: 5), "Return adds the last word")
-        XCTAssertTrue(field.waitForNonExistence(timeout: 5), "and ends adding: the field goes")
+        XCTAssertTrue(app.buttons["Remove gamma"].appears(timeout: 5), "Return adds the last word")
+        XCTAssertTrue(field.disappears(timeout: 5), "and ends adding: the field goes")
         XCTAssertFalse(suggestions.firstMatch.exists, "the suggestions too")
         shot("Tags added", app)
 
@@ -65,7 +65,7 @@ final class TagEditorTests: ScribeUITestCase {
         open("Budget Review", in: app)
         XCTAssertFalse(app.buttons["Remove alpha"].exists, "alpha stays removed")
         for tag in ["beta", "planning", "gamma"] {
-            XCTAssertTrue(app.buttons["Remove \(tag)"].waitForExistence(timeout: 5), "\(tag) is kept")
+            XCTAssertTrue(app.buttons["Remove \(tag)"].appears(timeout: 5), "\(tag) is kept")
         }
     }
 
@@ -87,7 +87,7 @@ final class TagEditorTests: ScribeUITestCase {
         XCTAssertTrue(waitForFocus(field), "the field")
         let title = app.textFields["Title"]
         title.tap()                                                          // leaving the empty field, no tags
-        XCTAssertTrue(field.waitForNonExistence(timeout: 5), "leaving the empty field takes the line away")
+        XCTAssertTrue(field.disappears(timeout: 5), "leaving the empty field takes the line away")
         title.typeText("\n")                     // the title's edit ends too (a software keyboard covers the toolbar)
         addTag()
         XCTAssertTrue(waitForFocus(field), "Add Tag again: the field, focused")
@@ -96,7 +96,7 @@ final class TagEditorTests: ScribeUITestCase {
             XCTAssertTrue(waitForFocus(field), "still focused")
         }
         field.typeText("\n")
-        XCTAssertTrue(field.waitForNonExistence(timeout: 5), "Return in the empty field: the line goes again")
+        XCTAssertTrue(field.disappears(timeout: 5), "Return in the empty field: the line goes again")
         XCTAssertFalse(app.buttons.matching(identifier: "TagSuggestion").firstMatch.exists, "with its suggestions")
 
         addTag()
@@ -111,9 +111,9 @@ final class TagEditorTests: ScribeUITestCase {
         shot("Long draft", app)
         title.tap()
         XCTAssertTrue(waitForFocus(title), "focus moved to the title")
-        XCTAssertTrue(field.waitForNonExistence(timeout: 5), "leaving the field ends adding")
+        XCTAssertTrue(field.disappears(timeout: 5), "leaving the field ends adding")
         let pill = app.buttons["Remove \(long)"]
-        XCTAssertTrue(pill.waitForExistence(timeout: 5), "the text left in the field became a tag")
+        XCTAssertTrue(pill.appears(timeout: 5), "the text left in the field became a tag")
         XCTAssertLessThanOrEqual(pill.frame.maxX, window.maxX - 10, "its pill fits the line: \(pill.frame)")
 
         // Dragging the keyboard away with the transcript.
@@ -122,11 +122,11 @@ final class TagEditorTests: ScribeUITestCase {
         XCTAssertTrue(waitForFocus(field), "the field once more")
         field.typeText("delta")
         let keyboard = app.keyboards.firstMatch
-        if keyboard.waitForExistence(timeout: 2), keyboard.frame.minY < window.maxY - 10 {
+        if keyboard.appears(timeout: 2), keyboard.frame.minY < window.maxY - 10 {
             let start = app.staticTexts["Paragraph.0"].firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             start.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.98)))
-            XCTAssertTrue(field.waitForNonExistence(timeout: 5), "dragging the keyboard away ends adding")
-            XCTAssertTrue(app.buttons["Remove delta"].waitForExistence(timeout: 5), "and keeps the word")
+            XCTAssertTrue(field.disappears(timeout: 5), "dragging the keyboard away ends adding")
+            XCTAssertTrue(app.buttons["Remove delta"].appears(timeout: 5), "and keeps the word")
         } else {
             note("Drag-away skipped", "no software keyboard on screen (hardware keyboard)")
         }
@@ -141,40 +141,31 @@ final class TagEditorTests: ScribeUITestCase {
         startRecording(app)
         app.buttons["Stop"].firstMatch.tap()
         let title = app.textFields["Title"]
-        XCTAssertTrue(title.waitForExistence(timeout: 15), "the transcript in the card")
-        XCTAssertTrue(app.buttons["More"].waitForExistence(timeout: 15), "its toolbar")
+        XCTAssertTrue(title.appears(timeout: 15), "the transcript in the card")
+        XCTAssertTrue(app.buttons["More"].appears(timeout: 15), "its toolbar")
         RunLoop.current.run(until: .now + 1)
         app.swipeUp()
         app.swipeUp()
-        XCTAssertTrue(waitUntil { !(title.exists && title.isHittable) }, "precondition: the header scrolled away")
+        XCTAssertTrue(waitFor { !(title.exists && title.isHittable) }, "precondition: the header scrolled away")
 
         tapMenuItem("Add Tag", in: app)
         let field = app.textFields["Add Tag"]
         XCTAssertTrue(waitForFocus(field), "the field")
-        XCTAssertTrue(waitUntil { field.isHittable }, "scrolled into view: \(field.frame)")
+        XCTAssertTrue(waitFor { field.isHittable }, "scrolled into view: \(field.frame)")
         let window = app.windows.firstMatch.frame
         XCTAssertGreaterThan(field.frame.minY, window.minY + 60, "below the back button: \(field.frame)")
         XCTAssertLessThan(field.frame.maxY, window.height * 0.85, "above the toolbar: \(field.frame)")
         shot("Add Tag scrolled into view", app)
 
         field.typeText("\n")
-        XCTAssertTrue(field.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(field.disappears(timeout: 5))
         app.buttons["Delete Transcript"].tap()                               // test recordings don't pile up
         let confirm = app.buttons["Delete"].firstMatch
-        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        XCTAssertTrue(confirm.appears(timeout: 5))
         confirm.tap()
-        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "deleted, the card closed")
+        XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5), "deleted, the card closed")
     }
 
-    @MainActor
-    private func waitUntil(timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
-        let end = Date.now.addingTimeInterval(timeout)
-        while Date.now < end {
-            if condition() { return true }
-            RunLoop.current.run(until: .now + 0.2)
-        }
-        return condition()
-    }
 
     @MainActor
     private func hasFocus(_ element: XCUIElement) -> Bool {
