@@ -452,6 +452,26 @@
     "Apple Speech": {
       "shouldTranslate": false
     },
+    "Ask About This Transcript": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frag zu diesem Transkript"
+          }
+        }
+      }
+    },
+    "Ask About Transcript": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zum Transkript fragen"
+          }
+        }
+      }
+    },
     "Ask First": {
       "localizations": {
         "de": {
@@ -1478,6 +1498,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gemma pausiert, während du aufnimmst."
+          }
+        }
+      }
+    },
+    "Gemma reads this transcript on this iPhone. Nothing leaves it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma liest dieses Transkript auf diesem iPhone. Nichts davon verlässt es."
           }
         }
       }

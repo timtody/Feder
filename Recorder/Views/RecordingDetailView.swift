@@ -55,6 +55,7 @@ struct RecordingDetailView: View {
     @AppStorage(TranscriptExport.timestampsKey) private var exportTimestamps = false
     @State private var keepsStatusRow = false           // the status line was shown: its place stays (see body)
     @State private var showsActionItems = false         // the toolbar's Action Items: Gemma's to-dos in a sheet
+    @State private var askChat: GemmaChat?              // More › Ask About Transcript: the chat sheet (FED-137)
     @State private var actionItemUndo = ActionItemUndo()   // Undo of an item removed in that sheet: toast and shake
     /// The bookmarked sentences (Bookmarks.places), found once the paragraphs are final (Bookmarks.paragraphsAreFinal),
     /// after the first frame (it reads the words), and again when the vocabulary pass or a correction rewrites them; none
@@ -276,6 +277,9 @@ struct RecordingDetailView: View {
         .sheet(isPresented: $showsActionItems) {
             ActionItemsSheet(recording: recording, undo: actionItemUndo)
         }
+        .sheet(isPresented: Binding(get: { askChat != nil }, set: { if !$0 { askChat = nil } })) {
+            if let askChat { ChatView(chat: askChat) }
+        }
         #if DEBUG
         .task { await renameFirstSpeakerForQA() }
         .task { await findForQA() }
@@ -375,6 +379,7 @@ struct RecordingDetailView: View {
             // the navigator and Delete stay visible. (Six items fit from 402 pt on.)
             ToolbarItem(placement: .bottomBar) {
                 Menu {
+                    if ChatView.isAvailable { askButton }
                     shareButton
                     addTagButton
                     editTextButton
@@ -401,6 +406,7 @@ struct RecordingDetailView: View {
             ToolbarItem(placement: .bottomBar) { listenButton }
             ToolbarItem(placement: .bottomBar) {
                 Menu {
+                    if ChatView.isAvailable { askButton }
                     addTagButton
                     editTextButton
                 } label: {
@@ -513,6 +519,17 @@ struct RecordingDetailView: View {
             showsActionItems = true
         }
         .disabled(recording.speakerStatus != .done)
+    }
+
+    /// Ask About Transcript (FED-137): Ask's chat with this transcript as its context, in the same card. In More, as
+    /// the group holds five at most. Its text is taken at the press (TranscriptExport, as Share takes it), with names.
+    private var askButton: some View {
+        Button("Ask About Transcript", systemImage: "bubble.left") {
+            titleFocused = false
+            let text = TranscriptExport.plainText(recording.exportSnapshot(names: true, timestamps: false))
+            askChat = services.chat(about: ChatTranscript(id: recording.id, title: recording.name, text: text))
+        }
+        .accessibilityIdentifier("AskAboutTranscript")
     }
 
     /// Listen: shows the player bar (pressed again, or the bar's close button: ends it). Last in the group, so the

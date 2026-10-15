@@ -263,6 +263,11 @@ nonisolated final class FakeTextWriter: TextWriter, @unchecked Sendable {
         let question = turns.last?.text ?? ""
         var answer = "You asked: \u{201C}\(question)\u{201D}. This is a canned answer from the simulator's stand-in for " +
             "Gemma, which runs on this iPhone, so nothing you type leaves it. Earlier messages: \(turns.count - 1)."
+        // A chat about a transcript (FED-137): its first line, so a test sees the transcript arrived.
+        if let range = instructions.range(of: "Transcript:\n") {
+            let first = instructions[range.upperBound...].prefix { $0 != "\n" }
+            answer += " The transcript begins: \u{201C}\(first.prefix(60))\u{201D}."
+        }
         if question.localizedCaseInsensitiveContains("long") {
             answer += "\n\nHere is a **longer** answer, to see how the chat scrolls:\n\n" +
                 (1...8).map { "* Point \($0): a sentence that takes up a line or two on an iPhone, so the list grows " +

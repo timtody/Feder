@@ -43,7 +43,15 @@ struct ChatMessage: Identifiable, Equatable {
     }
 }
 
-/// The Ask tab's conversation with Gemma (FED-17, a prototype to try the ergonomics: no transcripts are read yet).
+/// A transcript a chat is about (FED-137): Ask from a transcript's More menu. Its text goes into the system turn as it is,
+/// no retrieval or summarizing (a moderate length fits Gemma's context; a longer one is cut, said in the turn).
+struct ChatTranscript: Equatable {
+    let id: UUID
+    var title: String
+    var text: String
+}
+
+/// A conversation with Gemma: Ask's (FED-17, a prototype to try the ergonomics), or one about a transcript (FED-137).
 /// In memory only: New Chat and a relaunch clear it. One answer at a time, run by BetterSummaries.runInteractive ahead of
 /// the background summaries. The partial answer is applied at most every 33 ms (about a frame at 30 Hz), so a long
 /// answer doesn't re-render the list for every token.
@@ -53,6 +61,9 @@ final class GemmaChat {
     private(set) var isAnswering = false
     /// What is typed in the card's field (ChatView): kept here, so it survives closing the card and opening it again.
     var draft = ""
+    /// What this chat is about; nil for Ask's general chat. Updated when the transcript is opened in Ask again (its
+    /// text may have been edited); the conversation stays.
+    var transcript: ChatTranscript?
     @ObservationIgnored private let betterSummaries: BetterSummaries
     @ObservationIgnored private var answerTask: Task<Void, Never>?
 
@@ -62,13 +73,27 @@ final class GemmaChat {
     /// Characters of history a request may carry: about 16,000 tokens at TranscriptTitler's 3.5 characters per token,
     /// under `LocalLanguageModel.contextTokens` (20,000) with room for the answer (1,000 tokens) and the template.
     nonisolated static let historyCharacters = 56_000
+    /// Of those, at most this much transcript (about 11,000 tokens, an hour of talk is ~50,000 characters): the rest
+    /// stays for the conversation.
+    nonisolated static let transcriptCharacters = 40_000
     nonisolated static let maxAnswerTokens = 1_000
     /// A little sampling for a chat: greedy decoding (the summaries' 0) made the small model repeat itself in longer
     /// answers.
     nonisolated static let temperature: Float = 0.6
 
-    init(betterSummaries: BetterSummaries) {
+    init(betterSummaries: BetterSummaries, transcript: ChatTranscript? = nil) {
         self.betterSummaries = betterSummaries
+        self.transcript = transcript
+    }
+
+    /// The system turn with the transcript after the instructions, cut to `transcriptCharacters`.
+    nonisolated static func instructions(about transcript: ChatTranscript?) -> String {
+        guard let transcript else { return instructions }
+        let cut = transcript.text.count > transcriptCharacters
+        let text = cut ? String(transcript.text.prefix(transcriptCharacters)) : transcript.text
+        return instructions + " The user asks about the transcript of a recording below, titled “\(transcript.title)”. " +
+            "Answer from it, and say so when it doesn't say. Name speakers as the transcript does." +
+            (cut ? " Only its beginning is given; the rest is cut." : "") + "\n\nTranscript:\n" + text
     }
 
     /// Send: appends the question and a pending answer and returns; the answer is written off the main actor.
@@ -76,6 +101,8 @@ final class GemmaChat {
         let question = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !question.isEmpty, !isAnswering else { return }
         messages.append(ChatMessage(role: .user, text: question, status: .done))
+        let instructions = Self.instructions(about: transcript)
+        let history = max(8_000, Self.historyCharacters - (instructions.count - Self.instructions.count))
         let turns = Self.trimmed(messages.compactMap { message -> ChatTurn? in
             switch message.role {
             case .user: return ChatTurn(role: .user, text: message.text)
@@ -85,11 +112,11 @@ final class GemmaChat {
                 if case .failed = message.status { return nil }
                 return ChatTurn(role: .assistant, text: message.text)
             }
-        }, limit: Self.historyCharacters)
+        }, limit: history)
         let answer = ChatMessage(role: .assistant, text: "", status: .thinking)
         messages.append(answer)
         isAnswering = true
-        answerTask = Task { await self.answer(turns, id: answer.id) }
+        answerTask = Task { await self.answer(turns, instructions: instructions, id: answer.id) }
     }
 
     /// Stop: the partial answer stays, marked Stopped.
@@ -114,7 +141,7 @@ final class GemmaChat {
         draft = ""
     }
 
-    private func answer(_ turns: [ChatTurn], id: UUID) async {
+    private func answer(_ turns: [ChatTurn], instructions: String, id: UUID) async {
         let (updates, continuation) = AsyncStream.makeStream(of: String.self, bufferingPolicy: .bufferingNewest(1))
         let applier = Task { @MainActor in
             for await text in updates {
@@ -130,7 +157,7 @@ final class GemmaChat {
         var final: String?
         do {
             final = try await betterSummaries.runInteractive { model in
-                try await model.chat(instructions: Self.instructions, turns: turns, maxTokens: Self.maxAnswerTokens,
+                try await model.chat(instructions: instructions, turns: turns, maxTokens: Self.maxAnswerTokens,
                                      temperature: Self.temperature, partial: { continuation.yield($0) })
             }
             status = .done

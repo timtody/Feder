@@ -64,7 +64,10 @@ final class AppServices {
     /// Plays a transcript's audio (the card's player bar, a tapped word).
     let player = TranscriptPlayer()
     let betterSummaries: BetterSummaries             // Gemma for titles and summaries (Settings)
-    let chat: GemmaChat                              // the Ask tab's conversation with Gemma (in memory only)
+    let chat: GemmaChat                              // Ask's conversation with Gemma (in memory only)
+    /// The conversation about a transcript (FED-137): kept while that transcript is asked about again, a new one for
+    /// another (one at a time, in memory only).
+    @ObservationIgnored private var transcriptChat: GemmaChat?
     let appLock = AppLock()                          // Face ID before Feder shows a transcript (Settings › App Lock)
     /// Name from Calendar: today's and tomorrow's events in memory, read off the main actor (CalendarContext).
     let calendar = CalendarContext()
@@ -85,6 +88,18 @@ final class AppServices {
     /// stops there (its `.partial` files stay for a later choice) and the model isn't loaded. A load already under way
     /// finishes and is released with the diarizer; LS-EEND's 45 MB prepare isn't cancellable and just runs out.
     @ObservationIgnored private var livePrepare: Task<Void, any Error>?
+
+    /// The chat about `transcript`, with its current text.
+    func chat(about transcript: ChatTranscript) -> GemmaChat {
+        if let chat = transcriptChat, chat.transcript?.id == transcript.id {
+            if chat.transcript != transcript { chat.transcript = transcript }
+            return chat
+        }
+        transcriptChat?.stop()
+        let chat = GemmaChat(betterSummaries: betterSummaries, transcript: transcript)
+        transcriptChat = chat
+        return chat
+    }
 
     init(container: ModelContainer) {
         self.container = container

@@ -8,6 +8,8 @@ import SwiftUI
 /// pieces are system ones. DEBUG builds only, on iPhones that run Gemma (`isAvailable`); no CHANGELOG line until it
 /// ships. Until October 2026 it was a tab of its own, with its field as the tab bar's accessory on that tab.
 struct ChatView: View {
+    /// Ask's general chat, or one about a transcript (FED-137: from its More menu), whose title is the subtitle.
+    let chat: GemmaChat
     @Environment(AppServices.self) private var services
     @Environment(\.dismiss) private var dismiss
     @FocusState private var isFocused: Bool
@@ -28,10 +30,10 @@ struct ChatView: View {
     static let askSource = "ask"
 
     var body: some View {
-        let chat = services.chat
         NavigationStack {
             content
                 .navigationTitle("Ask Gemma")
+                .navigationSubtitle(chat.transcript?.title ?? "")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
@@ -77,12 +79,13 @@ struct ChatView: View {
             // Send put the keyboard away (iOS 27 simulator), and Messages keeps it up.
             ZStack {
                 conversation
-                if services.chat.messages.isEmpty {
+                if chat.messages.isEmpty {
                     ContentUnavailableView {
-                        Label("Ask Gemma", systemImage: "bubble.left")
+                        Label(chat.transcript == nil ? "Ask Gemma" : "Ask About This Transcript", systemImage: "bubble.left")
                     } description: {
                         Text(isRecording ? "Gemma pauses while you record."
-                                         : "Gemma runs on this iPhone. Nothing you type leaves it.")
+                             : chat.transcript != nil ? "Gemma reads this transcript on this iPhone. Nothing leaves it."
+                             : "Gemma runs on this iPhone. Nothing you type leaves it.")
                     }
                     .allowsHitTesting(false)          // a drag over it reaches the scroll view and puts the keyboard away
                 }
@@ -113,8 +116,7 @@ struct ChatView: View {
     }
 
     private var conversation: some View {
-        let chat = services.chat
-        return ScrollViewReader { proxy in
+        ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     ForEach(chat.messages) { message in
@@ -148,7 +150,7 @@ struct ChatView: View {
     /// The field at the bottom of the card, over the keyboard while typing: up to five lines, Return is a new line,
     /// ⌘↩ sends.
     private var composer: some View {
-        @Bindable var chat = services.chat
+        @Bindable var chat = chat
         return HStack(alignment: .bottom, spacing: 0) {
             TextField(isRecording ? LocalizedStringKey("Gemma pauses while you record.") : "Ask Gemma",
                       text: $chat.draft, axis: .vertical)
@@ -159,7 +161,7 @@ struct ChatView: View {
                 .padding(.trailing, 8)
                 .padding(.vertical, 11)
                 .accessibilityIdentifier("ChatField")
-            ChatSendButton(isRecording: isRecording)
+            ChatSendButton(chat: chat, isRecording: isRecording)
                 .padding(6)
         }
         .frame(minHeight: minHeight)
@@ -173,15 +175,15 @@ struct ChatView: View {
 /// Send (an accent circle with an arrow), Stop while Gemma answers, at the end of the field.
 struct ChatSendButton: View {
     @Environment(AppServices.self) private var services
+    let chat: GemmaChat
     var isRecording = false
 
     private var canSend: Bool {
         !isRecording && services.betterSummaries.state == .ready
-            && !services.chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
-        let chat = services.chat
         Button {
             if chat.isAnswering {
                 chat.stop()

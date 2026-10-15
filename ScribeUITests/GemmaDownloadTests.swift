@@ -114,6 +114,47 @@ final class AskTests: ScribeUITestCase {
         XCTAssertTrue(ask.isHittable, "back to the accessory")
     }
 
+    /// A transcript's More › Ask About Transcript (FED-137) opens Ask's card about it: its title under "Ask Gemma", and
+    /// the answer comes from the transcript (the fake quotes its first line). Its conversation is its own: Ask from the
+    /// accessory stays empty, and the transcript's comes back when it is asked about again.
+    @MainActor
+    func testAskAboutTranscript() throws {
+        let app = launch(["-fakeGemma"])
+        open("Project Kickoff", in: app)
+        app.buttons["More"].tap()
+        let item = app.buttons["AskAboutTranscript"]
+        XCTAssertTrue(item.waitForExistence(timeout: 5), "in More")
+        item.tap()
+        XCTAssertTrue(app.navigationBars["Ask Gemma"].waitForExistence(timeout: 5), "the Ask card")
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].exists, "about Project Kickoff")
+        XCTAssertTrue(app.staticTexts["Ask About This Transcript"].exists, "the empty chat says so")
+        shot("Ask about a transcript", app)
+        let field = app.textFields["ChatField"]
+        field.tap()
+        dismissKeyboardTip(app)
+        field.typeText("Who owns what?")
+        app.buttons["Send"].tap()
+        XCTAssertTrue(app.buttons["Send"].waitForExistence(timeout: 15) && app.buttons["Stop Answer"].waitForNonExistence(timeout: 15),
+                      "answered")
+        let answer = app.staticTexts["ChatAnswer"].firstMatch
+        XCTAssertTrue(answer.label.contains("The transcript begins:") && answer.label.contains("Okay, let"),
+                      "the transcript went along: \(answer.label)")
+        shot("Answered from the transcript", app)
+        app.buttons["CloseAsk"].tap()
+        XCTAssertTrue(app.navigationBars["Ask Gemma"].waitForNonExistence(timeout: 5))
+
+        closeCard(app)
+        app.buttons["AskGemma"].tap()
+        XCTAssertTrue(app.staticTexts["Ask Gemma"].waitForExistence(timeout: 5), "Ask's own chat is still empty")
+        XCTAssertFalse(app.staticTexts["ChatAnswer"].exists)
+        app.buttons["CloseAsk"].tap()
+        XCTAssertTrue(app.navigationBars["Ask Gemma"].waitForNonExistence(timeout: 5))
+        open("Project Kickoff", in: app)
+        app.buttons["More"].tap()
+        app.buttons["AskAboutTranscript"].tap()
+        XCTAssertTrue(app.staticTexts["Who owns what?"].waitForExistence(timeout: 5), "the transcript's chat is kept")
+    }
+
     /// The field grows to five lines over the keyboard; a draft survives closing the card (a swipe down) and is sent
     /// when it is opened again. Pulled up by its grabber, the card goes to full height without the keyboard.
     @MainActor
