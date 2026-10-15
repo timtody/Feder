@@ -117,6 +117,16 @@ class ScribeUITestCase: XCTestCase {
                     withVelocity: .fast, thenHoldForDuration: 0)
     }
 
+    /// The transcript card's Delete, confirmed: test recordings don't pile up in the simulator's store.
+    @MainActor
+    func deleteOpenTranscript(_ app: XCUIApplication) {
+        app.buttons["Delete Transcript"].tap()
+        let confirm = app.buttons["Delete"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5), "asks first")
+        confirm.tap()
+        XCTAssertTrue(app.buttons["Minimize"].waitForNonExistence(timeout: 5), "the card closes")
+    }
+
     /// Taps Transcribe and answers the microphone permission alert, should the simulator ask.
     @MainActor
     func startRecording(_ app: XCUIApplication) {

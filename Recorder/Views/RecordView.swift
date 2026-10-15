@@ -182,8 +182,8 @@ struct RecordView: View {
                 }
             VStack(alignment: .leading, spacing: 8) {
                 dateLine
-                if let offer = session.calendarTitleOffer {
-                    CalendarTitleRow(offer: offer, onUse: { session.useCalendarTitle() },
+                if case .offer(let title) = session.calendarTitleOffer {   // taken: the row goes (FED-135)
+                    CalendarTitleRow(title: title, onUse: { session.useCalendarTitle() },
                                      onDismiss: { session.dismissCalendarTitle() }, isActive: !turning)
                         .transition(.opacity)
                 }

@@ -55,7 +55,7 @@ nonisolated struct CalendarChoice: Sendable, Equatable, Identifiable {
 nonisolated enum CalendarTitleOffer: Sendable, Equatable {
     /// The event's title, with Use as Title and ⊗.
     case offer(String)
-    /// The name is the event's title, taken with Use as Title: "From your calendar", with ⊗ back to the app's own name.
+    /// The name is the event's title, taken with Use as Title: no row since FED-135 (renamed like any other name).
     case taken
 }
 

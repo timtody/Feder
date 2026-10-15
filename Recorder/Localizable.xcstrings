@@ -1372,16 +1372,6 @@
         }
       }
     },
-    "From your calendar": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aus deinem Kalender"
-          }
-        }
-      }
-    },
     "From “%@”, %@": {
       "localizations": {
         "de": {
@@ -1538,16 +1528,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gemma, das Modell für Zusammenfassungen, findet die Aufgaben auf diesem iPhone. Lade es unter Einstellungen › Zusammenfassungen oder schalte es dort ein."
-          }
-        }
-      }
-    },
-    "Gives the transcript back the name Feder gave it": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gibt dem Transkript den Namen zurück, den Feder ihm gegeben hat"
           }
         }
       }

@@ -133,8 +133,9 @@ struct RecordingDetailView: View {
                         // Started during a calendar event: its title to take as the name, where the recording card had
                         // the same row, so it stays put in the turn like the date line (FED-11). The press only sets
                         // the model's properties; autosave writes them, as the title field's edits.
-                        if let offer = recording.calendarTitleOffer {
-                            CalendarTitleRow(offer: offer, onUse: { recording.useCalendarTitle() },
+                        // Once taken it goes (FED-135): the name is renamed like any other.
+                        if case .offer(let title) = recording.calendarTitleOffer {
+                            CalendarTitleRow(title: title, onUse: { recording.useCalendarTitle() },
                                              onDismiss: { recording.dismissCalendarTitle() })
                                 .opacity(turning ? 0 : 1)
                                 .animation(nil, value: turning)
