@@ -86,9 +86,15 @@ struct RecordingsListView: View {
             List {
                 if !isSearch {
                     // The heading as the first row: it scrolls away with the list (not pinned in a navigation bar).
-                    Text("Transcripts")
-                        .font(.largeTitle.bold())
-                        .accessibilityAddTraits(.isHeader)
+                    // Import sits on its line (FED-134): in a navigation bar it pushed the heading ~55 pt below
+                    // Settings'.
+                    HStack(alignment: .center) {
+                        Text("Transcripts")
+                            .font(.largeTitle.bold())
+                            .accessibilityAddTraits(.isHeader)
+                        Spacer(minLength: 8)
+                        if let importAudio { importButton(importAudio).padding(.trailing, 4) }   // 20 pt in, as the text
+                    }
                         .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 6, trailing: 16))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
@@ -155,17 +161,10 @@ struct RecordingsListView: View {
             .appScreenBackground()
             .scrollDismissesKeyboard(.immediately)             // Search: scrolling the results puts the keyboard away (Music)
             .navigationTitle(isSearch ? "Search" : "Transcripts")   // for VoiceOver only
-            // Search: no top bar (the tab bar shows where one is), so its search bar starts right under the status bar.
-            // Transcripts: a bar with Import only, at the top right, as Voice Memos has Edit and Files its menu over
-            // their large titles; its title stays off (the heading is the list's first row, which scrolls away).
-            .toolbar(isSearch ? .hidden : .visible, for: .navigationBar)
+            // No top bar in either tab, as in Settings: Search's own bar starts right under the status bar, and
+            // Transcripts' heading row carries Import (the heading is the list's first row, which scrolls away).
+            .toolbar(.hidden, for: .navigationBar)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar(removing: .title)
-            .toolbar {
-                if !isSearch, let importAudio {
-                    ToolbarItem(placement: .topBarTrailing) { importButton(importAudio) }
-                }
-            }
             .personDestination(stack: isSearch ? .search : .transcripts)
             .safeAreaBar(edge: .top, spacing: 0) {             // a bar: the list fades out under it
                 if isSearch {
@@ -202,9 +201,16 @@ struct RecordingsListView: View {
     /// Audio from Files (or Voice Memos saved there) as a transcript: the system's file picker (MainView), then the
     /// steps after Stop on the file (AudioImporter). In the record accessory until October 2026, where Ask is now.
     private func importButton(_ action: ImportAudioAction) -> some View {
-        Button("Import Audio", systemImage: "square.and.arrow.down") { action() }
-            .accessibilityHint("Transcribes an audio file from Files")
-            .accessibilityIdentifier("ImportAudio")
+        Button { action() } label: {
+            Label("Import Audio", systemImage: "square.and.arrow.down")
+                .labelStyle(.iconOnly)
+                .font(.title3)
+                .frame(width: 30, height: 30)                 // with the glass's 7 pt inset: 44 pt, as a bar button
+        }
+        .buttonStyle(.glass)
+        .buttonBorderShape(.circle)
+        .accessibilityHint("Transcribes an audio file from Files")
+        .accessibilityIdentifier("ImportAudio")
     }
 
     // MARK: Suggestions

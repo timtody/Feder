@@ -3,26 +3,27 @@ import XCTest
 /// Importing audio (AudioImporter): the Import button at the top of the Transcripts list, and a file that becomes a
 /// transcript.
 final class ImportTests: ScribeUITestCase {
-    /// Import sits at the top right of the Transcripts list, in its navigation bar over the heading (as Voice Memos
-    /// has Edit there), and stays there while the list scrolls and the tab bar minimizes; it isn't on the other tabs or
-    /// in the accessory. A tap opens the system's file picker.
+    /// Import sits at the top right of the Transcripts list, on its heading's line (FED-134; a navigation bar put it
+    /// over the heading and pushed that down), and scrolls away with it; it isn't on the other tabs or in the
+    /// accessory. A tap opens the system's file picker.
     @MainActor
     func testImportButtonPlacementAndPicker() throws {
         let app = launch(["-seedFiller", "12"])
         let importButton = app.buttons["ImportAudio"]
         let heading = app.staticTexts["Transcripts"].firstMatch
         XCTAssertTrue(importButton.waitForExistence(timeout: 5), "Import on the Transcripts list")
-        XCTAssertLessThan(importButton.frame.maxY, heading.frame.minY + 1, "over the heading: \(importButton.frame) \(heading.frame)")
+        XCTAssertLessThan(abs(importButton.frame.midY - heading.frame.midY), 4, "on the heading's line: \(importButton.frame) \(heading.frame)")
         XCTAssertGreaterThan(importButton.frame.minX, app.frame.width * 0.75, "at the right")
+        XCTAssertEqual(importButton.frame.width, 44, accuracy: 1, "a 44 pt glass circle: \(importButton.frame)")
         XCTAssertGreaterThan(transcribe(app).frame.minY, app.frame.height * 0.75, "the accessory below")
         shot("Transcripts with Import", app)
 
-        let top = importButton.frame
         app.swipeUp()                                            // the list scrolls: the bar minimizes
         XCTAssertTrue(waitFor { !app.buttons["Language"].isHittable }, "minimized")
-        XCTAssertTrue(importButton.isHittable, "Import is still there")
-        XCTAssertEqual(importButton.frame.minY, top.minY, accuracy: 1, "in the same place")
-        shot("Scrolled with Import", app)
+        XCTAssertTrue(waitFor { !importButton.isHittable }, "Import scrolls away with the heading")
+        shot("Scrolled", app)
+        app.swipeDown()
+        XCTAssertTrue(waitFor { importButton.isHittable }, "back with the heading")
         app.buttons["Search"].firstMatch.tap()
         XCTAssertTrue(app.textFields["SearchField"].waitForExistence(timeout: 5))
         XCTAssertFalse(importButton.isHittable, "not on the Search tab")

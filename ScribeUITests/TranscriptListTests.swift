@@ -6,8 +6,8 @@ import XCTest
 final class TranscriptListTests: ScribeUITestCase {
 
     /// The "Transcripts" and "Settings" headings are not pinned in a navigation bar: they are the first row (section
-    /// header) and scroll away with the content. Transcripts has a navigation bar with Import only (no title), so its
-    /// heading starts under that button. `-seedFiller 12` makes the list long enough to scroll. The Search tab has no
+    /// header) and scroll away with the content. Neither has a navigation bar: Transcripts' Import sits on its heading's
+    /// line, at the right (FED-134). `-seedFiller 12` makes the list long enough to scroll. The Search tab has no
     /// heading: its bar is at the top.
     @MainActor
     func testHeadingsScrollAway() throws {
@@ -15,11 +15,13 @@ final class TranscriptListTests: ScribeUITestCase {
         let heading = app.collectionViews.staticTexts["Transcripts"]   // not the tab
         XCTAssertTrue(heading.waitForExistence(timeout: 5), "the Transcripts heading")
         let importButton = app.buttons["ImportAudio"]
-        XCTAssertGreaterThan(heading.frame.minY, importButton.frame.maxY - 1, "under Import: \(heading.frame) \(importButton.frame)")
-        XCTAssertLessThan(heading.frame.minY, 180, "at the top at rest: \(heading.frame)")
+        XCTAssertLessThan(abs(heading.frame.midY - importButton.frame.midY), 4, "Import on the heading's line: \(heading.frame) \(importButton.frame)")
+        XCTAssertGreaterThan(importButton.frame.minX, app.frame.width * 0.7, "at the right: \(importButton.frame)")
+        XCTAssertLessThan(heading.frame.minY, 100, "at the top at rest: \(heading.frame)")
         XCTAssertLessThan(heading.frame.maxY, app.cells.containing(.staticText, identifier: "Project Kickoff").firstMatch.frame.minY + 1,
                           "above the first transcript")
         XCTAssertFalse(app.navigationBars.staticTexts["Transcripts"].exists, "no navigation bar title")
+        let transcriptsTop = heading.frame.minY
         shot("List at rest", app)
         app.swipeUp()
         XCTAssertTrue(scrolledAway(heading, app), "the heading scrolls away with the list: \(heading.frame)")
@@ -41,7 +43,7 @@ final class TranscriptListTests: ScribeUITestCase {
         let settings = app.collectionViews.staticTexts["Settings"]
         XCTAssertTrue(app.switches["Live Speaker Labels"].waitForExistence(timeout: 5))
         XCTAssertTrue(settings.exists, "the Settings heading")
-        XCTAssertLessThan(settings.frame.minY, 120, "at the top at rest: \(settings.frame)")
+        XCTAssertLessThan(abs(settings.frame.minY - transcriptsTop), 3, "where Transcripts' heading is: \(settings.frame) \(transcriptsTop)")
         XCTAssertFalse(app.navigationBars.staticTexts["Settings"].exists, "no navigation bar title")
         shot("Settings at rest", app)
         // Since the Recording sections were merged (October 2026) the form fits an iPhone 17 Pro's screen at the
