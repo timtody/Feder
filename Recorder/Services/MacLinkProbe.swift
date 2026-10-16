@@ -79,17 +79,21 @@ final class MacLinkProbe {
         let center = NotificationCenter.default
         // The text is made from the notification where it arrives (a Notification isn't Sendable), then logged with the
         // app's state on the main actor.
-        func on(_ name: Notification.Name, _ text: @escaping @Sendable (Notification) -> String) {
+        // Lock and unlock also close the summary's window (`segment`): the numbers of a locked stretch then stand on their
+        // own line, not mixed into a minute that was half unlocked (the first iPhone run, 2026-10-16).
+        func on(_ name: Notification.Name, segment: Bool = false, _ text: @escaping @Sendable (Notification) -> String) {
             observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
                 let event = text(note)
                 MainActor.assumeIsolated {
                     guard let self else { return }
-                    self.receiver?.log("app: \(event) [\(self.appContext())]")
+                    let context = self.appContext()
+                    if segment { self.receiver?.summarize(context: "the stretch until \(event)") }
+                    self.receiver?.log("app: \(event) [\(context)]")
                 }
             })
         }
-        on(UIApplication.protectedDataWillBecomeUnavailableNotification) { _ in "locked" }
-        on(UIApplication.protectedDataDidBecomeAvailableNotification) { _ in "unlocked" }
+        on(UIApplication.protectedDataWillBecomeUnavailableNotification, segment: true) { _ in "locked" }
+        on(UIApplication.protectedDataDidBecomeAvailableNotification, segment: true) { _ in "unlocked" }
         on(UIApplication.didEnterBackgroundNotification) { _ in "entered background" }
         on(UIApplication.willEnterForegroundNotification) { _ in "entering foreground" }
         on(UIApplication.didReceiveMemoryWarningNotification) { _ in "memory warning" }
@@ -183,7 +187,7 @@ nonisolated final class MacLinkReceiver: @unchecked Sendable {
 
     func stop(context: String) {
         queue.async { [self] in
-            log("probe stopped [\(context)]")
+            write("probe stopped [\(context)]")         // not log(): queued after the file is closed, it was lost
             summary(context: context)
             stopped = true
             pingTimer?.cancel()
@@ -422,13 +426,18 @@ nonisolated final class MacLinkReceiver: @unchecked Sendable {
         }
     }
 
+    /// Closes the summary's window now (at a lock or an unlock), whatever its length.
+    nonisolated func summarize(context: String) {
+        queue.async { [self] in summary(context: context) }
+    }
+
     /// The minute's line: messages (10 a second expected) in how many seconds, lag, longest gap, and the app's state.
     /// Lag is the arrival minus the Mac's send time on the iPhone's clock, so it includes the Mac's own send delay.
     private func summary(context: String) {
         func ms(_ value: Double?) -> String { value.map { String(format: "%.0f ms", $0 * 1000) } ?? "–" }
         let window = Double(Self.monotonicNanos() - minuteStarted) / 1e9
         let best = pongs.min { $0.rtt < $1.rtt }
-        write(String(format: "minute: %d msgs in %.0f s, ", minuteMessages, window) + "lag p50 \(ms(Self.percentile(0.5, minuteBuckets))) "
+        write(String(format: "summary: %d msgs in %.0f s, ", minuteMessages, window) + "lag p50 \(ms(Self.percentile(0.5, minuteBuckets))) "
               + "p99 \(ms(Self.percentile(0.99, minuteBuckets))) max \(ms(minuteBuckets.contains { $0 > 0 } ? minuteLagMax : nil)), "
               + String(format: "longest gap %.2f s", minuteGap) + "; total \(messages) msgs, \(reconnects) reconnects, "
               + "\(gapsOver1s) gaps > 1 s; offset \(ms(best?.offset)) from min rtt \(ms(best?.rtt)) of \(pongs.count) pongs "
