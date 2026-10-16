@@ -18,6 +18,7 @@ build/qa/*
 !build/qa/livebench/
 !build/qa/sortformer/
 !build/qa/icon/
+!build/qa/linkspike/
 build/qa/*/**
 !build/qa/*/**/
 !build/qa/*/**/*.sh

@@ -72,7 +72,7 @@ extension MainView {
         #endif
         let newest = (try? modelContext.fetch(FetchDescriptor<Recording>(sortBy: [SortDescriptor(\.createdAt,
                                                                                                   order: .reverse)])))?.first
-        if arguments.contains("-showSettings") || arguments.contains("-showPeople") { tab = .settings }
+        if ["-showSettings", "-showPeople", "-macLinkTest"].contains(where: arguments.contains) { tab = .settings }
         if let name = UserDefaults.standard.string(forKey: "showPerson"),   // `-showPerson "Anna Schmidt"`: her page
            let person = try? modelContext.fetch(FetchDescriptor<Person>(predicate: #Predicate { $0.name == name })).first {
             tab = .settings

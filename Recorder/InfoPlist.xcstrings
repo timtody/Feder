@@ -21,6 +21,16 @@
         }
       }
     },
+    "NSLocalNetworkUsageDescription": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder findet deinen Mac in diesem WLAN, um von ihm den Ton deiner Anrufe zu empfangen. Nichts geht über das Internet."
+          }
+        }
+      }
+    },
     "NSLocationWhenInUseUsageDescription": {
       "localizations": {
         "de": {

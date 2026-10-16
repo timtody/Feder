@@ -50,10 +50,16 @@
 	<false/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<false/>
-	<key>NSFaceIDUsageDescription</key>
-	<string>Feder uses Face ID to unlock your transcripts when App Lock is on.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_federlink._tcp</string>
+	</array>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Feder shows the calendar event running when you start a recording, to use its name as the transcript's title with a tap, and offers its invitees as speaker names. Everything stays on this iPhone.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Feder uses Face ID to unlock your transcripts when App Lock is on.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Feder finds your Mac on this Wi-Fi to receive the audio of your calls from it. Nothing goes over the internet.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Feder saves where a transcript was started, so you can see and search it later.</string>
 	<key>NSMicrophoneUsageDescription</key>

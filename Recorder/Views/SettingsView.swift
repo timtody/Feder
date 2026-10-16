@@ -115,6 +115,7 @@ struct SettingsView: View {
                     #if DEBUG
                     Button("Reset Onboarding") { resetOnboarding() }   // Debug builds only: no reinstall to see it again
                     liveLabelsModelPicker
+                    NavigationLink(value: SettingsRoute.macLinkTest) { Text(verbatim: "Mac Link Test") }   // FED-141's spike
                     #endif
                 } header: {
                     Text("About")
@@ -135,6 +136,9 @@ struct SettingsView: View {
                 case .privacy: LegalTextView(document: .privacy)
                 case .legalNotice: LegalTextView(document: .legalNotice)
                 case .acknowledgements: AcknowledgementsView()
+                #if DEBUG
+                case .macLinkTest: MacLinkProbeView()
+                #endif
                 }
             }
             .personDestination(stack: .settings)
@@ -159,6 +163,12 @@ struct SettingsView: View {
             .task {                                    // QA hook: `-showPeople` opens Settings with People pushed
                 if ProcessInfo.processInfo.arguments.contains("-showPeople"), navigation.settings.isEmpty {
                     navigation.settings.append(SettingsRoute.people)
+                }
+                // `-macLinkTest`: Mac Link Test pushed and started (FED-141; also on the iPhone, it touches no data).
+                if ProcessInfo.processInfo.arguments.contains("-macLinkTest"), navigation.settings.isEmpty {
+                    navigation.settings.append(SettingsRoute.macLinkTest)
+                    let identifier = services.identifier
+                    MacLinkProbe.shared.start { identifier.isRecording }
                 }
             }
             #endif
@@ -490,4 +500,7 @@ struct VocabularyView: View {
 
 enum SettingsRoute: Hashable {
     case people, transcription, speakers, summaries, vocabulary, privacy, legalNotice, acknowledgements
+    #if DEBUG
+    case macLinkTest                                   // FED-141's spike (MacLinkProbeView)
+    #endif
 }

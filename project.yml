@@ -77,6 +77,10 @@ targets:
         NSCalendarsFullAccessUsageDescription: "Feder shows the calendar event running when you start a recording, to use its name as the transcript's title with a tap, and offers its invitees as speaker names. Everything stays on this iPhone."   # Name from Calendar (CalendarContext), asked only when turned on
         NSRemindersFullAccessUsageDescription: "Feder adds the action items you choose to Reminders and reads none of your other reminders."
         UIBackgroundModes: [audio]
+        # Feder Link (FED-109/141): finding the user's Mac on the same Wi-Fi; nothing goes over the internet. Inert until
+        # code browses: today only Debug builds' Mac Link Test does.
+        NSLocalNetworkUsageDescription: "Feder finds your Mac on this Wi-Fi to receive the audio of your calls from it. Nothing goes over the internet."
+        NSBonjourServices: [_federlink._tcp]
         NSSupportsLiveActivities: true                        # the recording's Live Activity (FederWidgets)
         CFBundleDocumentTypes:                                # "Feder" in other apps' share sheets for audio: an import
           - CFBundleTypeName: Audio
