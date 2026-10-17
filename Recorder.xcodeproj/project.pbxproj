@@ -16,17 +16,23 @@
 		2A56270AD1816BDD640A4854 /* SummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5864C5737E1A73204C68C61 /* SummaryTests.swift */; };
 		379E55B6F6D2FC5C25580291 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 8B6605A6E71DAC28C11A6736 /* MLXLLM */; };
 		38E6DDDC36DD05C2AAD1F2E0 /* SystemIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2FEA08FE163F0FEAAC15066 /* SystemIntegrationTests.swift */; };
+		39137A1E7C88C6EE830B454D /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = D2DA763ECEBFD479473032D0 /* MLX */; };
 		3DE7EA9DAFB6057C8FE49F91 /* ExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9888AE62014305DE6B7512B /* ExportTests.swift */; };
 		5653329E9AF22B5416BE6958 /* RecordingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41108F5D0A55780F5B359E97 /* RecordingIntents.swift */; };
 		5DA165C65B82BD2FDCC77184 /* TranscriptListTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD49FF381B0530C8297D2E4 /* TranscriptListTests.swift */; };
+		64111B5D02B52690D0E4949A /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = C23A2A77749A1D29A1D155B4 /* MLXLMCommon */; };
 		6A0E34B4405D331458A53253 /* SpeakerModelPrewarmTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C47DC3D3045444F493063CD3 /* SpeakerModelPrewarmTests.swift */; };
 		71F9FC92673529E6F8D6F46A /* BookmarkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B008DBA1B9E98E9B1900465A /* BookmarkTests.swift */; };
 		7FF5DF93DAAEA0226A35FC0B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FD12FF192478DE6E07D470C7 /* Assets.xcassets */; };
+		888839206F4CDB90D9CBB8EA /* LiteRTLM in Frameworks */ = {isa = PBXBuildFile; productRef = 5BCE9716C037CF1C3471A5BA /* LiteRTLM */; };
+		8C87AFBE5FD4A619501EFC91 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 83331A0DD1FF7594D94010A2 /* MLXLLM */; };
 		8FC0FF45FD4555728181073B /* AppLockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11AC04323E32E9C6C7223AA5 /* AppLockTests.swift */; };
 		9264C88A983550F28C73F9D1 /* RecordingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41108F5D0A55780F5B359E97 /* RecordingIntents.swift */; };
 		95CEACAB0CEC68CDC1028D97 /* PlaybackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D04382C8ECD81DC76999E3C /* PlaybackTests.swift */; };
 		9842882BB124165D5F36A048 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 4BF152A52DD140039F8897C1 /* MLX */; };
 		99DA2F289B5773340A468E46 /* ImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 401A84F61C5FFEFD372D9CA8 /* ImportTests.swift */; };
+		9C957AAC82240EC7AF2A766F /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = C190BAFAFF931CBC9E2225E1 /* FluidAudio */; };
+		A81EFECBF832C88C19D0EB47 /* FederWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 45D8858EA3F31BD74E1BFE98 /* FederWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A8FC5B9D203DFFCBB90734EC /* PersonPageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DAED1346C652730838D3DF5 /* PersonPageTests.swift */; };
 		ACE3A2F03E31206AE3CA1D0A /* TagEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6061ACE8B763190CD40341F /* TagEditorTests.swift */; };
 		B1FB85133BB65085CC0C8494 /* TranscriptionLanguageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3914E00B46027D3444C29616 /* TranscriptionLanguageTests.swift */; };
@@ -35,9 +41,11 @@
 		BD3F585F5DF9E3B245ACC980 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 5369E989FEB69AFA9F06EF50 /* MLXLMCommon */; };
 		C52AA21891D8870AA04AFDE1 /* SearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F19636A7502AD131706A5F /* SearchTests.swift */; };
 		CBD772DADF0086EDEB0FF0C5 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 69D646AF45C91B8E21B6CD14 /* Localizable.xcstrings */; };
+		D924ABF9626BDC3CB8D7610C /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = 03D67E9D9F8F3C47169DAA48 /* Tokenizers */; };
 		DA60EFBC99FE385BCDBA472A /* ActionItemsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB3C11DB1BCB92F126A94B4 /* ActionItemsTests.swift */; };
 		DEB13780364793E430D76278 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = C99D4D671ADAEAD1CC8310D5 /* FluidAudio */; };
 		E1032F5173E6FFC4C1C6878F /* SettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34990786B63747A3152C8DA7 /* SettingsTests.swift */; };
+		E5629291A634A3C77AC71DD7 /* RecordingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41108F5D0A55780F5B359E97 /* RecordingIntents.swift */; };
 		EB3C3FFDA4851C15F84E8FE6 /* SpeakerNamingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FE0FEEB768611208CA19668 /* SpeakerNamingTests.swift */; };
 		FB77DCB14E2979B37EB6C510 /* SpeakerCorrectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24639CFDE8DBBA9454DEA98F /* SpeakerCorrectionTests.swift */; };
 		FEBC842971B62A00CF16A79A /* FederWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0118C12D431B788B233588 /* FederWidgets.swift */; };
@@ -58,9 +66,27 @@
 			remoteGlobalIDString = 47DDEF6E8826A43CEB926026;
 			remoteInfo = Recorder;
 		};
+		FB7CCA2AC283C7D35649FF64 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0A0CE171AC5E092A15594BE4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9B9416E23B9D55BC29FBE6AB;
+			remoteInfo = FederWidgets;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		63012D9E2C10576A654C02BD /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A81EFECBF832C88C19D0EB47 /* FederWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		948324CA57C850A66C83446F /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -84,6 +110,7 @@
 		34990786B63747A3152C8DA7 /* SettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTests.swift; sourceTree = "<group>"; };
 		3914E00B46027D3444C29616 /* TranscriptionLanguageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionLanguageTests.swift; sourceTree = "<group>"; };
 		3CBB09BF835A7714BACE9828 /* EditTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTextTests.swift; sourceTree = "<group>"; };
+		3ED19D9212DF976F9045293B /* LiteRTLM */ = {isa = PBXFileReference; lastKnownFileType = folder; name = LiteRTLM; path = Packages/LiteRTLM; sourceTree = SOURCE_ROOT; };
 		3FE0FEEB768611208CA19668 /* SpeakerNamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerNamingTests.swift; sourceTree = "<group>"; };
 		401A84F61C5FFEFD372D9CA8 /* ImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportTests.swift; sourceTree = "<group>"; };
 		41108F5D0A55780F5B359E97 /* RecordingIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingIntents.swift; sourceTree = "<group>"; };
@@ -99,8 +126,9 @@
 		C2FEA08FE163F0FEAAC15066 /* SystemIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemIntegrationTests.swift; sourceTree = "<group>"; };
 		C47DC3D3045444F493063CD3 /* SpeakerModelPrewarmTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerModelPrewarmTests.swift; sourceTree = "<group>"; };
 		C7F19636A7502AD131706A5F /* SearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchTests.swift; sourceTree = "<group>"; };
-		E198C3CAE095A97FBBB1C7B1 /* Recorder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Recorder.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E198C3CAE095A97FBBB1C7B1 /* Feder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Feder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E6061ACE8B763190CD40341F /* TagEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagEditorTests.swift; sourceTree = "<group>"; };
+		EC99BEC18B0FC9F7DE9B8897 /* FederLab.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FederLab.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F5864C5737E1A73204C68C61 /* SummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryTests.swift; sourceTree = "<group>"; };
 		F5D6225DCDC7ED2BB6F5DB88 /* ScribeUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ScribeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F9888AE62014305DE6B7512B /* ExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportTests.swift; sourceTree = "<group>"; };
@@ -108,7 +136,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		E406F03383AA517B93B751E0 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		21A01CD442688F5E0742008D /* Exceptions for "Recorder" folder in "FederLab" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 283CBC55C9075BA91D9E4183 /* FederLab */;
+		};
+		E406F03383AA517B93B751E0 /* Exceptions for "Recorder" folder in "Recorder" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -121,11 +156,8 @@
 		C04E4651EFDBD721DCF3BA71 /* Recorder */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				E406F03383AA517B93B751E0 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
+				E406F03383AA517B93B751E0 /* Exceptions for "Recorder" folder in "Recorder" target */,
+				21A01CD442688F5E0742008D /* Exceptions for "Recorder" folder in "FederLab" target */,
 			);
 			path = Recorder;
 			sourceTree = "<group>";
@@ -145,14 +177,28 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E1B7135C26F910608C49DAA1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9C957AAC82240EC7AF2A766F /* FluidAudio in Frameworks */,
+				8C87AFBE5FD4A619501EFC91 /* MLXLLM in Frameworks */,
+				64111B5D02B52690D0E4949A /* MLXLMCommon in Frameworks */,
+				39137A1E7C88C6EE830B454D /* MLX in Frameworks */,
+				D924ABF9626BDC3CB8D7610C /* Tokenizers in Frameworks */,
+				888839206F4CDB90D9CBB8EA /* LiteRTLM in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		1BB18CB6A8EB247476338388 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				EC99BEC18B0FC9F7DE9B8897 /* FederLab.app */,
 				45D8858EA3F31BD74E1BFE98 /* FederWidgets.appex */,
-				E198C3CAE095A97FBBB1C7B1 /* Recorder.app */,
+				E198C3CAE095A97FBBB1C7B1 /* Feder.app */,
 				F5D6225DCDC7ED2BB6F5DB88 /* ScribeUITests.xctest */,
 			);
 			name = Products;
@@ -210,11 +256,20 @@
 			isa = PBXGroup;
 			children = (
 				65741B38170EA90D35AE5BAB /* FederWidgets */,
+				F9916DAD571784886FC4347D /* Packages */,
 				C04E4651EFDBD721DCF3BA71 /* Recorder */,
 				450F05D8F32855007DA5CC69 /* ScribeUITests */,
 				411E1B89317A036FAEE6D422 /* Shared */,
 				1BB18CB6A8EB247476338388 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		F9916DAD571784886FC4347D /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				3ED19D9212DF976F9045293B /* LiteRTLM */,
+			);
+			path = Packages;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -237,6 +292,36 @@
 			productName = ScribeUITests;
 			productReference = F5D6225DCDC7ED2BB6F5DB88 /* ScribeUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		283CBC55C9075BA91D9E4183 /* FederLab */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1BDECDCBD08CC41C8815C878 /* Build configuration list for PBXNativeTarget "FederLab" */;
+			buildPhases = (
+				D97C57B8BE73A7786B24AF5F /* Sources */,
+				C7C39FB3F0E958D2C60CCEBE /* Resources */,
+				E1B7135C26F910608C49DAA1 /* Frameworks */,
+				63012D9E2C10576A654C02BD /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C98188EA8155A962197FB1FF /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C04E4651EFDBD721DCF3BA71 /* Recorder */,
+			);
+			name = FederLab;
+			packageProductDependencies = (
+				C190BAFAFF931CBC9E2225E1 /* FluidAudio */,
+				83331A0DD1FF7594D94010A2 /* MLXLLM */,
+				C23A2A77749A1D29A1D155B4 /* MLXLMCommon */,
+				D2DA763ECEBFD479473032D0 /* MLX */,
+				03D67E9D9F8F3C47169DAA48 /* Tokenizers */,
+				5BCE9716C037CF1C3471A5BA /* LiteRTLM */,
+			);
+			productName = FederLab;
+			productReference = EC99BEC18B0FC9F7DE9B8897 /* FederLab.app */;
+			productType = "com.apple.product-type.application";
 		};
 		47DDEF6E8826A43CEB926026 /* Recorder */ = {
 			isa = PBXNativeTarget;
@@ -264,7 +349,7 @@
 				0F1CBAC905522385F14CAD16 /* Tokenizers */,
 			);
 			productName = Recorder;
-			productReference = E198C3CAE095A97FBBB1C7B1 /* Recorder.app */;
+			productReference = E198C3CAE095A97FBBB1C7B1 /* Feder.app */;
 			productType = "com.apple.product-type.application";
 		};
 		9B9416E23B9D55BC29FBE6AB /* FederWidgets */ = {
@@ -299,6 +384,10 @@
 						ProvisioningStyle = Automatic;
 						TestTargetID = 47DDEF6E8826A43CEB926026;
 					};
+					283CBC55C9075BA91D9E4183 = {
+						DevelopmentTeam = GL55J24MCR;
+						ProvisioningStyle = Automatic;
+					};
 					47DDEF6E8826A43CEB926026 = {
 						DevelopmentTeam = GL55J24MCR;
 						ProvisioningStyle = Automatic;
@@ -324,6 +413,7 @@
 				F262081F96EC73CE6F549F78 /* XCRemoteSwiftPackageReference "mlx-swift" */,
 				0BE9566B5ECAADF3A1788A72 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
 				8F2D0C510EAFCF0DE74F7D66 /* XCRemoteSwiftPackageReference "swift-transformers" */,
+				738877C0389A0C2AACB15A94 /* XCLocalSwiftPackageReference "Packages/LiteRTLM" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1BB18CB6A8EB247476338388 /* Products */;
@@ -331,6 +421,7 @@
 			projectRoot = "";
 			targets = (
 				47DDEF6E8826A43CEB926026 /* Recorder */,
+				283CBC55C9075BA91D9E4183 /* FederLab */,
 				9B9416E23B9D55BC29FBE6AB /* FederWidgets */,
 				17EFC8BEB6A2D7BF44A2916D /* ScribeUITests */,
 			);
@@ -348,6 +439,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		5EFC55EAC51212CD670FE768 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C7C39FB3F0E958D2C60CCEBE /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -395,6 +493,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D97C57B8BE73A7786B24AF5F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E5629291A634A3C77AC71DD7 /* RecordingIntents.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F38B3BEB5992AFDE7D0D7017 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -417,6 +523,11 @@
 			target = 47DDEF6E8826A43CEB926026 /* Recorder */;
 			targetProxy = A610705B6A19DEB1CAFB2383 /* PBXContainerItemProxy */;
 		};
+		C98188EA8155A962197FB1FF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9B9416E23B9D55BC29FBE6AB /* FederWidgets */;
+			targetProxy = FB7CCA2AC283C7D35649FF64 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -433,6 +544,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = GL55J24MCR;
 				ENABLE_PREVIEWS = YES;
+				FEDER_DISPLAY_NAME = Feder;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Recorder/Info.plist;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -462,6 +574,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = GL55J24MCR;
 				ENABLE_PREVIEWS = YES;
+				FEDER_DISPLAY_NAME = Feder;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Recorder/Info.plist;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -562,6 +675,68 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_UPCOMING_FEATURE_NONISOLATED_NONSENDING_BY_DEFAULT = YES;
 				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		5E0577DB9FEBDA54FE2D63BF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]" = NO;
+				"CODE_SIGNING_REQUIRED[sdk=iphonesimulator*]" = NO;
+				CODE_SIGN_ENTITLEMENTS = Recorder/Recorder.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = GL55J24MCR;
+				ENABLE_PREVIEWS = YES;
+				FEDER_DISPLAY_NAME = "Feder Lab";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Recorder/Info.plist;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = de.timtody.feder;
+				PRODUCT_NAME = FederLab;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG LITERT";
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A23CF236B7135F742DC61926 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]" = NO;
+				"CODE_SIGNING_REQUIRED[sdk=iphonesimulator*]" = NO;
+				CODE_SIGN_ENTITLEMENTS = Recorder/Recorder.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = GL55J24MCR;
+				ENABLE_PREVIEWS = YES;
+				FEDER_DISPLAY_NAME = "Feder Lab";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Recorder/Info.plist;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = de.timtody.feder;
+				PRODUCT_NAME = FederLab;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG LITERT";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -712,6 +887,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		1BDECDCBD08CC41C8815C878 /* Build configuration list for PBXNativeTarget "FederLab" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E0577DB9FEBDA54FE2D63BF /* Debug */,
+				A23CF236B7135F742DC61926 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		3B096EFAF9D46F4ABDCD2A38 /* Build configuration list for PBXNativeTarget "FederWidgets" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -750,6 +934,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		738877C0389A0C2AACB15A94 /* XCLocalSwiftPackageReference "Packages/LiteRTLM" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/LiteRTLM;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		0BE9566B5ECAADF3A1788A72 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -786,6 +977,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		03D67E9D9F8F3C47169DAA48 /* Tokenizers */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8F2D0C510EAFCF0DE74F7D66 /* XCRemoteSwiftPackageReference "swift-transformers" */;
+			productName = Tokenizers;
+		};
 		0F1CBAC905522385F14CAD16 /* Tokenizers */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 8F2D0C510EAFCF0DE74F7D66 /* XCRemoteSwiftPackageReference "swift-transformers" */;
@@ -801,15 +997,39 @@
 			package = 0BE9566B5ECAADF3A1788A72 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
 			productName = MLXLMCommon;
 		};
+		5BCE9716C037CF1C3471A5BA /* LiteRTLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LiteRTLM;
+		};
+		83331A0DD1FF7594D94010A2 /* MLXLLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0BE9566B5ECAADF3A1788A72 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLLM;
+		};
 		8B6605A6E71DAC28C11A6736 /* MLXLLM */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 0BE9566B5ECAADF3A1788A72 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
 			productName = MLXLLM;
 		};
+		C190BAFAFF931CBC9E2225E1 /* FluidAudio */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 817AB5CB1B87E841BB09A8AD /* XCRemoteSwiftPackageReference "FluidAudio" */;
+			productName = FluidAudio;
+		};
+		C23A2A77749A1D29A1D155B4 /* MLXLMCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0BE9566B5ECAADF3A1788A72 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLMCommon;
+		};
 		C99D4D671ADAEAD1CC8310D5 /* FluidAudio */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 817AB5CB1B87E841BB09A8AD /* XCRemoteSwiftPackageReference "FluidAudio" */;
 			productName = FluidAudio;
+		};
+		D2DA763ECEBFD479473032D0 /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F262081F96EC73CE6F549F78 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

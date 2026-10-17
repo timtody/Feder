@@ -30,4 +30,5 @@ build/qa/*/**/.build/
 build/qa/*/**/.venv/
 build/qa/*/**/.swiftpm/
 build/qa/*/**/__pycache__/
-build/qa/litertbench/vendor/
+Packages/*/.build/
+Packages/*/.swiftpm/

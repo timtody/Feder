@@ -75,6 +75,12 @@ struct RecorderApp: App {
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String,
                      completionHandler: @escaping () -> Void) {
+        #if LITERT
+        if identifier == LabDownload.sessionIdentifier {               // Feder Lab's model files
+            nonisolated(unsafe) let completion = completionHandler
+            return LabDownload.shared.handleBackgroundEvents { completion() }
+        }
+        #endif
         guard identifier == GemmaDownload.sessionIdentifier else { return completionHandler() }
         nonisolated(unsafe) let completion = completionHandler    // UIKit's handler; called on the main queue
         GemmaDownload.shared.handleBackgroundEvents { completion() }

@@ -117,6 +117,9 @@ struct SettingsView: View {
                     liveLabelsModelPicker
                     NavigationLink(value: SettingsRoute.macLinkTest) { Text(verbatim: "Mac Link Test") }   // FED-141's spike
                     #endif
+                    #if LITERT
+                    NavigationLink(value: SettingsRoute.lab) { Text(verbatim: "Feder Lab") }   // FED-150: LiteRT models, bench
+                    #endif
                 } header: {
                     Text("About")
                 } footer: {
@@ -138,6 +141,9 @@ struct SettingsView: View {
                 case .acknowledgements: AcknowledgementsView()
                 #if DEBUG
                 case .macLinkTest: MacLinkProbeView()
+                #endif
+                #if LITERT
+                case .lab: ModelLabView()
                 #endif
                 }
             }
@@ -170,6 +176,12 @@ struct SettingsView: View {
                     let identifier = services.identifier
                     MacLinkProbe.shared.start { identifier.isRecording }
                 }
+                #if LITERT
+                // `-showLab`: Settings › Feder Lab pushed (with `-showSettings`).
+                if ProcessInfo.processInfo.arguments.contains("-showLab"), navigation.settings.isEmpty {
+                    navigation.settings.append(SettingsRoute.lab)
+                }
+                #endif
             }
             #endif
             .onChange(of: liveSpeakerLabels) {
@@ -252,6 +264,9 @@ struct SettingsView: View {
     private var summariesValue: String {
         let better = services.betterSummaries
         guard BetterSummaries.isSupported else { return String(localized: "Not available") }
+        #if LITERT
+        if better.labWriter != nil { return better.isEnabled ? ModelLab.shared.writer.name : String(localized: "Off") }
+        #endif
         if better.state == .ready { return better.isEnabled ? better.variant.displayName : String(localized: "Off") }
         if better.state == .waitingForWiFi { return String(localized: "Waiting for Wi-Fi") }
         return Self.value(better.state, ready: better.variant.displayName, missing: String(localized: "Not downloaded"))
@@ -502,5 +517,8 @@ enum SettingsRoute: Hashable {
     case people, transcription, speakers, summaries, vocabulary, privacy, legalNotice, acknowledgements
     #if DEBUG
     case macLinkTest                                   // FED-141's spike (MacLinkProbeView)
+    #endif
+    #if LITERT
+    case lab                                           // Feder Lab (ModelLabView, FED-150)
     #endif
 }

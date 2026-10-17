@@ -21,6 +21,8 @@ packages:
   SwiftTransformers:
     url: https://github.com/huggingface/swift-transformers
     exactVersion: 1.3.4                      # Gemma's tokenizer and chat template
+  LiteRTLM:                                  # Google's LiteRT-LM v0.18.0, Feder Lab only (FED-150): see Packages/LiteRTLM/Package.swift
+    path: Packages/LiteRTLM
 
 settings:
   base:
@@ -38,8 +40,8 @@ settings:
     debug:
       SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
 
-targets:
-  Recorder:
+targetTemplates:
+  FederApp:                                  # Feder and Feder Lab: the same app, the Lab with LiteRT-LM on top
     type: application
     platform: iOS
     deploymentTarget: "26.0"
@@ -68,7 +70,7 @@ targets:
     info:
       path: Recorder/Info.plist
       properties:
-        CFBundleDisplayName: Feder
+        CFBundleDisplayName: "$(FEDER_DISPLAY_NAME)"          # Feder; "Feder Lab" for the Lab target
         CFBundleShortVersionString: "$(MARKETING_VERSION)"     # xcodegen writes a literal 1.0 otherwise
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSMicrophoneUsageDescription: "Feder uses the microphone to record and transcribe audio. Everything stays on this iPhone."
@@ -98,6 +100,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.timtody.feder
         PRODUCT_NAME: Feder
+        FEDER_DISPLAY_NAME: Feder
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         TARGETED_DEVICE_FAMILY: "1"                           # iPhone only
@@ -111,6 +114,25 @@ targets:
         "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": ""
         "CODE_SIGNING_REQUIRED[sdk=iphonesimulator*]": NO
         "CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]": NO
+
+targets:
+  Recorder:
+    templates: [FederApp]
+
+  # Feder Lab (FED-150, FED-152): a Debug build of Feder with Google's LiteRT-LM, to try Gemma 4 E2B and E4B on it
+  # against E2B on MLX (Settings › Feder Lab: downloads, the model that writes, the iPhone bench). Same sources, bundle id
+  # and data as Feder, so it opens the user's transcripts; only this target links LiteRT-LM and defines LITERT, so
+  # Feder's Release builds and archives never carry it. Run its scheme on the iPhone; it replaces the installed Feder.
+  FederLab:
+    templates: [FederApp]
+    dependencies:
+      - package: LiteRTLM
+        product: LiteRTLM
+    settings:
+      base:
+        PRODUCT_NAME: FederLab
+        FEDER_DISPLAY_NAME: Feder Lab
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG LITERT
 
   FederWidgets:                              # widget extension: Live Activity, Control Center control, lock screen widget
     type: app-extension
@@ -176,3 +198,11 @@ schemes:
         - ScribeUITests
     archive:
       config: Release
+  FederLab:
+    build:
+      targets:
+        FederLab: all
+    run:
+      config: Debug
+    archive:
+      config: Debug                          # never a Release Feder Lab

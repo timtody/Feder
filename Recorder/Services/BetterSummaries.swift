@@ -87,8 +87,17 @@ final class BetterSummaries {
         }
     }
 
+    #if LITERT
+    /// Feder Lab: the LiteRT-LM model chosen in Settings › Feder Lab, writing summaries and answering in Ask instead of
+    /// E2B on MLX; nil = E2B on MLX (ModelLab).
+    var labWriter: (any TextWriter)?
+    #endif
+
     /// The model to write with: downloaded, turned on, supported. nil = Apple's model.
     var activeModel: (any TextWriter)? {
+        #if LITERT
+        if let labWriter { return Self.isSupported && isEnabled ? labWriter : nil }
+        #endif
         guard Self.isSupported, isEnabled, state == .ready else { return nil }
         return model
     }
@@ -96,6 +105,9 @@ final class BetterSummaries {
     /// The model the Ask tab chats with: downloaded and supported, also with Titles and Summaries off (that switch is
     /// about the automatic summaries; turning it off shouldn't empty a tab).
     var chatModel: (any TextWriter)? {
+        #if LITERT
+        if let labWriter { return Self.isSupported ? labWriter : nil }
+        #endif
         guard Self.isSupported, state == .ready else { return nil }
         return model
     }
@@ -168,6 +180,9 @@ final class BetterSummaries {
             #if DEBUG
             print("[Scribe] Gemma failed: \(error.underlying)")
             #endif
+            #if LITERT
+            if labWriter != nil { throw error }                 // a Lab model failed: E2B's files are fine
+            #endif
             let failed = variant
             await delete()
             states[failed] = .failed(String(localized: "Gemma could not be loaded. Download it again."))
@@ -186,6 +201,12 @@ final class BetterSummaries {
     /// recording; stopped like a background request when the app resigns active or a recording starts.
     func runInteractive<T: Sendable>(_ work: @escaping @MainActor (any TextWriter) async throws -> T) async throws -> T {
         guard let model = chatModel else { throw ChatUnavailable.notDownloaded }
+        return try await runAhead { try await work(model) }
+    }
+
+    /// `runInteractive` without a model of its own: background work stopped and turned away while `work` runs, under
+    /// the same conditions (active, not recording, one at a time). Also Feder Lab's bench, which brings its models.
+    func runAhead<T: Sendable>(_ work: @escaping @MainActor () async throws -> T) async throws -> T {
         guard !isRecording else { throw ChatUnavailable.recording }
         guard UIApplication.shared.applicationState == .active else { throw ChatUnavailable.background }
         guard !isAnswering else { throw CancellationError() }      // GemmaChat sends one at a time
@@ -205,7 +226,7 @@ final class BetterSummaries {
             await running.value                                 // a token later: the loop checks between tokens
         }
         try Task.checkCancellation()
-        let task = Task { try await work(model) }
+        let task = Task { try await work() }
         cancelAnswer = { task.cancel() }
         defer { cancelAnswer = nil }
         return try await withTaskCancellationHandler {
@@ -224,6 +245,9 @@ final class BetterSummaries {
         unloadTask?.cancel()
         cancelAll()
         await model?.unload()
+        #if LITERT
+        await labWriter?.unload()
+        #endif
     }
 
     private func scheduleUnload() {
@@ -233,6 +257,9 @@ final class BetterSummaries {
             // Not under a request still running (a summary stopped for a chat answer scheduled this as it ended).
             guard !Task.isCancelled, let self, !self.isAnswering, !self.isWorking else { return }
             await self.model?.unload()
+            #if LITERT
+            await self.labWriter?.unload()
+            #endif
         }
     }
 

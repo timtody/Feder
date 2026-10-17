@@ -109,6 +109,9 @@ final class AppServices {
         self.nemotronDiarizer = nemotronDiarizer
         nemotron = NemotronModel(diarizer: nemotronDiarizer, network: network)
         betterSummaries = BetterSummaries(network: network)
+        #if LITERT
+        ModelLab.shared.attach(betterSummaries)                     // Feder Lab: its chosen model writes
+        #endif
         chat = GemmaChat(betterSummaries: betterSummaries)
         parakeet = ParakeetModel(network: network)
         let liveModel = Self.liveLabelsModel
