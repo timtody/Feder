@@ -19,6 +19,7 @@ build/qa/*
 !build/qa/sortformer/
 !build/qa/icon/
 !build/qa/linkspike/
+!build/qa/litertbench/
 build/qa/*/**
 !build/qa/*/**/
 !build/qa/*/**/*.sh
@@ -29,3 +30,4 @@ build/qa/*/**/.build/
 build/qa/*/**/.venv/
 build/qa/*/**/.swiftpm/
 build/qa/*/**/__pycache__/
+build/qa/litertbench/vendor/

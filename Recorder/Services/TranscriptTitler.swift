@@ -78,7 +78,8 @@ final class TranscriptTitler {
                                   limit: Self.chunkCharacters(contextSize: LocalLanguageModel.contextTokens), partial: partial)
     }
 
-    private func describe(_ paragraphs: [String], locale: Locale, writer: any TextWriter, bookmarked: Bool, limit: Int,
+    /// Not private: the Mac model bench (build/qa/litertbench) calls it with an explicit locale.
+    func describe(_ paragraphs: [String], locale: Locale, writer: any TextWriter, bookmarked: Bool, limit: Int,
                           partial: (@Sendable (String) -> Void)?) async throws -> Description? {
         let german = Self.isGerman(locale)
         let bookmarkNote = bookmarked ? "\n" + Self.bookmarkNote(german: german) : ""
