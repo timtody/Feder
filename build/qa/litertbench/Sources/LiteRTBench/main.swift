@@ -4,8 +4,9 @@ import LiteRTLM
 
 // FED-142: Gemma 4 E4B on LiteRT-LM against the app's Gemma 4 E2B on MLX, through the app's TranscriptTitler
 // (requests, map-reduce, parsing). Prints the load time, each description's time and requests, the raw answer, the
-// stored title and summary, and the process's peak memory (phys_footprint, what iOS's memory limit counts; GPU
-// buffers included).
+// stored title and summary, and the process's peak phys_footprint and resident size. Neither is the model's memory:
+// LiteRT's GPU reads the weights from the memory-mapped file, which phys_footprint leaves out, and resident_size misses
+// GPU memory. Compare models on the whole Mac's used memory during a run (README › Better Summaries).
 //
 // usage: LiteRTBench mlx <modelDir>            <en|de|both> <repeat> <text.txt>…
 //        LiteRTBench litert <file.litertlm> <gpu|cpu> <en|de|both> <repeat> <text.txt>…
@@ -15,8 +16,14 @@ import LiteRTLM
 nonisolated final class FootprintSampler: @unchecked Sendable {
     private let lock = NSLock()
     private var peakBytes: UInt64 = 0
+    private var peakResident: UInt64 = 0
 
-    static func current() -> UInt64 {
+    static func current() -> UInt64 { info().phys_footprint }
+
+    /// Resident pages, file-backed ones included (a memory-mapped model's weights, which phys_footprint leaves out).
+    static func resident() -> UInt64 { info().resident_size }
+
+    static func info() -> task_vm_info_data_t {
         var info = task_vm_info_data_t()
         var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
         let result = withUnsafeMutablePointer(to: &info) {
@@ -24,25 +31,28 @@ nonisolated final class FootprintSampler: @unchecked Sendable {
                 task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
             }
         }
-        return result == KERN_SUCCESS ? info.phys_footprint : 0
+        return result == KERN_SUCCESS ? info : task_vm_info_data_t()
     }
 
     func start() {
         Thread.detachNewThread { [self] in
             while true {
                 let now = Self.current()
-                lock.withLock { peakBytes = max(peakBytes, now) }
+                let resident = Self.resident()
+                lock.withLock { peakBytes = max(peakBytes, now); peakResident = max(peakResident, resident) }
                 usleep(20_000)
             }
         }
     }
 
     /// The peak since the last reset, then starts again from the current footprint.
-    func takePeak() -> Double {
+    func takePeak() -> String {
         lock.withLock {
-            let peak = max(peakBytes, Self.current())
+            let peak = max(peakBytes, Self.current()), resident = max(peakResident, Self.resident())
             peakBytes = Self.current()
-            return Double(peak) / 1_073_741_824
+            peakResident = Self.resident()
+            return String(format: "%.2f GB (resident %.2f GB)", Double(peak) / 1_073_741_824,
+                          Double(resident) / 1_073_741_824)
         }
     }
 }
@@ -104,7 +114,7 @@ if args[1] == "mlx" {
     model = litert
     rest = args[4...]
 }
-print("load: \(format(Date().timeIntervalSince(loadStart))) s, peak \(String(format: "%.2f", sampler.takePeak())) GB")
+print("load: \(format(Date().timeIntervalSince(loadStart))) s, peak \(sampler.takePeak())")
 
 let languages = rest[rest.startIndex] == "both" ? ["en", "de"] : [rest[rest.startIndex]]
 let repeatCount = Int(rest[rest.startIndex + 1]) ?? 1
@@ -131,7 +141,7 @@ for path in rest.dropFirst(2) {
         }
         let seconds = Date().timeIntervalSince(start)
         print("\n======== \(language) · \(format(seconds)) s · \(writer.requests.count) request(s) · peak " +
-              "\(String(format: "%.2f", sampler.takePeak())) GB")
+              "\(sampler.takePeak())")
         for (index, request) in writer.requests.enumerated() {
             print("-- request \(index + 1): \(format(request.seconds)) s, first chunk after " +
                   "\(request.firstChunk.map(format) ?? "-") s, \(request.answer.count) characters")
