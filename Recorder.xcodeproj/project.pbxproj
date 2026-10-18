@@ -41,6 +41,7 @@
 		BD3F585F5DF9E3B245ACC980 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 5369E989FEB69AFA9F06EF50 /* MLXLMCommon */; };
 		C52AA21891D8870AA04AFDE1 /* SearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F19636A7502AD131706A5F /* SearchTests.swift */; };
 		CBD772DADF0086EDEB0FF0C5 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 69D646AF45C91B8E21B6CD14 /* Localizable.xcstrings */; };
+		D773F910DD32D096CF5FF95C /* BenchTexts in Resources */ = {isa = PBXBuildFile; fileRef = B47C158CAE2D58D6BDFED856 /* BenchTexts */; };
 		D924ABF9626BDC3CB8D7610C /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = 03D67E9D9F8F3C47169DAA48 /* Tokenizers */; };
 		DA60EFBC99FE385BCDBA472A /* ActionItemsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB3C11DB1BCB92F126A94B4 /* ActionItemsTests.swift */; };
 		DEB13780364793E430D76278 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = C99D4D671ADAEAD1CC8310D5 /* FluidAudio */; };
@@ -122,11 +123,12 @@
 		9A0118C12D431B788B233588 /* FederWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FederWidgets.swift; sourceTree = "<group>"; };
 		AAB3C11DB1BCB92F126A94B4 /* ActionItemsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionItemsTests.swift; sourceTree = "<group>"; };
 		B008DBA1B9E98E9B1900465A /* BookmarkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkTests.swift; sourceTree = "<group>"; };
+		B47C158CAE2D58D6BDFED856 /* BenchTexts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = BenchTexts; path = Lab/BenchTexts; sourceTree = SOURCE_ROOT; };
 		B5E5334822ED139DB77164FF /* ScribeUITestCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScribeUITestCase.swift; sourceTree = "<group>"; };
 		C2FEA08FE163F0FEAAC15066 /* SystemIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemIntegrationTests.swift; sourceTree = "<group>"; };
 		C47DC3D3045444F493063CD3 /* SpeakerModelPrewarmTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerModelPrewarmTests.swift; sourceTree = "<group>"; };
 		C7F19636A7502AD131706A5F /* SearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchTests.swift; sourceTree = "<group>"; };
-		E198C3CAE095A97FBBB1C7B1 /* Feder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Feder.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E198C3CAE095A97FBBB1C7B1 /* Recorder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Recorder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E6061ACE8B763190CD40341F /* TagEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagEditorTests.swift; sourceTree = "<group>"; };
 		EC99BEC18B0FC9F7DE9B8897 /* FederLab.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FederLab.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F5864C5737E1A73204C68C61 /* SummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryTests.swift; sourceTree = "<group>"; };
@@ -136,14 +138,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		21A01CD442688F5E0742008D /* Exceptions for "Recorder" folder in "FederLab" target */ = {
+		21A01CD442688F5E0742008D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
 			target = 283CBC55C9075BA91D9E4183 /* FederLab */;
 		};
-		E406F03383AA517B93B751E0 /* Exceptions for "Recorder" folder in "Recorder" target */ = {
+		E406F03383AA517B93B751E0 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -153,15 +155,7 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		C04E4651EFDBD721DCF3BA71 /* Recorder */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				E406F03383AA517B93B751E0 /* Exceptions for "Recorder" folder in "Recorder" target */,
-				21A01CD442688F5E0742008D /* Exceptions for "Recorder" folder in "FederLab" target */,
-			);
-			path = Recorder;
-			sourceTree = "<group>";
-		};
+		C04E4651EFDBD721DCF3BA71 /* Recorder */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E406F03383AA517B93B751E0 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 21A01CD442688F5E0742008D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Recorder; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -198,7 +192,7 @@
 			children = (
 				EC99BEC18B0FC9F7DE9B8897 /* FederLab.app */,
 				45D8858EA3F31BD74E1BFE98 /* FederWidgets.appex */,
-				E198C3CAE095A97FBBB1C7B1 /* Feder.app */,
+				E198C3CAE095A97FBBB1C7B1 /* Recorder.app */,
 				F5D6225DCDC7ED2BB6F5DB88 /* ScribeUITests.xctest */,
 			);
 			name = Products;
@@ -256,6 +250,7 @@
 			isa = PBXGroup;
 			children = (
 				65741B38170EA90D35AE5BAB /* FederWidgets */,
+				FCF9AC1EDAFCAAF41858FB89 /* Lab */,
 				F9916DAD571784886FC4347D /* Packages */,
 				C04E4651EFDBD721DCF3BA71 /* Recorder */,
 				450F05D8F32855007DA5CC69 /* ScribeUITests */,
@@ -270,6 +265,14 @@
 				3ED19D9212DF976F9045293B /* LiteRTLM */,
 			);
 			path = Packages;
+			sourceTree = "<group>";
+		};
+		FCF9AC1EDAFCAAF41858FB89 /* Lab */ = {
+			isa = PBXGroup;
+			children = (
+				B47C158CAE2D58D6BDFED856 /* BenchTexts */,
+			);
+			path = Lab;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -349,7 +352,7 @@
 				0F1CBAC905522385F14CAD16 /* Tokenizers */,
 			);
 			productName = Recorder;
-			productReference = E198C3CAE095A97FBBB1C7B1 /* Feder.app */;
+			productReference = E198C3CAE095A97FBBB1C7B1 /* Recorder.app */;
 			productType = "com.apple.product-type.application";
 		};
 		9B9416E23B9D55BC29FBE6AB /* FederWidgets */ = {
@@ -449,6 +452,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D773F910DD32D096CF5FF95C /* BenchTexts in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

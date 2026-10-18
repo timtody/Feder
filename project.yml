@@ -125,6 +125,10 @@ targets:
   # Feder's Release builds and archives never carry it. Run its scheme on the iPhone; it replaces the installed Feder.
   FederLab:
     templates: [FederApp]
+    sources:                                 # added to the template's: the bench texts, in the Lab's bundle only (FED-153)
+      - path: Lab/BenchTexts
+        type: folder
+        buildPhase: resources
     dependencies:
       - package: LiteRTLM
         product: LiteRTLM

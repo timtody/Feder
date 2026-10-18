@@ -1,0 +1,305 @@
+# Atlas Migration Architecture Review
+Maren: Okay, I think we're, are we recording? Yeah the little red light is on. Okay. So, um, welcome everyone, this is the architecture review for the Atlas migration, the the event-driven thing we've been circling around since basically April. I booked the room until four so we have, uh, most of the afternoon. The agenda is on the whiteboard, but short version: where Atlas is today, which message broker, data ownership, cost, and then a phased migration plan, and at the end decisions and who does what by when. And Tomasz asked for a slot on the September outage, which, yeah, I don't think we can avoid, because honestly it's the reason the board suddenly cares about any of this.
+Tomasz: It is. It absolutely is. Nobody asked about the monolith for three years and then one bad Tuesday and suddenly there's a steering committee.
+Maren: Right. So, quick round, because we have someone on the phone. Daniel, Priya, Tomasz you all know. And, sorry, on the line, could you introduce yourself? The the speakerphone sometimes eats the first second.
+Speaker 4: Yes, hi, can you hear me? Okay good. I'm from the finance side, controlling, I'm basically here for the cost part and to make sure whatever number we come out with is something I can actually defend in front of the CFO. I'll mostly listen until then.
+Maren: Perfect, thank you. Okay. So Daniel, you're the one who's been living inside Atlas the longest, can you give us the, um, the honest picture? Not the slide version.
+Daniel: The honest picture. Okay. So Atlas is, uh, fourteen years old this year. It started as the dispatch tool for the, for the Leeds depot, and then everything got bolted on. Tracking, billing, customer master data, the carrier portal, the label printing, all of it. We're at roughly one point two million lines of Java, a single Spring application, it's one deployable, and it all sits on one Postgres database. One. It's a big box, it's version eleven, which is out of support, that's a separate conversation.
+Priya: A separate very scary conversation.
+Daniel: Yes. Um. So deploys. We deploy every two weeks, on a Wednesday night, and a deploy takes about three hours including the smoke tests, and if anything fails we roll back the whole thing, which means the billing team's fix waits because the tracking team broke something, and the other way round. That's the, that's the main pain for the teams. For the business the main pain is that tracking load and billing load and dispatch load all fight over the same database.
+Maren: Can you give the volume numbers? I think people underestimate them.
+Daniel: Sure. Tracking is the big one. We get, uh, four point eight million scan events a day across all hubs. Every parcel gets scanned, what, six to nine times between pickup and delivery. Peak is in the early evening when the line haul trucks unload, we measured nineteen hundred events per second at peak last November, and that was before we onboarded the two new retail customers. So I'd assume more this year.
+Tomasz: The Black Friday week we saw, I think, I want to say two thousand three hundred for a few minutes. But that was a spike, not sustained.
+Daniel: Okay so let's say peak around nineteen hundred sustained, spikes above two thousand.
+Maren: And the target is, what, we said three times headroom?
+Daniel: Three times headroom, yeah, that's what I'd design for. So call it six thousand events per second as the design target for the event backbone. That's not, that's not a big number for any modern broker honestly. It's a big number for Atlas because every scan is a synchronous insert plus two updates plus a trigger.
+Priya: Plus the trigger that nobody wants to touch.
+Daniel: Plus the trigger that writes into the customer notification table, yes, which is, um, it's, let's say it's load-bearing.
+Maren: Okay. So that's the starting point. And the, the overall direction, just to restate it so nobody's surprised later. We are not doing a big bang rewrite. We're doing the strangler approach, we carve pieces out of Atlas one by one, each piece becomes a service that publishes and consumes events, and Atlas shrinks over time. Is anyone, does anyone object to that in principle?
+Tomasz: No. Not in principle. In practice I want to talk about who runs all of it at three in the morning but not in principle.
+Priya: No objection.
+Daniel: No, God no, we tried the rewrite in twenty nineteen, it died after eight months. Strangler, yes.
+Maren: Good. So that's the first thing I'll write down as decided. Strangler pattern, no big bang, Atlas shrinks piece by piece. Okay. Now the, the phases. I had a draft in the pre-read, I don't know who actually read the pre-read.
+Speaker 4: I did.
+Maren: Thank you. One person. Okay so the draft order was: phase one tracking, because it's the highest volume and the most isolated, phase two billing, because finance has been asking for faster invoice corrections for two years, and phase three dispatch, because dispatch is the oldest and the most tangled and we'd want to learn on the easier ones first.
+Daniel: I mean I'm fine with tracking first. Billing second I'm, I'm not sure about, but let's let's park it, we'll come back to it.
+Maren: Fine, we'll come back to it. For now draft order tracking, billing, dispatch. Okay. So broker. Daniel, you had a strong opinion in the chat yesterday.
+Daniel: I did. Um. So, my take is, we should go with Rabbit and queue. RabbitMQ. We already run it, we have a small instance for the label printing jobs, people know it, the ops team knows how to restart it, it's simple, it does routing really nicely with the exchanges, and honestly for most of what we're talking about, a shipment got scanned, an invoice got created, it's it's just messaging. We don't need a, a distributed log for that.
+Tomasz: We do run it, that's true. It's been fine. It's one node though.
+Daniel: Sure, we'd cluster it. Three nodes, quorum queues, that's well understood.
+Maren: Priya, you're quiet.
+Priya: I'm, I'm thinking. I don't have a strong objection right now. I have questions about replay but I can ask them later.
+Maren: Okay. Um. Then honestly, for the sake of moving on, let's say tentatively RabbitMQ, since it's already in house and the team knows it, and we revisit if something comes up in the data part. I'd rather not spend the whole afternoon on the broker.
+Daniel: Works for me.
+Tomasz: Tentatively. I'm writing tentatively in capital letters.
+Maren: Yes, tentatively. Okay so the next thing was, um, the event backbone layout, like which topics or queues or exchanges we'd need for tracking. Daniel?
+Daniel: So for tracking I'd see basically, um, one stream of scan events coming in from the hub scanners, those are raw, then a shipment status changed event which is the, the business event, and then a notification requested event that the customer notification part listens to. Three. Maybe a fourth for exceptions, like damaged parcel, address problem, that kind of thing.
+Priya: And who consumes shipment status changed?
+Daniel: Customer notifications, the carrier portal, the ETA calculation, and eventually billing because billing needs to know when something is delivered to, uh, to trigger the delivery-based invoicing for the contract customers.
+Priya: Right. So this is my, this is the question I parked. When billing comes along, in whatever phase, and it needs to know every delivery from, let's say, the start of the billing period, where does it get that history from? Because with Rabbit, once the message is consumed and acknowledged, it's gone.
+Daniel: Billing would, I mean billing would query the tracking service for history. Via an API.
+Priya: For three weeks of deliveries? That's, what, that's tens of millions of events, and we're, we're then coupling billing to tracking's API at runtime, which is the thing we're trying to get away from.
+Daniel: Or billing keeps its own copy from day one.
+Priya: Billing doesn't exist on day one. That's the point. In your order it comes in phase two, and in reality maybe much later. And the same thing for the data warehouse, my team wants to rebuild the reporting off events instead of off nightly dumps from Atlas, and for that I need to be able to start a new consumer and read from the beginning, or at least from thirty days back. Rebuild a projection. That's that's like the whole reason for event-driven, for me.
+Tomasz: Rabbit has streams now, to be fair. Since three point nine. Append-only log, you can replay.
+Daniel: Right, Rabbit streams, yes.
+Priya: Has anyone here run them in production?
+Tomasz: No.
+Daniel: No. I've read about them.
+Priya: So we'd be running a relatively new feature of a broker that we run as one single node today, and we'd be, uh, we'd basically be using it as a log. At that point I'd rather use the thing that is a log.
+Maren: Kafka.
+Priya: Kafka, yes. Or, I mean, honestly anything that's a log. But Kafka is the boring choice there, we have three people in the data team who've run it at previous jobs, I ran it at my last company for four years.
+Daniel: Kafka is heavier to operate though. That's that's my real concern, not the features. ZooKeeper, rebalancing, partition counts you can't easily change.
+Tomasz: ZooKeeper's gone, in the newer versions. KRaft mode. That that argument is a few years old.
+Daniel: Okay, fair, fair, but it's still more moving parts than Rabbit.
+Tomasz: It is. Can I, can I add the ops view? Because I was the one writing tentatively in capitals.
+Maren: Go.
+Tomasz: So, what I care about is, one, can we run it on what we already have, two, can my team of four realistically be on call for it, and three, does it fail in a way we understand. For Rabbit I'd say yes, yes, mostly. For Kafka, if we self-host it on the Kubernetes cluster with the operator, Stream Z, then I'd say yes, probably, and yes if we get one more person. The operator does most of the rolling restarts and the cert rotation and so on.
+Daniel: Stream Z being the, the Kubernetes operator for Kafka.
+Tomasz: Yeah. It's open source, it's what, it's what most people use if they don't buy a managed service. And we can't buy a managed service anyway because of the, uh, the data residency stuff the customers wrote into the contracts, at least not without a six month procurement process.
+Speaker 4: Can I ask, sorry, just from my side, is there a licensing cost difference between the two? Because that would matter to me.
+Tomasz: Both open source, both free. The cost difference is in hardware and in people. Kafka wants more disk, because it keeps the log, and probably a bit more memory.
+Speaker 4: Okay, thank you, I'll hold the questions until the cost part.
+Maren: Okay. So I'm hearing that the, the tentative Rabbit decision is wobbling. Daniel, does Priya's replay point change your view?
+Daniel: Um. Honestly, yes, a bit. The replay point is real. I was thinking of it as messaging, she's thinking of it as, as the source of truth for the history, and if we want the warehouse and billing to be able to come in later and catch up, then yeah, we need a log. I don't love the operational weight. But I'd rather have the right shape and more ops than the wrong shape and less ops.
+Priya: Thank you. That's, that's exactly it.
+Daniel: But then I want two things. One, ordering per shipment, because if "delivered" arrives before "out for delivery" the notification service sends nonsense to the customer. And two, we don't let every team create a hundred topics with random partition counts.
+Tomasz: Ordering per shipment is easy, you key by shipment ID, everything for one shipment goes to the same partition, it's ordered within the partition.
+Priya: And consumers still have to be item potent, because you will get duplicates on retries, Kafka gives you at-least-once unless you do the whole transactions thing, and I don't want every team doing transactions.
+Daniel: Item potent consumers, yes. I'd make that a rule, not a guideline.
+Maren: Okay, let me, let me try to land this. Are we saying Kafka instead of RabbitMQ? Because I said tentatively Rabbit half an hour ago and I want to be explicit if we're reversing it.
+Daniel: I'm reversing my vote. Kafka.
+Tomasz: Kafka, self-hosted with Stream Z on our cluster, on the condition that I get one more SRE or at least half of one.
+Priya: Kafka.
+Maren: Okay. So the broker is Kafka, not RabbitMQ. I'm crossing out Rabbit on the board. And the existing small RabbitMQ for label printing stays where it is, we don't touch it, it's not part of this.
+Daniel: Yeah leave the label printer alone, it's the only thing in the building that never breaks.
+Maren: Good. Tomasz, sizing, can you give us a first cut?
+Tomasz: First cut. Production, I'd go with five brokers, spread across the three zones, replication factor three, min in-sync replicas two. So we can lose a broker and still write, and even during a rolling restart we're fine. Staging three brokers, smaller machines. Dev, everybody shares staging, or we run a single broker per developer laptop in a container, whatever.
+Daniel: Why five and not three for prod?
+Tomasz: Three works, but then during a rolling update you're at two, and if one more goes down during the update you can't satisfy min in-sync two and producers block. With five there's slack. Also partition leadership spreads better. It's, it's the cautious choice, and after September I'm in a cautious mood.
+Maren: Okay, five in prod, three in staging. Partition count for the shipment events?
+Tomasz: For the main shipment events topic I'd say twenty-four partitions. That gives us consumer parallelism up to twenty-four instances per consumer group, which is way more than we need, and it's divisible nicely. Increasing partitions later breaks the key-to-partition mapping, so we'd rather start a bit high.
+Priya: Twenty-four is fine. And retention, I want to talk about retention because that's the whole reason I argued for this.
+Maren: Go ahead.
+Priya: Default retention for topics, seven days. That covers a consumer being down over a long weekend and catching up. For the shipment events topic specifically, thirty days. That's what billing needs for a monthly billing period plus some buffer, and it's what I need to rebuild a warehouse projection without going back to Atlas.
+Tomasz: Thirty days at four point eight million a day, average event maybe, what, one and a half kilobytes with the, with the headers?
+Priya: About that, yeah, less with compression.
+Tomasz: So roughly seven gigabytes a day raw, times thirty, two hundred-ish gigs, times replication three, six hundred gigs. That's fine. That's nothing. Okay. Thirty days on shipment events, seven days default, I'm fine with that.
+Daniel: And longer than thirty days?
+Priya: Longer than thirty days goes to the warehouse, to object storage, not to Kafka. Kafka is not the archive. I want that to be a rule as well.
+Maren: Okay. Writing down: retention seven days default, thirty days on shipment events, Kafka is not the archive. Schemas. Priya, you wanted a schema registry?
+Priya: Yes. Every event has a schema, we use Avril with a schema registry, and the CI pipeline checks backward compatibility before anything gets deployed. If you break compatibility the build fails. I don't want JSON blobs with a field that's sometimes a string and sometimes a number, which is, um, which is literally what the Atlas notification table has today.
+Daniel: Why Avril and not Protobuf? Just asking, I don't have a horse in this.
+Priya: Mostly because the warehouse tooling we already have reads Avril natively, and the registry tooling is a bit more mature for it. Protobuf would work too. I don't want to spend an hour on it.
+Daniel: No, fine. Avril.
+Tomasz: Which registry? There's a couple of open source ones.
+Priya: I'll do a short comparison, I'll put it in the, in the data ownership doc. It's not a big decision as long as it speaks the same API.
+Maren: Okay. So, um, now, Tomasz, I think this is a good moment for the outage, because it leads directly into data ownership, if I understood your note right.
+Tomasz: It does. Okay. So for those who weren't in the war room. September twenty-third, a Tuesday. At ten fourteen in the morning Atlas started timing out on the scanner API. The hubs couldn't record scans, so the scanners queued locally, and the scanner firmware only buffers so much. By eleven the tracking page for customers showed stale data, by noon the notification emails stopped completely. We were fully back at, uh, two twenty-six in the afternoon. So four hours and twelve minutes of degraded or no tracking.
+Speaker 4: And that's the one with the SLA credits.
+Tomasz: That's the one with the SLA credits. Brennholt Retail invoked the clause, we paid sixty-two thousand euros in credits. Plus, um, around two thousand three hundred late delivery notifications, which created a lot of support tickets, the support team had a, a horrible week.
+Maren: And the root cause?
+Tomasz: So, root cause. The invoice batch run. The monthly delivery-based invoicing for contract customers. It normally runs at two in the morning. Someone changed the scheduler config in August, as part of the time zone cleanup, and the cron expression ended up being evaluated in UTC instead of local, and a, uh, a different change moved it, so long story short, it ran at ten in the morning on a weekday. It does a giant read with a lock on the shipments table, well, it's a select for update on a big range, for, for reasons that are lost in history. Every scan insert then waits on that lock. The connection pool is two hundred connections, all two hundred got stuck waiting, and then the whole app stopped answering, because, again, one app, one pool, one database.
+Daniel: The select for update is from twenty fifteen. I looked it up. It was added to fix a double invoicing bug, and nobody ever removed it when the actual bug was fixed differently.
+Priya: Of course it was.
+Tomasz: And then the scanners, so, the backlog. When we came back up, the scanners flushed thirty-seven thousand queued scans in the first few minutes, which then nearly knocked us over a second time. We had to throttle the scanner API by hand.
+Maren: So what's the lesson for this room? Apart from don't run invoices at ten in the morning.
+Tomasz: Two lessons. One, short-term, independent of any migration: the invoice batch moves to the read replica, it has no business reading from the primary, and we remove that select for update, Daniel and I already checked it's safe now. And any change to a batch job schedule goes through review, not just a config merge. Two, long term, and this is why it's relevant: billing and tracking must not share a database. That's the actual root cause. Not the cron. The cron was just the trigger.
+Daniel: I'd agree with that framing.
+Priya: Which is exactly the data ownership principle. Each service owns its data and nobody reads another service's tables.
+Maren: Hold on, before we go there. The short-term fix, when?
+Tomasz: The read replica move I want done by October twenty-fourth. Same date I want the written post-mortem finished, the draft is like seventy percent done.
+Maren: Okay. Tomasz, post-mortem and invoice job on the read replica, October twenty-fourth. I'll put it on the list. Do we need anything from anyone for that?
+Tomasz: Daniel for an hour to review the query change.
+Daniel: Sure.
+Speaker 4: Sorry, can I just, for my understanding, the sixty-two thousand, was that the full amount or is there more coming? Because I think I saw a different number in an email.
+Tomasz: Sixty-two is what Brennholt invoiced against us. There's a second customer, Ostmark Paper, who has the clause too but they haven't invoked it. If they do, it's maybe another eighteen thousand. So worst case around eighty.
+Speaker 4: Okay. Thanks. That's, that's useful for the business case actually, because the, the cost of not doing this is part of my argument.
+Maren: Good point, let's use that later. Okay, so, data ownership. Priya, your floor.
+Priya: Okay. So, um, the principle first and then the messy part. The principle: every service owns its data. It has its own database, or at least its own schema that only it can access with its own credentials. No other service reads its tables, ever, no "just this one quick join". If you need the data, you either consume the events the owner publishes, or you call the owner's API. That's the whole rule.
+Daniel: In practice, for phase one, does that mean a new Postgres server per service? Because that's a lot of servers.
+Priya: No, I'd say for phase one, separate databases on a shared Postgres cluster, a new one, not the Atlas box, with separate credentials per service. The isolation we need is logical, not physical, at least at the beginning. If one service gets heavy, we move it out.
+Tomasz: I'd prefer that too, operationally. One new cluster, version sixteen, managed by us, separate databases.
+Maren: Okay. And the messy part?
+Priya: The messy part is the stuff that's owned by everybody today. Customer master data. Addresses, contract terms, billing accounts. Everyone reads it, tracking needs the delivery address, billing needs the contract, dispatch needs opening hours. Today it lives in Atlas in four tables with, like, a hundred and ten columns between them.
+Daniel: A hundred and fourteen. I counted once. Out of spite.
+Priya: A hundred and fourteen. So my proposal is: customer master data stays in Atlas for now. We don't move it in phase one or two. Atlas is the owner, and we put a small read API in front of it, so new services don't read the Atlas tables directly. They call the API, and later, in phase three or later, we can move ownership somewhere else without changing every consumer.
+Daniel: And Atlas also publishes customer changed events?
+Priya: Eventually yes. That's where the, the bee zoom part comes in. Can I go into that?
+Maren: Go.
+Priya: So, the problem with strangling Atlas is, Atlas doesn't publish events. Atlas writes rows. So for the period where Atlas still does part of the work, we need to turn its writes into events. Two ways. One, we change the Atlas code to publish to Kafka after every write, which is, um, the dual write problem, the database commit succeeds and the publish fails, or the other way round, and you get inconsistent state. Two, we use change data capture. We read the Postgres write-ahead log with the bee zoom, which turns every row change into an event on Kafka, without touching the Atlas code at all.
+Daniel: I like not touching the Atlas code. I like that a lot.
+Tomasz: The bee zoom runs as a Kafka Connect connector, right? So that's another thing to run.
+Priya: Yes, a Kafka Connect cluster, small, two workers is enough for this.
+Tomasz: Okay, and it needs logical replication on the Atlas database, which needs a, a config change and a restart on a Postgres eleven box that I'm, I'm a little nervous about.
+Daniel: Logical replication works on eleven. We'd need to set wal level to logical and that's a restart. We could do it in the November maintenance window.
+Tomasz: Which is November fifteenth. Okay, that's actually fine.
+Priya: But, careful, CDC events are row-level, they're not business events. A row in shipments changed, column status went from four to seven. Nobody downstream should consume that directly, because then they're coupled to the Atlas table structure again, just via Kafka. So the CDC stream goes into a small translation service, we said, the, like an anti-corruption layer, which turns "status four to seven" into "shipment out for delivery", with a proper schema.
+Daniel: Okay. And for the new services, the ones we write from scratch, they use the outbox pattern? So they write the event into an outbox table in the same transaction as the business data, and the bee zoom picks up the outbox table and publishes it?
+Priya: Exactly. Same tool, both cases. Atlas: CDC on the raw tables plus translation. New services: outbox table plus CDC. No service ever writes to Kafka directly from business code in the same, um, in the same flow as a database write. That's the rule.
+Tomasz: That's a nice rule actually, because then there's one path into Kafka that I need to monitor.
+Maren: Let me write this down. CDC with the bee zoom from Atlas, translation layer, outbox pattern for new services, no dual writes.
+Daniel: Can I take the spike on that? The outbox and the CDC on the shipments table? I know that table better than I'd like to.
+Maren: Yes please. When?
+Daniel: It depends on the logical replication, but I can do it against a copy first. Say, November fourteenth for a working spike against a staging copy, and then the real Atlas after the maintenance window.
+Maren: Daniel, outbox and CDC spike, November fourteenth. Okay. Um, Daniel, earlier you said ordering and idempotency should be rules. Can we, can we make that concrete?
+Daniel: Yeah. So, rule one, every event carries an event ID, a UUID, and the shipment ID as the key. Rule two, every consumer keeps a table of processed event IDs, or uses a natural idempotency key, and processing the same event twice must give the same result. Rule three, consumers never assume they see every intermediate state, they always look at the, the sequence number on the shipment.
+Priya: The sequence number, yes, we need a per-shipment version number in the event, otherwise you can't tell if an event is stale.
+Daniel: Right. Version per shipment, monotonically increasing. Atlas actually has a column for that, it's called, um, it's called rev, it's from the optimistic locking.
+Tomasz: Ha. Something useful from twenty eleven.
+Daniel: The only thing.
+Maren: Okay. Okay, so I want to be careful with time. Tomasz, sorry, you had the operations topic still, the, who's on call.
+Tomasz: Yeah. Briefly. My team is four people. We cover Atlas, the Kubernetes cluster, the network, the scanners' backend, and now Kafka and the bee zoom and a new Postgres cluster. Four people can do a one-in-four on-call rotation but it's already, um, it's tight. I'm asking for one additional SRE hire. I'll put it in the cost model.
+Speaker 4: Please do. I'll need that as a separate line.
+Tomasz: And the other thing, monitoring. We'll need consumer lag alerts for every consumer group, broker disk, under-replicated partitions. That's standard, there's exporters for all of it. I just want it in place before phase one goes live, not after.
+Maren: Agreed. Monitoring before go-live. That's a condition, not a nice to have.
+Priya: Small tangent, but, um, while we're on Postgres eleven. The Atlas database itself. Are we upgrading it at all, or do we just let it die with Atlas?
+Daniel: Atlas will not die before twenty twenty-nine. Let's be realistic.
+Tomasz: I'd want to upgrade it next year, separately. Not part of this programme, but I don't want to run an out-of-support database for three more years with CDC on it.
+Maren: Can we, can we park that as an open question? Who owns the Atlas Postgres upgrade and when. I don't want to decide it today.
+Tomasz: Park it. Yes.
+Maren: Okay. Parked. Uh, topic governance. Daniel wanted to make sure nobody creates a hundred topics.
+Daniel: Yeah. Simple. Topics are created through a pull request to a config repo, not by the applications. Naming is domain dot entity dot event type dot version. So like tracking dot shipment dot status changed dot v1. Partitions and retention are in the config file, Tomasz's team approves.
+Tomasz: I'd like that. The operator supports topics as Kubernetes resources, so it's literally a YAML file in a repo.
+Priya: And schemas in the same PR.
+Daniel: Same PR, yes.
+Maren: Okay, governance via config repo, naming convention, SRE approves. Good. Now. Um, does anyone need a break? It's been an hour and a half.
+Tomasz: Five minutes, coffee.
+Maren: Five minutes. Let's say we restart at two fifteen. Phone person, are you okay to stay on?
+Speaker 4: Yes, I'll stay on, I'm on mute.
+Maren: Okay, we're back. Is everyone, Priya's still getting coffee, let's, um, let's start with cost anyway since that's mostly Tomasz and our finance colleague. Tomasz, you had a first number.
+Tomasz: I had a first number. So, monthly run cost for the new platform, infrastructure only. Five Kafka brokers in prod, three in staging, two Kafka Connect workers, the schema registry, the new Postgres cluster with a replica, and the extra Kubernetes nodes for the new services. I got to roughly fourteen thousand euros a month.
+Speaker 4: Fourteen thousand a month, infrastructure. Okay. Does that include storage?
+Tomasz: It includes the broker disks, yes. Six hundred gigs plus headroom for the shipment events and the smaller topics.
+Speaker 4: And cross-zone traffic? Because when I did the cloud budget for, um, for the warehouse project last year, the network traffic between zones was the number that blew up on us. With replication factor three across three zones, every byte you write goes over the zone boundary twice, right?
+Tomasz: Yes. That's, um. Yeah. I didn't include inter-zone traffic. Good catch.
+Speaker 4: And the staging environment, is that running twenty-four seven?
+Tomasz: In my model I assumed staging runs only on business hours. But realistically, with the shadow mode Daniel wants, staging, or rather a pre-prod, needs to run with production volume for some weeks.
+Daniel: Shadow mode, yes, I want to come to that in the phases.
+Speaker 4: Okay. And support, monitoring tools, the, the observability licence?
+Tomasz: The observability licence is per host, so more hosts, more cost. I didn't put that in either. And backups for the new Postgres.
+Speaker 4: Okay. So, um, I, I did my own rough version yesterday based on the pre-read, and I'd honestly come to a higher number. If I take your fourteen, add cross-zone traffic, which I'd estimate at around three thousand five hundred a month at our volumes, staging or pre-prod running full time, that's another two thousand five hundred, the observability licence for the additional hosts, about eleven hundred, and backups and object storage for the archive Priya mentioned, maybe four hundred. That gets me to twenty-one thousand five hundred a month.
+Tomasz: Twenty-one five. Yeah. Ugh. I think that's more honest than my number. I'd accept that.
+Maren: So the fourteen thousand is, we're saying that's not the number anymore. The number we take forward is twenty-one thousand five hundred a month infrastructure.
+Tomasz: Yes. Twenty-one five. Kill my fourteen.
+Speaker 4: And that's without people. The SRE hire is separate.
+Tomasz: Separate. A senior SRE, fully loaded, finance knows that number better than me.
+Speaker 4: Around a hundred and five thousand a year fully loaded, for a senior. I'll put it as a separate line, as I said.
+Maren: Okay. And the one-off cost? The migration effort itself?
+Speaker 4: That's the one I need from you, I can't estimate engineering effort.
+Daniel: So, rough. Phase one, tracking, I'd say four engineers for about five months. Phase two and three are bigger. If we take an internal day rate, and add the two contractors we'd probably need for the bee zoom and Kafka expertise in the beginning, my, my very rough total for all three phases was three hundred and forty thousand euros one-off. Let's say three forty, with a big error bar.
+Speaker 4: Three hundred forty thousand one-off, all three phases. Okay. And the error bar?
+Daniel: Plus minus twenty-five percent. I'd be, I'd be lying if I said less.
+Speaker 4: I'll present it as three forty with a range then. And against that I have the cost of not doing it. Sixty-two thousand in credits from one outage, potentially eighty. Plus the deploy coordination overhead, which the teams estimated at, what was it, about fifteen percent of their time.
+Daniel: That was the survey in June, yes, fifteen percent.
+Speaker 4: Good. Then I think I can build a business case that holds. I'll update the model with the twenty-one five and the hire and send it before the steering committee.
+Maren: Steering committee is November twelfth. Can you have the model by November tenth so we can look at it once before?
+Speaker 4: November tenth, yes.
+Maren: Okay. Finance, revised cost model, November tenth. Thank you.
+Priya: Sorry, I'm back, the coffee machine was, there was a queue. Did I miss the cost part?
+Maren: You missed Tomasz's number getting replaced. It's twenty-one five a month now, not fourteen.
+Priya: Cross-zone traffic?
+Tomasz: Cross-zone traffic. Don't.
+Priya: I didn't say anything.
+Maren: Okay, phases. So, Daniel, you parked billing second. Let's unpark it.
+Daniel: Yeah. So, um, tracking first, no discussion, everyone agrees. My problem with billing second is twofold. First, billing needs the history, which, okay, we've solved with thirty days retention, fine. But second, billing is the part with the most hidden rules. Contract-specific surcharges, the fuel index, the credit notes, the VAT stuff for the cross-border shipments. If we carve that out second, we do the hardest data migration when we're still learning how to run Kafka at all.
+Priya: And billing depends on customer master data more than anything else, and we just said customer master data stays in Atlas until phase three. So billing in phase two would be the service with the most calls back into Atlas. That's, that's the opposite of decoupling.
+Speaker 4: Can I add one thing from finance? Because there's a hard constraint. We have the year-end close. From December first to January twentieth, we don't change anything in billing. No deploys, no migrations, nothing. The auditors are very clear about that. So any billing migration that, that touches that window is just not possible.
+Maren: That's a fixed freeze? December first to January twentieth?
+Speaker 4: Every year. December first to January twentieth. It's in the controls framework.
+Daniel: So that's another argument. And dispatch, on the other hand, I said dispatch is the most tangled, which is true, but after September, um, I've changed my mind on the order a little. Tomasz, the outage, which part of the business actually hurt most, operationally?
+Tomasz: Dispatch. Honestly, dispatch. The tracking page being stale was bad for customers, but the drivers not getting their route updates because the dispatch screens were frozen, that's what caused the actual late deliveries. Dispatch runs inside the same app, same pool, same database. If dispatch had been separate, the drivers would have been fine.
+Daniel: Right. So the risk reduction from getting dispatch out of Atlas is much bigger than from billing. Billing being slow is annoying, dispatch being down is two thousand late parcels.
+Maren: So the proposal is to swap. Phase one tracking, phase two dispatch, phase three billing?
+Daniel: Yes. That's my proposal. Tracking, then dispatch, then billing.
+Priya: I support that. Billing last also gives me the most time to sort out customer master data ownership, which billing needs.
+Tomasz: Supported. Dispatch second.
+Speaker 4: From the finance side, I have to say, the business has been asking for faster invoice corrections, so I'll have to explain why billing is last. But with the freeze and the outage, I think I can explain it. I'm okay with it.
+Maren: Okay. So I'm, I'm changing the draft order from the pre-read. The final order is: phase one tracking, phase two dispatch, phase three billing. Billing and dispatch swapped. I'll update the document.
+Daniel: Thank you.
+Maren: Now timing. Phase one tracking. Daniel, realistic go-live?
+Daniel: So we need Kafka in staging, the bee zoom, the translation layer, the new tracking service, the new notification consumer, and shadow mode. Shadow mode meaning the new tracking service consumes the same scans and computes the same status in parallel with Atlas for four weeks, and we compare the results every night, and only when the, the mismatch rate is below, let's say, zero point one percent, we switch the customer-facing tracking page over.
+Priya: Zero point one percent mismatch, over how many days?
+Daniel: Seven consecutive days below zero point one. Then we switch.
+Maren: Okay, shadow mode four weeks, switch after seven days below zero point one percent. And the pilot?
+Daniel: Pilot hub, Rotterdam. It's the newest hub, the scanners are the newest firmware, the team there is, um, they're actually enthusiastic, which is rare. Rotterdam first, then the other hubs one by one.
+Tomasz: Rotterdam is about, um, twelve percent of total scan volume. Good size for a pilot.
+Maren: So the date?
+Daniel: Shadow mode starting early January, so go-live for Rotterdam, I'd say February second, twenty twenty-seven. All hubs by end of March.
+Maren: February second for Rotterdam go-live, all hubs by March thirty-first. Hmm. Tomasz, can platform support that?
+Tomasz: If the staging cluster is up by early November and prod by mid-December, yes. Staging cluster I can do by November seventh. The proof of concept, three brokers, Stream Z, monitoring, the works.
+Maren: Tomasz, Kafka staging cluster, November seventh. Prod by?
+Tomasz: December twelfth. Before the holiday freeze, there's a, a general change freeze from December nineteenth anyway.
+Maren: Okay. And is that general freeze a problem for shadow mode?
+Tomasz: No, shadow mode doesn't change anything customer-facing, we, uh, we got the exception for that last year for a similar thing. It's read-only from the business perspective.
+Maren: Okay. Phase two dispatch?
+Daniel: Phase two I'd say end of Q2 next year, so June thirtieth, twenty twenty-seven. But that one I'm less sure about, it's, it's the tangled one. I'd rather commit to "design done by end of Q1" and give the real date in March.
+Maren: Fair. Phase two dispatch target June thirtieth, to be confirmed in March after design. Phase three billing?
+Speaker 4: Billing has to land outside the freeze, so either before December first next year or after January twentieth twenty twenty-eight. I'd strongly prefer it's done in October twenty twenty-seven so we have a month of buffer before the freeze.
+Daniel: Q4, October, okay, that's ambitious but it gives us a target.
+Maren: Phase three billing, target October twenty twenty-seven, hard constraint the freeze from December first. Okay. Um, I want to go back to something. Tomasz, you mentioned the ETA calculation consumes shipment status. Is that part of phase one?
+Tomasz: That was Daniel.
+Daniel: That was me. The ETA, um, that's a, it's actually an interesting one. Today the ETA is computed in Atlas by a, by a stored procedure that runs every five minutes. In the new world it would be a streaming thing, consume status changes, consume the truck positions, compute ETA. The question is whether we do that with Kafka Streams inside a service or with Flink.
+Priya: I'd say Flink if it gets complex, Kafka Streams if it stays simple. I don't know yet how complex it is.
+Daniel: I don't either. Let's not decide it today. The stored procedure keeps running in phase one, it doesn't block anything.
+Maren: Open question then. ETA, Kafka Streams or Flink, not decided, the stored procedure stays in phase one. Okay. Uh, Priya, the data ownership matrix. You said you'd write it up?
+Priya: Yes. A table, every entity in Atlas, who owns it today, who owns it after each phase, who consumes it. Plus the schema registry comparison. I can do that by October thirty-first.
+Maren: Priya, data ownership matrix plus registry comparison, October thirty-first. And the first schemas?
+Priya: Shipment events v1 in Avril, the status changed, the scan received and the exception event. November twenty-first, so it's ready before Tomasz's prod cluster.
+Maren: Priya, shipment event schemas v1, November twenty-first. Good. Um, what else is open. The event payload question. Someone wrote "fat or thin events" on a sticky note.
+Daniel: That was me. So, do we put the full shipment state in every event, or just what changed plus the ID? Full state means consumers don't need to call back. Thin means smaller events and less coupling to the full model.
+Priya: For status changed I'd go fat. Full current state of the shipment, minus the customer master data, which is a reference.
+Tomasz: Fat means bigger events, which, okay, we already sized for one and a half K.
+Daniel: I'm leaning fat too, but I'm, I'm not sure for the exception events, they can carry photos, references to photos, whatever. I'd leave it open for those.
+Maren: So, decided: shipment status changed events carry the full shipment state, customer master data only as a reference ID. Open: payload shape for the other event types. Okay?
+Priya: Okay.
+Daniel: Okay.
+Speaker 4: Sorry, can I ask something that's probably naive. When I write the business case, the, um, the broker. Do I write RabbitMQ? Because the pre-read said RabbitMQ and I already have that in the draft.
+Maren: No, good that you ask. Take that out. We changed it this afternoon. It's Kafka, self-hosted on our own Kubernetes cluster with the Stream Z operator. RabbitMQ stays only for the label printing, which is not part of this programme at all.
+Speaker 4: Kafka. Okay. And that's what the twenty-one five is based on?
+Tomasz: Yes, the twenty-one five is the Kafka setup. Five brokers prod, three staging, everything we said.
+Speaker 4: Good, then my draft is wrong in two places, the broker and the fourteen thousand. I'll fix both.
+Maren: And the phase order. The pre-read had billing second.
+Speaker 4: Right, three places. Tracking, dispatch, billing. Got it.
+Maren: Okay. Other open questions. Priya, customer master data long term.
+Priya: Yes. So we said Atlas owns customer master data until phase three, with a read API in front of it. What we haven't decided is who owns it after that. There's two options. A new customer service owned by, by one of the existing teams, or the CRM team takes it, they've been asking for it, but their system is, um, it's a sales tool, it's not built for operational lookups at two thousand requests a second.
+Daniel: I'd be nervous about the CRM.
+Priya: Me too. But it's not our decision alone, the CRM team should be in the room for that.
+Maren: Open question, long-term owner of customer master data, needs CRM team. I'll set up a separate session. Who builds the read API for phase one?
+Daniel: My team. It's small, it's three endpoints, a read replica behind it. I'd fold that into the tracking work.
+Maren: Okay. Next. Disaster recovery. Tomasz, is multi-region on the table?
+Tomasz: Not for phase one. Three zones in one region is, um, it covers a zone failure, it doesn't cover a region failure. Atlas today doesn't survive a region failure either, so we're not making anything worse. I'd put cross-region replication as an open item for after phase two, when we know how the cluster behaves.
+Maren: Open, cross-region DR, revisit after phase two. Next. The on-call. Tomasz, the hire. Is that a condition for go-live or a wish?
+Tomasz: Um. Honest answer. It's a condition for phase two. For phase one, with only Rotterdam on the new path and Atlas still running everything else, the four of us can cover it. Once dispatch moves, no. Drivers depend on it.
+Maren: So, hire must be in place before phase two go-live. I'll write it that way. Speaker, sorry, I don't know your, finance, can you put the hire in the model as starting Q1?
+Speaker 4: Starting Q1 twenty twenty-seven, yes, recruiting takes three months anyway.
+Maren: Okay. Um. I think we have almost everything. Let me, let me also just go back to the outage for one second, because there's one thing I didn't write down. Tomasz, the scanner flush, the thirty-seven thousand scans that came in at once. In the new world, does Kafka solve that?
+Tomasz: It solves it in the sense that the scanners write into Kafka via the ingest API, and Kafka just absorbs it, and consumers catch up at their own speed. The ingest API itself still needs rate limiting so it doesn't fall over. But the backlog doesn't hit a database anymore, it hits a log. Which is the right place for a backlog.
+Priya: That's, honestly, that's the best one-sentence argument for this whole programme.
+Maren: I'll steal that for the steering committee. Okay. Daniel, anything on testing? Contract tests?
+Daniel: Yes, quickly. Schema compatibility in CI, Priya covered. Plus each consumer team writes contract tests against the schema registry version they depend on. And we do one game day before Rotterdam goes live, where we kill a broker and a consumer on purpose in pre-prod and see if the alerts fire.
+Tomasz: I want two game days. One in January, one a week before go-live.
+Daniel: Two, fine.
+Maren: Two game days, the second one a week before February second. Who owns those?
+Tomasz: Me.
+Maren: Tomasz, game days, January and late January. Okay. Uh, I'll now go through the decisions, and please shout if I get one wrong, because this is what goes into the decision record. Ready?
+Daniel: Go.
+Maren: One. We migrate Atlas with the strangler approach, piece by piece, no big bang rewrite. Two. The event backbone is Kafka, self-hosted on our Kubernetes cluster with the Stream Z operator. Not RabbitMQ. RabbitMQ stays only for label printing. Three. Sizing, five brokers in production across three zones, replication factor three, min in-sync two, three brokers in staging. The shipment events topic gets twenty-four partitions, keyed by shipment ID so events per shipment stay in order. Four. Retention seven days by default, thirty days for shipment events, and Kafka is not the archive, anything longer goes to object storage. Five. Every event has an Avril schema in a schema registry, backward compatibility checked in CI. Six. Data ownership: every service owns its data, separate database with its own credentials on a new shared Postgres sixteen cluster, nobody reads another service's tables. Seven. Customer master data stays in Atlas until phase three, behind a read API. Eight. Atlas changes come out via CDC with the bee zoom plus a translation layer, new services use the outbox pattern, no dual writes. Nine. Consumers must be item potent, events carry an event ID and a per-shipment version. Ten. Topics are created through the config repo, naming domain dot entity dot event dot version, SRE approves. Eleven. Phase order: tracking, then dispatch, then billing. Twelve. Phase one: shadow mode four weeks, switch after seven days below zero point one percent mismatch, pilot Rotterdam, go-live February second, all hubs by March thirty-first. Thirteen. The invoice batch moves to the read replica and the select for update goes. Fourteen. Batch schedule changes need review. Fifteen. The cost number we take to the steering committee is twenty-one thousand five hundred a month infrastructure, plus one SRE hire, plus three hundred forty thousand one-off, plus minus twenty-five percent. Did I miss one?
+Priya: Status changed events are fat, full shipment state.
+Maren: Sixteen, status changed events carry the full shipment state, customer master data as a reference. Thank you.
+Tomasz: And monitoring before go-live as a condition.
+Maren: Seventeen, monitoring for consumer lag, disk and under-replicated partitions in place before phase one go-live. And the hire must be in place before phase two go-live. Okay. Anything wrong?
+Daniel: Phase two date is a target, not a commitment.
+Maren: Right, phase two target June thirtieth, confirmed in March. Phase three billing target October twenty twenty-seven, never inside the billing freeze, December first to January twentieth.
+Speaker 4: Correct from my side.
+Maren: Okay. Open questions, quickly. One, long-term owner of customer master data, separate session with CRM. Two, Kafka Streams or Flink for ETA. Three, payload shape for event types other than status changed. Four, cross-region DR, after phase two. Five, who upgrades the Atlas Postgres eleven and when. Six, which schema registry, Priya's comparison will answer it. Anything else?
+Tomasz: Whether Ostmark Paper invokes the SLA clause. That's not ours, but it changes the business case.
+Speaker 4: I'll track that one, it's mine anyway.
+Maren: Okay. Action items. Tomasz, finalise the September twenty-third post-mortem and move the invoice batch to the read replica, October twenty-fourth. Priya, data ownership matrix plus registry comparison, October thirty-first. Me, the decision records for the broker and the phase order, and the updated migration document, by October twenty-eighth. Tomasz, Kafka staging cluster with three brokers, Stream Z and monitoring, November seventh. Finance, revised cost model with the twenty-one five and the SRE hire, November tenth, before the steering committee on the twelfth. Daniel, outbox and CDC spike against a staging copy of the shipments table, November fourteenth. Tomasz and Daniel, logical replication on the Atlas database in the maintenance window on November fifteenth. Priya, shipment event schemas v1, November twenty-first. Tomasz, production Kafka cluster, December twelfth. Tomasz, two game days in January. Me, set up the customer master data session with the CRM team before the end of November. Is that everything?
+Daniel: The read API for customer data, that's mine, part of phase one, no separate date.
+Maren: Noted, Daniel, read API as part of phase one. And, um, the next review of this group is November fifth, same room, I'll send the invite. Two hours, not four.
+Tomasz: Two hours. Thank God.
+Priya: Can we, can we have a room with a coffee machine that works.
+Maren: I'll, I'll see what I can do. Okay, thanks everyone, that was, that was actually productive. Phone, thank you for staying on the whole time.
+Speaker 4: Thank you, it was useful. I'll send the model on the tenth.
+Maren: Great. I'm stopping the recording now.

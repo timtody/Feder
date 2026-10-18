@@ -1,0 +1,66 @@
+# Sprint Review Sprint 14 Hellmark mobil
+Miriam: So, ähm, ich glaub wir sind vollständig, oder? Katrin ist da, Jonas, und äh ja, du auch. Gut. Dann starten wir mit dem Sprint Review für Sprint 14. Ich mach's wie immer, erst was fertig geworden ist, dann die Zahlen, dann die Demo und am Ende was in Sprint 15 reinkommt.
+Katrin: Ja passt. Ich muss nur um halb zwölf raus, ich hab dann noch den Call mit Herrn Dahlke von Regionalbus Hellmark.
+Miriam: Okay, dann machen wir zügig. Also fertig geworden sind, ähm, die Echtzeit-Abfahrten an der Haltestelle, das Tagesticket im Kauf-Flow und die Push Notifications bei Verspätungen.
+Jonas: Genau, die Push Notifications sind seit Mittwoch auf der Steaking-Umgebung und laufen da, also, laufen stabil.
+Sprecher 3: Backendseitig auch. Der Endpoint für die Verspätungen pollt jetzt alle 30 Sekunden statt alle zwei Minuten, das war ja der, das war der große Wunsch von denen.
+Katrin: Super. Und, ähm, die Offline-Tickets? Weil ich hab Herrn Dahlke eigentlich schon gesagt, die gehen mit Sprint-Ende live, also am 31. Oktober.
+Jonas: Ja, also die sind technisch fast durch, da fehlt noch, ähm—
+Katrin: Ja dann bleibt's beim einunddreißigsten, das ist gut, das ist nämlich deren Wunschtermin, wegen Ende der Herbstferien.
+Miriam: Lass uns das bei der Planung nochmal anschauen, okay? Erst mal die Zahlen.
+Katrin: Ja, klar.
+Miriam: Also, wir hatten 34 Story Points committed und haben 29 geschafft. Die Story mit den Favoriten-Haltestellen, das waren fünf Punkte, die ist nicht fertig geworden.
+Sprecher 3: Die hing im Review, äh, der Pull Request war seit Dienstag offen und keiner hat ihn gemergt.
+Jonas: Ja sorry, das war ich, ich war mit dem Bug beschäftigt.
+Miriam: Ja, dazu kommen wir gleich. Die Velocity der letzten drei Sprints war 27, 31 und jetzt 29, also im Schnitt neunundzwanzig. Heißt, die 34 waren einfach zu viel.
+Katrin: Mhm. Und, äh, wie sieht's mit den Abstürzen aus? Weil Herr Dahlke fragt da jedes Mal.
+Sprecher 3: Die Crash-free Rate liegt bei 99,2 Prozent, letzter Sprint waren's achtundneunzig komma sieben. Also, ja, besser.
+Jonas: Das war hauptsächlich der Fix beim, ähm, beim Caching vom Fahrplan, der ist ja beim Kaltstart immer abgeschmiert.
+Katrin: Gut, das kann ich ihm so sagen. Und die Bewertung im Store?
+Miriam: Die steht bei 4,1, wobei, die ist natürlich nach dem Bug am Dienstag ein bisschen runter, vorher waren's 4,3.
+Katrin: Ja okay, das war zu erwarten.
+Miriam: Dann der Bug. Jonas, magst du kurz?
+Jonas: Ja. Also, ähm, in Release 1.4.2, das ging am Dienstag, den 14. raus, war die Preisberechnung für die Schülermonatskarte kaputt. In der Tarifsonne drei hat die 49 Euro berechnet statt 39. Also zehn Euro zu viel pro Karte.
+Katrin: Oh nein. Wie viele Leute?
+Jonas: 32 Käufe bis zum Hotfix, das hast du ja aus den Logs, oder?
+Sprecher 3: Ja, 32, hab ich gestern nochmal gegengecheckt.
+Katrin: Und wie ist das, wie konnte das durchrutschen?
+Sprecher 3: Also ehrlich gesagt, wir hatten für die Tarifzonen nur Unit Tests für Zone eins und zwei. Zone drei hat 'nen Sonderfall mit dem Schülerrabatt, der wurde doppelt, nee, nicht doppelt, der wurde gar nicht abgezogen. Edge Case, den hat halt keiner getestet.
+Miriam: Okay. Und der Hotfix ist draußen?
+Jonas: Ja, 1.4.3, seit Donnerstag früh, also seit dem 16.
+Miriam: Gut. Dann, ähm, Vorschlag: Die 32 Kunden kriegen die zehn Euro automatisch zurück, also 320 Euro insgesamt, und wir schreiben die alle an. Katrin, ist das mit Hellmark so okay?
+Katrin: Ja, das hab ich vorab schon geklärt, die tragen das, die wollen nur, dass es schnell geht.
+Miriam: Dann ist das so beschlossen. Ich stimm die Erstattungsmail mit dem Support ab, bis Dienstag, den 21.
+Katrin: Danke dir.
+Sprecher 3: Und ich schreib die fehlenden Tests, also Regressionstests für alle fünf Tarifzonen mit allen Ermäßigungen, bis Mittwoch, den 22.
+Miriam: Sehr gut. Dann, ähm, Demo. Jonas?
+Jonas: Ja, ich teil mal den Screen. Seht ihr das?
+Katrin: Ja, jetzt.
+Jonas: Okay, also hier, ich steh jetzt quasi an der Haltestelle Marktplatz, und ihr seht oben die nächsten Abfahrten in Echtzeit. Die Linie 412 hat gerade 4 Minuten Verspätung, das ist rot markiert. Und wenn ich die jetzt als Favorit, ach nee, das geht ja noch nicht.
+Sprecher 3: Nächster Sprint.
+Jonas: Genau. Also, dann Tagesticket. Ich tipp auf Ticket kaufen, Tagesticket, Zone wählen, und dann direkt Zahlung. Das sind jetzt drei Taps bis zum Bezahlen, vorher waren's sieben.
+Katrin: Oh, das ist richtig gut. Das wird Herrn Dahlke freuen, der hat sich da ja ewig drüber beschwert.
+Jonas: Und die Push kommt dann so, guckt mal, Linie 412 jetzt fünf Minuten später, das ist schon die neue Zahl, weil das Backend ja alle dreißig Sekunden—
+Sprecher 3: Ja genau.
+Katrin: Kann man die Push eigentlich pro Linie abschalten?
+Jonas: Ähm, nur global aktuell. Pro Linie wär 'ne neue Story.
+Katrin: Okay, dann schreib ich die ins Backlog.
+Miriam: Gut. Dann Sprint 15. Der läuft vom 20. Oktober bis zum 31. Oktober. Wir nehmen die Favoriten-Haltestellen wieder rein, die 5 Punkte, und dann die Offline-Tickets.
+Sprecher 3: Ja, zu den Offline-Tickets muss ich was sagen. Katrin, das mit dem 31. geht nicht. Also die App kann das bis dahin, aber die Kontrollgerede in den Bussen, die können den neuen QR-Code erst lesen, wenn die neue Firmware drauf ist, und die spielt Hellmark laut deren IT erst am 10. November auf.
+Katrin: Ach, echt? Das hat mir keiner gesagt.
+Sprecher 3: Kam gestern per Mail. Wenn wir am 31. live gehen, kaufen die Leute ein Offline-Ticket und der Fahrer kann's nicht prüfen.
+Jonas: Das wär schlimmer als der Bug.
+Katrin: Ja, ja, okay, verstanden. Was schlagt ihr vor?
+Jonas: Wir bauen's in Sprint 15 fertig, aber hinter einem Feature Flag, und schalten erst frei, wenn die Firmware drauf ist. Plus zwei Tage Puffer, sagen wir der zwölfte November.
+Miriam: Also, äh, dann halten wir fest: Offline-Tickets werden in Sprint 15 fertig entwickelt, bleiben hinterm Feature Flag und gehen am 12. November live, nicht am 31. Oktober. Katrin?
+Katrin: Ja, ich sag's Herrn Dahlke nachher im Call. Und ich lass mir bestätigen, ob der zehnte für die Firmware wirklich fix ist, die Bestätigung hab ich bis Montag, also bis zum 20.
+Miriam: Gut. Jonas, du baust das Feature Flag?
+Jonas: Ja, bis zum 29., weil, am 30. und 31. bin ich ja nicht da, Urlaub.
+Miriam: Stimmt, das hätt ich fast vergessen. Dann planen wir für Sprint 15 auch weniger ein. Mit deinem Urlaub und 'ner Velocity von im Schnitt 29 würd ich sagen 26 Punkte.
+Sprecher 3: 26 find ich realistisch.
+Katrin: Ja, lieber realistisch als wieder fünf Punkte rüberschieben.
+Sprecher 3: Dann würd ich aber die VoiceOver-Labels im Kauf-Flow mit reinnehmen, das sind nur drei Punkte und das ist für die, äh, die Barrierefreiheitsprüfung im Dezember wichtig.
+Katrin: Ja, unbedingt, die Push pro Linie kann dafür warten.
+Miriam: Okay, also Favoriten fünf, VoiceOver drei, Rest Offline-Tickets, passt in die 26.
+Miriam: Okay. Dann, ähm, danke für die Demo, Jonas, das sah echt gut aus. Und, äh, den Rest machen wir in der Retro um zwei.
+Jonas: Bis später.

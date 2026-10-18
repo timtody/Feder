@@ -1,0 +1,201 @@
+# Lenkungskreis Kreditsystem NOVA
+Katrin Lohmeier: So, ich glaub wir sind vollständig, oder? Herr Ostrowski ist auch drin, ich seh Sie jetzt im Teams. Hören Sie uns?
+Jens Ostrowski: Ja, ich hör Sie gut, bin, bin noch im Zug, also wenn's kurz weg ist, dann liegt's an der Bahn und nicht an mir.
+Matthias Brenner: Das kennen wir. Gut, dann fangen wir an, wir haben anderthalb Stunden und ich muss um halb zwölf pünktlich raus, weil ich danach in den Kreditausschuss muss. Frau Lohmeier, Sie führen durch.
+Katrin Lohmeier: Genau. Also, herzlich willkommen zum Lenkungskreis NOVA Kredit, das ist ja jetzt der, äh, der siebte Lenkungskreis seit Projektstart. Die Agenda haben alle bekommen, ich geh sie trotzdem kurz durch. Erstens Status und Ampeln, zweitens die Lieferung von Kaltenbrunn, also das Schnittstellenpaket, drittens Budget, viertens und das ist eigentlich der wichtigste Punkt heute, der Go-live-Termin, dann Ressourcen, Risiken und am Ende die Beschlüsse und Action Items. Gibt's Ergänzungen zur Agenda?
+Sprecher 6: Ich hätte gern unter Risiken noch kurz das Thema Meldewesen, also die Schnittstelle zum Meldewesen, das ist bei uns in der letzten Prüfung aufgefallen.
+Katrin Lohmeier: Ja, nehm ich auf, machen wir unter Risiken. Sonst noch was? Nein. Gut. Dann, äh, Status. Ich hab euch die Folie geteilt, seht ihr die?
+Tobias Wendland: Ja.
+Sabine Krüger: Jo.
+Katrin Lohmeier: Okay. Also die Ampeln im Überblick. Scope ist grün, da hat sich nichts verändert, wir haben seit dem letzten Lenkungskreis keine neuen Change Requests aufgenommen, das, das war ja auch so vereinbart. Qualität steht auf gelb, Ressourcen auf gelb, Termin steht auf rot und Budget steht ebenfalls auf rot. Und die Gesamtampel hab ich, äh, hab ich auf gelb gelassen, weil ich, also meine Argumentation wäre, wir haben einen Plan, wie wir da wieder rauskommen, und deswegen wollte ich nicht gleich das ganze Projekt rot melden.
+Matthias Brenner: Hm. Da muss ich ehrlich gesagt gleich mal einhaken. Wenn Termin und Budget beide rot sind, dann ist das Projekt rot. Also ich, ich verstehe die Logik, aber wenn ich das so im Vorstand vorstelle und die sehen zwei rote Ampeln und oben drüber gelb, dann fragen die mich als erstes, ob wir uns das schönrechnen.
+Katrin Lohmeier: Ja, das, das kann ich nachvollziehen. Ich wollte halt vermeiden, dass das Team das als, als so ein Signal versteht, jetzt ist alles verloren, weil wir wirklich, also die Stimmung ist eigentlich gut, die Leute arbeiten wirklich.
+Matthias Brenner: Das glaub ich Ihnen. Aber rot heißt ja nicht verloren, rot heißt, wir brauchen Entscheidungen vom Lenkungskreis. Und die brauchen wir heute. Also ich würde sagen, Gesamtampel rot. Gibt's da Widerspruch?
+Tobias Wendland: Nee, also aus Fachbereichssicht, ehrlich gesagt, sehen wir das auch so. Wir sind, äh, wir merken das ja in den Tests.
+Sprecher 6: Ich würd das auch unterstützen, aus Revisionssicht ist es mir sowieso lieber, wenn es früh rot ist als spät.
+Katrin Lohmeier: Okay, dann nehm ich das so auf. Gesamtstatus rot. Ich passe die Folie nachher an.
+Matthias Brenner: Gut. Weiter.
+Katrin Lohmeier: Dann zu den Zahlen im Test. Wir haben im Systemintegrationstest, also SIT, jetzt zweiundsechzig Prozent der Testfälle durchgeführt, geplant waren zu diesem Zeitpunkt eigentlich, äh, achtzig Prozent. Von den durchgeführten sind einundsiebzig Prozent bestanden. Offene Defects haben wir zweihundertvierzehn, davon neunzehn Prio eins, also, also die Blocker sozusagen.
+Tobias Wendland: Und von den neunzehn, das muss man dazu sagen, hängen, ich glaub, vierzehn direkt an den Schnittstellen. Also wenn das Schnittstellenpaket kommt, dann, dann sollten die sich eigentlich zum großen Teil erledigen. Hoffentlich.
+Katrin Lohmeier: Genau, das ist eigentlich die Überleitung zum zweiten Punkt. Herr Ostrowski, wollen Sie zum Release kurz was sagen?
+Jens Ostrowski: Ja, gerne. Also, äh, erstmal, ich will da gar nicht drumherum reden, der Riese zwei Punkt drei, also das Schnittstellenpaket mit der Anbindung an die Kernbank, an das Meldewesen und an das Dokumentenarchiv, das hätte am fünfzehnten September bei Ihnen sein sollen. Das ist es nicht. Das ist, das ist ärgerlich, für Sie natürlich vor allem, aber auch für uns, das sag ich ganz offen.
+Matthias Brenner: Warum?
+Jens Ostrowski: Wir hatten, also der Hauptgrund ist, dass wir bei der Kernbankschnittstelle ein Problem mit dem Mapping der Sicherheiten hatten. Die, die Sicherheitenarten, die Sie bei der Regionalbank Wesertal nutzen, da gibt's einige, die sind sehr, sehr spezifisch, also so Sachen wie die Abtretung von, äh, von Lebensversicherungen mit Teilrückkauf, und das hat unser Standardmodell nicht abgebildet. Wir mussten da das Datenmodell erweitern, und das hat, ja, das hat länger gedauert als geplant.
+Tobias Wendland: Das war aber im Lastenheft drin. Also ich will jetzt nicht, aber das stand da drin, Kapitel, äh, vier Punkt sechs, glaub ich.
+Jens Ostrowski: Ja, das stimmt, das bestreite ich auch gar nicht. Das ist bei uns in der Aufwandsschätzung untergegangen, sagen wir's mal so. Das nehmen wir auf unsere Kappe.
+Matthias Brenner: Okay. Und wann kommt es jetzt?
+Jens Ostrowski: Der neue Termin, den ich Ihnen heute verbindlich nennen kann, ist der sechste November. Also Auslieferung in Ihre Testumgebung am sechsten November, mit, und das ist mir wichtig, mit vorher bei uns durchgeführtem Integrationstest gegen eine, äh, gegen eine Kopie Ihrer Kernbankumgebung.
+Sabine Krüger: Gegen eine Kopie? Welche Kopie? Wir haben, also von uns haben Sie keine Kopie bekommen, nur die anonymisierten Testdaten vom Juni.
+Jens Ostrowski: Genau, die meine ich, den anonymisierten Abzug vom Juni.
+Sabine Krüger: Okay, aber das ist halt nicht die aktuelle Version der Kernbank. Wir hatten im August ein Update, das, äh, das Release vierundzwanzig Punkt zwei. Da haben sich zwei Felder in der Sicherheitenschnittstelle geändert. Das, das wisst ihr, oder?
+Jens Ostrowski: Äh, das, da muss ich ehrlich gesagt nachfragen. Das nehm ich mit.
+Matthias Brenner: Das ist genau das, was mich nervös macht. Herr Ostrowski, ich will Ihnen nichts unterstellen, aber wenn der sechste November wieder so ein Termin ist, der dann rutscht, weil irgendwas mit irgendeiner Version nicht passt, dann haben wir ein echtes Problem. Und dann rede ich nicht mehr mit Ihnen, sondern mit Ihrer Geschäftsführung.
+Jens Ostrowski: Das verstehe ich. Das, das ist auch, also ich würde vorschlagen, dass Frau Krüger und unser technischer Lead sich noch diese Woche zusammensetzen, und wir das Delta zur Version vierundzwanzig Punkt zwei klären. Dann kann ich Ihnen bis, äh, sagen wir bis Freitag nächste Woche einen schriftlichen, verbindlichen Lieferplan geben, inklusive Testnachweis.
+Katrin Lohmeier: Freitag nächste Woche ist der dreiundzwanzigste.
+Jens Ostrowski: Dreiundzwanzigster Oktober, ja.
+Matthias Brenner: Gut. Das nehmen wir als Aufgabe auf. Herr Ostrowski, schriftlicher Lieferplan für das Release zwei Punkt drei mit Testnachweis bis dreiundzwanzigster Oktober. Und Frau Krüger, Sie klären das Delta mit dem technischen Lead.
+Sabine Krüger: Ja, mach ich. Das kann ich eigentlich, also Mittwoch oder Donnerstag kann ich, äh, kann ich mir das einrichten.
+Jens Ostrowski: Ich schick Ihnen nachher direkt eine Einladung.
+Tobias Wendland: Darf ich noch was dazu sagen? Also aus Sicht vom Fachbereich, wir haben die Testerinnen und Tester ja für September und Oktober eingeplant gehabt, die sitzen jetzt teilweise da und, äh, die können nicht richtig testen, weil die Schnittstellen fehlen. Das ist, das kostet uns auch. Das ist nicht nur ein Projektproblem.
+Jens Ostrowski: Das ist mir bewusst. Und deswegen, das wollte ich eigentlich später beim Budget sagen, aber ich kann's auch jetzt sagen, wir haben intern, also bei Kaltenbrunn, abgestimmt, dass wir Ihnen für die Verzögerung eine Gutschrift anbieten. Und zwar in Höhe von neunzigtausend Euro.
+Matthias Brenner: Neunzigtausend.
+Jens Ostrowski: Neunzigtausend, ja. Das ist, äh, das ist ehrlich gesagt mehr als das, was vertraglich als Bonale für diesen Meilenstein vorgesehen wäre, da wären wir bei, ich glaub, sechzigtausend gedeckelt.
+Sprecher 6: Das stimmt, im Vertrag ist die Vertragsstrafe pro Meilenstein auf sechzigtausend begrenzt. Hab ich mir extra angeschaut vorher.
+Matthias Brenner: Gut. Ich nehm das zur Kenntnis. Ich würd's aber gern koppeln. Wir nehmen die Gutschrift an, aber nicht als, also nicht als Abgeltung von allem. Wenn der sechste November nicht gehalten wird, dann reden wir neu.
+Jens Ostrowski: Das ist, äh, also ich muss das intern noch mal klären, aber grundsätzlich, ja, damit kann ich leben. Ich denke, das wird so gehen.
+Sprecher 6: Das sollte man aber schriftlich festhalten, also nicht nur hier im Protokoll.
+Katrin Lohmeier: Ja, das kommt in den Lieferplan rein, oder? Herr Ostrowski, können Sie das da mit reinschreiben, die Gutschrift und die Bedingung?
+Jens Ostrowski: Ja, kann ich machen, nehm ich mit rein.
+Matthias Brenner: Gut. Und noch eins, wie oft haben wir aktuell den Jour fixe mit Kaltenbrunn?
+Katrin Lohmeier: Alle zwei Wochen, dienstags.
+Matthias Brenner: Das ist mir zu wenig, bis das Release da ist. Ich möchte, dass das wöchentlich stattfindet. Mindestens bis zum Go-live.
+Jens Ostrowski: Ist kein Problem, also wir machen das wöchentlich, dienstags, gleiche Uhrzeit.
+Katrin Lohmeier: Okay, dann nehm ich auf, Jour fixe mit Kaltenbrunn ab sofort wöchentlich. Ähm, gut, dann wären wir bei Punkt drei, Budget. Und, ja, das ist der unangenehme Teil.
+Matthias Brenner: Der zweite unangenehme Teil.
+Katrin Lohmeier: Der zweite, ja, haha. Also. Genehmigtes Budget, das wisst ihr, sind vier Komma zwei Millionen Euro. Ausgegeben haben wir bis Ende September zwei Komma acht sieben Millionen. Und der Forecast, also, wenn ich jetzt die Verschiebung mit reinrechne, die wir gleich noch diskutieren, also längere Projektlaufzeit, längerer Parallelbetrieb, mehr Testaufwand, dann landen wir bei Mehrkosten von rund sechshundertachtzigtausend Euro.
+Matthias Brenner: Sechshundertachtzig.
+Katrin Lohmeier: Ja. Das setzt sich zusammen aus, äh, im Wesentlichen drei Blöcken. Erstens die interne Personalkosten durch die Verlängerung, das sind ungefähr dreihundertzehntausend. Zweitens die Verlängerung der Lizenz für das Altsystem KREDIS, weil wir das ja länger betreiben müssen, das sind hundertvierzigtausend. Und drittens zusätzliche Beratertage bei Kaltenbrunn für die, äh, für die Migrationsunterstützung, das sind zweihundertdreißigtausend.
+Sabine Krüger: Ist da die Verlängerung vom Rechenzentrumsvertrag für die alte Umgebung mit drin? Weil das, das läuft ja Ende März aus.
+Katrin Lohmeier: Das ist in den hundertvierzig mit drin, ja, das hab ich mit der Lizenz zusammengefasst. Lizenz und Betrieb.
+Sabine Krüger: Okay.
+Matthias Brenner: Und die Gutschrift von Kaltenbrunn, ist die da schon abgezogen?
+Katrin Lohmeier: Nein, die ist da noch nicht abgezogen, das sind die Bruttomehrkosten. Die neunzigtausend kommen ja jetzt erst.
+Matthias Brenner: Gut. Wie viel haben wir an Projektreserve noch?
+Katrin Lohmeier: Die Projektreserve, also die Managementreserve, die beim Projektstart gebildet wurde, war vierhundertzwanzigtausend, also zehn Prozent. Davon haben wir hundertzwanzigtausend schon im Frühjahr gebraucht, für die zusätzlichen Schnittstellen zur Bürgschaftsbank. Bleiben dreihunderttausend.
+Matthias Brenner: Okay. Hm. Ja, das, das reicht nicht.
+Tobias Wendland: Kann ich kurz eine Frage zu den Beratertagen stellen? Diese zweihundertdreißig, sind das, sind das Tage, die wir brauchen, weil Kaltenbrunn zu spät ist? Weil dann, also, dann würd ich sagen, warum zahlen wir die?
+Jens Ostrowski: Nee, also, das muss man trennen. Die Migrationsunterstützung, das ist, äh, das ist ein Thema, das daraus kommt, dass die Datenqualität im Altbestand schlechter ist als ursprünglich angenommen. Das hat mit unserer Verzögerung nichts zu tun. Das, das, äh, haben wir ja im Juli schon gemeinsam festgestellt.
+Katrin Lohmeier: Das ist richtig, Tobias. Das kam aus der ersten Probemigration. Da hatten wir bei ungefähr achtunddreißigtausend Kreditverträgen im Altbestand eine Fehlerquote von elf Prozent, die nicht automatisch migriert werden konnten.
+Tobias Wendland: Okay, ja, gut. Das ist fair.
+Sprecher 6: Elf Prozent von achtunddreißigtausend, das sind über viertausend Verträge, die manuell nachbearbeitet werden müssen.
+Katrin Lohmeier: Ja, genau. Wobei, also, ein Teil davon ist inzwischen bereinigt. Aber dazu sag ich bei den Risiken noch was.
+Matthias Brenner: Gut. Dann, äh, zum Budget. Was ist Ihr Vorschlag?
+Katrin Lohmeier: Mein Vorschlag wäre, dass wir die verbleibende Projektreserve von dreihunderttausend freigeben, und für den Rest, also, minus der Gutschrift, einen Nachtrag beim Vorstand beantragen.
+Matthias Brenner: Okay. Also sechshundertachtzig minus neunzig minus dreihundert, das wären, äh...
+Tobias Wendland: Zweihundertneunzig.
+Matthias Brenner: Zweihundertneunzigtausend. Ja. Das, das krieg ich im Vorstand durch, glaube ich. Die nächste Vorstandssitzung ist am dritten November. Das heißt, die Vorlage muss spätestens eine Woche vorher fertig sein, also am siebenundzwanzigsten, achtundzwanzigsten.
+Katrin Lohmeier: Achtundzwanzigster ist ein Mittwoch.
+Matthias Brenner: Dann achtundzwanzigster Oktober. Herr Wendland, könnten Sie die Vorstandsvorlage vorbereiten? Sie haben ja auch den Business Case damals geschrieben.
+Tobias Wendland: Äh, ja, also grundsätzlich kann ich das machen, ich bin aber, ich bin nächste Woche drei Tage auf der Verbandstagung in, in Hannover. Das wird knapp, aber ich, ich versuch's.
+Matthias Brenner: Okay, dann erstmal so.
+Sabine Krüger: Sorry, darf ich noch, also bevor wir da weitergehen, Katrin, sind in deinem Forecast eigentlich die externen Testunterstützer drin? Weil das hatten wir doch letzte Woche besprochen, dass wir für den Abnahmetest externe Leute brauchen, und das ist ja auch Geld.
+Katrin Lohmeier: Ähm. Moment. Nee. Nee, da hast du recht. Die hab ich, die sind nicht drin. Das, die wollte ich eigentlich unter Ressourcen ansprechen, aber die gehören natürlich ins Budget.
+Matthias Brenner: Was kostet das?
+Katrin Lohmeier: Also wenn wir zwei externe Tester über den Rahmenvertrag mit, äh, mit unserem Dienstleister nehmen, für ungefähr fünf Monate, dann sind das, äh, ich hab's gerade nachgerechnet, rund siebzigtausend Euro. Das heißt, ich muss mich korrigieren. Die Mehrkosten sind nicht sechshundertachtzigtausend, sondern siebenhundertfünfzigtausend Euro.
+Matthias Brenner: Siebenhundertfünfzig.
+Katrin Lohmeier: Siebenhundertfünfzigtausend brutto, ja. Tut mir leid, das hätte auf der Folie stehen müssen.
+Matthias Brenner: Gut, dass es jetzt auffällt und nicht im Vorstand. Dann rechnen wir noch mal neu. Siebenhundertfünfzig minus neunzig Gutschrift, sind sechshundertsechzig netto. Minus dreihundert aus der Reserve. Sind dreihundertsechzigtausend, die wir beim Vorstand beantragen.
+Katrin Lohmeier: Dreihundertsechzigtausend, genau. Und der Gesamtforecast liegt dann bei, vier Komma zwei plus siebenhundertfünfzig, also vier Komma neun fünf Millionen brutto, bzw. vier Komma acht sechs, wenn man die Gutschrift abzieht.
+Sprecher 6: Das ist eine Überschreitung von knapp achtzehn Prozent auf das ursprüngliche Budget. Brutto. Das muss in der Vorlage auch so drinstehen, sonst kommt das von der Revision später.
+Matthias Brenner: Ja, natürlich. Siebzehn Komma neun Prozent oder so, schreiben Sie das genau rein.
+Katrin Lohmeier: Mach ich. Also dann halte ich fest, Beschluss: die restliche Projektreserve von dreihunderttausend Euro wird freigegeben, und für die verbleibenden dreihundertsechzigtausend wird ein Nachtrag beim Vorstand am dritten November beantragt. Richtig so?
+Matthias Brenner: Richtig. Die Freigabe der Reserve kann ich heute selbst machen, das ist in meiner Kompetenz. Den Nachtrag nicht.
+Katrin Lohmeier: Okay. Gut. Dann, äh, kommen wir zum, zum großen Thema. Go-live.
+Matthias Brenner: Ja.
+Katrin Lohmeier: Ursprünglich geplant war, das wisst ihr, der zweite März zwanzig siebenundzwanzig. Das ist mit der Lieferung am sechsten November nicht mehr zu halten, da sind wir uns, glaub ich, alle einig. Wir brauchen nach der Lieferung mindestens, äh, acht bis zehn Wochen für den Abschluss SIT und den Abnahmetest, dann brauchen wir die zwei Migrationsgeneralproben, und dann den Cutover.
+Jens Ostrowski: Also von unserer Seite, wenn ich da kurz reingehen darf, wir würden einen Go-live Mitte April, äh, für realistisch halten. Wir haben das intern mal durchgeplant.
+Katrin Lohmeier: Ja, genau, das ist auch mein Vorschlag. Ich hab das mit dem Team durchgeplant, und wir kommen auf den zwölften April zwanzig siebenundzwanzig. Das ist ein Montag. Cutover wäre dann das Wochenende davor, zehnter, elfter April. Die erste General Robe wäre am dreizehnten Februar, die zweite am zwanzigsten März.
+Matthias Brenner: Zwölfter April. Hm. Frau Krüger, Sie gucken schon so.
+Sabine Krüger: Ja, also, ähm, ich muss da leider widersprechen. Der April ist für uns im Betrieb ganz schlecht. Erstens haben wir da den Quartalsabschluss Q1, also die ersten zwei Aprilwochen, da ist bei uns in der IT eigentlich ein Freeze, da wird nichts Größeres in Produktion genommen. Das ist eine Regel, die haben wir, also die gibt's nicht ohne Grund. Und zweitens sind ab Mitte April die Wirtschaftsprüfer im Haus für die Jahresabschlussprüfung, bis Ende April. Und ich, also, ich möchte nicht in der Zeit, in der die Prüfer Zugriff auf die Systeme haben und Stichproben ziehen, gerade das Kreditsystem umstellen.
+Sprecher 6: Das kann ich bestätigen. Also aus Sicht Revision wäre das äußerst ungünstig. Die Prüfer ziehen ja auch Kreditakten. Und wenn die dann die Hälfte im alten System und die Hälfte im neuen haben, äh, das wird, das wird nicht schön.
+Katrin Lohmeier: Ja, okay. Den Freeze hatte ich ehrlich gesagt auf dem Schirm, aber ich dachte, der zwölfte ist schon knapp hinter dem, hinter dem kritischen Teil.
+Sabine Krüger: Nee, der Freeze geht bei uns bis zum fünfzehnten. Das ist so festgelegt. Wir hatten das letztes Jahr auch bei der Umstellung vom Zahlungsverkehr, da haben wir genau deswegen auch geschoben.
+Tobias Wendland: Und ich muss ehrlich sagen, aus Fachbereichssicht ist April auch nicht schön. Wir haben im März und April traditionell das, äh, das Hochgeschäft bei den Baufinanzierungen, also Frühjahr, da wollen die Leute bauen. Wenn wir dann gerade umstellen und die Berater sich an ein neues System gewöhnen müssen, dann, dann leidet das Neugeschäft.
+Matthias Brenner: Gut, das sind drei gute Gründe gegen April. Was ist die Alternative?
+Katrin Lohmeier: Die nächste sinnvolle Möglichkeit wäre dann Mai. Also nach der Prüfung. Ich, äh, ich hätte jetzt mal den zehnten Mai im Kopf, das ist auch ein Montag. Cutover am Wochenende achter, neunter Mai.
+Sabine Krüger: Zehnter Mai würde für uns gehen, ja. Da ist kein Freeze, die Prüfer sind durch, und, äh, wir haben im Rechenzentrum auch, glaub ich, keine anderen großen Changes geplant. Ich müsste das noch abgleichen mit dem Change-Kalender, aber auf den ersten Blick passt das.
+Jens Ostrowski: Für uns ist Mai natürlich auch machbar, das gibt uns ja mehr Puffer. Ich, ich weise nur darauf hin, dass ein späterer Termin natürlich auch, äh, längere Begleitung von unserer Seite bedeutet.
+Matthias Brenner: Das ist im Forecast schon drin, oder, Frau Lohmeier?
+Katrin Lohmeier: Ja, also ich hab den Forecast tatsächlich schon mit Mai gerechnet, als, äh, als Worst Case, und, äh, das ist jetzt halt der Fall. Also die siebenhundertfünfzig gelten für Mai.
+Matthias Brenner: Gut. Und was ist mit Pfingsten? Pfingsten ist doch auch irgendwann im Mai.
+Tobias Wendland: Pfingsten ist zwanzig siebenundzwanzig, äh, Mitte Mai, sechzehnter Mai glaub ich. Das ist eine Woche nach dem Go-live.
+Matthias Brenner: Hm. Das find ich nicht ideal, wenn dann in der zweiten Woche die halbe Mannschaft im Brückentag ist. Aber gut, irgendwas ist immer.
+Sabine Krüger: Wir können für die zwei Wochen nach Go-live eine Urlaubssperre für das Kernteam machen, das haben wir beim Zahlungsverkehr auch gemacht.
+Matthias Brenner: Ja, das machen wir. Also, gut. Dann halten wir fest, der zwölfte April ist vom Tisch. Go-live ist der zehnte Mai zwanzig siebenundzwanzig, Cutover-Wochenende achter und neunter Mai. Und für die zwei Wochen danach gilt eine Urlaubssperre für das Kernteam.
+Katrin Lohmeier: Halte ich so fest. Und dann, die Migrationsgeneralproben, die würden sich entsprechend auch verschieben, oder wollen wir die so lassen?
+Sabine Krüger: Ich würd die so lassen, ehrlich gesagt. Dreizehnter Februar und zwanzigster März. Dann haben wir nach der zweiten Generalprobe noch, äh, sieben Wochen Puffer, und wenn die zweite schlecht läuft, können wir noch eine dritte machen. Also im April, außerhalb vom Freeze, so Ende April.
+Katrin Lohmeier: Das find ich gut. Also, die Generalproben bleiben am dreizehnten Februar und am zwanzigsten März, und falls nötig gibt's eine dritte, als Option, ende April.
+Sprecher 6: Darf ich fragen, wie lange ist der Parallelbetrieb geplant? Also wie lange läuft KREDIS noch neben NOVA?
+Katrin Lohmeier: Geplant waren ursprünglich acht Wochen Parallelbetrieb. Ich, äh, würde vorschlagen, das auf vier Wochen zu verkürzen. Weil, also, erstens kostet jede Woche Parallelbetrieb Geld, zweitens haben wir durch die Generalproben eine ganz gute Sicherheit, und drittens ist es für die Sachbearbeitung eine enorme Belastung, wenn sie alles doppelt pflegen müssen.
+Tobias Wendland: Da bin ich sehr dafür. Doppelpflege über acht Wochen, das hätten meine Leute nicht durchgehalten. Ehrlich.
+Sprecher 6: Aus Revisionssicht hab ich da Bauchschmerzen. Vier Wochen ist kurz, da hat man nicht mal einen vollen Monatsabschluss im Parallelbetrieb.
+Katrin Lohmeier: Doch, wenn wir am zehnten Mai starten, dann läuft der Parallelbetrieb bis zum vierten Juni, da ist der Monatsabschluss Mai komplett drin.
+Sprecher 6: Hm. Okay. Dann ist das, äh, das ist vertretbar. Aber ich hätte gern, dass es ein klares Abbruchkriterium gibt, also wann man doch verlängert.
+Matthias Brenner: Das ist vernünftig. Also, Parallelbetrieb vier Wochen bis vierter Juni, mit definierten Kriterien für eine Verlängerung. Wer definiert die?
+Sprecher 6: Das kann ich übernehmen, zusammen mit Herrn Wendland.
+Tobias Wendland: Ja, gerne.
+Katrin Lohmeier: Bis wann? Ich würd sagen, das muss vor der ersten Generalprobe stehen, oder zumindest...
+Sprecher 6: Ende Januar reicht. Neunundzwanzigster Januar.
+Katrin Lohmeier: Neunundzwanzigster Januar, okay. Dann, äh, Punkt fünf, Ressourcen. Wir haben, ich hab das ja auf gelb, und, äh, da gibt's eigentlich zwei Themen. Das eine ist die Migration und das andere ist der Test. Bei der Migration ist das Problem, dass Herr Yilmaz, der ja unser Migrationslead ist, nach wie vor nur zu fünfzig Prozent im Projekt ist. Die anderen fünfzig Prozent ist er in der Linie, im Kreditservice, und das, äh, das reicht einfach nicht, bei dem Datenvolumen und bei der Fehlerquote, über die wir eben geredet haben.
+Tobias Wendland: Ja. Also, das ist, das ist mein Bereich, Herr Yilmaz ist bei mir in der Linie. Ich hab, äh, ich hab das schon befürchtet, dass das heute kommt. Das Problem ist, wenn ich ihn ganz rausnehme, dann fehlt mir im Kreditservice jemand, der die Sonderfälle bearbeitet, also die ganzen Stundungen, Umschuldungen und so weiter.
+Matthias Brenner: Herr Wendland, ich sag's mal so. Wenn die Migration schiefgeht, dann haben Sie im Mai ganz andere Sonderfälle. Dann haben Sie viertausend Kreditverträge, die keiner findet.
+Tobias Wendland: Ja, nee, ich weiß. Ich, äh, ich sag ja nicht nein. Ich sag nur, ich brauche dann für die Linie einen Ersatz. Wenn wir den Herrn Yilmaz ab erstem November zu hundert Prozent freistellen, dann bräuchte ich, äh, für sechs Monate mindestens eine halbe Stelle Ersatz im Kreditservice.
+Matthias Brenner: Das kriegen wir hin. Gehen Sie mit der Personalabteilung, ich unterstütze das. Kann man das auch aus dem Projektbudget...
+Katrin Lohmeier: Das ist schon drin. Das ist in den dreihundertzehntausend internen Personalkosten mit drin.
+Matthias Brenner: Gut. Dann Beschluss: Herr Yilmaz wird ab erstem November zu hundert Prozent für das Projekt freigestellt, und der Kreditservice bekommt für sechs Monate eine halbe Stelle Ersatz.
+Tobias Wendland: Okay. Ich kümmer mich um die Freistellung und um den Ersatz. Bis, äh, Ende Oktober, also einunddreißigster, muss das ja stehen, wenn er ab dem ersten drin sein soll.
+Katrin Lohmeier: Danke, Tobias. Das zweite Thema ist der Test. Im Abnahmetest, also im UAT, sind ja vor allem die Fachbereichstester gefragt. Und da haben wir zwei Probleme. Erstens geht Frau Pohl, unsere Testkoordinatorin aus dem Fachbereich, im Januar in Elternzeit. Und zweitens haben wir, wie gesagt, durch die Verschiebung das Problem, dass die Tester im Fachbereich, die wir für September und Oktober hatten, jetzt im, äh, im Dezember bis Februar gebraucht werden, und da ist bei denen auch Jahresendgeschäft.
+Tobias Wendland: Ja. Für Frau Pohl haben wir schon eine Nachfolge, das wird Herr Nowak machen, der ist seit, äh, seit zwei Jahren bei uns und kennt das System, also das Altsystem, sehr gut. Die Übergabe soll im Dezember laufen.
+Katrin Lohmeier: Gut. Und für die fehlende Testkapazität ist eben mein Vorschlag, dass wir die zwei externen Tester über den Rahmen vertragen. Also über den bestehenden Rahmenvertrag mit, äh, mit Feldmann Consulting. Die haben auch schon bei der Umstellung vom Zahlungsverkehr bei uns getestet, die kennen die Umgebung. Ab erstem Dezember, für fünf Monate, also bis Ende April.
+Matthias Brenner: Das sind die siebzigtausend, über die wir gesprochen haben?
+Katrin Lohmeier: Genau, das sind die siebzigtausend.
+Matthias Brenner: Gut. Dann genehmigt. Zwei externe Tester ab erstem Dezember. Wer macht den Abruf?
+Katrin Lohmeier: Das mach ich zusammen mit dem Einkauf. Ich würd sagen, bis zum vierten November, damit die Leute rechtzeitig verfügbar sind. Feldmann braucht ungefähr vier Wochen Vorlauf.
+Sabine Krüger: Und denkt bitte an die Zugänge. Die externen Tester brauchen Accounts für die Testumgebung, und das dauert bei uns mit dem Berechtigungsantrag, äh, auch zwei Wochen. Wenn die am ersten Dezember anfangen sollen, brauch ich die Namen spätestens Mitte November.
+Katrin Lohmeier: Ja, guter Punkt. Nehm ich mit.
+Matthias Brenner: Okay. Sonst noch was zu Ressourcen?
+Sabine Krüger: Ja, eine Sache aus dem Betrieb noch. Wir haben für den Katowa, also für das Cutover-Wochenende, ja einen Bedarf an Leuten aus dem Rechenzentrum, und das ist ein externer Dienstleister, das muss ich mit denen fix vereinbaren. Wenn wir jetzt auf den achten, neunten Mai gehen, dann muss ich das neu anfragen. Ich, äh, ich mach das, aber ich wollte nur sagen, das ist ein Abhängigkeitsrisiko.
+Katrin Lohmeier: Ja, das nehm ich in die Risiken auf. Bis wann kannst du das klären?
+Sabine Krüger: Ich würde sagen, den kompletten Cutover-Plan mit dem Rechenzentrum abgestimmt, inklusive Change-Fenster, bis fünfzehnter November.
+Katrin Lohmeier: Fünfzehnter November ist ein Sonntag, glaub ich.
+Sabine Krüger: Dann bis dreizehnter. Freitag, dreizehnter November.
+Matthias Brenner: Freitag der dreizehnte, na das passt ja. Okay. Dann kommen wir zu den Risiken.
+Katrin Lohmeier: Ja. Ich hab auf der Folie die Top fünf. Ich geh die kurz durch. Risiko eins, die erneute Verzögerung des Release zwei Punkt drei. Eintrittswahrscheinlichkeit hab ich auf mittel gesetzt, nach dem, was Herr Ostrowski heute gesagt hat, Auswirkung hoch. Maßnahme ist der verbindliche Lieferplan und der wöchentliche Jour fixe.
+Jens Ostrowski: Darf ich, also, ich würd mir wünschen, dass das, äh, dass das nach dem dreiundzwanzigsten auf niedrig geht. Wenn der Plan steht.
+Matthias Brenner: Wenn der sechste November gehalten ist, dann reden wir über niedrig. Vorher nicht.
+Jens Ostrowski: Okay, fair.
+Katrin Lohmeier: Risiko zwei, die Datenmigration. Wir hatten bei der ersten Probemigration elf Prozent Fehlerquote, das hab ich vorhin gesagt. Durch die Datenbereinigung, die das Team von Herrn Yilmaz seit August macht, sind wir inzwischen bei vier Prozent. Also von den achtunddreißigtausend Verträgen sind noch ungefähr fünfzehnhundert offen. Ziel ist, bis zur ersten Generalprobe unter ein Prozent zu kommen.
+Tobias Wendland: Das ist ambitioniert, aber mit Herrn Yilmaz zu hundert Prozent, äh, ja, das ist machbar, denk ich.
+Katrin Lohmeier: Risiko drei ist das Meldewesen, das hat ja, äh, das wolltest du ja ansprechen.
+Sprecher 6: Ja. Also kurz, in der letzten Prüfung vom Meldewesen ist aufgefallen, dass bei der Umstellung damals vom Zahlungsverkehr die Meldedaten im ersten Monat nach der Umstellung nicht vollständig waren, weil eine Schnittstelle, äh, ein Feld falsch gemappt hatte. Das ist dann erst bei der Plausibilisierung aufgefallen. Und ich möchte, dass wir das hier nicht wiederholen. Mein Vorschlag ist, dass bei der zweiten Generalprobe, also am zwanzigsten März, ein vollständiger Testmeldelauf gemacht wird, mit den migrierten Daten, und dass das Ergebnis mit dem Meldelauf aus dem Altsystem abgeglichen wird.
+Sabine Krüger: Das ist technisch machbar, aber dafür brauchen wir die Meldewesen-Testumgebung, und die ist, äh, die ist im Moment auf dem alten Stand. Die müssten wir aktualisieren.
+Jens Ostrowski: Die Meldewesenschnittstelle ist ja Teil vom zwei Punkt drei, also wenn das am sechsten November kommt, dann kann die Testumgebung ab dann damit bespielt werden.
+Matthias Brenner: Gut. Dann Beschluss: Testmeldelauf mit Abgleich gegen das Altsystem in der zweiten Generalprobe. Und wer schreibt das Testkonzept dafür?
+Sprecher 6: Ich mach das Testkonzept, bis, sagen wir, zwanzigster November. Frau Krüger, Sie liefern mir bitte zu, was die Testumgebung kann.
+Sabine Krüger: Ja, klar.
+Katrin Lohmeier: Risiko vier ist die Abhängigkeit vom Rechenzentrum beim Cutover, das hat Sabine gerade gesagt. Und Risiko fünf ist die Lizenz vom Altsystem. Die Datronik, also der Hersteller von KREDIS, hat uns die Verlängerung bis dreißigster Juni zwanzig siebenundzwanzig angeboten, aber nicht darüber hinaus, weil sie das Produkt dann abkündigen. Das heißt, wenn der Mai noch mal rutscht, dann haben wir ein echtes Problem. Dann gibt es kein Zurück mehr.
+Matthias Brenner: Das heißt, der zehnte Mai ist faktisch der letzte mögliche Termin.
+Katrin Lohmeier: Mit vier Wochen Parallelbetrieb, ja. Spätestens Anfang Juni müssten wir live sein, und dann ist kein Parallelbetrieb mehr drin.
+Matthias Brenner: Dann muss das auch genau so in die Vorstandsvorlage. Damit jedem klar ist, dass das kein Termin ist, den man noch mal verschieben kann.
+Sprecher 6: Und dann würde ich auch, äh, dringend raten, dass wir am Scope nichts mehr machen. Also keine neuen Anforderungen mehr.
+Tobias Wendland: Na ja, also wir haben noch zwei, drei Wünsche aus dem Vertrieb, so Kleinigkeiten in der Oberfläche...
+Matthias Brenner: Nein. Herr Wendland, bei allem Respekt. Ab heute gilt ein Scope Freeze. Es werden keine neuen Change Requests mehr aufgenommen, mit Ausnahme von regulatorischen Pflichtänderungen. Die Wünsche aus dem Vertrieb kommen in ein Release nach dem Go-live.
+Tobias Wendland: Okay. Damit kann ich leben, ehrlich gesagt. Ich wollte es nur gesagt haben.
+Katrin Lohmeier: Ich nehm das als Beschluss auf. Scope Freeze ab heute, Ausnahme nur regulatorische Änderungen, die Vertriebswünsche gehen in ein Folgerelease. Gut, dann sind wir eigentlich durch mit den Risiken. Und, äh, wir haben noch, Herr Brenner, Sie haben noch zwölf Minuten.
+Matthias Brenner: Gut. Dann machen wir die Action Items. Und eine Sache vorneweg, ich möchte den nächsten Lenkungskreis vorziehen. Der wäre regulär im Dezember, glaub ich.
+Katrin Lohmeier: Neunter Dezember, ja.
+Matthias Brenner: Ich will den direkt nach der Lieferung. Damit wir sehen, ob das Release da ist und ob es läuft. Also eine Sondersitzung, äh, am elften November, wenn das geht.
+Katrin Lohmeier: Elfter November ist ein Mittwoch, das sollte gehen. Ich lade ein. Der reguläre im Dezember bleibt trotzdem?
+Matthias Brenner: Der bleibt.
+Katrin Lohmeier: Okay. Dann die Action Items. Ich les mal vor, was ich hab. Erstens, Herr Ostrowski, schriftlicher verbindlicher Lieferplan für Release zwei Punkt drei mit Testnachweis, inklusive der Gutschrift von neunzigtausend Euro und der Bedingung, bis dreiundzwanzigster Oktober.
+Jens Ostrowski: Ja.
+Katrin Lohmeier: Zweitens, Sabine, Delta-Klärung Kernbankversion vierundzwanzig Punkt zwei mit dem technischen Lead von Kaltenbrunn, das ist diese Woche, und den Cutover-Plan mit dem Rechenzentrum inklusive Change-Fenster bis dreizehnter November.
+Sabine Krüger: Ja, passt.
+Katrin Lohmeier: Drittens, Tobias, die Vorstandsvorlage für den Nachtrag bis achtundzwanzigster Oktober...
+Matthias Brenner: Moment, da, da will ich noch mal ran. Herr Wendland, Sie sind nächste Woche drei Tage in Hannover, haben Sie vorhin gesagt. Und Sie haben jetzt die Freistellung von Herrn Yilmaz, den Ersatz und die Übergabe von Frau Pohl. Das ist zu viel. Frau Lohmeier, ich möchte, dass Sie die Vorstandsvorlage schreiben. Sie haben die Zahlen, und Sie haben eben auch die Korrektur gemacht. Herr Wendland liefert Ihnen den fachlichen Teil zu, also die Auswirkung aufs Geschäft.
+Katrin Lohmeier: Ja, okay, mach ich. Also, Vorstandsvorlage, Verantwortung bei mir, bis achtundzwanzigster Oktober. Tobias, schaffst du den fachlichen Teil bis, äh, sagen wir, dreiundzwanzigster?
+Tobias Wendland: Ja, das schaff ich vor der Tagung. Danke, ehrlich gesagt bin ich ganz froh drum.
+Katrin Lohmeier: Gut. Dann viertens, Tobias, Freistellung von Herrn Yilmaz zu hundert Prozent ab ersten November und die halbe Ersatzstelle im Kreditservice, bis einunddreißigster Oktober.
+Tobias Wendland: Genau.
+Katrin Lohmeier: Fünftens, ich, Abruf der zwei externen Tester bei Feldmann über den Rahmenvertrag, zusammen mit dem Einkauf, bis vierter November, und die Namen für die Berechtigungen an Sabine bis Mitte November.
+Sabine Krüger: Spätestens sechzehnter.
+Katrin Lohmeier: Sechzehnter November, okay. Sechstens, du, also, Testkonzept für den Testmeldelauf bis zwanzigster November, und zusammen mit Tobias die Kriterien für die Verlängerung vom Parallelbetrieb bis neunundzwanzigster Januar.
+Sprecher 6: Korrekt.
+Katrin Lohmeier: Siebtens, Herr Yilmaz ist nicht da, aber das geb ich ihm weiter, Fehlerquote in der Migration unter ein Prozent bis zur ersten Generalprobe am dreizehnten Februar. Und achtens, ich passe die Ampeln an, Gesamtstatus rot, und verschicke das Protokoll, äh, bis Freitag.
+Matthias Brenner: Und ich nehm mir noch was. Ich ruf bei der Geschäftsführung von Kaltenbrunn an, nicht als Eskalation im bösen Sinne, aber damit die wissen, dass das bei uns auf Vorstandsebene beobachtet wird. Das mach ich bis Ende Oktober, dreißigster.
+Jens Ostrowski: Das, äh, das ist in Ordnung, ich kündige das intern schon mal an, dann ist das keine Überraschung.
+Matthias Brenner: Gut. Dann, äh, fass ich zusammen, damit wir alle das gleiche verstanden haben. Gesamtampel rot. Go-live zehnter Mai zwanzig siebenundzwanzig, nicht der zwölfte April. Mehrkosten siebenhundertfünfzigtausend brutto, nicht sechshundertachtzig, minus neunzigtausend Gutschrift, dreihunderttausend Reserve freigegeben, dreihundertsechzigtausend als Nachtrag am dritten November. Jour fixe mit Kaltenbrunn wöchentlich. Herr Yilmaz voll im Projekt ab erstem November. Zwei externe Tester ab Dezember. Parallelbetrieb vier Wochen. Testmeldelauf in der zweiten Generalprobe. Scope Freeze ab heute. Und Sondersitzung am elften November. Hab ich was vergessen?
+Sabine Krüger: Die Urlaubssperre nach dem Go-live.
+Matthias Brenner: Ach ja, richtig, die Urlaubssperre für das Kernteam, zwei Wochen nach Go-live. Gut. Dann danke an alle. Herr Ostrowski, gute Weiterfahrt.
+Jens Ostrowski: Danke, ja, wir sind gleich in, äh, in Göttingen, dann hab ich hoffentlich wieder besseres Netz. Tschüss zusammen.
+Katrin Lohmeier: Danke euch, das Protokoll kommt bis Freitag.

@@ -1,0 +1,95 @@
+# Discovery interview with Crumb & Kettle about order planning
+Dev: Okay, I think we're recording. So, thanks again for making time, Maureen, I know mornings are, uh, mornings are chaos for you.
+Maureen: Oh it's fine, the worst of it is done by nine, honestly. After nine it's just emails.
+Dev: Great. So just quickly, I'm Dev, I'm one of the founders at Ladder Labs, and this is Hanna, she does our research and design.
+Hanna: Hi. Yeah, and I'll mostly be taking notes, but I might jump in.
+Dev: And we're not selling anything today, we really just want to understand how you plan, um, how ordering works for you. So maybe start with, like, what does Crumb and Kettle look like right now?
+Maureen: Sure. So we've got fourteen shops, um, fourteen as of March, we opened the one on Mill Lane in March. And then there's the central bakery out at the industrial estate, that's where basically everything is made. The shops do a bit of finishing, they bake off the parked baked stuff, the croissants and so on, but the dough, the bread, the cakes, all of that comes from central.
+Dev: Okay. And you're, your title is operations lead?
+Maureen: Operations lead, yeah, which means, uh, everything that isn't baking and isn't the tills, basically.
+Dev: Ha. Okay. So walk us through a normal day, like how does an order for tomorrow come about?
+Maureen: Right. So every shop manager has a tab in a big shared spreadsheet. It's, it's honestly a monster at this point. And by two o'clock, 2 p.m., they have to put in what they want for the next day. So, you know, forty sourdough, sixty white tin, twelve of the large carrot cake, whatever. And then at two my deputy, Priya, she pulls all fourteen tabs together into one production sheet for the night shift, and that takes her, I'd say, two hours a day? Every day. Including Sundays, because we bake for Monday.
+Hanna: Two hours every day, just the merging?
+Maureen: Just the merging. And checking, because people type things in the wrong column, or they put "same as last week", which, which is not a number.
+Hanna: Right, yeah.
+Dev: And how do the shop managers decide the numbers? Like, is there a method?
+Maureen: Mm. Gut feeling, mostly. Some of them look at what they sold the same day last week, if they remember. The good ones keep a little, um, notebook. Harbour Street, Tom, he has a notebook with the weather in it, which is actually smart, because the weather is huge for us. A sunny Saturday and we sell twice the, you know, the sandwich loaves, the focaccia, picnic stuff. Rainy Tuesday, nobody comes. And the spreadsheet knows nothing about any of that.
+Dev: So weather is a big driver. Anything else like that?
+Maureen: Events. Football, school holidays, the market on Thursdays in, in two of the towns. There's a farmers market. If a manager forgets the market is on, we run out by eleven.
+Hanna: Is running out the bigger problem or is it the, the leftover stuff?
+Maureen: Both, but, um, it's different kinds of painful. Running out, you lose the sale and the customer is annoyed, especially sourdough. We run out of sourdough by noon most Saturdays, in like, the bigger shops. That's the thing customers complain about on, on the reviews. Leftovers, that's just money in the bin. Well, we donate some, we have a partner who picks up, but a lot of it is waste.
+Dev: Do you know roughly how much waste?
+Maureen: Yeah, we track it, there's a waist log every shop fills in at closing. It's about, I'd say twelve percent. Twelve percent of what we send out comes back as waste or donation.
+Dev: Twelve percent. Okay. And in money?
+Maureen: In money, uh, across all the shops it's something like three and a half thousand pounds a week. Three, three point five. That's at cost, not at retail.
+Dev: Wow. Okay.
+Hanna: And that's, that's tracked in the same spreadsheet?
+Maureen: Different spreadsheet. Of course. Different spreadsheet.
+Hanna: Of course.
+Dev: So what do you use today, like, software-wise? Besides the spreadsheets.
+Maureen: So the tills are Tillpoint, all fourteen shops. We pay, I think it's three hundred and forty pounds a month for the whole estate, that's the subscription. And Tillpoint has a stock module, it's included, but we don't really use it.
+Dev: Why not?
+Maureen: Because it counts units. It thinks a sourdough is a thing you buy from a supplier, like a can of cola. It doesn't understand that we make it, that one batch of dough is, is eighty loaves, that the dough has to go in the night before. It's built for, like, a corner shop. So we tried it for, um, maybe two months, in 2024, and then everyone went back to the spreadsheet.
+Hanna: What went wrong exactly when you tried it, if you remember?
+Maureen: The suggestions were rubbish. It would say order 37 baguettes, and we bake baguettes in trays of 24. So what do I do with 37. And the managers stopped trusting it in about a week. Once they stop trusting it, it's dead, you know. You don't get them back.
+Dev: That's, yeah, that's really useful. So trust is, is a big thing.
+Maureen: Trust is everything. My managers are, they're bakers, mostly. They've been doing this for fifteen years, some of them. If a computer tells them something stupid once, that's it.
+Dev: Okay so, let me, let me float an idea and you can tell us if it's nonsense. What if the system, um, didn't just suggest but actually placed the orders? Like with your flour supplier and the dairy, it sees what central needs for the week and it just sends the purchase orders automatically, nobody has to touch it.
+Maureen: No. No, sorry, absolutely not.
+Dev: Ha, okay.
+Maureen: No, I mean, I'm sure for some people it's great. But I would never want anything to send an order to a supplier without a human looking at it. We had a, our old dairy, someone fat-fingered an order, it was a typo, and we got ten times the cream. Ten times. I am not giving a machine the ability to do that on its own. Suggest, fine. Draft it, fine. Sending, that's a person. Always.
+Hanna: That's very clear. So, so suggest and draft but a human presses send.
+Maureen: Human presses send. And honestly the supplier side isn't my biggest headache anyway. Flour comes Tuesdays and Fridays, it's predictable, we know what we use. The headache is the shops. The fourteen tabs.
+Dev: Got it. So the shop level forecast is the, the core.
+Maureen: Yeah. What I'd love is, uh, every morning the manager opens something and it says, here's what we think you need tomorrow, sourdough forty-two, and here's why, sunny, market day, whatever. And then they can change it. They have to be able to change it. And then it goes to central already merged, so Priya doesn't spend two hours on it.
+Hanna: And the "here's why" part, how important is that?
+Maureen: Hm. Very, actually. Because of the trust thing. If it says forty-two and Tom thinks thirty, he needs to see why it says forty-two. Then maybe he goes, oh, right, the market. Or he goes, no, the market's cancelled this week, and he changes it. Either way he's still in charge.
+Dev: And it rounds to trays.
+Maureen: And it rounds to trays! Yes. Please. Batches and trays. Twenty-four baguettes a tray, eighty loaves a sourdough batch, that kind of thing.
+Hanna: What do the managers use in the shops, like hardware?
+Maureen: Cheap tablets. Really cheap. We bought them, uh, I think they were a hundred and twenty pounds each. And the wifi in some of the shops is, let's say, not great. The Mill Lane one is basically in a basement.
+Hanna: Okay. So it'd need to work on a not very fast tablet and with flaky wifi.
+Maureen: Yes. If it takes thirty seconds to load, nobody uses it.
+Dev: Can I, sorry, can I go back to the waste number for a sec. The twelve percent, is that across all shops?
+Maureen: Ah, no, actually, sorry, let me correct that. Twelve is Harbour Street, that's our worst one, I had that one in my head because we talked about it in a meeting yesterday. Across all fourteen it's eight percent. Eight percent overall. The three and a half thousand a week is right though, that's for everything.
+Dev: Okay, eight overall, twelve at the worst shop. Got it.
+Maureen: Yeah. Harbour Street is near the beach, so the weather swings are, they're brutal there.
+Hanna: Makes sense.
+Dev: So, let's talk money a little, if that's okay. If a tool did what you described, the forecast per shop, the trays, the merging, um, what would that be worth to you?
+Maureen: Hm. Well. What I'd say is, uh, per shop, something like fifty, maybe sixty pounds a month per shop would feel fair. So for fourteen shops, what's that, eight hundred-ish, eight forty at sixty.
+Dev: Okay.
+Maureen: But, and this is a real but, anything over a thousand pounds a month I can't sign. That goes to our finance director, Graham, and Graham will want to see the waste number go down first. He's, he's not a believer.
+Dev: Understood. So under a thousand a month you can decide yourself.
+Maureen: Under a thousand I can decide. Over a thousand it's a, it's a project, and that's six months of meetings.
+Hanna: And if you think about the saving side, like, if waste went from eight to, I don't know, six percent, would that, how would Graham look at it?
+Maureen: If I could show Graham two points less waste, he'd sign anything. Well. Almost anything. But he needs to see it in our numbers, not in a slide.
+Dev: Which kind of points towards a pilot.
+Maureen: Yeah, I'd want a pilot. Not all fourteen. Three shops. I'd say Harbour Street because it's the worst, Mill Lane because it's new and the manager is, she's open to things, and one normal one, maybe Station Road. And let it run for, um, six weeks? Six weeks gets you some weather and a school holiday.
+Dev: Six weeks, three shops. That sounds very reasonable.
+Hanna: Would the managers in those shops be okay with it, do you think?
+Maureen: Tom will moan. But Tom moans about everything and then he's the best at it. If Tom likes it, the others will.
+Dev: Ha. Okay, good to know. So, um, data. For anything like this we'd need sales history. Is that something you could get out of Tillpoint?
+Maureen: I think so, there's an export. I've done it before for the accountants. I can pull, how much do you want?
+Dev: Ideally a year, but three months would let us start.
+Maureen: Let's say three months then, for all fourteen shops, and if that goes well I'll get you the full year. I can do that by, um, end of the month. Friday the 31st.
+Dev: Perfect. And the waste logs too, if possible?
+Maureen: The waist log, yes, I'll throw that in. Same date.
+Hanna: And would it be possible for one of us to come and, like, watch the process? The two o'clock thing and the night shift?
+Maureen: Oh, you're welcome to come. Come to central, but come early. The night shift hands over at five. Five a.m.
+Hanna: Five a.m. Okay. I'll be there. How about Tuesday the fourth of November?
+Maureen: Tuesday the fourth works. I'll tell Priya. Bring a jumper, it's cold in the dough room, ironically.
+Hanna: Noted.
+Dev: And from our side, I'll put together a, a rough mockup of the morning screen, what the manager would see, with the "here's why" bit and the trays, and send it over by, uh, Friday the twenty-fourth. So you can show it to Tom and see if he hates it.
+Maureen: He will hate it. That's fine, that's useful.
+Dev: Ha, yes. Exactly.
+Hanna: Can I ask one more thing, um, about the central bakery. When the merged order comes in, does central ever push back, like, we can't make that many?
+Maureen: All the time. The oven capacity is fixed. We can do, um, roughly two thousand four hundred loaves a night, all types together. On a sunny bank holiday the shops ask for more than that, and then Priya has to cut, and she cuts by, um, by feel, mostly. Whoever shouted the loudest gets their bread.
+Hanna: So a capacity limit would be useful.
+Maureen: Useful, yes, but not for the pilot. Keep the pilot simple. If you try to fix everything at once I'll lose the managers.
+Dev: Fair. Okay, I think that's, that's a lot. Anything we didn't ask that you think we should have?
+Maureen: Mm. Only that, uh, please don't make it another login. They have the tablet, they have Tillpoint, they have the spreadsheet. One more password and I'll have a mutiny.
+Dev: Noted. Single sign on or at least, at least something simple.
+Maureen: Something simple.
+Dev: Great. Thank you so much, Maureen, this was really, really helpful.
+Hanna: Yeah, thank you.
+Maureen: No problem. Speak soon.

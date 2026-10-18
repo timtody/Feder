@@ -1,0 +1,80 @@
+# Key: de-90k-strategieworkshop
+Language: de · Characters: 89975 · Speakers: 7
+## Must cover
+- Ganztägiger Strategieworkshop der Geschäftsleitung der Hartlieb Möbelwerke (Familienunternehmen, 412 Mitarbeitende) am 16. Oktober 2026, extern moderiert von Ines Kallweit; Lage: Umsatz und Marge gesunken, Holz/Energie/Tarif teurer, Fachhandel schwächelt
+- Preiserhöhung Fachhandel 4,5 % zum 1. Januar 2027 (Markus wollte 6 %), online im gleichen Maß; Überprüfung im Juli 2027
+- Produktlinie Linea Nord (Kiefer, defizitär, viel Rüstzeit) läuft aus: Annahmeschluss 30. Juni 2027, Produktionsende Ende 2027; Händler bekommen Angebot für die Buche-Einstiegsserie
+- Onlineshop-Relaunch (Budget 380.000 €, inkl. ERP-Schnittstelle mit Live-Verfügbarkeit); Go-live 15. April 2027 (statt 1. März, weil Kornmann IT die Schnittstelle erst Ende Februar liefert, plus 6 Wochen Test); Ziel 15 % Onlineanteil bis 2029
+- Prüfauftrag Händlerprovision 8–10 % im neuen Shop (Händlersuche; Provision auch bei Abholung von Kunden aus dem Händlergebiet)
+- Werksverkauf wird nicht geschlossen (Morgenbeschluss aufgehoben): wird ab 1. Mai 2027 Ausstellung und Abholpunkt (Click & Collect) für Onlinebestellungen, nur Do–Sa geöffnet, 2 statt 3,2 Stellen, Ausstellung 400 statt 700 m², 300 m² werden Lager, keine Rabatte unter Händlerpreis; Verlust sinkt von ca. -140.000 € auf ca. -35.000 €
+- Übernahme Brandauer Polstermöbel (Eichtal): unverbindliche Gespräche; Einstiegsangebot 5,9 Mio €, interne Obergrenze 6,4 Mio € (nicht in der Absichtserklärung), vorbehaltlich Due Diligence; strategischer Grund: Polstermöbel fehlen (Objekt/Hotels, online), Fachkräfte (Polsterer)
+- Brandauer vertraulich; Protokollteil dazu nur an Thomas und Katrin
+- Automatisierung Stufe 1: automatische Plattenaufteilung mit Flächenlager und Roboter, 1,35 Mio €, Einbau im Betriebsurlaub 2.–20. August 2027; Lieferantenentscheidung erst im Januar (nur die Investition ist beschlossen); Stufe 2 (Kantenanleimung/Schleifstraße, ca. 900.000 €) auf 2028 verschoben
+- Keine Kündigungen wegen der Automatisierung (schriftlich an den Betriebsrat); 9 Arbeitsplätze im Zuschnitt betroffen: 3 bleiben als Bediener (Schulung durch Hersteller), 6 wechseln in andere Bereiche
+- Ausbildung: ab Ausbildungsjahr 2027 (Start 1. September) 18 statt 14 Azubis pro Jahr, neu 1 Platz Mechatroniker; Ausbildungsvergütung 80 € über Tarif pro Monat ab 1. Januar 2027 für alle Azubis
+- Keine Vier-Tage-Woche; Gleitzeit-Pilot (ohne Kernzeit, Arbeitszeitkonto) in der Verwaltung (58 Personen) ab 1. Februar 2027 für 6 Monate
+- Zwei junge Mitarbeitende gehen ab September 2027 in Teilzeit auf die Meisterschule (ca. 35.000 € im ersten Jahr mit Freistellung)
+- Photovoltaik auf Halle 3: 780 kWp, 920.000 €, ohne Speicher, Inbetriebnahme bis Ende Juni 2027 (nicht im August wegen Plattenaufteilung); Förderantrag vor Bestellung
+- Alle Massivholzserien bis Ende 2027 auf FSC umstellen (heute ca. 40 % zertifiziert); ein Marktplatz fordert Zertifikate schon ab Juli 2027
+- Freiwilliger Nachhaltigkeitsbericht für 2026, Veröffentlichung bis 30. Juni 2027
+- Zwei zusätzliche Stellen E-Commerce: Content/Social Media ab 1. Januar 2027, Kundenservice/Retouren ab 1. April 2027 (ca. 100.000 € in 2027)
+- Keine Teilnahme an der Januarmesse 2027 (160.000 €); stattdessen Händlertage im Haus am 12./13. März 2027 (ca. 40.000 €)
+- Budget 2027 grundsätzlich beschlossen: Umsatzplan 68,9 Mio € (zunächst 69,0, nach Shop-Verschiebung angepasst), EBIT-Ziel 4,0 %, Investitionen 4,2 Mio € ohne Brandauer (2,7 Mio Cashflow, 1,5 Mio Förderdarlehen); endgültig nach Gesellschafterversammlung am 4. Dezember 2026
+- Markus übernimmt das Erstgespräch Brandauer nicht (Schwager Holger ist dort Vertriebsleiter; Interessenkonflikt), Thomas führt es; Markus auch nicht bei Personalien/Preis in der Prüfung
+- Review-Termin 22. Januar 2027, 9 Uhr, halber Tag; dort wird der Juli-Termin (Preisüberprüfung) festgelegt
+## Facts (numbers, dates, names)
+- Teilnehmende: Ines Kallweit (externe Moderatorin), Thomas Hartlieb (Geschäftsführer/Gesellschafter, 3. Generation), Katrin Hartlieb (Finanzen), Markus Ebner (Vertrieb), Petra Wohlleben (Personal), Sprecher 5 = Jürgen (Produktion), Sprecher 7 = Lena (E-Commerce)
+- Workshop am 16. Oktober 2026 (Freitag) im Gasthof; Mittagspause ca. 12 bis 13:20 Uhr
+- 412 Mitarbeitende (Stand Ende September); Firmensitz Kleinwaldbach; Werksverkauf seit 1964
+- Umsatz 2025: 68,4 Mio €; Hochrechnung 2026: 66,1 Mio € (-3,4 %); EBIT-Marge 3,1 % (Vorjahr 4,8 %)
+- Holzpreise Eiche/Buche +11 %; Energiekosten 2,3 Mio €; Fracht knapp 4 % vom Umsatz; Materialanteil 34 %
+- Fachhandel 61 % vom Umsatz; 4 Händler verloren (ca. 1,8 Mio €); 87 aktive Händler, 19 nur mit Linea Nord (< 800.000 €); Objektgeschäft 10,7 Mio €; Export 22 %; online 6 % (ca. 4,1 Mio €)
+- Linea Nord: seit 2012, ca. 3,2 Mio € Umsatz, Buche-Serie ca. 20 % teurer
+- Auslastung Produktion 76 % (kritisch unter 80 %)
+- Shop: von 2018, 70 % mobile Besucher, Conversion mobil 0,4 % / Desktop 1,1 %, Potenzial ca. 1,5 Mio €/Jahr; Angebote 320.000–410.000 €; Agenturen Fadenwerk (Bamberg) und Pixelhain (Nürnberg); ERP-Dienstleister Kornmann IT (Herr Seidl); E-Commerce heute 3,5 Stellen
+- Retouren: Polster 15–16 %, Tische 9 %; Fracht pro Tisch ca. 90 €; ca. 2.400 Onlinebestellungen im 80-km-Umkreis, erwartet 1.200 Abholungen, ca. 110.000 € Frachtersparnis
+- Werksverkauf: 640.000 € Umsatz, 4 Personen (3,2 Stellen), 700 m², 6 Tage offen, -140.000 €/Jahr; Händler Ostermeier in Kleinwaldbach beschwert sich
+- Brandauer: Inhaber Gernot Brandauer (67, keine Nachfolge), 58 Mitarbeitende, Umsatz 9,8 Mio €; Preisvorstellung des Beraters 8,5 Mio €; EBITDA laut Teaser 1,1 Mio €, bereinigt 0,92 Mio € (Grundstücksverkauf 180.000 €); Pensionslücke ca. 1,1 Mio €; Dachsanierung ca. 400.000 €; Hallen von 1978; Berater will Absichtserklärung bis Jahresende, angeblich zwei weitere Interessenten
+- Liquidität Jahresende ca. 3,9 Mio €, Puffer 1,5 Mio €; Steuerberater Herr Leupold; Kanzlei Brückner und Partner; verlorene Hotelausschreibung Südtirol 1,2 Mio €
+- Plattenaufteilung: alte Säge von 2009, 3 Leute pro Schicht, 3 Schichten; Platten bis 80 kg; Krankenquote Zuschnitt 9,3 % (Betrieb 5,8 %); Anbieter Steinhaus Automation, Velten Robotik, dazu ein österreichischer; Einsparung 320.000 €/Jahr, Amortisation 4,2 Jahre, Verschnitt von 14 % auf 9–10 %, Lieferzeit 7 Monate; 11 offene Stellen in der Produktion; Lieferzeit Tisch heute 8–10 Wochen, künftig 6–7
+- Neue Absauganlage am Workshoptag abgenommen: 240.000 €, ca. 25 % weniger Strom
+- Betriebsratsvorsitzender Herr Kühnel; Controlling Frau Haas
+- Personal: Durchschnittsalter 47,2 (Produktion 49); 31 Renteneintritte in 5 Jahren (22 Produktion, 7 Meister/Vorarbeiter); Fluktuation 7,8 % (vor 3 Jahren 4,5 %); 38 Azubis im Haus, Übernahmequote 80 %; 4 Azubis mehr ca. 120.000 €; 80 € über Tarif ca. 44.000 € inkl. Arbeitgeberanteil; Berufsinfotag Kleinwaldbach 6. März 2027
+- Strom 6,8 GWh/Jahr; bestehende PV Halle 1 120 kWp (2011); neue PV Firma Sonnleitner, ca. 740 MWh/Jahr, 85 % Eigenverbrauch, ca. 190.000 €/Jahr Ersparnis, Amortisation 4,8 Jahre; Hackschnitzelheizung für Wärme
+- FSC-Holz 6–7 % teurer; 3 von 5 regionalen Sägewerken bereit zur Zertifizierung
+- Budget: Personalkosten +5,2 %; Marketing 1,1 Mio € (2026: 960.000 €, +15 %); Investitionen: Plattenaufteilung 1,35 + PV 0,92 + Shop 0,38 + IT/ERP 0,40 (inkl. 60.000 € Schnittstelle) + Ersatz 1,15 = 4,2 Mio €; Kredit Brandauer im schlechtesten Fall ca. 4,4 Mio €
+## Tasks
+- Petra Wohlleben (mit Thomas Hartlieb): Gespräch mit Betriebsrat (Herr Kühnel) über Automatisierung; Thomas bringt schriftliche Zusage "keine Kündigungen" mit (30. Oktober 2026)
+- Petra Wohlleben: Ausschreibung Content-Stelle E-Commerce (23. Oktober 2026)
+- Ines Kallweit: Fotoprotokoll an alle (23. Oktober 2026); Korrekturen innerhalb einer Woche; Aufnahme nach Freigabe löschen
+- Thomas Hartlieb: Erstgespräch mit Gernot Brandauer (6. November 2026) — übernommen, weil Markus abgelehnt hat
+- Markus Ebner: Schreiben an die Fachhändler zur Preiserhöhung 4,5 % (15. November 2026), getrennt von Linea Nord
+- Katrin Hartlieb: finales Budget 2027 (27. November 2026), Gesellschafterversammlung 4. Dezember 2026
+- Sprecher 7 (Lena): Lastenheft Onlineshop und Agenturauswahl, inkl. Prüfung Händlerprovision mit Markus (30. November 2026)
+- Katrin Hartlieb: Gespräch mit der Hausbank zur Finanzierung Brandauer (11. Dezember 2026)
+- Sprecher 5 (Jürgen): drei verbindliche Angebote für die Plattenaufteilung inkl. Bedienerschulung (15. Dezember 2026); Lieferantenentscheidung im Januar
+- Thomas Hartlieb: Absichtserklärung an Brandauer mit Einstiegsangebot 5,9 Mio € (18. Dezember 2026)
+- Katrin Hartlieb: Förderantrag Photovoltaik (15. Januar 2027)
+- Petra Wohlleben: Betriebsvereinbarung Gleitzeit-Pilot Verwaltung (15. Januar 2027); Pilotstart 1. Februar 2027
+- Katrin Hartlieb: Due-Diligence-Bericht Brandauer mit Leupold und Kanzlei, Technik Jürgen (31. Januar 2027, vorbehaltlich Absichtserklärung bis 18. Dezember)
+- Petra Wohlleben: Plan Ausbildungskampagne 2027 (31. Januar 2027)
+- Sprecher 7 (Lena): Konzept Werksverkauf als Abholpunkt mit Zahlen (31. Januar 2027)
+- Sprecher 5 (Jürgen): FSC-Zertifizierer ausgewählt (28. Februar 2027)
+- Sprecher 5 (Jürgen): zwei Kandidaten für die Meisterschule angemeldet (28. Februar 2027)
+- Markus Ebner: Händlertage im Haus organisieren (12./13. März 2027)
+- Markus Ebner: Auslaufplan Linea Nord mit den Händlern (31. März 2027)
+- Petra Wohlleben und Sprecher 5 (Jürgen): Qualifizierungsplan für die 9 betroffenen Mitarbeitenden aus dem Zuschnitt (31. März 2027)
+- Katrin Hartlieb (mit Frau Haas, Layout Lena): freiwilliger Nachhaltigkeitsbericht 2026 veröffentlichen (30. Juni 2027)
+## Traps
+- Brandauer-Obergrenze vormittags 7,2 Mio € (bei Preisvorstellung 8,5 Mio €) → nachmittags Einstiegsangebot 5,9 Mio €, Obergrenze 6,4 Mio € (bereinigtes EBITDA 0,92 statt 1,1 Mio €, Pensionslücke ca. 1,1 Mio €, Dach ca. 400.000 €); 7,2 ausdrücklich gestrichen
+- Werksverkauf schließt zum 30. Juni 2027 (Vormittagsbeschluss) → in der Abschlussrunde aufgehoben: Werksverkauf bleibt als Ausstellung und Abholpunkt, Do–Sa, ab 1. Mai 2027
+- Go-live neuer Onlineshop 1. März 2027 → 15. April 2027 (Kornmann-Schnittstelle frühestens Ende Februar plus 6 Wochen Test); Agenturauswahl bleibt 30. November
+- Erstgespräch Brandauer soll Markus Ebner führen → Markus lehnt ab (Schwager ist Vertriebsleiter bei Brandauer), Thomas Hartlieb übernimmt (bis 6. November 2026)
+- (Nebenbei) Umsatzplan 2027 69,0 Mio € → 68,9 Mio € nach der Shop-Verschiebung; Betriebsurlaub 2027 ist 2.–20. August, nicht 30. Juli–17. August
+## Misheard words
+- Ebbe-Marge = EBIT-Marge
+- Lineal Nord = Linea Nord
+- Juli Diligence = Due Diligence
+- Plattenaufteilsache = Plattenaufteilsäge
+- Brandmauer = Brandauer
+- Klick und Kollegen = Click & Collect

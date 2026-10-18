@@ -1,0 +1,41 @@
+# One-on-one: incident, promotion, talk and workload
+Dana: Okay, hi, um, so I wanted to start with the incident from, uh, October 7th, the checkout outage. Is that okay?
+Marcus: Yeah, sure. Go ahead.
+Dana: So first, honestly, the comms were great. You had the status channel going in like five minutes. But the rollback, it took us forty-seven minutes total and I think, um, maybe twenty of that was us arguing about whether to roll back at all.
+Marcus: Right. Yeah, that's fair. I was, I kind of wanted to fix forward because the config change was small, and, uh, that was the wrong call.
+Dana: Yeah. And we lost about 12,000 checkouts in that window, so. Going forward the rule is, if it's a config change and we're past ten minutes, we just roll back. No debate.
+Marcus: Okay. Agreed, I'll put that in the postmortem.
+Dana: Can you get the postmortem done by Friday the 24th?
+Marcus: Yep, the 24th works.
+Dana: Cool. And actually, um, I was thinking, that incident could be your conference talk. Like, how we, you know, what we learned from a 47 minute outage. That's a good story.
+Marcus: Huh. Maybe. Let me, let me think about it.
+Dana: Okay, so, promotion. I talked to Raj and, uh, the plan is you go up for staff engineer in the February cycle. The promo celebration is February 3rd, and the packet is due January 9th.
+Marcus: January ninth. Okay. That's, that's sooner than I thought.
+Dana: It is, yeah. But you've got, um, the feature flak migration, the search rewrite, and honestly the incident handling counts too. I want you to have a sponsor though, so I'll ask Raj to be your sponsor officially, I'll do that by end of the month.
+Marcus: Okay, thanks. That'd help a lot.
+Dana: Mm-hm. And, uh, the one gap the committee will see is, um, cross-team influence. So in the packet I want two examples where you, like, changed what another team did. Not just our team.
+Marcus: Okay. The API versioning thing with the payments team, probably, and maybe the, uh, the on-call guide.
+Dana: Yeah, both good.
+Marcus: Um, so back to the talk, actually. I don't think the incident works. Like, legal is still looking at the customer impact stuff, right? And I don't want to, uh, stand on stage and say twelve thousand failed orders.
+Dana: Oh. Yeah, no, that's a good point, I didn't think about legal.
+Marcus: So I'd rather do the feature flag system. How we moved, you know, 3 hundred flags off the old service with zero downtime. That's, like, a much cleaner story, and nobody has to sign off on it.
+Dana: Yeah, okay, let's do that. Drop the incident idea. Which conference again?
+Marcus: Northbridge DevCon, in Rotterdam. The CFP closes November 14th.
+Dana: Okay, so get me a draft abstract by, um, November 7th? That gives me a week to review.
+Marcus: Yeah, November 7 is fine.
+Dana: Great. Last thing, workload. How are you actually doing? Be honest.
+Marcus: Honestly? It's a lot. I'm on three projects. The flag migration, the search rewrite, and the billing migration, and the billing one is, it's just eating my evenings.
+Dana: Yeah. I, I kind of saw that, your commits are at like eleven p.m.
+Marcus: Yeah.
+Dana: Okay, so, um, what if you kept billing but we pushed the deadline out a month?
+Marcus: I mean, that just stretches it out, I'd still be on three things through the promo packet.
+Dana: Right. No, you're right. Okay, let's hand billing to Priya. She's been asking for something bigger anyway. So you're down to two projects.
+Marcus: That would, wow, yeah. That would really help.
+Dana: I'll talk to Priya by Wednesday, and then you do a handover with her, uh, let's say one hour session, sometime next week.
+Marcus: Sure, I can set that up once you've talked to her.
+Dana: Perfect. Anything else from your side?
+Marcus: Um, no, I think that's it. Oh, actually, the on-call rotation. Am I still on it in December?
+Dana: Uh, good question. Yes, but only one week, not two. I'll, I'll double check the schedule.
+Marcus: Okay. Cool.
+Dana: Alright. Thanks, Marcus. This was good.
+Marcus: Yeah, thanks Dana.

@@ -15,7 +15,7 @@ import os
 final class ModelLab {
     static let shared = ModelLab()
 
-    nonisolated enum Model: String, CaseIterable, Identifiable, Sendable {
+    nonisolated enum Model: String, CaseIterable, Identifiable, Sendable, Codable {
         case mlxE2B, litertE2B, litertE4B
 
         var id: String { rawValue }
@@ -151,12 +151,51 @@ final class ModelLab {
 
     // MARK: Bench
 
-    struct Run: Identifiable, Sendable {
-        let id = UUID()
-        var transcript: String
-        var characters: Int
+    /// A transcript as Gemma reads it: one of the user's, built as SpeakerIdentifier.describe does (speaker names,
+    /// bookmark markers), or one of the Lab's bench texts (synthetic, in the FederLab bundle, never in the store).
+    nonisolated struct Input: Sendable, Identifiable {
+        var id: String                      // "bench:<file>" or "transcript:<uuid>"
+        var name: String
+        var paragraphs: [String]
+        var bookmarked = false
+        var isBenchText = false
+        var characters: Int { paragraphs.joined(separator: "\n").count }
+    }
+
+    static func input(_ recording: Recording) -> Input {
+        let segments = recording.segments
+        let bookmarked = Set(Bookmarks.byParagraph(recording.bookmarks, in: segments).keys)
+        let paragraphs = segments.map { segment in
+            TranscriptTitler.paragraph(segment.text, speaker: segment.speakerIndex.map(recording.speakerName),
+                                       bookmarked: bookmarked.contains(segment.id))
+        }
+        return Input(id: "transcript:\(recording.id)", name: recording.name, paragraphs: paragraphs,
+                     bookmarked: !bookmarked.isEmpty)
+    }
+
+    /// The Lab's bench texts (Lab/BenchTexts, FED-153): synthetic meetings of 2,000 to 90,000 characters in German and
+    /// English, written for the bench with answer keys for the judge (build/qa/litertbench/judge/keys). Each file is
+    /// "# <name>" and then one "Name: text" paragraph per line. Read off the main actor.
+    @concurrent
+    nonisolated static func benchTexts() async -> [Input] {
+        let files = Bundle.main.urls(forResourcesWithExtension: "txt", subdirectory: "BenchTexts") ?? []
+        return files.compactMap { file -> Input? in
+            guard let text = try? String(contentsOf: file, encoding: .utf8) else { return nil }
+            var lines = text.split(whereSeparator: \.isNewline).map(String.init).filter { !$0.isEmpty }
+            guard let first = lines.first, first.hasPrefix("# ") else { return nil }
+            lines.removeFirst()
+            return Input(id: "bench:\(file.deletingPathExtension().lastPathComponent)", name: String(first.dropFirst(2)),
+                         paragraphs: lines, isBenchText: true)
+        }
+        .sorted { $0.characters < $1.characters }
+    }
+
+    nonisolated struct Run: Identifiable, Sendable, Codable {
+        var id = UUID()
+        var input: String                   // Input.id
+        var repetition: Int                 // 1…
         var model: Model
-        var loadSeconds: Double?            // the first transcript's run carries the model's load
+        var loadSeconds: Double?            // the model's load, on its first input of a repetition
         var seconds: Double = 0
         var firstWords: Double?             // until the final request's first chunk (the card shows the summary then)
         var requests = 0
@@ -164,12 +203,13 @@ final class ModelLab {
         var leastAvailable: Double = 0      // GB left before iOS's memory limit, at the tightest moment
         var thermal = ""
         var title: String?
-        var summary: String?
+        var summary: String?                // nil: no usable answer (or an error)
+        var answer: String?                 // the final request's raw answer
         var error: String?
     }
 
-    struct BatteryRun: Identifiable, Sendable {
-        let id = UUID()
+    nonisolated struct BatteryRun: Identifiable, Sendable, Codable {
+        var id = UUID()
         var model: Model
         var minutes: Double
         var summaries: Int
@@ -182,35 +222,30 @@ final class ModelLab {
     private(set) var status = ""
     private(set) var runs: [Run] = []
     private(set) var batteryRuns: [BatteryRun] = []
-    private(set) var reportFile: URL?
+    private(set) var inputs: [Input] = []
+    /// The model order of each repetition: rotated by one each time, so no model always runs on a phone the one
+    /// before has warmed (FED-153's first run had MLX first: "nominal", the LiteRT models after it "fair").
+    private(set) var orders: [[Model]] = []
+    private(set) var reportFiles: [URL] = []
     @ObservationIgnored private var benchTask: Task<Void, Never>?
 
-    /// A transcript as Gemma reads it, built as SpeakerIdentifier.describe does (speaker names, bookmark markers).
-    struct Input: Sendable {
-        var name: String
-        var paragraphs: [String]
-        var bookmarked: Bool
+    nonisolated static func rotated(_ models: [Model], by step: Int) -> [Model] {
+        guard !models.isEmpty else { return [] }
+        let shift = step % models.count
+        return Array(models[shift...] + models[..<shift])
     }
 
-    static func input(_ recording: Recording) -> Input {
-        let segments = recording.segments
-        let bookmarked = Set(Bookmarks.byParagraph(recording.bookmarks, in: segments).keys)
-        let paragraphs = segments.map { segment in
-            TranscriptTitler.paragraph(segment.text, speaker: segment.speakerIndex.map(recording.speakerName),
-                                       bookmarked: bookmarked.contains(segment.id))
-        }
-        return Input(name: recording.name, paragraphs: paragraphs, bookmarked: !bookmarked.isEmpty)
-    }
-
-    /// Runs `models` on `inputs`; with `batteryMinutes`, afterwards each model summarizes the inputs over and over for
-    /// that long (unplugged), for summaries per 1 % of battery. Background summaries wait meanwhile (`runAhead`); the
-    /// screen stays on, since leaving the app stops Gemma.
-    func run(models: [Model], inputs: [Input], batteryMinutes: Int?) {
+    /// Runs `models` on `inputs` `repetitions` times, rotating the model order each time; with `batteryMinutes`,
+    /// afterwards each model summarizes the inputs over and over for that long (unplugged), for summaries per 1 % of
+    /// battery. Background summaries wait meanwhile (`runAhead`); the screen stays on, since leaving the app stops Gemma.
+    func run(models: [Model], inputs: [Input], repetitions: Int, batteryMinutes: Int?) {
         guard !isRunning, let better, !inputs.isEmpty, !models.isEmpty else { return }
         isRunning = true
         runs = []
         batteryRuns = []
-        reportFile = nil
+        orders = []
+        reportFiles = []
+        self.inputs = inputs
         UIApplication.shared.isIdleTimerDisabled = true
         UIDevice.current.isBatteryMonitoringEnabled = true
         benchTask = Task {
@@ -224,8 +259,12 @@ final class ModelLab {
                     // The app's own models off the GPU first (not `better.unload()`: it would stop this very run).
                     await better.model?.unload()
                     await better.labWriter?.unload()
-                    for model in models {
-                        try await bench(model, inputs: inputs)
+                    for repetition in 1...max(1, repetitions) {
+                        let order = Self.rotated(models, by: repetition - 1)
+                        orders.append(order)
+                        for model in order {
+                            try await bench(model, inputs: inputs, repetition: repetition, of: repetitions)
+                        }
                     }
                     if let batteryMinutes {
                         for model in models {
@@ -244,12 +283,12 @@ final class ModelLab {
 
     func stop() { benchTask?.cancel() }
 
-    private func bench(_ model: Model, inputs: [Input]) async throws {
+    private func bench(_ model: Model, inputs: [Input], repetition: Int, of repetitions: Int) async throws {
         let writer = makeWriter(model)
         defer { Task { await writer.unload() } }
         let sampler = MemorySampler()
         defer { sampler.stop() }
-        status = "\(model.name): loading"
+        status = "Run \(repetition) of \(repetitions) · \(model.name): loading"
         let loadStart = Date.now
         if let local = writer as? LocalLanguageModel {
             try await local.load()
@@ -260,23 +299,23 @@ final class ModelLab {
         let titler = TranscriptTitler()
         for (index, input) in inputs.enumerated() {
             try Task.checkCancellation()
-            status = "\(model.name): \(index + 1) of \(inputs.count)"
+            status = "Run \(repetition) of \(repetitions) · \(model.name): \(index + 1) of \(inputs.count)"
             let measuring = MeasuringWriter(writer)
             sampler.reset()
             let start = Date.now
-            var run = Run(transcript: input.name, characters: input.paragraphs.joined(separator: "\n").count, model: model,
-                          loadSeconds: loadSeconds)
+            var run = Run(input: input.id, repetition: repetition, model: model, loadSeconds: loadSeconds)
             loadSeconds = nil
             do {
                 let description = try await titler.describe(paragraphs: input.paragraphs, locale: .current,
                                                             writer: measuring, bookmarked: input.bookmarked)
                 run.title = description?.title
-                run.summary = description?.summary ?? "(no usable answer) " + (measuring.lastAnswer ?? "")
+                run.summary = description?.summary
             } catch is TranscriptTitler.RetryLater {
                 throw CancellationError()
             } catch {
                 run.error = String(describing: error)
             }
+            run.answer = measuring.lastAnswer
             run.seconds = Date.now.timeIntervalSince(start)
             run.firstWords = measuring.lastFirstChunk
             run.requests = measuring.requests
@@ -324,32 +363,113 @@ final class ModelLab {
         }
     }
 
+    // MARK: Statistics
+
+    /// Mean and sample standard deviation of n values.
+    nonisolated struct Stat: Sendable {
+        var mean: Double, sd: Double, n: Int
+
+        init?(_ values: [Double]) {
+            guard !values.isEmpty else { return nil }
+            let count = values.count, average = values.reduce(0, +) / Double(values.count)
+            n = count
+            mean = average
+            sd = count > 1 ? (values.map { ($0 - average) * ($0 - average) }.reduce(0, +) / Double(count - 1)).squareRoot() : 0
+        }
+
+        func text(_ unit: String, digits: Int = 1) -> String {
+            let format = "%.\(digits)f"
+            return String(format: format, mean) + " ± " + String(format: format, sd) + " " + unit
+        }
+    }
+
+    /// One model on one input over all repetitions.
+    nonisolated struct Row: Identifiable, Sendable {
+        var id: String { input + "|" + model.rawValue }
+        var input: String
+        var model: Model
+        var seconds: Stat
+        var firstWords: Stat?
+        var peak: Stat
+        var least: Stat
+        var thermal: [String: Int]
+        var failures: Int                   // runs without a usable answer
+        var title: String?
+        var summary: String?                // the first usable one
+        var distinctSummaries: Int          // greedy decoding: 1 expected; more means the GPU's rounding changed it
+    }
+
+    var rows: [Row] {
+        var result: [Row] = []
+        for input in inputs {
+            for model in Model.allCases {
+                let mine = runs.filter { $0.input == input.id && $0.model == model }
+                guard let seconds = Stat(mine.map(\.seconds)), let peak = Stat(mine.map(\.peakFootprint)),
+                      let least = Stat(mine.map(\.leastAvailable)) else { continue }
+                let usable = mine.filter { $0.summary != nil }
+                result.append(Row(input: input.id, model: model, seconds: seconds,
+                                  firstWords: Stat(mine.compactMap(\.firstWords)), peak: peak, least: least,
+                                  thermal: Dictionary(mine.map { ($0.thermal, 1) }, uniquingKeysWith: +),
+                                  failures: mine.count - usable.count, title: usable.first?.title,
+                                  summary: usable.first?.summary,
+                                  distinctSummaries: Set(usable.compactMap(\.summary)).count))
+            }
+        }
+        return result
+    }
+
+    func loadStat(_ model: Model) -> Stat? { Stat(runs.filter { $0.model == model }.compactMap(\.loadSeconds)) }
+
+    nonisolated static func thermalText(_ counts: [String: Int]) -> String {
+        ["nominal", "fair", "serious", "critical"].compactMap { state in counts[state].map { "\(state) \($0)" } }
+            .joined(separator: ", ")
+    }
+
     // MARK: Report
 
-    /// The runs as Markdown: a table per transcript, then every summary.
+    private var deviceLine: String {
+        "\(UIDevice.current.model), iOS \(UIDevice.current.systemVersion), " +
+            String(format: "%.1f GB", Double(ProcessInfo.processInfo.physicalMemory) / 1_073_741_824) +
+            "; speculative decoding \(speculativeDecoding ? "on" : "off")"
+    }
+
+    /// The runs as Markdown: per input a table of mean ± standard deviation over the repetitions, then each model's
+    /// summary; the loads, the model orders and the battery runs at the end.
     var report: String {
-        let device = "\(UIDevice.current.model), iOS \(UIDevice.current.systemVersion), " +
-            String(format: "%.1f GB", Double(ProcessInfo.processInfo.physicalMemory) / 1_073_741_824)
+        let repetitions = orders.count
         var lines = ["# Feder Lab bench, \(Date.now.formatted(date: .abbreviated, time: .shortened))",
-                     "\(device); speculative decoding \(speculativeDecoding ? "on" : "off")", ""]
-        for transcript in Self.unique(runs.map(\.transcript)) {
-            let rows = runs.filter { $0.transcript == transcript }
-            lines.append("## \(transcript) (\(rows.first?.characters ?? 0) characters)")
-            lines.append("| model | time | first words | requests | load | peak footprint | least left | thermal |")
-            lines.append("|---|---|---|---|---|---|---|---|")
-            for run in rows {
-                lines.append("| \(run.model.name) | \(Self.seconds(run.seconds)) | \(run.firstWords.map(Self.seconds) ?? "-") | " +
-                             "\(run.requests) | \(run.loadSeconds.map(Self.seconds) ?? "") | " +
-                             String(format: "%.2f GB | %.2f GB", run.peakFootprint, run.leastAvailable) + " | \(run.thermal) |")
+                     "\(deviceLine); \(repetitions) repetition\(repetitions == 1 ? "" : "s"), mean ± standard deviation", ""]
+        let all = rows
+        for input in inputs {
+            let mine = all.filter { $0.input == input.id }
+            guard !mine.isEmpty else { continue }
+            lines.append("## \(input.name) (\(input.characters) characters\(input.isBenchText ? ", bench text" : ""))")
+            lines.append("| model | time | first words | peak footprint | least left | thermal | no summary |")
+            lines.append("|---|---|---|---|---|---|---|")
+            for row in mine {
+                lines.append("| \(row.model.name) | \(row.seconds.text("s")) | \(row.firstWords?.text("s") ?? "-") | " +
+                             "\(row.peak.text("GB", digits: 2)) | \(row.least.text("GB", digits: 2)) | " +
+                             "\(Self.thermalText(row.thermal)) | \(row.failures) of \(row.seconds.n) |")
             }
-            for run in rows {
+            for row in mine {
                 lines.append("")
-                lines.append("**\(run.model.name)**: \(run.title ?? "(no title)")")
-                lines.append(run.error.map { "Error: \($0)" } ?? run.summary ?? "")
+                let varies = row.distinctSummaries > 1 ? " (\(row.distinctSummaries) different summaries over the runs)" : ""
+                lines.append("**\(row.model.name)**: \(row.title ?? "(no title)")\(varies)")
+                lines.append(row.summary ?? "(no usable answer)")
             }
             lines.append("")
         }
+        lines.append("## Loads")
+        for model in Model.allCases {
+            if let load = loadStat(model) { lines.append("- \(model.name): \(load.text("s")) (n = \(load.n))") }
+        }
+        lines.append("")
+        lines.append("## Model order per repetition")
+        for (index, order) in orders.enumerated() {
+            lines.append("\(index + 1). " + order.map(\.name).joined(separator: " → "))
+        }
         if !batteryRuns.isEmpty {
+            lines.append("")
             lines.append("## Battery")
             lines.append("| model | minutes | summaries | battery used | summaries per 1 % | thermal |")
             lines.append("|---|---|---|---|---|---|")
@@ -362,24 +482,43 @@ final class ModelLab {
         return lines.joined(separator: "\n")
     }
 
+    /// Everything the judge needs (FED-153): the inputs' text, every run with its raw answer, the orders, the device.
+    nonisolated struct ReportData: Codable {
+        struct InputData: Codable {
+            var id: String, name: String, characters: Int, isBenchText: Bool, text: String
+        }
+        var date: Date
+        var device: String
+        var speculativeDecoding: Bool
+        var orders: [[Model]]
+        var inputs: [InputData]
+        var runs: [Run]
+        var battery: [BatteryRun]
+    }
+
     private func writeReport() {
         guard !runs.isEmpty || !batteryRuns.isEmpty else { return }
-        let text = report
+        let markdown = report
+        let data = ReportData(date: .now, device: deviceLine, speculativeDecoding: speculativeDecoding, orders: orders,
+                              inputs: inputs.map { .init(id: $0.id, name: $0.name, characters: $0.characters,
+                                                         isBenchText: $0.isBenchText,
+                                                         text: $0.paragraphs.joined(separator: "\n")) },
+                              runs: runs, battery: batteryRuns)
         let directory = URL.cachesDirectory.appending(path: "FederLab")
-        let file = directory.appending(path: "bench-\(Int(Date.now.timeIntervalSince1970)).md")
+        let stamp = "bench-\(Int(Date.now.timeIntervalSince1970))"
+        let files = [directory.appending(path: stamp + ".md"), directory.appending(path: stamp + ".json")]
+        reportFiles = files
         Task.detached {
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            try? text.write(to: file, atomically: true, encoding: .utf8)
+            try? markdown.write(to: files[0], atomically: true, encoding: .utf8)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            encoder.dateEncodingStrategy = .iso8601
+            try? encoder.encode(data).write(to: files[1], options: .atomic)
         }
-        reportFile = file
     }
 
     nonisolated static func seconds(_ value: Double) -> String { String(format: "%.1f s", value) }
-
-    nonisolated static func unique(_ names: [String]) -> [String] {
-        var seen = Set<String>()
-        return names.filter { seen.insert($0).inserted }
-    }
 }
 
 /// Forwards to a model and keeps the final request's answer and the time to its first chunk.

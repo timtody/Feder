@@ -26,6 +26,8 @@ build/qa/*/**
 !build/qa/*/**/*.py
 !build/qa/*/**/*.swift
 !build/qa/*/**/README.txt
+!build/qa/litertbench/judge/*.md
+!build/qa/litertbench/judge/keys/*.md
 build/qa/*/**/.build/
 build/qa/*/**/.venv/
 build/qa/*/**/.swiftpm/
