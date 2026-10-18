@@ -243,19 +243,35 @@ final class TranscriptTitler {
     /// The "Summary: …" and "Title: …" lines of a plain-text answer.
     /// The summary line of a plain-text answer as far as it is written (Gemma's three lines arrive token by token).
     nonisolated static func partialSummary(in text: String) -> String? {
-        guard let match = text.firstMatch(of: /(?i)(?:summary|zusammenfassung)\s*\**:\s*\**([^\n]*)/) else { return nil }
+        guard let match = lineBroken(text).firstMatch(of: /(?i)(?:summary|zusammenfassung)\s*\**:\s*\**([^\n]*)/)
+        else { return nil }
         let summary = String(match.1).replacingOccurrences(of: "*", with: "").trimmingCharacters(in: .whitespaces)
         return summary.isEmpty ? nil : summary
     }
 
+    /// The three lines of an answer, also when Gemma wrote them as one ("Themen: …; Zusammenfassung: … Titel: …",
+    /// E4B and E2B on LiteRT-LM for long transcripts, FED-151): a line break goes in before a Summary or Title label
+    /// in mid-line. Not before Topics, which always comes first: a summary may say "drei Themen: …". Capitalized only, as
+    /// Gemma writes its labels: English prose may say "a short summary: …".
+    nonisolated static func lineBroken(_ text: String) -> String {
+        text.replacing(/[ \t]*;?[ \t]*(\**(?:Summary|SUMMARY|Zusammenfassung|ZUSAMMENFASSUNG|Title|TITLE|Titel|TITEL)\**[ \t]*:)/) { match in
+            "\n" + match.1
+        }
+    }
+
     nonisolated static func parseLabelled(_ text: String) -> TitleAndSummary? {
         var title: String?, summary: String?, topics: [String] = []
-        for line in text.split(whereSeparator: \.isNewline) {
+        var afterSummary: [String] = []                   // unlabelled lines after the summary, for a title without label
+        for line in lineBroken(text).split(whereSeparator: \.isNewline) {
             let trimmed = line.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "*")))
             if let match = trimmed.firstMatch(of: /^(?i:title|titel)\s*\**:\s*\**(.*)/) { title = String(match.1) }
-            if let match = trimmed.firstMatch(of: /^(?i:summary|zusammenfassung)\s*\**:\s*\**(.*)/) { summary = String(match.1) }
-            if let match = trimmed.firstMatch(of: /^(?i:topics|themen)\s*\**:\s*\**(.*)/) { topics = topicList(String(match.1)) }
+            else if let match = trimmed.firstMatch(of: /^(?i:summary|zusammenfassung)\s*\**:\s*\**(.*)/) { summary = String(match.1) }
+            else if let match = trimmed.firstMatch(of: /^(?i:topics|themen)\s*\**:\s*\**(.*)/) { topics = topicList(String(match.1)) }
+            else if summary != nil, !trimmed.isEmpty { afterSummary.append(trimmed) }
         }
+        // E4B sometimes leaves out "Titel:" and writes the title alone on the last line (FED-151); cleanTitle still
+        // checks it like any other.
+        if title == nil, let last = afterSummary.last, last.count <= 80 { title = last }
         guard let title, let summary else { return nil }
         return TitleAndSummary(topics: topics, summary: summary, title: title)
     }

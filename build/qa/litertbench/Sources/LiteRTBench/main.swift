@@ -93,6 +93,42 @@ nonisolated final class FirstChunk: @unchecked Sendable {
 func format(_ value: Double) -> String { String(format: "%.1f", value) }
 
 let args = CommandLine.arguments
+
+// `LiteRTBench parse`: TranscriptTitler.parseLabelled on the answers that failed in FED-142/153 and on its traps,
+// no model; exits 1 on a failed check.
+if args.count > 1, args[1] == "parse" {
+    var failures = 0
+    func check(_ answer: String, title: String?, summary: String?, topics: Int? = nil, _ what: String) {
+        let parsed = TranscriptTitler.parseLabelled(answer)
+        // Trimmed, as the app uses them (cleanTitle, plainSentences).
+        let ok = parsed?.title.trimmingCharacters(in: .whitespaces) == title
+            && parsed?.summary.trimmingCharacters(in: .whitespaces) == summary
+            && (topics == nil || parsed?.topics.count == topics)
+        if !ok { failures += 1 }
+        print("\(ok ? "ok  " : "FAIL") \(what): title \(parsed?.title ?? "nil") | summary \(parsed?.summary.prefix(60) ?? "nil") | topics \(parsed?.topics ?? [])")
+    }
+    check("Topics: budget; travel\nSummary: Anna moves the licence budget to travel.\nTitle: Budget Review",
+          title: "Budget Review", summary: "Anna moves the licence budget to travel.", topics: 2, "three lines")
+    check("Themen: Gletscher und Talformen; Moränen; Gletscherrückzug; Permafrost\nZusammenfassung: Ein Gletscher formt U-Täler durch Abschleifen. Die Teilnehmer lesen Kapitel 7.\nGletscherformen und Rückzug",
+          title: "Gletscherformen und Rückzug", summary: "Ein Gletscher formt U-Täler durch Abschleifen. Die Teilnehmer lesen Kapitel 7.", topics: 4,
+          "E4B on the Mac: the title without its label")
+    check("Themen: Shell-Architektur; Frontend; Kanäle; Fachlichkeit; Zusammenfassung: Sophia erklärt die Architektur der Shell. Julius fragt nach Fragmenten. Titel: Shell-Architektur und Kanäle",
+          title: "Shell-Architektur und Kanäle", summary: "Sophia erklärt die Architektur der Shell. Julius fragt nach Fragmenten.", topics: 4,
+          "E4B on the iPhone: all on one line")
+    check("Themen: Testphase Kreditprojektstand, Abnahme, Personalplanung, Budget; Zusammenfassung: Lena passt Erwartungswerte an, Jonas schickt Fehlerliste; Titel: Kreditprojekt: Testabnahmeplan",
+          title: "Kreditprojekt: Testabnahmeplan", summary: "Lena passt Erwartungswerte an, Jonas schickt Fehlerliste", topics: 0,
+          "E2B on LiteRT on the Mac: one line with semicolons")
+    check("Themen: Budget\nZusammenfassung: Anna nennt drei Themen: Budget, Reisen und Lizenzen.\nTitel: Budgetrunde",
+          title: "Budgetrunde", summary: "Anna nennt drei Themen: Budget, Reisen und Lizenzen.", "a summary that says \"Themen:\"")
+    check("Topics: budget\nSummary: Anna gave a short summary: the budget moves to travel.\nTitle: Budget Review",
+          title: "Budget Review", summary: "Anna gave a short summary: the budget moves to travel.", "English prose with \"summary:\"")
+    check("Topics: budget\nSummary: Anna moves the budget.", title: nil, summary: nil, "no title at all: nil, as before")
+    check("**Title:** Budget Review\n**Summary:** Anna moves the budget.", title: "Budget Review", summary: "Anna moves the budget.",
+          "Markdown labels")
+    print(failures == 0 ? "all checks passed" : "\(failures) checks failed")
+    exit(failures == 0 ? 0 : 1)
+}
+
 guard args.count > 5, args[1] == "mlx" || (args[1] == "litert" && args.count > 6) else {
     print("usage: LiteRTBench mlx <modelDir> <en|de|both> <repeat> <text.txt>…\n" +
           "       LiteRTBench litert <file.litertlm> <gpu|cpu> <en|de|both> <repeat> <text.txt>…")
