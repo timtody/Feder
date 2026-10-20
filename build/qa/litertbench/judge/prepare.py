@@ -25,10 +25,13 @@ def main() -> None:
     out = Path(args[1])
     out.mkdir(parents=True, exist_ok=True)
     rng = random.Random(seed)
-    models = sorted({run["model"] for run in report["runs"]})
+    models = sorted({run["model"] for run in report["runs"] if run.get("step", "summary") == "summary"})
     mapping = {}
     for index, item in enumerate(report["inputs"], 1):
-        runs = [r for r in report["runs"] if r["input"] == item["id"]]
+        # Only the summaries are judged; the report also holds the other pipeline steps (FED-166).
+        runs = [r for r in report["runs"] if r["input"] == item["id"] and r.get("step", "summary") == "summary"]
+        if not runs:
+            continue
         entries = []
         for model in models:
             mine = sorted((r for r in runs if r["model"] == model), key=lambda r: r["repetition"])

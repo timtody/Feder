@@ -109,9 +109,6 @@ final class AppServices {
         self.nemotronDiarizer = nemotronDiarizer
         nemotron = NemotronModel(diarizer: nemotronDiarizer, network: network)
         betterSummaries = BetterSummaries(network: network)
-        #if LITERT
-        ModelLab.shared.attach(betterSummaries)                     // Feder Lab: its chosen model writes
-        #endif
         chat = GemmaChat(betterSummaries: betterSummaries)
         parakeet = ParakeetModel(network: network)
         let liveModel = Self.liveLabelsModel
@@ -155,6 +152,10 @@ final class AppServices {
         // No playback while a recording is being made (one audio session): also from the lock screen or the AirPods.
         player.mayPlay = { [identifier] in !identifier.isRecording }
         network.onChange { [weak self] kind in self?.networkChanged(kind) }
+        #if LITERT
+        // Feder Lab: its chosen model writes; its pipeline bench needs Parakeet's state and the queue's.
+        ModelLab.shared.attach(betterSummaries, parakeet: parakeet, identifier: identifier)
+        #endif
     }
 
     /// Someone who used Feder before the Welcome page existed (October 2026) has passed it: transcripts or a downloaded

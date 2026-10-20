@@ -72,6 +72,8 @@ final class ModelLab {
         }
     }
     @ObservationIgnored private weak var better: BetterSummaries?
+    @ObservationIgnored private weak var parakeet: ParakeetModel?
+    @ObservationIgnored private weak var identifier: SpeakerIdentifier?
 
     private init() {
         for model in Model.allCases where model.file != nil {
@@ -83,9 +85,12 @@ final class ModelLab {
         LabDownload.shared.reattach()
     }
 
-    /// AppServices, at launch: the chosen LiteRT model writes from now on.
-    func attach(_ better: BetterSummaries) {
+    /// AppServices, at launch: the chosen LiteRT model writes from now on; Parakeet's download state and the pipeline's
+    /// queue are for the pipeline bench.
+    func attach(_ better: BetterSummaries, parakeet: ParakeetModel, identifier: SpeakerIdentifier) {
         self.better = better
+        self.parakeet = parakeet
+        self.identifier = identifier
         apply(sweep: false)                                      // the launch sweep runs anyway
     }
 
@@ -149,17 +154,113 @@ final class ModelLab {
         }
     }
 
+    // MARK: Pipeline steps
+
+    /// The steps after Stop (PIPELINE.md §4), each benched with every model that can do it (FED-166).
+    nonisolated enum Step: String, CaseIterable, Codable, Sendable, Identifiable {
+        case words, speakers, alignment, voices, people, vocabulary, summary, actionItems
+
+        var id: String { rawValue }
+        var name: String {
+            switch self {
+            case .words: "1 · Words"
+            case .speakers: "2 · Speakers"
+            case .alignment: "3 · Alignment"
+            case .voices: "4 · Voices"
+            case .people: "5 · People"
+            case .vocabulary: "6 · Vocabulary"
+            case .summary: "7 · Title and Summary"
+            case .actionItems: "8 · Action Items"
+            }
+        }
+        /// Needs one of the user's recordings (its audio, words, turns or voices); the bench texts have none and only
+        /// feed the summary and the action items.
+        var needsRecording: Bool { self != .summary && self != .actionItems }
+        /// Measured per minute of audio (the step reads the whole file); the others per 1,000 characters of transcript.
+        var perAudioMinute: Bool { [.words, .speakers, .voices, .vocabulary].contains(self) }
+        var unitName: String { perAudioMinute ? "min of audio" : "1,000 characters" }
+    }
+
+    /// What does a step: the app's alternatives per step, and the three Gemma builds for the last two. The Gemma cases
+    /// share Model's raw values, so the report's JSON reads the same for them as before.
+    nonisolated enum Engine: String, CaseIterable, Codable, Sendable {
+        case apple, parakeet, nemotron, pyannote, aligner, wespeaker, voiceMatch, dictation, mlxE2B, litertE2B, litertE4B
+
+        init(_ model: Model) { self = Engine(rawValue: model.rawValue)! }
+        var model: Model? { Model(rawValue: rawValue) }
+        var name: String {
+            switch self {
+            case .apple: "Apple"
+            case .parakeet: "Parakeet Ultra"
+            case .nemotron: "Nemotron 3"
+            case .pyannote: "pyannote"
+            case .aligner: "TranscriptAligner"
+            case .wespeaker: "WeSpeaker"
+            case .voiceMatch: "VoiceMatch"
+            case .dictation: "Apple Dictation"
+            case .mlxE2B, .litertE2B, .litertE4B: model!.name
+            }
+        }
+    }
+
+    /// The models available for `step` on this iPhone now: Parakeet once downloaded, Nemotron once downloaded, the
+    /// vocabulary pass only with a vocabulary, the chosen Gemma builds for the last two.
+    func engines(for step: Step, gemma: [Model]) -> [Engine] {
+        switch step {
+        case .words: [.apple] + (parakeet?.isReady == true ? [.parakeet] : [])
+        case .speakers: (NemotronDiarizer.isDownloaded ? [.nemotron] : []) + [.pyannote]
+        case .alignment: [.aligner]
+        case .voices: [.wespeaker]
+        case .people: [.voiceMatch]
+        case .vocabulary: Vocabulary.current.isEmpty ? [] : [.dictation]
+        case .summary, .actionItems: gemma.map(Engine.init)
+        }
+    }
+
+    /// Why a step has fewer models than it could, for the Lab's footer.
+    func missingEngines(for step: Step) -> String? {
+        switch step {
+        case .words where parakeet?.isReady != true: "Parakeet isn't downloaded (Settings › Transcription)"
+        case .speakers where !NemotronDiarizer.isDownloaded: "Nemotron isn't downloaded (Settings › Speakers)"
+        case .vocabulary where Vocabulary.current.isEmpty: "no vocabulary yet (Settings › Your Words)"
+        default: nil
+        }
+    }
+
+    /// Whether the pipeline is working on a recording: the bench waits, so the two never share the hardware.
+    var pipelineIsBusy: Bool { !(identifier?.progress.isEmpty ?? true) }
+
     // MARK: Bench
 
+    /// What a step reads from one of the user's recordings, copied when the bench starts (never written back).
+    nonisolated struct Audio: Sendable {
+        var url: URL
+        var duration: TimeInterval
+        var locale: String
+        var words: [TranscriptWord]
+        var turns: [SpeakerTurn]            // the stored final diarization (empty before it)
+        var alignmentOffset: TimeInterval
+        var speakers: SpeakerCount
+        var diarizer: DiarizerKind?
+        var voices: [Int: [Float]]
+        var recordedAt: Date
+    }
+
     /// A transcript as Gemma reads it: one of the user's, built as SpeakerIdentifier.describe does (speaker names,
-    /// bookmark markers), or one of the Lab's bench texts (synthetic, in the FederLab bundle, never in the store).
+    /// bookmark markers), with its audio for the steps before; or one of the Lab's bench texts (synthetic, in the
+    /// FederLab bundle, never in the store), only for the summary and the action items.
     nonisolated struct Input: Sendable, Identifiable {
         var id: String                      // "bench:<file>" or "transcript:<uuid>"
         var name: String
         var paragraphs: [String]
         var bookmarked = false
         var isBenchText = false
+        var audio: Audio?
         var characters: Int { paragraphs.joined(separator: "\n").count }
+        /// The steps' length: minutes of audio, or thousands of characters.
+        func units(for step: Step) -> Double {
+            step.perAudioMinute ? (audio?.duration ?? 0) / 60 : Double(characters) / 1000
+        }
     }
 
     static func input(_ recording: Recording) -> Input {
@@ -169,8 +270,13 @@ final class ModelLab {
             TranscriptTitler.paragraph(segment.text, speaker: segment.speakerIndex.map(recording.speakerName),
                                        bookmarked: bookmarked.contains(segment.id))
         }
+        let audio = Audio(url: recording.audioURL, duration: recording.duration, locale: recording.localeIdentifier,
+                          words: recording.words, turns: recording.speakerTurns, alignmentOffset: recording.alignmentOffset,
+                          speakers: recording.speakerCountOverride.map { .exactly($0) } ?? .automatic,
+                          diarizer: recording.diarizer, voices: recording.speakerVoices,
+                          recordedAt: recording.originalDate ?? recording.createdAt)
         return Input(id: "transcript:\(recording.id)", name: recording.name, paragraphs: paragraphs,
-                     bookmarked: !bookmarked.isEmpty)
+                     bookmarked: !bookmarked.isEmpty, audio: audio)
     }
 
     /// The Lab's bench texts (Lab/BenchTexts, FED-153): synthetic meetings of 2,000 to 90,000 characters in German and
@@ -193,18 +299,21 @@ final class ModelLab {
     nonisolated struct Run: Identifiable, Sendable, Codable {
         var id = UUID()
         var input: String                   // Input.id
+        var step: Step = .summary
         var repetition: Int                 // 1…
-        var model: Model
+        var model: Engine
+        var units: Double = 0               // the input's length for this step (Step.unitName)
         var loadSeconds: Double?            // the model's load, on its first input of a repetition
         var seconds: Double = 0
-        var firstWords: Double?             // until the final request's first chunk (the card shows the summary then)
+        var firstWords: Double?             // Gemma: until the final request's first chunk (the card shows it then)
         var requests = 0
         var peakFootprint: Double = 0       // GB
         var leastAvailable: Double = 0      // GB left before iOS's memory limit, at the tightest moment
         var thermal = ""
+        var output: String?                 // what came out, briefly ("1,234 words", "3 speakers, 120 turns")
         var title: String?
         var summary: String?                // nil: no usable answer (or an error)
-        var answer: String?                 // the final request's raw answer
+        var answer: String?                 // the final request's raw answer; the action items found
         var error: String?
     }
 
@@ -223,34 +332,56 @@ final class ModelLab {
     private(set) var runs: [Run] = []
     private(set) var batteryRuns: [BatteryRun] = []
     private(set) var inputs: [Input] = []
-    /// The model order of each repetition: rotated by one each time, so no model always runs on a phone the one
-    /// before has warmed (FED-153's first run had MLX first: "nominal", the LiteRT models after it "fair").
-    private(set) var orders: [[Model]] = []
+    private(set) var steps: [Step] = []
+    /// Chosen steps that had nothing to run ("6 · Vocabulary: no vocabulary …"), for the report.
+    private(set) var skipped: [String] = []
+    /// Each repetition's model order per step ("2 · Speakers: Nemotron 3 → pyannote"): rotated by one each time, so no
+    /// model always runs on a phone the one before has warmed (FED-153's first run: MLX first "nominal", LiteRT "fair").
+    private(set) var orders: [[String]] = []
     private(set) var reportFiles: [URL] = []
     @ObservationIgnored private var benchTask: Task<Void, Never>?
+    /// The Lab's own speaker models (not the app's: their state stays as it is), created for a bench.
+    @ObservationIgnored private var pyannote: FluidAudioDiarizer?
+    @ObservationIgnored private var nemotron: NemotronDiarizer?
 
-    nonisolated static func rotated(_ models: [Model], by step: Int) -> [Model] {
-        guard !models.isEmpty else { return [] }
-        let shift = step % models.count
-        return Array(models[shift...] + models[..<shift])
+    nonisolated static func rotated<T>(_ items: [T], by step: Int) -> [T] {
+        guard !items.isEmpty else { return [] }
+        let shift = step % items.count
+        return Array(items[shift...] + items[..<shift])
     }
 
-    /// Runs `models` on `inputs` `repetitions` times, rotating the model order each time; with `batteryMinutes`,
-    /// afterwards each model summarizes the inputs over and over for that long (unplugged), for summaries per 1 % of
-    /// battery. Background summaries wait meanwhile (`runAhead`); the screen stays on, since leaving the app stops Gemma.
-    func run(models: [Model], inputs: [Input], repetitions: Int, batteryMinutes: Int?) {
-        guard !isRunning, let better, !inputs.isEmpty, !models.isEmpty else { return }
+    /// Runs every chosen step with each of its models on the inputs it applies to, `repetitions` times, rotating each
+    /// step's model order every time; with `batteryMinutes`, afterwards each Gemma model summarizes the inputs over and
+    /// over for that long (unplugged), for summaries per 1 % of battery. Background summaries wait meanwhile
+    /// (`runAhead`); the screen stays on, since leaving the app stops Gemma. Nothing is written to the recordings.
+    func run(steps: [Step], gemma: [Model], inputs: [Input], fingerprints: [UUID: [Float]], repetitions: Int,
+             batteryMinutes: Int?) {
+        guard !isRunning, let better, !inputs.isEmpty, !steps.isEmpty else { return }
+        guard !pipelineIsBusy else {
+            status = "Feder is still working on a recording: try again when it's done."
+            return
+        }
         isRunning = true
         runs = []
         batteryRuns = []
         orders = []
         reportFiles = []
         self.inputs = inputs
+        self.steps = steps
+        skipped = steps.compactMap { step in
+            if engines(for: step, gemma: gemma).isEmpty {
+                return "\(step.name): " + (missingEngines(for: step) ?? "no model chosen")
+            }
+            if step.needsRecording, !inputs.contains(where: { $0.audio != nil }) { return "\(step.name): no recording chosen" }
+            return nil
+        }
         UIApplication.shared.isIdleTimerDisabled = true
         UIDevice.current.isBatteryMonitoringEnabled = true
         benchTask = Task {
             defer {
                 isRunning = false
+                pyannote = nil
+                nemotron = nil
                 UIApplication.shared.isIdleTimerDisabled = false
                 writeReport()
             }
@@ -260,14 +391,21 @@ final class ModelLab {
                     await better.model?.unload()
                     await better.labWriter?.unload()
                     for repetition in 1...max(1, repetitions) {
-                        let order = Self.rotated(models, by: repetition - 1)
-                        orders.append(order)
-                        for model in order {
-                            try await bench(model, inputs: inputs, repetition: repetition, of: repetitions)
+                        var order: [String] = []
+                        for step in steps {
+                            let engines = Self.rotated(engines(for: step, gemma: gemma), by: repetition - 1)
+                            let applicable = inputs.filter { !step.needsRecording || $0.audio != nil }
+                            guard !engines.isEmpty, !applicable.isEmpty else { continue }
+                            order.append("\(step.name): " + engines.map(\.name).joined(separator: " → "))
+                            for engine in engines {
+                                try await bench(step, engine, inputs: applicable, fingerprints: fingerprints,
+                                                repetition: repetition, of: repetitions)
+                            }
                         }
+                        orders.append(order)
                     }
-                    if let batteryMinutes {
-                        for model in models {
+                    if let batteryMinutes, steps.contains(.summary) {
+                        for model in gemma {
                             try await batteryRun(model, inputs: inputs, minutes: Double(batteryMinutes))
                         }
                     }
@@ -283,48 +421,136 @@ final class ModelLab {
 
     func stop() { benchTask?.cancel() }
 
-    private func bench(_ model: Model, inputs: [Input], repetition: Int, of repetitions: Int) async throws {
-        let writer = makeWriter(model)
-        defer { Task { await writer.unload() } }
+    /// One step with one model on every input it applies to: the model is loaded first (timed), then each input runs
+    /// alone, sampled for memory.
+    private func bench(_ step: Step, _ engine: Engine, inputs: [Input], fingerprints: [UUID: [Float]],
+                       repetition: Int, of repetitions: Int) async throws {
+        let label = "Run \(repetition) of \(repetitions) · \(step.name) · \(engine.name)"
+        status = label + ": loading"
         let sampler = MemorySampler()
         defer { sampler.stop() }
-        status = "Run \(repetition) of \(repetitions) · \(model.name): loading"
         let loadStart = Date.now
-        if let local = writer as? LocalLanguageModel {
-            try await local.load()
-        } else if let litert = writer as? LiteRTLanguageModel {
-            try await litert.load()
+        var writer: (any TextWriter)?
+        switch engine {
+        case .mlxE2B, .litertE2B, .litertE4B:
+            let made = makeWriter(engine.model!)
+            if let local = made as? LocalLanguageModel { try await local.load() }
+            if let litert = made as? LiteRTLanguageModel { try await litert.load() }
+            writer = made
+        case .pyannote, .nemotron, .wespeaker:
+            if pyannote == nil { pyannote = FluidAudioDiarizer() }
+            try await pyannote?.prepare()
+            if engine == .nemotron, nemotron == nil { nemotron = NemotronDiarizer() }
+        default:
+            break                                               // loaded per job (Parakeet), or no model at all
         }
         var loadSeconds: Double? = Date.now.timeIntervalSince(loadStart)
-        let titler = TranscriptTitler()
+        defer { if let writer { Task { await writer.unload() } } }
         for (index, input) in inputs.enumerated() {
             try Task.checkCancellation()
-            status = "Run \(repetition) of \(repetitions) · \(model.name): \(index + 1) of \(inputs.count)"
-            let measuring = MeasuringWriter(writer)
+            status = label + ": \(index + 1) of \(inputs.count)"
             sampler.reset()
-            let start = Date.now
-            var run = Run(input: input.id, repetition: repetition, model: model, loadSeconds: loadSeconds)
+            var run = Run(input: input.id, step: step, repetition: repetition, model: engine,
+                          units: input.units(for: step), loadSeconds: loadSeconds)
             loadSeconds = nil
+            let start = Date.now
             do {
-                let description = try await titler.describe(paragraphs: input.paragraphs, locale: .current,
-                                                            writer: measuring, bookmarked: input.bookmarked)
-                run.title = description?.title
-                run.summary = description?.summary
+                try await perform(step, engine, on: input, writer: writer, fingerprints: fingerprints, into: &run)
             } catch is TranscriptTitler.RetryLater {
+                throw CancellationError()
+            } catch is CancellationError {
                 throw CancellationError()
             } catch {
                 run.error = String(describing: error)
             }
-            run.answer = measuring.lastAnswer
             run.seconds = Date.now.timeIntervalSince(start)
-            run.firstWords = measuring.lastFirstChunk
-            run.requests = measuring.requests
             (run.peakFootprint, run.leastAvailable) = sampler.peak()
             run.thermal = Self.thermal
             runs.append(run)
         }
-        await writer.unload()
+        if let writer { await writer.unload() }
         try await Task.sleep(for: .seconds(2))                  // memory settles before the next model loads
+    }
+
+    /// One input through one step, as SpeakerIdentifier runs it, on copies: the results go into the run, never into
+    /// the recording.
+    private func perform(_ step: Step, _ engine: Engine, on input: Input, writer: (any TextWriter)?,
+                         fingerprints: [UUID: [Float]], into run: inout Run) async throws {
+        let audio = input.audio
+        switch (step, engine) {
+        case (.words, .apple):
+            guard let audio else { return }
+            let transcript = try await SpeechFileTranscriber(parakeet: nil).transcribe(
+                fileURL: audio.url, locale: Locale(identifier: audio.locale))
+            run.output = "\(transcript.words.count) words"
+        case (.words, .parakeet):
+            guard let audio else { return }
+            guard ParakeetTranscriber.supports(Locale(identifier: audio.locale)) else {
+                run.error = "language not supported"
+                return
+            }
+            let parsed = try await ParakeetTranscriber.transcribe(fileURL: audio.url, locale: Locale(identifier: audio.locale))
+            run.output = "\(parsed.words.count) words"
+        case (.speakers, .nemotron):
+            guard let audio, let nemotron, let pyannote else { return }
+            let diarization = try await DiarizerSelector(nemotron: nemotron, pyannote: pyannote)
+                .diarization(fileURL: audio.url, speakers: audio.speakers)
+            run.output = Self.describe(diarization.turns) + (diarization.diarizer == .pyannote ? " (fell back to pyannote)" : "")
+        case (.speakers, .pyannote):
+            guard let audio, let pyannote else { return }
+            run.output = Self.describe(try await pyannote.diarize(fileURL: audio.url, speakers: audio.speakers))
+        case (.alignment, .aligner):
+            guard let audio, !audio.turns.isEmpty else { run.error = "no final speakers yet"; return }
+            let labels = TranscriptAligner.finalSpeakers(words: audio.words, turns: audio.turns, offset: audio.alignmentOffset)
+            run.output = "\(labels.count) words labelled"
+        case (.voices, .wespeaker):
+            guard let audio, let pyannote, !audio.turns.isEmpty else { run.error = "no final speakers yet"; return }
+            let labels = TranscriptAligner.finalSpeakers(words: audio.words, turns: audio.turns, offset: audio.alignmentOffset)
+            let voices = try await pyannote.voices(fileURL: audio.url,
+                                                   windows: VoiceWindows.windows(words: audio.words, speakers: labels))
+            run.output = "\(voices.count) voices"
+        case (.people, .voiceMatch):
+            guard let audio else { return }
+            let found = VoiceMatch.assign(voices: audio.voices, fingerprints: fingerprints,
+                                          threshold: VoiceMatch.threshold(for: audio.diarizer))
+            run.output = "\(found.count) of \(audio.voices.count) voices recognized among \(fingerprints.count) people"
+        case (.vocabulary, .dictation):
+            guard let audio else { return }
+            let merged = await SpeechFileTranscriber(parakeet: nil).applyVocabulary(
+                to: audio.words, fileURL: audio.url, locale: Locale(identifier: audio.locale))
+            let changed = zip(audio.words, merged).filter { $0.text != $1.text }.count + abs(audio.words.count - merged.count)
+            run.output = "\(changed) words changed"
+        case (.summary, _):
+            guard let writer else { return }
+            let measuring = MeasuringWriter(writer)
+            let description = try await TranscriptTitler().describe(paragraphs: input.paragraphs, locale: .current,
+                                                                    writer: measuring, bookmarked: input.bookmarked)
+            run.title = description?.title
+            run.summary = description?.summary
+            run.answer = measuring.lastAnswer
+            run.firstWords = measuring.lastFirstChunk
+            run.requests = measuring.requests
+            run.output = description == nil ? "no usable answer" : "\(description?.summary.count ?? 0) characters"
+        case (.actionItems, _):
+            guard let writer else { return }
+            let measuring = MeasuringWriter(writer)
+            // As SpeakerIdentifier.searchActionItems: no bookmark markers, deadlines from the recording's date.
+            let paragraphs = input.paragraphs.map { $0.replacingOccurrences(of: TranscriptTitler.bookmarkMarker + " ", with: "") }
+            let items = try await ActionItemExtractor().extract(paragraphs: paragraphs,
+                                                                 recordedAt: audio?.recordedAt ?? .now, writer: measuring)
+            run.firstWords = measuring.lastFirstChunk
+            run.requests = measuring.requests
+            run.output = "\(items.count) action items"
+            run.answer = items.map { "\($0.task)\($0.owner.map { " (\($0))" } ?? "")\($0.duePhrase.map { ", \($0)" } ?? "")" }
+                .joined(separator: "\n")
+        default:
+            run.error = "\(engine.name) can't do \(step.name)"
+        }
+    }
+
+    nonisolated static func describe(_ turns: [SpeakerTurn]) -> String {
+        let speakers = Set(turns.map(\.speakerIndex)).count
+        return "\(speakers) speaker\(speakers == 1 ? "" : "s"), \(turns.count) turn\(turns.count == 1 ? "" : "s")"
     }
 
     private func batteryRun(_ model: Model, inputs: [Input], minutes: Double) async throws {
@@ -383,17 +609,43 @@ final class ModelLab {
         }
     }
 
-    /// One model on one input over all repetitions.
+    /// time = fixed + perUnit × length, least squares over the inputs' mean times; r² how well a line explains them.
+    nonisolated struct Fit: Sendable {
+        var fixed: Double, perUnit: Double, r2: Double?
+
+        init?(_ points: [(x: Double, y: Double)]) {
+            let xs = points.map(\.x), ys = points.map(\.y)
+            guard points.count >= 2, let meanX = Stat(xs)?.mean, let meanY = Stat(ys)?.mean else { return nil }
+            let sxx = xs.map { ($0 - meanX) * ($0 - meanX) }.reduce(0, +)
+            let syy = ys.map { ($0 - meanY) * ($0 - meanY) }.reduce(0, +)
+            let sxy = zip(xs, ys).map { ($0 - meanX) * ($1 - meanY) }.reduce(0, +)
+            guard sxx > 0 else { return nil }                   // every input the same length: no slope to fit
+            perUnit = sxy / sxx
+            fixed = meanY - perUnit * meanX
+            r2 = points.count >= 3 && syy > 0 ? (sxy * sxy) / (sxx * syy) : nil
+        }
+
+        func text(_ unit: String) -> String {
+            String(format: "%.2f s + %.2f s per %@", fixed, perUnit, unit) + (r2.map { String(format: " (R² %.2f)", $0) } ?? "")
+        }
+    }
+
+    /// One step's model on one input over all repetitions.
     nonisolated struct Row: Identifiable, Sendable {
-        var id: String { input + "|" + model.rawValue }
+        var id: String { input + "|" + step.rawValue + "|" + model.rawValue }
         var input: String
-        var model: Model
-        var seconds: Stat
+        var step: Step
+        var model: Engine
+        var units: Double
+        var seconds: Stat                   // from the runs without an error (all of them when every run failed)
+        var timed: Int                      // runs without an error
+        var perUnit: Stat?                  // seconds per Step.unitName
         var firstWords: Stat?
         var peak: Stat
         var least: Stat
         var thermal: [String: Int]
-        var failures: Int                   // runs without a usable answer
+        var failures: Int                   // runs without a result (an error; for the summary: no usable answer)
+        var output: String?
         var title: String?
         var summary: String?                // the first usable one
         var distinctSummaries: Int          // greedy decoding: 1 expected; more means the GPU's rounding changed it
@@ -402,23 +654,68 @@ final class ModelLab {
     var rows: [Row] {
         var result: [Row] = []
         for input in inputs {
-            for model in Model.allCases {
-                let mine = runs.filter { $0.input == input.id && $0.model == model }
-                guard let seconds = Stat(mine.map(\.seconds)), let peak = Stat(mine.map(\.peakFootprint)),
-                      let least = Stat(mine.map(\.leastAvailable)) else { continue }
-                let usable = mine.filter { $0.summary != nil }
-                result.append(Row(input: input.id, model: model, seconds: seconds,
-                                  firstWords: Stat(mine.compactMap(\.firstWords)), peak: peak, least: least,
-                                  thermal: Dictionary(mine.map { ($0.thermal, 1) }, uniquingKeysWith: +),
-                                  failures: mine.count - usable.count, title: usable.first?.title,
-                                  summary: usable.first?.summary,
-                                  distinctSummaries: Set(usable.compactMap(\.summary)).count))
+            for step in Step.allCases {
+                for engine in Engine.allCases {
+                    let mine = runs.filter { $0.input == input.id && $0.step == step && $0.model == engine }
+                    guard let first = mine.first, let allSeconds = Stat(mine.map(\.seconds)),
+                          let peak = Stat(mine.map(\.peakFootprint)), let least = Stat(mine.map(\.leastAvailable))
+                    else { continue }
+                    let usable = mine.filter { $0.error == nil && (step != .summary || $0.summary != nil) }
+                    // Times only from runs that got through: a step that fails at once (no file, no model) says nothing
+                    // about its speed and would bend the line. The summary's "no usable answer" did the work: it counts.
+                    let timed = mine.filter { $0.error == nil }
+                    let seconds = Stat(timed.map(\.seconds)) ?? allSeconds
+                    result.append(Row(input: input.id, step: step, model: engine, units: first.units, seconds: seconds,
+                                      timed: timed.count,
+                                      perUnit: first.units > 0 ? Stat(timed.map { $0.seconds / $0.units }) : nil,
+                                      firstWords: Stat(mine.compactMap(\.firstWords)), peak: peak, least: least,
+                                      thermal: Dictionary(mine.map { ($0.thermal, 1) }, uniquingKeysWith: +),
+                                      failures: mine.count - usable.count,
+                                      output: usable.first?.output ?? first.error ?? first.output,
+                                      title: usable.first?.title, summary: usable.first?.summary,
+                                      distinctSummaries: Set(usable.compactMap(\.summary)).count))
+                }
             }
         }
         return result
     }
 
-    func loadStat(_ model: Model) -> Stat? { Stat(runs.filter { $0.model == model }.compactMap(\.loadSeconds)) }
+    /// One step's model over all inputs: time per input and per unit, the line through the inputs' means, peak memory.
+    nonisolated struct StepRow: Identifiable, Sendable {
+        var id: String { step.rawValue + "|" + model.rawValue }
+        var step: Step
+        var model: Engine
+        var inputs: Int
+        var perInput: Stat
+        /// Total time ÷ total length over the runs with a result: seconds per Step.unitName. Not the mean of the
+        /// ratios, which the short inputs' fixed cost would dominate (a 65-character transcript: 15 s per 1,000).
+        var rate: Double?
+        var fit: Fit?
+        var peak: Double                    // the highest of all runs, GB
+        var failures: Int
+        var runs: Int
+    }
+
+    var stepRows: [StepRow] {
+        let all = rows
+        return Step.allCases.flatMap { step in
+            Engine.allCases.compactMap { engine -> StepRow? in
+                let mine = all.filter { $0.step == step && $0.model == engine }
+                let timedRows = mine.filter { $0.timed > 0 }
+                guard let perInput = Stat((timedRows.isEmpty ? mine : timedRows).map(\.seconds.mean)) else { return nil }
+                let mineRuns = runs.filter { $0.step == step && $0.model == engine }
+                let timedRuns = mineRuns.filter { $0.error == nil && $0.units > 0 }
+                let totalUnits = timedRuns.map(\.units).reduce(0, +)
+                return StepRow(step: step, model: engine, inputs: mine.count, perInput: perInput,
+                               rate: totalUnits > 0 ? timedRuns.map(\.seconds).reduce(0, +) / totalUnits : nil,
+                               fit: Fit(timedRows.map { (x: $0.units, y: $0.seconds.mean) }),
+                               peak: mineRuns.map(\.peakFootprint).max() ?? 0,
+                               failures: mine.map(\.failures).reduce(0, +), runs: mineRuns.count)
+            }
+        }
+    }
+
+    func loadStat(_ engine: Engine) -> Stat? { Stat(runs.filter { $0.model == engine }.compactMap(\.loadSeconds)) }
 
     nonisolated static func thermalText(_ counts: [String: Int]) -> String {
         ["nominal", "fair", "serious", "critical"].compactMap { state in counts[state].map { "\(state) \($0)" } }
@@ -433,25 +730,43 @@ final class ModelLab {
             "; speculative decoding \(speculativeDecoding ? "on" : "off")"
     }
 
-    /// The runs as Markdown: per input a table of mean ± standard deviation over the repetitions, then each model's
-    /// summary; the loads, the model orders and the battery runs at the end.
+    /// The runs as Markdown: per step and model the time per input, per unit of length and the line through them; then
+    /// per input every step's models; each summary side by side; the loads, the orders and the battery runs at the end.
     var report: String {
         let repetitions = orders.count
         var lines = ["# Feder Lab bench, \(Date.now.formatted(date: .abbreviated, time: .shortened))",
                      "\(deviceLine); \(repetitions) repetition\(repetitions == 1 ? "" : "s"), mean ± standard deviation", ""]
+        lines.append("## Pipeline: time per step")
+        lines.append("Per input: the mean over inputs of each input's mean. Per unit: total time over total length " +
+                     "(minutes of audio, or 1,000 characters). Line: least squares through the inputs' mean times, fixed " +
+                     "cost + cost per unit. Times count only runs with a result.")
+        lines.append("")
+        lines.append("| step | model | inputs | per input | per unit | line | peak memory | no result |")
+        lines.append("|---|---|---|---|---|---|---|---|")
+        for row in stepRows {
+            let unit = row.step.perAudioMinute ? "min" : "1K chars"
+            lines.append("| \(row.step.name) | \(row.model.name) | \(row.inputs) | \(row.perInput.text("s")) | " +
+                         "\(row.rate.map { String(format: "%.2f s/%@", $0, unit) } ?? "-") | \(row.fit?.text(unit) ?? "-") | " +
+                         String(format: "%.2f GB", row.peak) + " | \(row.failures) of \(row.runs) |")
+        }
+        if !skipped.isEmpty { lines.append("") }
+        for line in skipped { lines.append("Skipped: \(line)") }
+        lines.append("")
         let all = rows
         for input in inputs {
             let mine = all.filter { $0.input == input.id }
             guard !mine.isEmpty else { continue }
-            lines.append("## \(input.name) (\(input.characters) characters\(input.isBenchText ? ", bench text" : ""))")
-            lines.append("| model | time | first words | peak footprint | least left | thermal | no summary |")
-            lines.append("|---|---|---|---|---|---|---|")
+            let length = input.audio.map { String(format: "%.1f min of audio, ", $0.duration / 60) } ?? ""
+            lines.append("## \(input.name) (\(length)\(input.characters) characters\(input.isBenchText ? ", bench text" : ""))")
+            lines.append("| step | model | time | first words | result | peak footprint | least left | thermal | no result |")
+            lines.append("|---|---|---|---|---|---|---|---|---|")
             for row in mine {
-                lines.append("| \(row.model.name) | \(row.seconds.text("s")) | \(row.firstWords?.text("s") ?? "-") | " +
+                lines.append("| \(row.step.name) | \(row.model.name) | \(row.seconds.text("s")) | " +
+                             "\(row.firstWords?.text("s") ?? "-") | \(row.output ?? "-") | " +
                              "\(row.peak.text("GB", digits: 2)) | \(row.least.text("GB", digits: 2)) | " +
                              "\(Self.thermalText(row.thermal)) | \(row.failures) of \(row.seconds.n) |")
             }
-            for row in mine {
+            for row in mine where row.step == .summary {
                 lines.append("")
                 let varies = row.distinctSummaries > 1 ? " (\(row.distinctSummaries) different summaries over the runs)" : ""
                 lines.append("**\(row.model.name)**: \(row.title ?? "(no title)")\(varies)")
@@ -460,13 +775,13 @@ final class ModelLab {
             lines.append("")
         }
         lines.append("## Loads")
-        for model in Model.allCases {
-            if let load = loadStat(model) { lines.append("- \(model.name): \(load.text("s")) (n = \(load.n))") }
+        for engine in Engine.allCases {
+            if let load = loadStat(engine) { lines.append("- \(engine.name): \(load.text("s", digits: 2)) (n = \(load.n))") }
         }
         lines.append("")
         lines.append("## Model order per repetition")
         for (index, order) in orders.enumerated() {
-            lines.append("\(index + 1). " + order.map(\.name).joined(separator: " → "))
+            lines.append("\(index + 1). " + order.joined(separator: "; "))
         }
         if !batteryRuns.isEmpty {
             lines.append("")
@@ -484,13 +799,14 @@ final class ModelLab {
 
     /// Everything the judge needs (FED-153): the inputs' text, every run with its raw answer, the orders, the device.
     nonisolated struct ReportData: Codable {
-        struct InputData: Codable {
-            var id: String, name: String, characters: Int, isBenchText: Bool, text: String
+        nonisolated struct InputData: Codable {
+            var id: String, name: String, characters: Int, isBenchText: Bool, audioSeconds: Double?, text: String
         }
         var date: Date
         var device: String
         var speculativeDecoding: Bool
-        var orders: [[Model]]
+        var steps: [Step]
+        var orders: [[String]]
         var inputs: [InputData]
         var runs: [Run]
         var battery: [BatteryRun]
@@ -499,9 +815,10 @@ final class ModelLab {
     private func writeReport() {
         guard !runs.isEmpty || !batteryRuns.isEmpty else { return }
         let markdown = report
-        let data = ReportData(date: .now, device: deviceLine, speculativeDecoding: speculativeDecoding, orders: orders,
+        let data = ReportData(date: .now, device: deviceLine, speculativeDecoding: speculativeDecoding, steps: steps,
+                              orders: orders,
                               inputs: inputs.map { .init(id: $0.id, name: $0.name, characters: $0.characters,
-                                                         isBenchText: $0.isBenchText,
+                                                         isBenchText: $0.isBenchText, audioSeconds: $0.audio?.duration,
                                                          text: $0.paragraphs.joined(separator: "\n")) },
                               runs: runs, battery: batteryRuns)
         let directory = URL.cachesDirectory.appending(path: "FederLab")
