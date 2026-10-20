@@ -116,6 +116,7 @@ struct SettingsView: View {
                     Button("Reset Onboarding") { resetOnboarding() }   // Debug builds only: no reinstall to see it again
                     liveLabelsModelPicker
                     NavigationLink(value: SettingsRoute.macLinkTest) { Text(verbatim: "Mac Link Test") }   // FED-141's spike
+                    NavigationLink(value: SettingsRoute.pipelineTrace) { Text(verbatim: "Pipeline Trace") }   // FED-195
                     #endif
                     #if LITERT
                     NavigationLink(value: SettingsRoute.lab) { Text(verbatim: "Feder Lab") }   // FED-150: LiteRT models, bench
@@ -141,6 +142,7 @@ struct SettingsView: View {
                 case .acknowledgements: AcknowledgementsView()
                 #if DEBUG
                 case .macLinkTest: MacLinkProbeView()
+                case .pipelineTrace: PipelineTraceList()
                 #endif
                 #if LITERT
                 case .lab: ModelLabView()
@@ -175,6 +177,10 @@ struct SettingsView: View {
                     navigation.settings.append(SettingsRoute.macLinkTest)
                     let identifier = services.identifier
                     MacLinkProbe.shared.start { identifier.isRecording }
+                }
+                // `-showPipelineTrace`: Settings › Pipeline Trace pushed (with `-showSettings`).
+                if ProcessInfo.processInfo.arguments.contains("-showPipelineTrace"), navigation.settings.isEmpty {
+                    navigation.settings.append(SettingsRoute.pipelineTrace)
                 }
                 #if LITERT
                 // `-showLab`: Settings › Feder Lab pushed (with `-showSettings`).
@@ -517,6 +523,7 @@ enum SettingsRoute: Hashable {
     case people, transcription, speakers, summaries, vocabulary, privacy, legalNotice, acknowledgements
     #if DEBUG
     case macLinkTest                                   // FED-141's spike (MacLinkProbeView)
+    case pipelineTrace                                 // the steps after Stop and what they used (FED-195)
     #endif
     #if LITERT
     case lab                                           // Feder Lab (ModelLabView, FED-150)

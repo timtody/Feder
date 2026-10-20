@@ -158,5 +158,6 @@ From a review of an "optimal pipeline" proposal (October 2026), kept where they 
 
 ## 8. Open measurements
 
+- What each step uses after a real recording: Debug builds' Pipeline Trace (FED-195) shows steps, memory, CPU and Feder's own energy per step; GPU, Neural Engine and the speech process's power need Instruments' Power Profiler, which shows the trace's step signposts.
 - Pipeline step times on the iPhone 17: Feder Lab's bench now times every step after Stop with each of its models, per minute of audio or 1,000 characters, with a line through time against length (FED-166, README › Build › Feder Lab); the first run is to come.
 - Live labels on real ASR/LS-EEND output rather than synthetic replays (`build/qa/livebench`).

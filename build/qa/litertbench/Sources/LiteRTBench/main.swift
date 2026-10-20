@@ -163,6 +163,7 @@ for path in rest.dropFirst(2) {
     for language in languages {
         let writer = MeasuringWriter(model: model)
         _ = sampler.takePeak()
+        let before = ResourceCounters.now()
         let start = Date()
         let description: TranscriptTitler.Description?
         do {
@@ -176,6 +177,16 @@ for path in rest.dropFirst(2) {
             continue
         }
         let seconds = Date().timeIntervalSince(start)
+        // FED-195: the counters PipelineTrace samples on the iPhone, checked against the wall time here.
+        let after = ResourceCounters.now()
+        print(String(format: "-- counters: wall %.1f s, cpu %.1f s (p %.1f s), gpu %.1f s, energy %.1f J (%.1f W), billed %.1f J, neural %.0f MB",
+                     after.uptime - before.uptime, Double(after.cpuNanoseconds - before.cpuNanoseconds) / 1e9,
+                     Double(after.performanceNanoseconds - before.performanceNanoseconds) / 1e9,
+                     Double(after.gpuNanoseconds - before.gpuNanoseconds) / 1e9,
+                     Double(after.energyNanojoules - before.energyNanojoules) / 1e9,
+                     Double(after.energyNanojoules - before.energyNanojoules) / 1e9 / max(0.001, after.uptime - before.uptime),
+                     Double(after.billedEnergyNanojoules - before.billedEnergyNanojoules) / 1e9,
+                     Double(after.neuralFootprint) / 1_048_576))
         print("\n======== \(language) · \(format(seconds)) s · \(writer.requests.count) request(s) · peak " +
               "\(sampler.takePeak())")
         for (index, request) in writer.requests.enumerated() {

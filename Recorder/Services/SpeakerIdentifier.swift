@@ -197,7 +197,13 @@ final class SpeakerIdentifier {
     /// row shows the last checkmark, then disappears).
     private func track(_ id: UUID, _ change: (inout PipelineProgress) -> Void) {
         var record = progress[id] ?? PipelineProgress()
+        #if DEBUG
+        let before = progress[id]
+        #endif
         change(&record)
+        #if DEBUG
+        PipelineTrace.shared.progressChanged(id, from: before, to: record)   // Settings › About › Pipeline Trace
+        #endif
         // Nothing listed (a sweep found nothing to do): no record, so no empty row.
         progress[id] = record.steps.isEmpty ? nil : record
         guard record.isComplete else { return }
@@ -559,6 +565,9 @@ final class SpeakerIdentifier {
         let needsWords = !recording.wordsRefined
         let locale = Locale(identifier: recording.localeIdentifier)
         recording.speakerStatus = .processing
+        #if DEBUG
+        PipelineTrace.shared.label(id, name: recording.name, audioSeconds: recording.duration)
+        #endif
 
         // 1. The full-accuracy words. They replace the live ones right away (with the live labels re-applied); if the
         // pass fails or finds nothing, the live words stay. Either way it runs once per recording, and the vocabulary
@@ -566,6 +575,11 @@ final class SpeakerIdentifier {
         if needsWords {
             track(id) { $0.begin(.words) }
             let transcript = try? await fileTranscriber.transcribe(fileURL: url, locale: locale)
+            #if DEBUG
+            if let transcript {                                   // Parakeet's words carry its alignment offset
+                PipelineTrace.shared.model(id, .words, transcript.alignmentOffset == 0 ? "Apple" : "Parakeet")
+            }
+            #endif
             guard !isGone(recording) else { progress[id] = nil; return }
             // An import has no live words to fall back on: a pass that failed (offline while the language's speech
             // model must download, a language it doesn't know) leaves it to Try Again, not an empty transcript marked
@@ -598,6 +612,7 @@ final class SpeakerIdentifier {
         let ready = await prepareModel()
         #if DEBUG
         print("[Scribe] queue: speakers \(id.uuidString.prefix(8)): model ready after \(Self.ms(since: speakersStarted))")
+        PipelineTrace.shared.mark(id, "model ready")
         #endif
         guard !isGone(recording) else { progress[id] = nil; return }
         guard ready else {
@@ -611,6 +626,8 @@ final class SpeakerIdentifier {
                                                              speakers: override.map { .exactly($0) } ?? .automatic)
             #if DEBUG
             print("[Scribe] queue: speakers \(id.uuidString.prefix(8)): turns after \(Self.ms(since: speakersStarted))")
+            PipelineTrace.shared.mark(id, "turns")
+            PipelineTrace.shared.model(id, .speakers, diarization.diarizer.rawValue == "nemotron" ? "Nemotron" : "pyannote")
             #endif
             guard !isGone(recording) else { progress[id] = nil; return }
             // 3. + 4. The final labels, and each speaker's voice from them.
@@ -624,6 +641,7 @@ final class SpeakerIdentifier {
                 : nil
             #if DEBUG
             print("[Scribe] queue: speakers \(id.uuidString.prefix(8)): voices after \(Self.ms(since: speakersStarted))")
+            PipelineTrace.shared.mark(id, "voices")
             #endif
             guard !isGone(recording) else { progress[id] = nil; return }
             recording.speakerTurns = diarization.turns
@@ -750,6 +768,10 @@ final class SpeakerIdentifier {
             return
         }
         track(id) { $0.begin(.vocabulary) }
+        #if DEBUG
+        PipelineTrace.shared.label(id, name: recording.name, audioSeconds: recording.duration)
+        PipelineTrace.shared.model(id, .vocabulary, "Dictation")
+        #endif
         vocabularyRunning.insert(id)
         defer { vocabularyRunning.remove(id) }
         let words = recording.words
@@ -786,6 +808,10 @@ final class SpeakerIdentifier {
             return
         }
         track(id) { $0.begin(.summary) }
+        #if DEBUG
+        PipelineTrace.shared.label(id, name: recording.name, audioSeconds: recording.duration)
+        PipelineTrace.shared.model(id, .summary, Self.summaryModelName(betterSummaries))
+        #endif
         defer {
             if case .running = progress[id]?.state(of: .summary) {   // not now: waiting for Stop, or given up
                 let waits = waitingForGemma.contains { $0.id == id }
@@ -883,6 +909,16 @@ final class SpeakerIdentifier {
         if let search = actionItemsSearch[id], search != .running { actionItemsSearch[id] = nil }
     }
 
+    #if DEBUG
+    /// The Gemma build that writes now, for the trace: Feder Lab's choice, or the app's own.
+    private static func summaryModelName(_ better: BetterSummaries) -> String {
+        #if LITERT
+        if better.labWriter != nil { return ModelLab.shared.writer.name }
+        #endif
+        return better.variant.displayName
+    }
+    #endif
+
     private func searchActionItems(_ request: BackgroundPass) async {
         let id = request.id, recording = request.recording
         guard !isGone(recording), recording.speakerStatus == .done else { actionItemsSearch[id] = nil; return }
@@ -893,12 +929,23 @@ final class SpeakerIdentifier {
             TranscriptTitler.paragraph(segment.text, speaker: segment.speakerIndex.map(recording.speakerName))
         }
         let found: [ActionItem]
+        #if DEBUG
+        PipelineTrace.shared.label(id, name: recording.name, audioSeconds: recording.duration)
+        PipelineTrace.shared.begin(id, .actionItems)
+        PipelineTrace.shared.model(id, .actionItems, Self.summaryModelName(betterSummaries))
+        #endif
         do {
             let extractor = actionItemExtractor
             found = try await betterSummaries.run { model in
                 try await extractor.extract(paragraphs: paragraphs, recordedAt: recordedAt, writer: model)
             }
+            #if DEBUG
+            PipelineTrace.shared.end(id, .actionItems)
+            #endif
         } catch {
+            #if DEBUG
+            PipelineTrace.shared.end(id, .actionItems, failed: true)
+            #endif
             // RetryLater: the app left the foreground, or a recording started (the sheet offers Try Again);
             // LocalModelFailed: Gemma is gone or damaged (BetterSummaries offers the download again).
             actionItemsSearch[id] = isGone(recording) ? nil
