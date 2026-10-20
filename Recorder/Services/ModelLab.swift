@@ -756,7 +756,11 @@ final class ModelLab {
         for input in inputs {
             let mine = all.filter { $0.input == input.id }
             guard !mine.isEmpty else { continue }
-            let length = input.audio.map { String(format: "%.1f min of audio, ", $0.duration / 60) } ?? ""
+            // The recording's date and length too: its name is the one at the bench's start, and a new transcript's
+            // "Neues Transkript 108" becomes Gemma's title or the user's name later.
+            let length = input.audio.map {
+                $0.recordedAt.formatted(date: .abbreviated, time: .shortened) + String(format: ", %.1f min of audio, ", $0.duration / 60)
+            } ?? ""
             lines.append("## \(input.name) (\(length)\(input.characters) characters\(input.isBenchText ? ", bench text" : ""))")
             lines.append("| step | model | time | first words | result | peak footprint | least left | thermal | no result |")
             lines.append("|---|---|---|---|---|---|---|---|---|")

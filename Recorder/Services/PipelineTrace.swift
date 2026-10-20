@@ -163,6 +163,14 @@ final class PipelineTrace {
         }
     }
 
+    /// The transcript's current name (Gemma's title or the user's rename come after its pipeline began), saved into the
+    /// trace's file so the Mac viewer shows it too.
+    func rename(_ id: UUID, to name: String) {
+        guard let index = traces.firstIndex(where: { $0.id == id }), traces[index].name != name else { return }
+        traces[index].name = name
+        if !traces[index].isRunning { save() }
+    }
+
     func delete(_ id: UUID) {
         traces.removeAll { $0.id == id }
         try? FileManager.default.removeItem(at: Self.directory.appending(path: "\(id).json"))

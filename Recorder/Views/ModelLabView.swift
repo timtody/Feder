@@ -300,7 +300,12 @@ struct ModelLabView: View {
         let audio = input.audio.map {
             Duration.seconds($0.duration).formatted(.units(allowed: [.hours, .minutes, .seconds], width: .abbreviated)) + " · "
         } ?? ""
-        return "\(input.name) · \(audio)\(input.characters.formatted()) characters"
+        // The transcript's name now (Gemma's title or the user's may have come since the bench started), the one at
+        // the start in brackets, and its date, so it can be found in the list.
+        let current = transcripts.first { "transcript:\($0.id)" == input.id }
+        let name = current.map { $0.name == input.name ? $0.name : "\($0.name) (was \(input.name))" } ?? input.name
+        let date = input.audio.map { $0.recordedAt.formatted(date: .abbreviated, time: .shortened) + " · " } ?? ""
+        return "\(name) · \(date)\(audio)\(input.characters.formatted()) characters"
     }
 
     private func stepStats(_ row: ModelLab.StepRow) -> String {

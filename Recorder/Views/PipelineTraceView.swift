@@ -1,5 +1,6 @@
 #if DEBUG
 import Charts
+import SwiftData
 import SwiftUI
 
 /// Settings › About › Pipeline Trace (Debug builds, FED-195): the recent transcripts' pipelines after Stop. English only
@@ -7,6 +8,7 @@ import SwiftUI
 struct PipelineTraceList: View {
     private let trace = PipelineTrace.shared
     @State private var opened: UUID?
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         AppForm {
@@ -34,7 +36,13 @@ struct PipelineTraceList: View {
         .navigationTitle(Text(verbatim: "Pipeline Trace"))
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(item: $opened) { PipelineTraceView(id: $0) }
-        .task {                                  // `-openLatestTrace` (with `-showPipelineTrace`): screenshots
+        .task {
+            // The transcripts' names now: a trace keeps the one from when its pipeline began ("Neues Transkript 108"),
+            // before Gemma's title or a rename. A Debug screen's one small fetch of at most 20 rows.
+            let ids = trace.traces.map(\.id)
+            let found = (try? modelContext.fetch(FetchDescriptor<Recording>(predicate: #Predicate { ids.contains($0.id) }))) ?? []
+            for recording in found { trace.rename(recording.id, to: recording.name) }
+            // `-openLatestTrace` (with `-showPipelineTrace`): screenshots.
             if ProcessInfo.processInfo.arguments.contains("-openLatestTrace") { opened = trace.traces.first?.id }
         }
     }
