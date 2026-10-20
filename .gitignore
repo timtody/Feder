@@ -20,6 +20,7 @@ build/qa/*
 !build/qa/icon/
 !build/qa/linkspike/
 !build/qa/litertbench/
+!build/qa/pipelinetrace/
 build/qa/*/**
 !build/qa/*/**/
 !build/qa/*/**/*.sh
