@@ -74,6 +74,7 @@ Recorder/
     ActionItem.swift           an action item (task, owner as text, due phrase and date, added/removed; stored encoded in Recording.actionItems), merged(keepingFlagsOf:), ActionItemText (caption, export line, notes)
     DueDate.swift              pure: a due phrase ("by Friday", "bis Freitag 17 Uhr", "Ende Oktober") → a date relative to the recording (NSDataDetector rebased match by match, own rules for what it misses or misreads)
     VocabularySpelling.swift   pure: the vocabulary's spelling on Parakeet's words (case, hyphens, spoken numbers, spell-checked near misses; FED-204)
+    StoreRecovery.swift        opens the SwiftData store; a store that won't open (not a locked phone: the file must be readable) moves with -wal/-shm to Application Support/Recovery/<timestamp> and a fresh one opens, so no launch crash loop (FED-171); the audio then comes back through RecordingRecovery. Tested with a garbage default.store in the simulator
     RecordingRecovery.swift    pure: a WAV without a row (recording killed mid-way) gets its header repaired from the file size and comes back as "Recovered Recording" at launch (FED-169); under 1 s or unreadable: deleted
     Person.swift, Vocabulary.swift, VocabularyMerge.swift, AudioFileStore.swift
   Services/

@@ -12,8 +12,8 @@ struct RecorderApp: App {
     init() {
         NameSpeakersTip.configure()
         RecordingLiveActivity.endLeftovers()
-        do {
-            let container = try ModelContainer(for: Recording.self, Person.self)
+        if let opened = StoreRecovery.open() {
+            let container = opened.container
             let services = AppServices(container: container)
             _services = State(initialValue: services)
             // App Lock: locked or not decided now and its window ready when the scene connects, so the first frame
@@ -25,7 +25,7 @@ struct RecorderApp: App {
             // pass after launch writes its words.
             var descriptor = FetchDescriptor<Recording>()
             descriptor.propertiesToFetch = [\.audioFileName]
-            if let rows = try? container.mainContext.fetch(descriptor) {
+            if opened.persistent, let rows = try? container.mainContext.fetch(descriptor) {
                 let context = container.mainContext
                 for file in RecordingRecovery.recoverOrphans(keeping: Set(rows.map(\.audioFileName))) {
                     let recording = Recording(name: String(localized: "Recovered Recording"), audioFileName: file.fileName,
@@ -36,8 +36,8 @@ struct RecorderApp: App {
                 }
                 try? context.save()
             }
-        } catch {
-            fatalError("Could not open the recordings store: \(error)")
+        } else {
+            fatalError("Could not open any recordings store")
         }
     }
 
