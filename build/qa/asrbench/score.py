@@ -92,9 +92,13 @@ def term_counts(text, terms):
 def term_stats(clips, terms):
     by = {}
     for c in clips:
-        if c["kind"] != "term": continue
+        if c["kind"] != "term":
+            # A term written into a sentence without one (controls hold near misses: "Bahn" for BaFin).
+            g = by.setdefault(c["voice"], [0, 0, 0, 0])
+            g[3] += sum(n for t, n in term_counts(c["hyp"], terms).items() if t not in term_counts(c["ref"], terms))
+            continue
         ref, hyp = term_counts(c["ref"], terms), term_counts(c["hyp"], terms)
-        g = by.setdefault(c["voice"], [0, 0, 0])
+        g = by.setdefault(c["voice"], [0, 0, 0, 0])
         g[0] += sum(ref.values())
         g[1] += sum(min(n, hyp.get(t, 0)) for t, n in ref.items())
         g[2] += sum(max(0, n - ref.get(t, 0)) for t, n in hyp.items())
@@ -140,7 +144,7 @@ def main():
         for name, clips in rows:
             if not clips: continue
             by = term_stats(clips, terms)
-            cols = "  ".join(f"{v}: {g[1]}/{g[0]} ({g[1] / g[0] * 100:.0f} %), false {g[2]}" for v, g in sorted(by.items()))
+            cols = "  ".join(f"{v}: {g[1]}/{g[0]} ({g[1] / g[0] * 100:.0f} %), false {g[2]}, in controls {g[3]}" for v, g in sorted(by.items()))
             wers = "  ".join(f"{v} {k} {wer_stats([(c['id'], c['ref'], c['hyp']) for c in clips if c['voice'] == v and c['kind'] == k])['wer']:.1f}%"
                              for v in ("Anna", "Reed") for k in ("term", "control"))
             print(f"{name:36} {cols}\n{'':36} WER {wers}")

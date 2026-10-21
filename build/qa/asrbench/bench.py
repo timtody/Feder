@@ -53,7 +53,9 @@ def main():
     if a.att:
         kwargs["att_context_size"] = [int(x) for x in a.att.split(",")]
     if a.hotwords:
-        kwargs["hotwords"] = data[a.hotwords] if a.hotwords in data else json.load(open(a.hotwords))
+        # The lists live in synth.json; on the MLS clips (none of the terms said) they measure false replacements.
+        lists = json.load(open(VOCAB / "clips" / "synth.json"))
+        kwargs["hotwords"] = lists[a.hotwords] if a.hotwords in lists else json.load(open(a.hotwords))
 
     t = time.time()
     model = load(a.model)
