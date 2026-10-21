@@ -51,7 +51,7 @@ func edits(_ a: [String], _ b: [String]) -> Int {
     return row[b.count]
 }
 
-struct Streamed { var text: String; var lags: [Double]; var audioSeconds: Double; var wall: Double }
+struct Streamed { var text: String; var ownText = ""; var lags: [Double]; var audioSeconds: Double; var wall: Double }
 
 /// One file through a fresh manager, 100 ms at a time; `lags`: per finalized word, audio fed so far minus its end.
 func stream(_ url: URL, shared: SharedNemotronMultilingualModels, vocabulary: [String]) async throws -> Streamed {
@@ -75,10 +75,10 @@ func stream(_ url: URL, shared: SharedNemotronMultilingualModels, vocabulary: [S
             finalized = complete
         }
     }
-    let (_, timings) = try await manager.finishWithTokenTimings()
+    let (ownText, timings) = try await manager.finishWithTokenTimings()
     let all = words(from: timings)
     await manager.cleanup()
-    return Streamed(text: all.map(\.text).joined(separator: " "), lags: lags, audioSeconds: fed,
+    return Streamed(text: all.map(\.text).joined(separator: " "), ownText: ownText, lags: lags, audioSeconds: fed,
                     wall: Date().timeIntervalSince(started))
 }
 
@@ -97,7 +97,25 @@ let loadStart = Date()
 let shared = try await StreamingNemotronMultilingualAsrManager.downloadAndPreloadShared(languageCode: "de-DE", chunkMs: chunkMs)
 print(String(format: "ready in %.1f s", Date().timeIntervalSince(loadStart)))
 
-if args[1] == "wer" {
+if args[1] == "glue" {
+    // Our parser's words against FluidAudio's own text for the same decode: does the gluing come from us?
+    struct Clips: Decodable { struct Clip: Decodable { var id: String; var wav: String; var text: String }; var clips: [Clip] }
+    let clips = try JSONDecoder().decode(Clips.self, from: Data(contentsOf: URL(fileURLWithPath: args[2]))).clips
+    let limit = args.count > 3 ? Int(args[3]) ?? clips.count : clips.count
+    var oursE = 0, ownE = 0, total = 0, differ = 0, oursWords = 0, ownWords = 0
+    for clip in clips.prefix(limit) {
+        let r = try await stream(URL(fileURLWithPath: clip.wav), shared: shared, vocabulary: [])
+        let ref = normalized(clip.text), ours = normalized(r.text), own = normalized(r.ownText)
+        oursE += edits(ref, ours); ownE += edits(ref, own); total += ref.count
+        oursWords += ours.count; ownWords += own.count
+        if ours != own {
+            differ += 1
+            if differ <= 5 { print("-- ours: \(r.text)\n   own:  \(r.ownText)") }
+        }
+    }
+    print(String(format: "%d clips: ours WER %.1f %% (%d words), FluidAudio's text WER %.1f %% (%d words), reference %d words; %d clips differ",
+                 min(limit, clips.count), Double(oursE) / Double(total) * 100, oursWords, Double(ownE) / Double(total) * 100, ownWords, total, differ))
+} else if args[1] == "wer" {
     struct Clips: Decodable { struct Clip: Decodable { var id: String; var wav: String; var text: String }; var clips: [Clip] }
     let clips = try JSONDecoder().decode(Clips.self, from: Data(contentsOf: URL(fileURLWithPath: args[2]))).clips
     let limit = args.count > 3 ? Int(args[3]) ?? clips.count : clips.count
