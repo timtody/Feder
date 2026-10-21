@@ -74,6 +74,7 @@ Recorder/
     ActionItem.swift           an action item (task, owner as text, due phrase and date, added/removed; stored encoded in Recording.actionItems), merged(keepingFlagsOf:), ActionItemText (caption, export line, notes)
     DueDate.swift              pure: a due phrase ("by Friday", "bis Freitag 17 Uhr", "Ende Oktober") → a date relative to the recording (NSDataDetector rebased match by match, own rules for what it misses or misreads)
     VocabularySpelling.swift   pure: the vocabulary's spelling on Parakeet's words (case, hyphens, spoken numbers, spell-checked near misses; FED-204)
+    RecordingRecovery.swift    pure: a WAV without a row (recording killed mid-way) gets its header repaired from the file size and comes back as "Recovered Recording" at launch (FED-169); under 1 s or unreadable: deleted
     Person.swift, Vocabulary.swift, VocabularyMerge.swift, AudioFileStore.swift
   Services/
     ServiceContracts.swift     RecorderError, TranscriptionEvent, TranscriberSetup, FileTranscript, SpeakerVoice, LiveAudio, LiveSpeakerTurns + the five protocols

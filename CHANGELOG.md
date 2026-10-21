@@ -46,6 +46,7 @@ release carries a later version's features, its notes are the 1.0 text plus thos
 - Swiping a transcript away to the right shows your list beside it as it goes, instead of an empty white or black
   screen.
 - Two people speaking are Speaker 1 and Speaker 2 while you record, never Speaker 1 and Speaker 3.
+- If Feder is closed or crashes during a recording, the recording is no longer lost: it comes back as "Recovered Recording" the next time you open Feder, with its audio up to that point and a transcript.
 - With Parakeet, your own words (Settings › Vocabulary) are spelled right in the transcript as soon as its words
   are in, without a second pass over the recording.
 
@@ -92,6 +93,7 @@ release carries a later version's features, its notes are the 1.0 text plus thos
 - Wischst du ein Transkript nach rechts weg, ist dabei deine Liste daneben zu sehen statt einer leeren weißen oder
   schwarzen Fläche.
 - Zwei Personen sind während der Aufnahme Sprecher 1 und Sprecher 2, nie Sprecher 1 und Sprecher 3.
+- Wird Feder während einer Aufnahme beendet oder stürzt ab, geht die Aufnahme nicht mehr verloren: Beim nächsten Öffnen von Feder ist sie als „Wiederhergestellte Aufnahme“ da, mit dem Ton bis dahin und einem Transkript.
 - Mit Parakeet stehen deine eigenen Wörter (Einstellungen › Vokabular) richtig geschrieben im Transkript, sobald
   seine Wörter da sind, ohne zweiten Durchgang über die Aufnahme.
 
