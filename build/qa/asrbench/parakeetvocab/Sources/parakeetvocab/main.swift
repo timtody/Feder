@@ -19,7 +19,10 @@ let data = try JSONSerialization.jsonObject(with: Data(contentsOf: vocabDir.appe
 let clips = data["clips"] as! [[String: Any]]
 // The lists live in synth.json; on the MLS clips (none of the terms said) they measure false replacements.
 let lists = try JSONSerialization.jsonObject(with: Data(contentsOf: vocabDir.appending(path: "clips/synth.json"))) as! [String: Any]
-let terms = hotwords.map { lists[$0] as! [String] } ?? []
+let terms: [String] = try hotwords.map { name in
+    name.hasSuffix(".json") ? try JSONDecoder().decode([String].self, from: Data(contentsOf: URL(fileURLWithPath: name)))
+        : lists[name] as! [String]
+} ?? []
 
 let models = try await AsrModels.loadFromCache(version: .ultra)
 let manager = AsrManager(config: .default)

@@ -120,7 +120,9 @@ def main():
     results = [json.load(open(HERE / "out" / f"{r}.json")) for r in runs]
     mls = json.load(open(VOCAB / "clips" / "mls.json"))["clips"]
     synth = json.load(open(VOCAB / "clips" / "synth.json"))
-    terms = synth["short"]
+    # Counted over Feder's whole built-in list (the 35 said + 77 distractors), so a distractor written anywhere counts
+    # as false, whichever list the run was given.
+    terms = json.load(open(HERE / "builtin.json"))
 
     print("MLS, 192 real German clips: word errors (letters and digits, case folded)")
     print(f"{'run':28} {'WER':>6} {'sub':>5} {'del':>5} {'ins':>5}  {'longer':>6} {'loops':>5}  {'speed':>8}")
