@@ -23,6 +23,12 @@ final class AppServices {
     #if DEBUG
     /// UserDefaults key of the live-labels model chosen in Settings › About (Debug builds only). Absent means LS-EEND.
     nonisolated static let liveLabelsModelKey = "liveLabelsModel"
+    /// UserDefaults key of the live words' model (Debug builds, FED-196): "nemotron" for Nemotron 3.5 ASR Streaming,
+    /// absent or anything else for Apple's SpeechTranscriber.
+    nonisolated static let liveWordsModelKey = "liveWordsModel"
+    static var livesWordsWithNemotron: Bool {
+        UserDefaults.standard.string(forKey: liveWordsModelKey) == "nemotron" && NemotronLiveModel.isDownloaded
+    }
     #endif
     /// The model behind the next recording's live labels: always LS-EEND in release builds; Debug builds can pick
     /// Sortformer to compare the two on the iPhone (README › Live latency notes).
@@ -47,6 +53,8 @@ final class AppServices {
     nonisolated static let modelRevisions = [
         "FluidInference/ls-eend-coreml": "28ce1b1f8ef186729df63b3886fbaae7bc10c4a1",
         "FluidInference/diar-streaming-sortformer-coreml": "ae9a27ab45dc0aa3abede7d2d6bad2b7a69aa6d1",
+        // Debug builds' live-words comparison (FED-196), 2026-10-21.
+        "FluidInference/Nemotron-3.5-ASR-Streaming-Multilingual-0.6b-CoreML": "1a41b75758b0337ff67db7d5408280aaaf23074e",
     ]
 
     let container: ModelContainer
@@ -378,6 +386,9 @@ final class AppServices {
         player.stop()                                  // recording and playback never overlap (both on AudioHardware)
         #if DEBUG && targetEnvironment(simulator)
         let transcriber: any Transcriber = FakeTranscriber()
+        #elseif DEBUG
+        // Settings › About › Live Words Model (FED-196): Nemotron 3.5 once it's downloaded and chosen.
+        let transcriber: any Transcriber = Self.livesWordsWithNemotron ? NemotronLiveTranscriber() : SpeechTranscriberEngine()
         #else
         let transcriber: any Transcriber = SpeechTranscriberEngine()
         #endif

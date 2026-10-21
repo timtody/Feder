@@ -19,6 +19,7 @@ struct SettingsView: View {
     #if DEBUG
     @State private var resetPages: [OnboardingPage] = []
     @AppStorage(AppServices.liveLabelsModelKey) private var liveLabelsModel = LiveLabelsModel.lsEEND
+    @AppStorage(AppServices.liveWordsModelKey) private var liveWordsModel = "apple"
     #endif
     @AppStorage(PeopleDirectory.recognitionKey) private var recognizesVoices = false
     @AppStorage(SpotlightIndex.enabledKey) private var showsInSearch = false
@@ -115,6 +116,7 @@ struct SettingsView: View {
                     #if DEBUG
                     Button("Reset Onboarding") { resetOnboarding() }   // Debug builds only: no reinstall to see it again
                     liveLabelsModelPicker
+                    liveWordsModelPicker
                     NavigationLink(value: SettingsRoute.macLinkTest) { Text(verbatim: "Mac Link Test") }   // FED-141's spike
                     NavigationLink(value: SettingsRoute.pipelineTrace) { Text(verbatim: "Pipeline Trace") }   // FED-195
                     #endif
@@ -240,6 +242,47 @@ struct SettingsView: View {
             }
         }
         .onChange(of: liveLabelsModel) { services.liveLabelsModelChanged() }
+    }
+
+    /// Debug builds (FED-196): Apple's live recognizer or Nemotron 3.5 ASR Streaming, from the next recording.
+    @ViewBuilder
+    private var liveWordsModelPicker: some View {
+        let nemotron = NemotronLiveModel.shared
+        Picker(selection: $liveWordsModel) {
+            Text(verbatim: "Apple").tag("apple")
+            Text(verbatim: "Nemotron 3.5").tag("nemotron")
+        } label: {
+            VStack(alignment: .leading) {
+                Text(verbatim: "Live Words Model")
+                Text(verbatim: liveWordsStatus(nemotron.state))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        if liveWordsModel == "nemotron" {
+            switch nemotron.state {
+            case .ready:
+                Button(role: .destructive) { nemotron.delete() } label: {
+                    Text(verbatim: "Delete Nemotron 3.5 (\(NemotronLiveModel.sizeText))")
+                }
+            case .downloading(let fraction):
+                ProgressView(value: fraction) { Text(verbatim: "Downloading Nemotron 3.5…") }
+            default:
+                Button { nemotron.download() } label: {
+                    Text(verbatim: "Download Nemotron 3.5 (\(NemotronLiveModel.sizeText))")
+                }
+            }
+        }
+    }
+
+    private func liveWordsStatus(_ state: ModelDownloadState) -> String {
+        guard liveWordsModel == "nemotron" else { return "Apple's SpeechTranscriber" }
+        switch state {
+        case .ready: return "From the next recording: your words as hints, no words or vocabulary pass after Stop"
+        case .downloading(let fraction): return "Downloading \(Int(fraction * 100)) %"
+        case .failed(let reason): return "Download failed: \(reason)"
+        case .notDownloaded, .waitingForWiFi: return "Not downloaded: Apple's recognizer until then"
+        }
     }
 
     private var liveModelStatus: String {

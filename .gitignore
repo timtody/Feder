@@ -21,6 +21,7 @@ build/qa/*
 !build/qa/linkspike/
 !build/qa/litertbench/
 !build/qa/pipelinetrace/
+!build/qa/nemotronlive/
 build/qa/*/**
 !build/qa/*/**/
 !build/qa/*/**/*.sh

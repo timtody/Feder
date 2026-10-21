@@ -319,6 +319,15 @@ final class RecordingSession: Identifiable {
             if calendarTitleTaken { recording.nameBeforeCalendarTitle = defaultName }
         }
         recording.words = words
+        #if DEBUG
+        // Nemotron's live words are the final ones (FED-196, Settings › About › Live Words Model): no words pass after
+        // Stop (Apple or Parakeet) and no Dictation vocabulary pass, since the vocabulary went in as decoder hints.
+        // Speakers and the summary run as always. vocabularyPending stays false: only the words pass sets it.
+        if transcriber is NemotronLiveTranscriber {
+            recording.wordsRefined = true
+            print("[Scribe] Nemotron live words: words pass and vocabulary pass skipped")
+        }
+        #endif
         recording.bookmarks = bookmarks.filter { $0 <= duration }
         // Live labels (if any) are saved as preliminary segments; speakerStatus stays .pending (Recording.init), and
         // SpeakerIdentifier's offline pass replaces them (offline is the source of truth).
