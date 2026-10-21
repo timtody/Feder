@@ -600,9 +600,11 @@ final class SpeakerIdentifier {
                 if hadWords { flash(changes, in: id) }       // an import's first words aren't changes
             }
             recording.wordsRefined = true
-            recording.vocabularyPending = true
+            // Parakeet's words come with the vocabulary's spelling (FED-204): no Dictation pass over the file after.
+            recording.vocabularyPending = transcript?.vocabularyApplied != true
             try? modelContext.save()
             track(id) { $0.finish(.words, failed: transcript == nil) }   // threw; "nothing better" is still done
+            if !recording.vocabularyPending { track(id) { $0.drop(.vocabulary) } }
         }
 
         // 2. Diarization of the same file. DEBUG: the parts of the speakers step, since "Speakers · 36 s" on an iPhone

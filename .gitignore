@@ -37,3 +37,5 @@ build/qa/*/**/.swiftpm/
 build/qa/*/**/__pycache__/
 Packages/*/.build/
 Packages/*/.swiftpm/
+# A copy of the app's file, put there by run.sh.
+build/qa/asrbench/spellfix/Sources/spellfix/VocabularySpelling.swift

@@ -31,7 +31,7 @@ flowchart TB
     end
 
     subgraph BG["Stage 2b — background queue, after .done"]
-        DONE --> VOC[6 · Vocabulary pass<br/>DictationTranscriber + VocabularyMerge]
+        DONE --> VOC[6 · Vocabulary pass, Apple's words only<br/>DictationTranscriber + VocabularyMerge]
         VOC --> SUM[7 · Title + summary<br/>Gemma 4 E2B, or Apple Foundation Models]
     end
 ```
@@ -49,7 +49,8 @@ The status line under the date names the running step: *Transcribing… → Refi
 | Offline diarization | NVIDIA Nemotron 3 | CoreML via FluidAudio | ~100 MB | Wi-Fi automatic / on demand | 2.22 → 1.77 % wrong words with alignment offset (DiarBench) |
 | Diarization fallback | pyannote community-1 + VBx | CoreML via FluidAudio | ~21 MB | first use | weaker; recognition thresholds stricter for its speakers |
 | Voice embeddings | WeSpeaker (FluidAudio) | CoreML | in the 21 MB | with pyannote | 256-d, unit length |
-| Vocabulary pass | Apple `DictationTranscriber` | Speech framework | system | — | honours contextual strings; whole-file pass = most of the post-stop time |
+| Vocabulary on Parakeet's words | `VocabularySpelling` + `UITextChecker` | — | — | — | in the words step: case, hyphens, spoken numbers, spell-checked near misses; real speech 74 → 93 % of the terms (FED-204) |
+| Vocabulary pass (Apple's words) | Apple `DictationTranscriber` | Speech framework | system | — | honours contextual strings; whole-file pass = most of the post-stop time |
 | Summaries | Gemma 4 E2B 4-bit | MLX, GPU | 3.6 GB | Settings | 1.5 s short summary, 2.4 s for 8.3K tokens (M5 Mac) |
 | Summary fallback | Apple Foundation Models (~3B) | FoundationModels | system | — | 4K/8K-token window; wordy, meta-style summaries |
 
@@ -98,8 +99,10 @@ Nemotron 3 diarizes the file (`.automatic`, or `.exactly(n)` from the Speakers m
 ### Step 5 · People
 Cosine match against the enrolled people (`PeopleDirectory`); thresholds depend on the diarizer (stricter for pyannote's less pure speakers). Named speakers get the person's name; renaming a speaker enrolls or re-enrols the voice.
 
-### Step 6 · Vocabulary pass (background)
-Only with a vocabulary. `DictationTranscriber` over the whole file with the terms as contextual strings; `VocabularyMerge` takes over **only** the terms it recognized, at the same time (±0.15 s), replacing the most similar word run (Levenshtein ≤ 50 %): "Bufin" → "BaFin", "KoFin Pro" → "Cofinpro"; plus case fixes ("Marisk" → "MaRisk"). Everything else stays as the words pass wrote it. Words are re-aligned with the stored turns, so speakers and names stay.
+### Step 6 · Vocabulary pass (background, Apple's words only)
+Parakeet's words get the vocabulary in step 1 instead (`VocabularySpelling`, FED-204): a word or a few words that are a term apart from case, hyphens and spaces, spoken numbers or one letter (terms of 5+ letters, only where the heard words aren't German to `UITextChecker`) take the term's spelling; no second recognizer runs, so step 6 is skipped. README › After Stop has the measurements.
+
+For Apple's words, only with a vocabulary. `DictationTranscriber` over the whole file with the terms as contextual strings; `VocabularyMerge` takes over **only** the terms it recognized, at the same time (±0.15 s), replacing the most similar word run (Levenshtein ≤ 50 %): "Bufin" → "BaFin", "KoFin Pro" → "Cofinpro"; plus case fixes ("Marisk" → "MaRisk"). Everything else stays as the words pass wrote it. Words are re-aligned with the stored turns, so speakers and names stay.
 
 ### Step 7 · Title and summary (background)
 `TranscriptTitler`: the transcript as "Name: text" lines; Gemma (Better Summaries on) asks for three lines "Topics / Summary / Title" with the task repeated after the text, greedy; Apple's model (fallback) with a `@Generable` `TitleAndSummary` and a plain-text retry on refusal. Parts sized by the model's window (Gemma 65,450 characters, Apple 9,786 / 24,122), map-reduce for longer transcripts. The title only replaces a name the app gave.

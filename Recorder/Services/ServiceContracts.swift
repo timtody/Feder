@@ -89,7 +89,8 @@ protocol Transcriber: AnyObject {
 /// file's first frame, the same timeline as the live words.
 @MainActor
 protocol FileTranscriber: AnyObject {
-    /// The words, without the vocabulary: Parakeet when it is chosen and downloaded, otherwise Apple's recognizer.
+    /// The words: Parakeet when it is chosen and downloaded (with the vocabulary's spelling already applied,
+    /// `vocabularyApplied`), otherwise Apple's recognizer (without it: `applyVocabulary` follows).
     func transcribe(fileURL: URL, locale: Locale) async throws -> FileTranscript
     /// Vocabulary terms (DictationTranscriber, VocabularyMerge) on `words`. Every word keeps its times; returns `words`
     /// when nothing changed or the pass failed.
@@ -102,6 +103,8 @@ nonisolated struct FileTranscript: Sendable {
     /// Seconds added to the diarizer's turn times when they are aligned with these words (the word times themselves are
     /// stored unchanged): ParakeetTranscriber.alignmentOffset for Parakeet's words, 0 for Apple's.
     var alignmentOffset: TimeInterval
+    /// The vocabulary is in these words already (Parakeet's, VocabularySpelling): no vocabulary pass follows.
+    var vocabularyApplied = false
 }
 
 // MARK: - Diarization

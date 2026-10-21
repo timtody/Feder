@@ -6,7 +6,8 @@ import Speech
 /// The full-accuracy pass after Stop, on the saved WAV, in two steps:
 /// - `transcribe` (before speakers are identified): Parakeet Ultra (ParakeetTranscriber) when chosen and downloaded,
 ///   otherwise SpeechTranscriber without .fastResults (full context window) and without volatile results.
-/// - `applyVocabulary` (after speakers are shown, in the background): only with a vocabulary, DictationTranscriber
+///   Parakeet's words get the vocabulary's spelling in this step (VocabularySpelling), so they need no second pass.
+/// - `applyVocabulary` (after speakers are shown, in the background; Apple's words only): with a vocabulary, DictationTranscriber
 ///   with the vocabulary as contextual strings. SpeechTranscriber ignores contextual strings (measured: identical output
 ///   with and without), DictationTranscriber honours them but is less accurate on ordinary words, so VocabularyMerge
 ///   takes over just the vocabulary terms it recognized. This step is most of the post-stop time (a whole-file
@@ -24,8 +25,9 @@ final class SpeechFileTranscriber: FileTranscriber {
     func transcribe(fileURL: URL, locale requested: Locale) async throws -> FileTranscript {
         if ParakeetModel.isPreferred, parakeet?.isReady == true, ParakeetTranscriber.supports(requested),
            let parsed = try? await ParakeetTranscriber.transcribe(fileURL: fileURL, locale: requested), !parsed.words.isEmpty {
-            return FileTranscript(words: parsed.words, confidences: parsed.confidences,
-                                  alignmentOffset: ParakeetTranscriber.alignmentOffset)
+            let spelled = await Self.spellingVocabulary(parsed.words, confidences: parsed.confidences, locale: requested)
+            return FileTranscript(words: spelled.words, confidences: spelled.confidences,
+                                  alignmentOffset: ParakeetTranscriber.alignmentOffset, vocabularyApplied: true)
         }
         guard SpeechTranscriber.isAvailable else { throw RecorderError.transcriberUnavailable }
         guard let locale = await SpeechTranscriber.supportedLocale(equivalentTo: requested) else {
@@ -44,6 +46,23 @@ final class SpeechFileTranscriber: FileTranscriber {
             return (words, confidences)
         }
         return FileTranscript(words: words, confidences: confidences, alignmentOffset: 0)
+    }
+
+    /// Parakeet's words get the vocabulary's spelling right away (VocabularySpelling, FED-204) instead of a Dictation
+    /// pass: on real speech it found more of the terms (93 % against Parakeet's own 74 %) without a second recognizer
+    /// over the file. The search runs off the main actor; only the near misses' words go to the spell checker.
+    private static func spellingVocabulary(_ words: [TranscriptWord], confidences: [Double],
+                                           locale: Locale) async -> (words: [TranscriptWord], confidences: [Double]) {
+        let terms = Vocabulary.current
+        guard !terms.isEmpty else { return (words, confidences) }
+        let candidates = await VocabularySpelling.candidates(in: words, terms: terms)
+        let nonWords = SpellCheck.nonWords(in: Set(candidates.values.flatMap { $0.flatMap(\.unknown) }), locale: locale)
+        let spelled = VocabularySpelling.applying(candidates, to: words, confidences: confidences, nonWords: nonWords)
+        #if DEBUG
+        print("[Scribe] vocabulary spelling: \(words.count) words, \(candidates.count) places, " +
+              "\(zip(words, spelled.words).filter { $0.text != $1.text }.count) changed")
+        #endif
+        return spelled
     }
 
     func applyVocabulary(to words: [TranscriptWord], fileURL: URL, locale: Locale) async -> [TranscriptWord] {

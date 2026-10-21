@@ -46,6 +46,8 @@ release carries a later version's features, its notes are the 1.0 text plus thos
 - Swiping a transcript away to the right shows your list beside it as it goes, instead of an empty white or black
   screen.
 - Two people speaking are Speaker 1 and Speaker 2 while you record, never Speaker 1 and Speaker 3.
+- With Parakeet, your own words (Settings › Vocabulary) are spelled right in the transcript as soon as its words
+  are in, without a second pass over the recording.
 
 ### Deutsch
 
@@ -90,6 +92,8 @@ release carries a later version's features, its notes are the 1.0 text plus thos
 - Wischst du ein Transkript nach rechts weg, ist dabei deine Liste daneben zu sehen statt einer leeren weißen oder
   schwarzen Fläche.
 - Zwei Personen sind während der Aufnahme Sprecher 1 und Sprecher 2, nie Sprecher 1 und Sprecher 3.
+- Mit Parakeet stehen deine eigenen Wörter (Einstellungen › Vokabular) richtig geschrieben im Transkript, sobald
+  seine Wörter da sind, ohne zweiten Durchgang über die Aufnahme.
 
 ## 1.1
 
