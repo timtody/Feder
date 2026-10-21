@@ -4,6 +4,16 @@
     "": {
       "shouldTranslate": false
     },
+    "Recovered Recording": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiederhergestellte Aufnahme"
+          }
+        }
+      }
+    },
     "%@ Download Failed": {
       "localizations": {
         "de": {
