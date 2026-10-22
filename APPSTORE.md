@@ -1,6 +1,6 @@
 # Feder → App Store checklist
 
-Feder is free. State in October 2026 (corrected against Apple's pages and the code on 2026-10-07): usage descriptions (microphone, location, calendar), `UIBackgroundModes: audio`, `ITSAppUsesNonExemptEncryption: false`, the launch screen, the icon and the 8 GB gating for Gemma are done. **No signed Release build has ever been made**: the only Release product (Oct 3) is unsigned and still says "Scribe". The bundle id `de.cofinpro.recorder` and `PRODUCT_NAME` `Recorder` never change.
+Feder is free. State in October 2026 (corrected against Apple's pages and the code on 2026-10-07): usage descriptions (microphone, location, calendar), `UIBackgroundModes: audio`, `ITSAppUsesNonExemptEncryption: false`, the launch screen, the icon and the 8 GB gating for Gemma are done. **No signed Release build has ever been made**: the only Release product (Oct 3) is unsigned and still says "Scribe". The bundle id `de.timtody.feder` and `PRODUCT_NAME` `Feder` never change (changed once, on 2026-10-08, from `de.cofinpro.recorder` / `Recorder`, before the first submission).
 
 Status: **[done]** is in the app; **[this change]** is being added now; **[open]** is for you (or a later code change). Nothing here is legal advice; have a lawyer confirm the legal items.
 
