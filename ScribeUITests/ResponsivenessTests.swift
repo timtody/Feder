@@ -153,7 +153,7 @@ final class ResponsivenessTests: ScribeUITestCase {
     /// pile up in the simulator's store.
     @MainActor
     private func deleteNewestRecording(_ app: XCUIApplication) {
-        let rows = app.buttons.matching(NSPredicate(format: "label CONTAINS ', Today at '"))
+        let rows = app.buttons.matching(dayLine(since: launchedAt, until: .now + 5, "label CONTAINS %@", prefix: ", "))
         guard rows.firstMatch.appears(timeout: 5), !rows.element(boundBy: 0).label.hasPrefix("Project Kickoff") else { return }
         rows.element(boundBy: 0).tap()
         XCTAssertTrue(app.buttons["Delete Transcript"].appears(timeout: 10))

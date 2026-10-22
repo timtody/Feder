@@ -22,10 +22,14 @@ class ScribeUITestCase: XCTestCase {
         continueAfterFailure = false
     }
 
+    /// When the last `launch` began: the seeded transcripts are dated after it (see dayWords).
+    private(set) var launchedAt = Date.now
+
     /// `waitsForList: false` for a launch that is locked (App Lock, `-appLockOn`): the list is behind the lock and hidden
     /// from the accessibility tree.
     @MainActor
     func launch(_ arguments: [String] = [], waitsForList: Bool = true) -> XCUIApplication {
+        launchedAt = .now
         let app = XCUIApplication()
         // English unless a test asks for another language: the queries match the English labels, and the app follows
         // the simulator's language otherwise (Localizable.xcstrings has German).
@@ -327,6 +331,25 @@ class ScribeUITestCase: XCTestCase {
              "row \(row.frame), text at x \(textX): line share left of the text \(left), right of it \(right)")
         XCTAssertLessThan(left, 0.2, "\(title): no separator left of the text (x 1-\(textX - 3))", file: file, line: line)
         XCTAssertGreaterThan(right, 0.8, "\(title): the separator from the text on", file: file, line: line)
+    }
+
+    /// The day words a line for `since` may show when it was drawn between `drawnAfter` (default `since`) and `until`:
+    /// the app words a date when it draws its line (`relativeDayText`) and doesn't redraw it at midnight, so a run
+    /// across midnight may show either for the same date. "Today" only when the line may have been drawn on `since`'s
+    /// day, "Yesterday" only when it may have been drawn after midnight; on any other day just "Today", as strict as
+    /// before (FED-51).
+    func dayWords(since: Date, drawnAfter: Date? = nil, until: Date = .now) -> [String] {
+        let drawn = max(since, drawnAfter ?? since), read = max(drawn, until)
+        return (Calendar.current.isDate(since, inSameDayAs: drawn) ? ["Today"] : [])
+            + (Calendar.current.isDate(since, inSameDayAs: read) ? [] : ["Yesterday"])
+    }
+
+    /// A query predicate for a date line of something dated after `since`, read by `until`: `format` (with one %@) for
+    /// "Today at " and, across midnight, "Yesterday at " (dayWords), each after `prefix`.
+    func dayLine(since: Date, until: Date, _ format: String, prefix: String = "") -> NSPredicate {
+        NSCompoundPredicate(orPredicateWithSubpredicates: dayWords(since: since, until: until).map {
+            NSPredicate(format: format, prefix + $0 + " at ")
+        })
     }
 }
 

@@ -19,7 +19,8 @@ final class PersonPageTests: ScribeUITestCase {
 
         let last = app.descendants(matching: .any)["LastConversation"]
         XCTAssertTrue(last.appears(timeout: 5), "the Last Conversation row")
-        XCTAssertTrue(last.label.contains("Last Conversation") && last.label.contains("Today at"),
+        XCTAssertTrue(last.label.contains("Last Conversation")
+                      && dayWords(since: launchedAt).contains { last.label.contains("\($0) at") },
                       "Project Kickoff is today: \(last.label)")
         XCTAssertTrue(app.staticTexts["2 Transcripts"].exists, "the transcripts' header")
         let profile = app.descendants(matching: .any)["VoiceProfile"]

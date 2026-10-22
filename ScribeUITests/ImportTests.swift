@@ -57,7 +57,7 @@ final class ImportTests: ScribeUITestCase {
                       "its length")
         // The card's date line, under the title: the rows behind the card have dates in the tree too.
         let titleFrame = title.frame
-        let dated = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Today at '")).allElementsBoundByIndex
+        let dated = app.staticTexts.matching(dayLine(since: launchedAt, until: .now + 5, "label BEGINSWITH %@")).allElementsBoundByIndex
             .contains { abs($0.frame.minY - titleFrame.maxY) < 30 && $0.isHittable }
         XCTAssertTrue(dated, "dated today, not a month ago as its file")
         XCTAssertTrue(app.buttons["Remove Import"].exists, "tagged Import")
@@ -65,7 +65,9 @@ final class ImportTests: ScribeUITestCase {
 
         closeCard(app)
         let meta = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label BEGINSWITH 'Today at' AND label CONTAINS 'Tag: Import'")).firstMatch
+            .matching(NSCompoundPredicate(andPredicateWithSubpredicates: [
+                dayLine(since: launchedAt, until: .now + 5, "label BEGINSWITH %@"),
+                NSPredicate(format: "label CONTAINS 'Tag: Import'")])).firstMatch
         XCTAssertTrue(meta.appears(timeout: 5), "its row: today, with the Import tag")
         let row = app.staticTexts["Interview Lena"].firstMatch
         XCTAssertLessThan(row.frame.minY, app.staticTexts["Project Kickoff"].firstMatch.frame.minY,

@@ -374,7 +374,7 @@ final class TranscriptListTests: ScribeUITestCase {
         XCTAssertTrue(stop.appears(timeout: 10), "the large Stop")
         XCTAssertNotNil(reachable(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'New Transcript '"))),
                         "the name the transcript would get")
-        let date = reachable(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Today at '")))
+        let date = reachable(app.staticTexts.matching(dayLine(since: tapped, until: .now + 10, "label BEGINSWITH %@")))
         XCTAssertTrue(date.map { startTexts(from: tapped).contains($0.label) } ?? false, "the start time: \(String(describing: date?.label))")
         RunLoop.current.run(until: .now + 1.5)                              // the canned words would be there by now
         XCTAssertTrue(app.staticTexts["Listening…"].exists, "nothing heard")
@@ -385,7 +385,7 @@ final class TranscriptListTests: ScribeUITestCase {
         XCTAssertFalse(app.buttons["Share Transcript"].exists, "no transcript")
         XCTAssertFalse(app.textFields["Title"].exists, "no transcript")
         XCTAssertTrue(record.appears(timeout: 5) && record.isHittable, "the accessory is back to Transcribe")
-        let rows = app.buttons.matching(NSPredicate(format: "label CONTAINS ', Today at '"))
+        let rows = app.buttons.matching(dayLine(since: launchedAt, until: .now + 5, "label CONTAINS %@", prefix: ", "))
         XCTAssertTrue(rows.firstMatch.appears(timeout: 5))
         XCTAssertTrue(rows.element(boundBy: 0).label.hasPrefix("Project Kickoff"),
                       "nothing saved: Project Kickoff still tops the list: \(rows.element(boundBy: 0).label)")
@@ -423,25 +423,6 @@ final class TranscriptListTests: ScribeUITestCase {
         -> [String] {
         let time = day.range(of: " at ").map { String(day[$0.lowerBound...]) } ?? day
         return startTexts(from: tapped, drawnAfter: drawnAfter, until: now).filter { $0.hasSuffix(time) }
-    }
-
-    /// The day words a line for `since` may show when it was drawn between `drawnAfter` (default `since`) and `until`:
-    /// the app words a date when it draws its line (`relativeDayText`) and doesn't redraw it at midnight, so a run
-    /// across midnight may show either for the same date. "Today" only when the line may have been drawn on `since`'s
-    /// day, "Yesterday" only when it may have been drawn after midnight; on any other day just "Today", as strict as
-    /// before (FED-51).
-    private func dayWords(since: Date, drawnAfter: Date? = nil, until: Date = .now) -> [String] {
-        let drawn = max(since, drawnAfter ?? since), read = max(drawn, until)
-        return (Calendar.current.isDate(since, inSameDayAs: drawn) ? ["Today"] : [])
-            + (Calendar.current.isDate(since, inSameDayAs: read) ? [] : ["Yesterday"])
-    }
-
-    /// A query predicate for a date line of something dated after `since`, read by `until`: `format` (with one %@) for
-    /// "Today at " and, across midnight, "Yesterday at " (dayWords), each after `prefix`.
-    private func dayLine(since: Date, until: Date, _ format: String, prefix: String = "") -> NSPredicate {
-        NSCompoundPredicate(orPredicateWithSubpredicates: dayWords(since: since, until: until).map {
-            NSPredicate(format: format, prefix + $0 + " at ")
-        })
     }
 
     /// A tap on a row opens the transcript card (zooming out of the row; no push): the back button at the top left, the
@@ -521,7 +502,7 @@ final class TranscriptListTests: ScribeUITestCase {
         swipeCardRight(app)
         XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5), "swiping right closes the transcript")
         // Delete the recording, so test recordings don't pile up in the simulator's store.
-        let rows = app.buttons.matching(NSPredicate(format: "label CONTAINS ', Today at '"))
+        let rows = app.buttons.matching(dayLine(since: launchedAt, until: .now + 5, "label CONTAINS %@", prefix: ", "))
         XCTAssertTrue(rows.firstMatch.appears(timeout: 5))
         rows.element(boundBy: 0).tap()
         assertCard(app)
