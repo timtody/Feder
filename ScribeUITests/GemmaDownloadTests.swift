@@ -69,7 +69,7 @@ final class AskTests: ScribeUITestCase {
         XCTAssertTrue(title.appears(timeout: 5), "the card")
         let height = app.frame.height
         XCTAssertTrue(waitFor { title.frame.minY < height * 0.15 }, "at full height (FED-137): \(title.frame) in \(height)")
-        XCTAssertTrue(app.staticTexts["Ask Gemma"].exists, "the empty chat")
+        XCTAssertTrue(app.staticTexts["What would you like to know?"].exists, "the empty chat")
         XCTAssertFalse(app.buttons["New Chat"].isEnabled, "nothing to clear yet")
         XCTAssertFalse(app.buttons["Send"].isEnabled, "no Send without text")
         let field = app.textFields["ChatField"]
@@ -106,7 +106,7 @@ final class AskTests: ScribeUITestCase {
         shot("Two answers", app)
 
         app.buttons["New Chat"].tap()
-        XCTAssertTrue(app.staticTexts["Ask Gemma"].appears(timeout: 5), "New Chat clears the conversation")
+        XCTAssertTrue(app.staticTexts["What would you like to know?"].appears(timeout: 5), "New Chat clears the conversation")
         XCTAssertFalse(app.staticTexts["ChatAnswer"].exists)
         app.buttons["CloseAsk"].tap()
         XCTAssertTrue(title.disappears(timeout: 5), "Close puts the card away")
@@ -141,7 +141,7 @@ final class AskTests: ScribeUITestCase {
 
         closeCard(app)
         app.buttons["AskGemma"].tap()
-        XCTAssertTrue(app.staticTexts["Ask Gemma"].appears(timeout: 5), "Ask's own chat is still empty")
+        XCTAssertTrue(app.staticTexts["What would you like to know?"].appears(timeout: 5), "Ask's own chat is still empty")
         XCTAssertFalse(app.staticTexts["ChatAnswer"].exists)
         app.buttons["CloseAsk"].tap()
         XCTAssertTrue(app.navigationBars["Ask Gemma"].disappears(timeout: 5))
@@ -240,6 +240,27 @@ final class AskTests: ScribeUITestCase {
         XCTAssertTrue(title.disappears(timeout: 5), "swiped away")
     }
 
+    /// A long answer (FED-137): the card follows it to its end without the arrow; scrolled up, a glass arrow takes it
+    /// back down and goes. Under the finished answer, Copy turns into Copied.
+    @MainActor
+    func testLongAnswerScrollsAndCopies() throws {
+        let app = launch(["-fakeGemma", "-askQuestion", "Give me a long answer"])
+        let answer = app.staticTexts["ChatAnswer"].firstMatch
+        XCTAssertTrue(answer.appears(timeout: 10))
+        XCTAssertTrue(app.buttons["Send"].appears(timeout: 20), "answered")
+        let toEnd = app.buttons["ScrollToEnd"]
+        XCTAssertFalse(toEnd.exists, "no arrow at the end")
+        answer.swipeDown(velocity: .slow)
+        XCTAssertTrue(toEnd.appears(timeout: 3), "scrolled up: the arrow")
+        shot("Scrolled up", app)
+        toEnd.tap()
+        XCTAssertTrue(toEnd.disappears(timeout: 3), "back at the end: the arrow goes")
+        let copy = app.buttons["CopyAnswer"]
+        XCTAssertTrue(copy.exists, "Copy under the answer")
+        copy.tap()
+        XCTAssertTrue(waitFor { copy.label == "Copied" }, "Copied: \(copy.label)")
+    }
+
     /// Stop mid-answer keeps what was written so far, captioned Stopped.
     @MainActor
     func testStopKeepsPartialAnswer() throws {
@@ -265,7 +286,7 @@ final class AskTests: ScribeUITestCase {
         app.buttons["Download Gemma 4 E2B (3.6 GB)"].tap()
         XCTAssertTrue(app.staticTexts["Downloading Gemma 4 E2B…"].appears(timeout: 5), "the progress")
         shot("Downloading", app)
-        XCTAssertTrue(app.staticTexts["Ask Gemma"].appears(timeout: 15), "downloaded: the chat")
+        XCTAssertTrue(app.staticTexts["What would you like to know?"].appears(timeout: 15), "downloaded: the chat")
         XCTAssertTrue(app.textFields["ChatField"].appears(timeout: 5), "and the field")
     }
 

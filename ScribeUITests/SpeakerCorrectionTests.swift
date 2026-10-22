@@ -181,7 +181,7 @@ final class SpeakerCorrectionTests: ScribeUITestCase {
         menu(app, header: 1, "Assign This Part To", "Anna Schmidt")
         XCTAssertTrue(waitFor { self.names(app) == ["Anna Schmidt", "Jonas Weber"] }, "\(names(app))")
         let title = app.textFields["Title"]
-        let focused = { title.value(forKey: "hasKeyboardFocus") as? Bool }
+        let focused = { title.keyboardFocus }
         title.tap()
         XCTAssertTrue(app.buttons["UndoCorrection"].disappears(timeout: 12), "the toast times out")
         XCTAssertEqual(focused(), true, "the title keeps the keyboard")

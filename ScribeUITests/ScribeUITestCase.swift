@@ -308,6 +308,14 @@ extension XCUIElement {
         return true
     }
 
+    /// The element's keyboard focus; nil when it can't be read (the element is gone). "Focus lost" checks that must not
+    /// pass for a vanished element compare this to `false`; `hasFocus` folds nil into false.
+    @MainActor
+    var keyboardFocus: Bool? { value(forKey: "hasKeyboardFocus") as? Bool }
+
+    @MainActor
+    var hasFocus: Bool { keyboardFocus ?? false }
+
     /// `waitForNonExistence(timeout:)`, polled the same way.
     @MainActor
     func disappears(timeout: TimeInterval) -> Bool {

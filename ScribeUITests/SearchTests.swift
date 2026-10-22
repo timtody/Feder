@@ -85,7 +85,7 @@ final class SearchTests: ScribeUITestCase {
     func testSearchTabFocusAndKeyboardLeaveWithTab() throws {
         let app = launch()
         let field = openSearch(app)
-        XCTAssertTrue(hasFocus(field), "tapping Search focuses the field")
+        XCTAssertTrue(field.hasFocus, "tapping Search focuses the field")
 
         app.buttons["Transcripts"].firstMatch.tap()
         XCTAssertTrue(app.keyboards.firstMatch.disappears(timeout: 5), "the keyboard went with the Search tab")
@@ -94,19 +94,19 @@ final class SearchTests: ScribeUITestCase {
 
         app.buttons["Search"].firstMatch.tap()
         XCTAssertTrue(app.keyboards.firstMatch.appears(timeout: 5), "back in Search: keyboard up again")
-        XCTAssertTrue(waitFor { self.hasFocus(field) }, "and the field focused")
+        XCTAssertTrue(waitFor { field.hasFocus }, "and the field focused")
 
         // Unfocused within Search (Return ends editing; the hardware keyboard sends it), a tap on the selected Search
         // tab focuses the field again.
         app.typeText("a")
         waitForResults(app)
         app.typeText("\n")
-        guard waitFor({ !self.hasFocus(field) }) else {
+        guard waitFor({ !field.hasFocus }) else {
             throw XCTSkip("Return did not end editing: no unfocused field to tap Search on")
         }
         XCTAssertTrue(app.keyboards.firstMatch.disappears(timeout: 5), "the keyboard went with the focus")
         app.buttons["Search"].firstMatch.tap()
-        XCTAssertTrue(waitFor { self.hasFocus(field) }, "a tap on the selected Search tab focuses the field again")
+        XCTAssertTrue(waitFor { field.hasFocus }, "a tap on the selected Search tab focuses the field again")
         XCTAssertTrue(app.keyboards.firstMatch.appears(timeout: 5), "keyboard up")
         XCTAssertEqual(field.value as? String, "a", "the text stays")
         shot("Search tapped again", app)
@@ -119,11 +119,6 @@ final class SearchTests: ScribeUITestCase {
         let count = app.staticTexts.matching(NSPredicate(format: "label MATCHES '[0-9]+ Transcripts?'")).firstMatch
         XCTAssertTrue(count.appears(timeout: 5), "the results are shown")
         XCTAssertTrue(app.staticTexts["Project Kickoff"].exists, "the newest result")
-    }
-
-    @MainActor
-    private func hasFocus(_ element: XCUIElement) -> Bool {
-        (element.value(forKey: "hasKeyboardFocus") as? Bool) ?? false
     }
 
 
@@ -170,9 +165,9 @@ final class SearchTests: ScribeUITestCase {
         XCTAssertTrue(tagField.appears(timeout: 5), "Add Tag from the menu inserts the tag line")
         XCTAssertTrue(app.buttons["Remove finance"].exists, "after the transcript's tag")
         // Focused although the menu was still closing, and it stays (a lost focus would end the edit at once).
-        XCTAssertTrue(waitFor { self.hasFocus(tagField) }, "the tag field is focused")
+        XCTAssertTrue(waitFor { tagField.hasFocus }, "the tag field is focused")
         RunLoop.current.run(until: .now + 1)
-        XCTAssertTrue(tagField.exists && hasFocus(tagField), "and stays focused")
+        XCTAssertTrue(tagField.exists && tagField.hasFocus, "and stays focused")
     }
 
     /// While searching, the last result is not covered by the tab bar, the record accessory or the keyboard once the
@@ -278,7 +273,7 @@ final class SearchTests: ScribeUITestCase {
         find.tap()
         let field = app.textFields["FindField"]
         XCTAssertTrue(field.appears(timeout: 5), "the find bar")
-        XCTAssertTrue(waitFor { self.hasFocus(field) }, "its field focused")
+        XCTAssertTrue(waitFor { field.hasFocus }, "its field focused")
         XCTAssertFalse(app.buttons["Share Transcript"].isHittable, "the toolbar gives way to the find bar")
         let height = app.windows.firstMatch.frame.height
         XCTAssertGreaterThan(field.frame.minY, height * 0.5, "at the bottom (on the keyboard): \(field.frame)")
@@ -295,7 +290,7 @@ final class SearchTests: ScribeUITestCase {
         XCTAssertNotEqual(app.staticTexts["Paragraph.0"].value as? String, "Current match", "the mark moved on")
         field.typeText("\n")                                                // Return: the next one, wrapping around
         XCTAssertTrue(waitFor { count.label == "Match 1 of 2" }, "Return wraps to the first: \(count.label)")
-        XCTAssertTrue(hasFocus(field), "and keeps the keyboard")
+        XCTAssertTrue(field.hasFocus, "and keeps the keyboard")
         app.buttons["Previous Match"].tap()
         XCTAssertTrue(waitFor { count.label == "Match 2 of 2" }, "Previous wraps to the last: \(count.label)")
 
@@ -355,7 +350,7 @@ final class SearchTests: ScribeUITestCase {
         XCTAssertTrue(waitFor { count.exists && count.label == "Match 2 of 2" }, "Return searched: \(count.label)")
         sleep(1)                                                            // past the typing pause
         XCTAssertEqual(count.label, "Match 2 of 2", "and didn't step")
-        XCTAssertTrue(hasFocus(field), "the field keeps the keys")
+        XCTAssertTrue(field.hasFocus, "the field keeps the keys")
     }
 
     /// In a card opened from a search result, Find starts with the search's words and the same current hit; closing it
@@ -397,7 +392,7 @@ final class SearchTests: ScribeUITestCase {
         primeKeys(app)
         app.typeKey("f", modifierFlags: .command)
         XCTAssertTrue(field.appears(timeout: 5), "⌘F: the find bar")
-        XCTAssertTrue(waitFor { self.hasFocus(field) })
+        XCTAssertTrue(waitFor { field.hasFocus })
         field.typeText("budget")
         let count = app.staticTexts["FindCount"]
         XCTAssertTrue(waitFor { count.exists && count.label == "Match 1 of 2" })
@@ -408,10 +403,10 @@ final class SearchTests: ScribeUITestCase {
         XCTAssertTrue(waitFor { count.label == "Match 1 of 2" }, "⇧⌘G: \(count.label)")
         // ⌘F with the bar up: the field takes the keys back (here from the title), as in Safari.
         app.textFields["Title"].tap()
-        XCTAssertTrue(waitFor { !self.hasFocus(field) }, "the title has the keys")
+        XCTAssertTrue(waitFor { !field.hasFocus }, "the title has the keys")
         primeKeys(app)
         app.typeKey("f", modifierFlags: .command)
-        XCTAssertTrue(waitFor { self.hasFocus(field) }, "⌘F: the find field again")
+        XCTAssertTrue(waitFor { field.hasFocus }, "⌘F: the find field again")
     }
 
     /// ⌃G, bound to nothing: takes the simulator's drop of the first key combination (see testFindKeyboardShortcuts).

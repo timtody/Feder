@@ -37,12 +37,12 @@ final class TagEditorTests: ScribeUITestCase {
         XCTAssertTrue(app.buttons["Remove alpha"].appears(timeout: 5), "a comma makes the word before it a pill")
         XCTAssertTrue(app.buttons["Remove beta"].appears(timeout: 3), "and the one after it")
         XCTAssertEqual(field.value as? String ?? "", "Add Tag", "the field is empty again (its placeholder)")
-        XCTAssertTrue(hasFocus(field), "and still focused")
+        XCTAssertTrue(field.hasFocus, "and still focused")
         XCTAssertLessThan(app.buttons["Remove alpha"].frame.minX, app.buttons["Remove beta"].frame.minX, "in order")
 
         app.buttons["Remove alpha"].tap()                                    // removed while adding
         XCTAssertTrue(app.buttons["Remove alpha"].disappears(timeout: 5), "alpha is removed")
-        XCTAssertTrue(hasFocus(field), "the field keeps the focus")
+        XCTAssertTrue(field.hasFocus, "the field keeps the focus")
         let now = suggestions.allElementsBoundByIndex.map(\.label)
         XCTAssertFalse(now.contains("alpha"), "this transcript's own tags are not suggested back: \(now)")
 
@@ -168,15 +168,10 @@ final class TagEditorTests: ScribeUITestCase {
 
 
     @MainActor
-    private func hasFocus(_ element: XCUIElement) -> Bool {
-        (element.value(forKey: "hasKeyboardFocus") as? Bool) ?? false
-    }
-
-    @MainActor
     private func waitForFocus(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
         let end = Date.now.addingTimeInterval(timeout)
         while Date.now < end {
-            if element.exists && hasFocus(element) { return true }
+            if element.exists && element.hasFocus { return true }
             RunLoop.current.run(until: .now + 0.1)
         }
         return false
