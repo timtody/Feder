@@ -68,21 +68,20 @@ final class AskTests: ScribeUITestCase {
         let title = app.navigationBars["Ask Gemma"]
         XCTAssertTrue(title.appears(timeout: 5), "the card")
         let height = app.frame.height
-        XCTAssertTrue(waitFor { abs(title.frame.minY - height * 0.5) < height * 0.12 },
-                      "at half height: \(title.frame) in \(height)")
+        XCTAssertTrue(waitFor { title.frame.minY < height * 0.15 }, "at full height (FED-137): \(title.frame) in \(height)")
         XCTAssertTrue(app.staticTexts["Ask Gemma"].exists, "the empty chat")
         XCTAssertFalse(app.buttons["New Chat"].isEnabled, "nothing to clear yet")
         XCTAssertFalse(app.buttons["Send"].isEnabled, "no Send without text")
         let field = app.textFields["ChatField"]
         XCTAssertTrue(field.exists, "the field")
         XCTAssertGreaterThan(field.frame.minY, height * 0.8, "at the bottom: \(field.frame)")
-        shot("Card at half height", app)
+        XCTAssertTrue(app.buttons.matching(identifier: "AskSuggestion").firstMatch.exists, "suggestions while empty")
+        shot("Card", app)
 
         field.tap()
         dismissKeyboardTip(app)
         let keyboard = app.keyboards.firstMatch
         XCTAssertTrue(keyboard.appears(timeout: 5), "the keyboard")
-        XCTAssertTrue(waitFor { title.frame.minY < height * 0.15 }, "typing: the card goes to full height: \(title.frame)")
         XCTAssertLessThan(field.frame.maxY, keyboard.frame.minY + 1, "the field over the keyboard")
         field.typeText("What can you do?")
         shot("Typed", app)
@@ -152,6 +151,7 @@ final class AskTests: ScribeUITestCase {
     }
 
     /// The sentences bookmarked while recording go to Gemma as their own list (FED-137): the fake Gemma counts them.
+    /// Asked with the empty chat's "What did I bookmark?" suggestion, offered only with bookmarks.
     /// `-seedBookmarks` gives Budget Review four bookmarks on three sentences.
     @MainActor
     func testAskGetsTheBookmarkedSentences() throws {
@@ -159,11 +159,12 @@ final class AskTests: ScribeUITestCase {
         open("Budget Review", in: app)
         tapMenuItem("Ask About Transcript", in: app)
         XCTAssertTrue(app.navigationBars["Ask Gemma"].appears(timeout: 10), "the Ask card")
-        let field = app.textFields["ChatField"]
-        field.tap()
-        dismissKeyboardTip(app)
-        field.typeText("What matters?")
-        app.buttons["Send"].tap()
+        // The suggestion is there because the transcript has bookmarks; a tap asks it.
+        let suggestion = app.buttons["What did I bookmark?"]
+        XCTAssertTrue(suggestion.appears(timeout: 5), "the bookmarks' suggestion")
+        suggestion.tap()
+        XCTAssertTrue(app.staticTexts["What did I bookmark?"].appears(timeout: 3), "asked")
+        XCTAssertFalse(suggestion.exists, "the suggestions go with the first question")
         XCTAssertTrue(app.buttons["Send"].appears(timeout: 15) && app.buttons["Stop Answer"].disappears(timeout: 15),
                       "answered")
         let answer = app.staticTexts["ChatAnswer"].firstMatch
@@ -203,7 +204,7 @@ final class AskTests: ScribeUITestCase {
     }
 
     /// The field grows to five lines over the keyboard; a draft survives closing the card (a swipe down) and is sent
-    /// when it is opened again. Pulled up by its grabber, the card goes to full height without the keyboard.
+    /// when it is opened again. The card opens at full height (FED-137) and a swipe down closes it.
     @MainActor
     func testFieldGrowsAndDraftSurvives() throws {
         let app = launch(["-fakeGemma"])
@@ -213,12 +214,7 @@ final class AskTests: ScribeUITestCase {
         let title = app.navigationBars["Ask Gemma"]
         XCTAssertTrue(title.appears(timeout: 5))
         let height = app.frame.height
-        XCTAssertTrue(waitFor { title.frame.minY > height * 0.3 }, "half height first")
-        // Pulled up from the top of the card: full height.
-        let top = title.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
-        top.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.05)))
-        XCTAssertTrue(waitFor { title.frame.minY < height * 0.15 }, "pulled up to full: \(title.frame)")
-        XCTAssertFalse(app.keyboards.firstMatch.exists, "no keyboard for that")
+        XCTAssertTrue(waitFor { title.frame.minY < height * 0.15 }, "full height at once: \(title.frame)")
         shot("Card at full height", app)
 
         let field = app.textFields["ChatField"]

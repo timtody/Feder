@@ -1,11 +1,12 @@
 import SwiftUI
 
 /// Ask (FED-17, a prototype): a chat with Gemma on this iPhone, to try how talking to it feels before it answers from
-/// the transcripts. A card that zooms out of the record accessory's Ask button (MainView's sheet), opens at half height
-/// and pulls up to full, as the system's sheets do (Maps, Find My): New Chat at the top, the field at the bottom, over the
-/// keyboard while typing. Laid out like Messages: the questions in tinted bubbles on the right, Gemma's answers as plain
-/// text on the left (as Apple Intelligence's and other assistants' answers read). SwiftUI has no chat component; the
-/// pieces are system ones. DEBUG builds only, on iPhones that run Gemma (`isAvailable`); no CHANGELOG line until it
+/// the transcripts. A card that zooms out of the record accessory's Ask button (MainView's sheet) at full height (typing
+/// took it there anyway; a drag down closes it): New Chat at the top, the field at the bottom, over the keyboard while
+/// typing. Laid out like Claude's app (the user's reference, FED-137): the questions in calm grey bubbles on the right,
+/// Gemma's answers as plain text on the left, suggestions over the field while the chat is empty, and a field of two rows
+/// (the text, then the microphone and Send) in glass, the conversation fading milkily under it. SwiftUI has no chat
+/// component; the pieces are system ones. DEBUG builds only, on iPhones that run Gemma (`isAvailable`); no CHANGELOG line until it
 /// ships. Until October 2026 it was a tab of its own, with its field as the tab bar's accessory on that tab.
 struct ChatView: View {
     /// Ask's general chat, or one about a transcript (FED-137: from its More menu), whose title is the subtitle.
@@ -15,7 +16,7 @@ struct ChatView: View {
     @FocusState private var isFocused: Bool
     /// The field grows with the text up to five lines; the button stays a 32 pt circle (as in Messages).
     @ScaledMetric(relativeTo: .body) private var minHeight: CGFloat = 44
-    @State private var detent: PresentationDetent = .medium
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The conversation's scroll position: to the end by its edge, which counts the field and keyboard over it
     /// (a message's id as anchor left the last lines under the field now and then, FED-137).
     @State private var position = ScrollPosition(edge: .bottom)
@@ -53,19 +54,23 @@ struct ChatView: View {
                         .disabled(chat.messages.isEmpty && chat.draft.isEmpty)
                     }
                 }
+                // A bar (not an inset): the conversation scrolling under it fades out in the soft scroll edge effect,
+                // the milky look of the recording view's controls; the suggestions and the two-row field make it tall
+                // enough to read as such (the hard style drew a line instead).
                 .safeAreaBar(edge: .bottom) {
-                    if services.betterSummaries.state == .ready { composer }
+                    if services.betterSummaries.state == .ready {
+                        VStack(spacing: 10) {
+                            if chat.messages.isEmpty, !isRecording { suggestions }
+                            composer
+                        }
+                        .padding(.top, 12)
+                    }
                 }
         }
-        .presentationDetents([.medium, .large], selection: $detent)
-        // One background at both heights: the system's goes from glass at half height to opaque at full, which read as
-        // the card changing colour while it was pulled up (FED-137).
-        .presentationBackground(.regularMaterial)
+        // Full height only (FED-137): at half height the first tap into the field took it to full anyway, and the card
+        // changed colour on the way (glass at half height, opaque at full). A drag down closes it, as any sheet.
+        .presentationDetents([.large])
         .onAppear { InteractionTrace.shown("ask") }
-        // Typing at half height: the card goes to full height, so the conversation keeps room over the keyboard.
-        .onChange(of: isFocused) { _, focused in
-            if focused, detent != .large { withAnimation(.snappy) { detent = .large } }
-        }
         // A recording started from outside (the Action Button, Control Center): Gemma pauses, the keyboard goes, and
         // MainView closes the card for the recording's.
         .onChange(of: isRecording) { _, recording in
@@ -74,10 +79,9 @@ struct ChatView: View {
                 Task { await dictation.stop() }        // the microphone is the recording's
             }
         }
-        // The keyboard, the card's height and the field's growth move the end of the conversation: to the end again
-        // once they have settled (the animations take about 0.4 s).
+        // The keyboard and the field's growth move the end of the conversation: to the end again once they have
+        // settled (the keyboard's animation takes about 0.4 s).
         .onChange(of: isFocused) { scrollToEndSoon() }
-        .onChange(of: detent) { scrollToEndSoon() }
         .onDisappear { Task { await dictation.stop() } }
     }
 
@@ -98,7 +102,7 @@ struct ChatView: View {
                 conversation
                 if chat.messages.isEmpty {
                     ContentUnavailableView {
-                        Label(chat.transcript == nil ? "Ask Gemma" : "Ask About This Transcript", systemImage: "bubble.left")
+                        Label(chat.transcript == nil ? "Ask Gemma" : "Ask About This Transcript", systemImage: "sparkles")
                     } description: {
                         Text(isRecording ? "Gemma pauses while you record."
                              : chat.transcript != nil ? "Gemma reads this transcript on this iPhone. Nothing leaves it."
@@ -138,6 +142,10 @@ struct ChatView: View {
                 ForEach(chat.messages) { message in
                     ChatMessageRow(message: message, retry: chat.retry)
                         .id(message.id)
+                        // A new message rises into place (a question from the field, an answer under it).
+                        .transition(reduceMotion ? AnyTransition.opacity
+                                    : AnyTransition.opacity.combined(with: .offset(y: 16))
+                                        .combined(with: .scale(scale: 0.98, anchor: .bottom)))
                 }
                 // A recording started while the card was up (it closes for the recording's): said here meanwhile.
                 if isRecording, !chat.messages.isEmpty {
@@ -150,15 +158,13 @@ struct ChatView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.35), value: chat.messages.count)
         }
         // Opens at the end, and stays there while the answer grows (as Messages follows a conversation).
         .defaultScrollAnchor(.bottom)
         .defaultScrollAnchor(.bottom, for: .sizeChanges)
         .scrollPosition($position)
         .scrollDismissesKeyboard(.interactively)
-        // The text under the field is blurred (the edge effect's hard style, as in Claude's app), not shown
-        // through the glass: the soft default left it readable.
-        .scrollEdgeEffectStyle(.hard, for: .bottom)
         .onChange(of: chat.messages.count) {
             withAnimation(.snappy) { position.scrollTo(edge: .bottom) }
         }
@@ -191,13 +197,14 @@ struct ChatView: View {
                 if dictation.state == .preparing {
                     ProgressView()
                 } else {
-                    Image(systemName: dictation.isActive ? "mic.fill" : "mic")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(dictation.isActive ? Color.red : Color.secondary)
-                        .symbolEffect(.pulse, isActive: dictation.isActive)
+                    Image(systemName: dictation.isActive ? "waveform" : "mic")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(dictation.isActive ? Color.white : Color.primary)
+                        .symbolEffect(.variableColor.iterative, isActive: dictation.isActive && !reduceMotion)
                 }
             }
             .frame(width: 32, height: 32)
+            .background(Circle().fill(dictation.isActive ? Color.red : Color.primary.opacity(0.1)))
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -213,33 +220,72 @@ struct ChatView: View {
         }
     }
 
-    /// The field at the bottom of the card, over the keyboard while typing: up to five lines, Return is a new line,
-    /// ⌘↩ sends.
+    /// The field at the bottom of the card, over the keyboard while typing, in two rows as in Claude's app: the text
+    /// (up to five lines, Return is a new line, ⌘↩ sends), then the microphone and Send on the right. One row put the
+    /// microphone lower than Send (the row was bottom-aligned and only Send had padding), and was too thin to read as a
+    /// place to talk.
     private var composer: some View {
         @Bindable var chat = chat
-        return HStack(alignment: .bottom, spacing: 0) {
+        return VStack(alignment: .leading, spacing: 2) {
             TextField(isRecording ? LocalizedStringKey("Gemma pauses while you record.") : "Ask Gemma",
                       text: $chat.draft, axis: .vertical)
                 .lineLimit(1...5)
                 .focused($isFocused)
                 .disabled(isRecording)
-                .padding(.leading, 16)
-                .padding(.trailing, 8)
-                .padding(.vertical, 11)
+                .padding(.horizontal, 16)
+                .padding(.top, 13)
                 .accessibilityIdentifier("ChatField")
-            microphoneButton
-            ChatSendButton(chat: chat, isRecording: isRecording) {
-                dictation.detach()                       // its words would fill the field again after the send
-                Task { await dictation.stop() }
+            HStack(spacing: 10) {
+                Spacer()
+                microphoneButton
+                ChatSendButton(chat: chat, isRecording: isRecording) {
+                    dictation.detach()                       // its words would fill the field again after the send
+                    Task { await dictation.stop() }
+                }
             }
-            .padding(.trailing, 6)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
+            .padding(.bottom, 8)
         }
         .frame(minHeight: minHeight)
-        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: minHeight / 2))
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 26))
         .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.bottom, 8)
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+    }
+
+    /// While the chat is empty: questions to start with, in glass capsules over the field (as Claude's and ChatGPT's
+    /// apps offer them); a tap asks it. In the language of the app, so Gemma answers in it.
+    private var suggestions: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 8) {
+                ForEach(suggestionTexts, id: \.self) { text in
+                    Button(text) { ask(text) }
+                        .font(.subheadline)
+                        .buttonStyle(.glass)
+                        .accessibilityIdentifier("AskSuggestion")
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+        .scrollIndicators(.hidden)
+        .transition(.opacity)
+    }
+
+    private var suggestionTexts: [String] {
+        guard let transcript = chat.transcript else {
+            return [String(localized: "What can you do?"), String(localized: "Help me plan my day"),
+                    String(localized: "Explain something simply")]
+        }
+        return [String(localized: "Summarize this transcript")]
+            + (transcript.highlights.isEmpty ? [] : [String(localized: "What did I bookmark?")])
+            + [String(localized: "List the action items"), String(localized: "What did each person say?")]
+    }
+
+    private func ask(_ text: String) {
+        guard services.betterSummaries.state == .ready, !chat.isAnswering, !isRecording else { return }
+        dictation.detach()
+        Task { await dictation.stop() }
+        chat.send(text)
     }
 }
 
@@ -292,10 +338,9 @@ private struct ChatMessageRow: View {
         switch message.role {
         case .user:
             Text(message.text)
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 9)
-                .background(Color.accentFill, in: .rect(cornerRadius: 20))
+                .padding(.horizontal, 15)
+                .padding(.vertical, 10)
+                .background(Color(.secondarySystemFill), in: .rect(cornerRadius: 20))
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.leading, 48)

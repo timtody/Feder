@@ -4,6 +4,76 @@
     "": {
       "shouldTranslate": false
     },
+    "What can you do?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was kannst du?"
+          }
+        }
+      }
+    },
+    "Help me plan my day": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hilf mir, meinen Tag zu planen"
+          }
+        }
+      }
+    },
+    "Explain something simply": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erklär mir etwas ganz einfach"
+          }
+        }
+      }
+    },
+    "Summarize this transcript": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fasse dieses Transkript zusammen"
+          }
+        }
+      }
+    },
+    "What did I bookmark?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was habe ich markiert?"
+          }
+        }
+      }
+    },
+    "List the action items": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liste die Aufgaben auf"
+          }
+        }
+      }
+    },
+    "What did each person say?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was hat jede Person gesagt?"
+          }
+        }
+      }
+    },
     "Dictate": {
       "localizations": {
         "de": {
