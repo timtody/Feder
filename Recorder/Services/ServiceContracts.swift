@@ -84,16 +84,16 @@ protocol Transcriber: AnyObject {
 
 // MARK: - Full-accuracy pass
 
-/// Re-transcribes a saved recording after Stop with a more accurate model than the live one, in two steps: the words
-/// (before speakers are identified) and the vocabulary pass (after, in the background). Times are seconds from the
-/// file's first frame, the same timeline as the live words.
+/// Re-transcribes a saved recording after Stop with a more accurate model than the live one, before speakers are
+/// identified, with the vocabulary's spelling applied. Times are seconds from the file's first frame, the same
+/// timeline as the live words.
 @MainActor
 protocol FileTranscriber: AnyObject {
-    /// The words: Parakeet when it is chosen and downloaded (with the vocabulary's spelling already applied,
-    /// `vocabularyApplied`), otherwise Apple's recognizer (without it: `applyVocabulary` follows).
+    /// The words: Parakeet when it is chosen and downloaded, otherwise Apple's recognizer; with the vocabulary's spelling
+    /// already applied (`vocabularyApplied`).
     func transcribe(fileURL: URL, locale: Locale) async throws -> FileTranscript
-    /// Vocabulary terms (DictationTranscriber, VocabularyMerge) on `words`. Every word keeps its times; returns `words`
-    /// when nothing changed or the pass failed.
+    /// The vocabulary on `words` for transcripts saved with the vocabulary pass still due (before FED-210, or a fake's
+    /// words). Every word keeps its times; returns `words` when nothing changed.
     func applyVocabulary(to words: [TranscriptWord], fileURL: URL, locale: Locale) async -> [TranscriptWord]
 }
 
@@ -103,7 +103,7 @@ nonisolated struct FileTranscript: Sendable {
     /// Seconds added to the diarizer's turn times when they are aligned with these words (the word times themselves are
     /// stored unchanged): ParakeetTranscriber.alignmentOffset for Parakeet's words, 0 for Apple's.
     var alignmentOffset: TimeInterval
-    /// The vocabulary is in these words already (Parakeet's, VocabularySpelling): no vocabulary pass follows.
+    /// The vocabulary is in these words already (VocabularySpelling): no vocabulary pass follows.
     var vocabularyApplied = false
 }
 

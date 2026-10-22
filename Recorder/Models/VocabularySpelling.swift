@@ -11,7 +11,7 @@ import Foundation
 /// Measured on Parakeet Ultra's words (FederLab's vocabset, the hint list Feder's 112 built-in terms, 77 of them never
 /// said): one speaker's real recordings 74 % -> 93 % of the terms right; the synthetic sentences 51 % -> 68 % (Parakeet
 /// + Dictation + VocabularyMerge: 67 %); no term written that wasn't said, apart from a name that is also a term
-/// ("Tante Dora" -> "DORA", as fixingCase always did); 62 minutes of real speech without terms: no new false term.
+/// ("Tante Dora" -> "DORA", as the old merge's case fix did too); 62 minutes of real speech without terms: no new false term.
 /// Without the spell check it wrote six false terms on the synthetic sentences; with two letters allowed from 9 letters
 /// on, "Volksmann" became "Volksbank".
 ///

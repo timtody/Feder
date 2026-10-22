@@ -8,8 +8,9 @@ import Observation
 /// 3. final alignment of the words with the turns (TranscriptAligner.finalSegments);
 /// 4. each speaker's voice from those final labels (VoiceWindows);
 /// 5. recognition of known people (PeopleDirectory), then `.done`: the user sees the speakers.
-/// Then, in the background and on its own queue, the vocabulary pass (FileTranscriber.applyVocabulary): its words are
-/// aligned with the stored turns again, so speaker numbers, names and links stay; then the automatic title and summary
+/// Then, in the background and on its own queue, the vocabulary pass, only for transcripts saved before FED-210 that
+/// still had it due (FileTranscriber.applyVocabulary; new words come with the vocabulary): its words are aligned with
+/// the stored turns again, so speaker numbers, names and links stay; then the automatic title and summary
 /// (TranscriptTitler) and the action items (ActionItemExtractor). Re-runs everything still `.pending` / `.processing` /
 /// vocabulary-pending / without a summary or action items on launch and when the app returns to the foreground.
 /// Two one-time sweeps over older transcripts run behind that work: new voices (`refreshVoices`) and titles and
@@ -600,7 +601,7 @@ final class SpeakerIdentifier {
                 if hadWords { flash(changes, in: id) }       // an import's first words aren't changes
             }
             recording.wordsRefined = true
-            // Parakeet's words come with the vocabulary's spelling (FED-204): no Dictation pass over the file after.
+            // The words come with the vocabulary's spelling (FED-204, FED-210): no pass over the file after.
             recording.vocabularyPending = transcript?.vocabularyApplied != true
             try? modelContext.save()
             track(id) { $0.finish(.words, failed: transcript == nil) }   // threw; "nothing better" is still done
@@ -772,7 +773,7 @@ final class SpeakerIdentifier {
         track(id) { $0.begin(.vocabulary) }
         #if DEBUG
         PipelineTrace.shared.label(id, name: recording.name, audioSeconds: recording.duration)
-        PipelineTrace.shared.model(id, .vocabulary, "Dictation")
+        PipelineTrace.shared.model(id, .vocabulary, "Spelling")
         #endif
         vocabularyRunning.insert(id)
         defer { vocabularyRunning.remove(id) }

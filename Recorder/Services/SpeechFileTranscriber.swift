@@ -3,16 +3,14 @@ import AVFoundation
 import CoreMedia
 import Speech
 
-/// The full-accuracy pass after Stop, on the saved WAV, in two steps:
-/// - `transcribe` (before speakers are identified): Parakeet Ultra (ParakeetTranscriber) when chosen and downloaded,
-///   otherwise SpeechTranscriber without .fastResults (full context window) and without volatile results.
-///   Parakeet's words get the vocabulary's spelling in this step (VocabularySpelling), so they need no second pass.
-/// - `applyVocabulary` (after speakers are shown, in the background; Apple's words only): with a vocabulary, DictationTranscriber
-///   with the vocabulary as contextual strings. SpeechTranscriber ignores contextual strings (measured: identical output
-///   with and without), DictationTranscriber honours them but is less accurate on ordinary words, so VocabularyMerge
-///   takes over just the vocabulary terms it recognized. This step is most of the post-stop time (a whole-file
-///   Dictation pass: 5.4 s of 7.4 s for 5 minutes on an M5 Mac), so speakers never wait for it.
-/// Runs at utility priority. A later step failing never loses an earlier one.
+/// The full-accuracy pass after Stop, on the saved WAV: Parakeet Ultra (ParakeetTranscriber) when chosen and
+/// downloaded, otherwise SpeechTranscriber without .fastResults (full context window) and without volatile results.
+/// Either way the words get the vocabulary's spelling right here (VocabularySpelling), so no second pass follows.
+/// A DictationTranscriber pass with the vocabulary as contextual strings, merged by VocabularyMerge, did that until
+/// October 2026 (FED-210): it was most of the time after Stop (5.4 s of 7.4 s for 5 minutes on an M5 Mac), missed
+/// the user's own words often, and on the synthetic vocabulary sentences found barely more on Apple's words (75 % /
+/// 32 % of the terms against 71 % / 31 %) and fewer on Parakeet's (67 % against 68 %; real recordings 93 %).
+/// Runs at utility priority.
 @MainActor
 final class SpeechFileTranscriber: FileTranscriber {
     /// Ready Parakeet model; nil or not ready = Apple's recognizer for step 1.
@@ -35,7 +33,7 @@ final class SpeechFileTranscriber: FileTranscriber {
         }
         let transcriber = SpeechTranscriber(locale: locale, transcriptionOptions: [], reportingOptions: [],
                                             attributeOptions: [.audioTimeRange, .transcriptionConfidence])
-        let (words, confidences) = try await analyze(fileURL, with: transcriber, context: nil) { results in
+        let (words, confidences) = try await analyze(fileURL, with: transcriber) { results in
             var words: [TranscriptWord] = []
             var confidences: [Double] = []
             for try await result in results where result.isFinal {
@@ -45,12 +43,13 @@ final class SpeechFileTranscriber: FileTranscriber {
             }
             return (words, confidences)
         }
-        return FileTranscript(words: words, confidences: confidences, alignmentOffset: 0)
+        let spelled = await Self.spellingVocabulary(words, confidences: confidences, locale: requested)
+        return FileTranscript(words: spelled.words, confidences: spelled.confidences, alignmentOffset: 0,
+                              vocabularyApplied: true)
     }
 
-    /// Parakeet's words get the vocabulary's spelling right away (VocabularySpelling, FED-204) instead of a Dictation
-    /// pass: on real speech it found more of the terms (93 % against Parakeet's own 74 %) without a second recognizer
-    /// over the file. The search runs off the main actor; only the near misses' words go to the spell checker.
+    /// The vocabulary's spelling on the words (VocabularySpelling, FED-204): on real speech Parakeet's own 74 % of the
+    /// terms became 93 %. The search runs off the main actor; only the near misses' words go to the spell checker.
     private static func spellingVocabulary(_ words: [TranscriptWord], confidences: [Double],
                                            locale: Locale) async -> (words: [TranscriptWord], confidences: [Double]) {
         let terms = Vocabulary.current
@@ -65,34 +64,14 @@ final class SpeechFileTranscriber: FileTranscriber {
         return spelled
     }
 
+    /// Transcripts saved before FED-210 whose vocabulary pass was still due: the spelling fix, no pass over the file.
     func applyVocabulary(to words: [TranscriptWord], fileURL: URL, locale: Locale) async -> [TranscriptWord] {
-        await mergeVocabulary(Vocabulary.current, into: words, fileURL: fileURL, locale: locale)
-    }
-
-    /// Vocabulary terms recognized by DictationTranscriber (which honours contextual strings).
-    private func mergeVocabulary(_ vocabulary: [String], into words: [TranscriptWord], fileURL: URL,
-                                 locale: Locale) async -> [TranscriptWord] {
-        guard !vocabulary.isEmpty, !words.isEmpty,
-              let dictationLocale = await DictationTranscriber.supportedLocale(equivalentTo: locale) else { return words }
-        let dictation = DictationTranscriber(locale: dictationLocale, preset: .timeIndexedLongDictation)
-        guard let hinted = try? await analyze(fileURL, with: dictation, context: Vocabulary.analysisContext(), collect: { results in
-            var words: [TranscriptWord] = []
-            for try await result in results where result.isFinal {
-                words += SpeechTranscriberEngine.words(from: result.text, fallbackRange: result.range)
-            }
-            return words
-        }) else { return words }
-        let merged = VocabularyMerge.apply(vocabulary: vocabulary, hinted: hinted, to: words)
-        #if DEBUG
-        print("[Scribe] full-accuracy pass: \(words.count) words, vocabulary pass: \(hinted.count) words, " +
-              "\(zip(words, merged).filter { $0.text != $1.text }.count + abs(words.count - merged.count)) terms merged")
-        #endif
-        return merged
+        await Self.spellingVocabulary(words, confidences: [], locale: locale).words
     }
 
     /// Runs one module over the whole file and returns what `collect` gathered from its results.
     private func analyze<Module: SpeechModule, Results: AsyncSequence, Output: Sendable>(
-        _ fileURL: URL, with module: Module, context: AnalysisContext?,
+        _ fileURL: URL, with module: Module,
         collect: @escaping @MainActor (Results) async throws -> Output
     ) async throws -> Output where Results == Module.Results {
         if let request = try await AssetInventory.assetInstallationRequest(supporting: [module]) {
@@ -100,7 +79,6 @@ final class SpeechFileTranscriber: FileTranscriber {
         }
         let analyzer = SpeechAnalyzer(modules: [module],
                                       options: SpeechAnalyzer.Options(priority: .utility, modelRetention: .whileInUse))
-        if let context { try? await analyzer.setContext(context) }
         let results = Task { try await collect(module.results) }
         do {
             let file = try AVAudioFile(forReading: fileURL)
@@ -115,15 +93,5 @@ final class SpeechFileTranscriber: FileTranscriber {
             throw RecorderError.transcriptionFailed(error.localizedDescription)
         }
         return try await results.value
-    }
-}
-
-extension Vocabulary {
-    /// The vocabulary as the analyzer's context (contextual strings, `.general` tag).
-    static func analysisContext() -> AnalysisContext {
-        let context = AnalysisContext()
-        let words = current
-        if !words.isEmpty { context.contextualStrings[.general] = words }
-        return context
     }
 }
