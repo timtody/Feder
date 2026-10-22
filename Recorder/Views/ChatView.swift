@@ -20,6 +20,11 @@ struct ChatView: View {
     /// The conversation's scroll position: to the end by its edge, which counts the field and keyboard over it
     /// (a message's id as anchor left the last lines under the field now and then, FED-137).
     @State private var position = ScrollPosition(edge: .bottom)
+    /// Whether the conversation shows its end: scrolled up, a glass arrow takes it back (as Jump to Live does).
+    @State private var isAtEnd = true
+    /// The conversation's visible height (the room between the title and the field or the keyboard): the empty chat's
+    /// glow only where it fits.
+    @State private var visibleHeight: CGFloat = 600
     @State private var dictation = ChatDictation()
     /// What was typed when dictation started: the dictated words follow it.
     @State private var typedBefore = ""
@@ -98,20 +103,48 @@ struct ChatView: View {
         } else {
             // The empty chat's text over the (empty) conversation, not instead of it: swapping the views on the first
             // Send put the keyboard away (iOS 27 simulator), and Messages keeps it up.
-            ZStack {
-                conversation
-                if chat.messages.isEmpty {
-                    ContentUnavailableView {
-                        Label(chat.transcript == nil ? "Ask Gemma" : "Ask About This Transcript", systemImage: "sparkles")
-                    } description: {
-                        Text(isRecording ? "Gemma pauses while you record."
-                             : chat.transcript != nil ? "Gemma reads this transcript on this iPhone. Nothing leaves it."
-                             : "Gemma runs on this iPhone. Nothing you type leaves it.")
-                    }
-                    .allowsHitTesting(false)          // a drag over it reaches the scroll view and puts the keyboard away
-                }
-            }
+            conversation
         }
+    }
+
+    /// The empty chat (FED-137): a sparkle in a slowly breathing glow (ChatGlow), the greeting in New York (the serif
+    /// of Gemma's answers), the transcript's title when the chat is about one, and a quiet line that it all stays here.
+    private func hero(glow: Bool) -> some View {
+        VStack(spacing: 10) {
+            if glow {
+                ZStack {
+                    ChatGlow()
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 34, weight: .medium))
+                        .foregroundStyle(LinearGradient(colors: [.accentColor, .purple], startPoint: .topLeading,
+                                                        endPoint: .bottomTrailing))
+                        .symbolEffect(.breathe, isActive: !reduceMotion)
+                }
+                .frame(height: 130)
+            }
+            if let transcript = chat.transcript {
+                Text("Ask About This Transcript")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Text(transcript.title)
+                    .font(.title2.weight(.semibold))
+                    .fontDesign(.serif)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+            } else {
+                Text("What would you like to know?")
+                    .font(.title2.weight(.semibold))
+                    .fontDesign(.serif)
+                    .multilineTextAlignment(.center)
+            }
+            Label(isRecording ? "Gemma pauses while you record." : "On this iPhone. Nothing leaves it.",
+                  systemImage: isRecording ? "pause.circle" : "lock.fill")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.top, 4)
+        }
+        .padding(.horizontal, 32)
+        .padding(.bottom, glow ? 40 : 0)              // optically centred over the suggestions and the field
     }
 
     /// The download as Settings › Summaries shows it (ModelDownloadRow), without the Form around it.
@@ -138,6 +171,17 @@ struct ChatView: View {
 
     private var conversation: some View {
         ScrollView {
+            // The empty chat's hero inside the scroll view, filling what it shows: beside it in a ZStack its fixed
+            // height (the glow, the greeting) won against the safe-area bar when the keyboard left little room, and
+            // the bar was squeezed: the field stopped growing at two lines, and its accessibility frames lagged 35 pt
+            // behind the drawing (taps landed on the keyboard's predictions). Scrolled content never pushes on the bar.
+            // As a background the greeting wasn't drawn at all (iOS 27 simulator).
+            if chat.messages.isEmpty {
+                hero(glow: visibleHeight >= 380)      // the keyboard up: no glow, the greeting stays
+                    .containerRelativeFrame([.horizontal, .vertical])
+                    .allowsHitTesting(false)          // a drag over it reaches the scroll view and puts the keyboard away
+                    .transition(.opacity)
+            }
             VStack(alignment: .leading, spacing: 18) {
                 ForEach(chat.messages) { message in
                     ChatMessageRow(message: message, retry: chat.retry)
@@ -157,7 +201,7 @@ struct ChatView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.vertical, chat.messages.isEmpty ? 0 : 12)   // empty: the hero alone fills the view, no scrolling
             .animation(reduceMotion ? nil : .snappy(duration: 0.35), value: chat.messages.count)
         }
         // Opens at the end, and stays there while the answer grows (as Messages follows a conversation).
@@ -165,9 +209,38 @@ struct ChatView: View {
         .defaultScrollAnchor(.bottom, for: .sizeChanges)
         .scrollPosition($position)
         .scrollDismissesKeyboard(.interactively)
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+            // The visible rect, not the offset: a short conversation sits at the bottom by a top inset as tall as the
+            // gap above it, and `containerSize` leaves the insets out (measured: offset -554, container 611, insets
+            // 554/131 for 151 pt of content at its end).
+            geometry.visibleRect.maxY >= geometry.contentSize.height + geometry.contentInsets.bottom - 40
+        } action: { _, atEnd in
+            withAnimation(.smooth(duration: 0.25)) { isAtEnd = atEnd }
+        }
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.containerSize.height
+        } action: { _, height in
+            withAnimation(.smooth(duration: 0.25)) { visibleHeight = height }
+        }
+        .overlay(alignment: .bottom) {                // over the field: the safe-area bar is under this edge
+            if !isAtEnd, !chat.messages.isEmpty {
+                Button("Scroll to End", systemImage: "arrow.down") {
+                    withAnimation(.snappy) { position.scrollTo(edge: .bottom) }
+                }
+                .labelStyle(.iconOnly)
+                .font(.system(size: 15, weight: .semibold))
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                .padding(.bottom, 10)
+                .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.8)))
+                .accessibilityIdentifier("ScrollToEnd")
+            }
+        }
         .onChange(of: chat.messages.count) {
             withAnimation(.snappy) { position.scrollTo(edge: .bottom) }
         }
+        // A light tap with every question sent (the field's Send or a suggestion), as Messages gives one.
+        .sensoryFeedback(.impact(weight: .light), trigger: chat.messages.count) { old, new in new > old }
         .onChange(of: chat.draft.filter(\.isNewline).count) { scrollToEndSoon() }
     }
 
@@ -254,31 +327,37 @@ struct ChatView: View {
     }
 
     /// While the chat is empty: questions to start with, in glass capsules over the field (as Claude's and ChatGPT's
-    /// apps offer them); a tap asks it. In the language of the app, so Gemma answers in it.
+    /// apps offer them), each with a small glyph, wrapping onto a second line rather than running off the edge; a tap
+    /// asks it. In the language of the app, so Gemma answers in it.
     private var suggestions: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 8) {
-                ForEach(suggestionTexts, id: \.self) { text in
-                    Button(text) { ask(text) }
-                        .font(.subheadline)
-                        .buttonStyle(.glass)
-                        .accessibilityIdentifier("AskSuggestion")
+        WrappingLayout(spacing: 8, lineSpacing: 8) {
+            ForEach(suggestionList, id: \.text) { suggestion in
+                Button {
+                    ask(suggestion.text)
+                } label: {
+                    Label(suggestion.text, systemImage: suggestion.symbol)
+                        .labelStyle(SuggestionLabelStyle())
                 }
+                .font(.subheadline)
+                .buttonStyle(.glass)
+                .accessibilityIdentifier("AskSuggestion")
             }
-            .padding(.horizontal, 16)
         }
-        .scrollIndicators(.hidden)
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .transition(.opacity)
     }
 
-    private var suggestionTexts: [String] {
+    private var suggestionList: [(text: String, symbol: String)] {
         guard let transcript = chat.transcript else {
-            return [String(localized: "What can you do?"), String(localized: "Help me plan my day"),
-                    String(localized: "Explain something simply")]
+            return [(String(localized: "What can you do?"), "sparkles"),
+                    (String(localized: "Help me plan my day"), "calendar"),
+                    (String(localized: "Explain something simply"), "lightbulb")]
         }
-        return [String(localized: "Summarize this transcript")]
-            + (transcript.highlights.isEmpty ? [] : [String(localized: "What did I bookmark?")])
-            + [String(localized: "List the action items"), String(localized: "What did each person say?")]
+        return [(String(localized: "Summarize this transcript"), "text.alignleft")]
+            + (transcript.highlights.isEmpty ? [] : [(String(localized: "What did I bookmark?"), "bookmark")])
+            + [(String(localized: "List the action items"), "checklist"),
+               (String(localized: "What did each person say?"), "person.2")]
     }
 
     private func ask(_ text: String) {
@@ -328,8 +407,8 @@ struct ChatSendButton: View {
     }
 }
 
-/// A question (a tinted bubble on the right) or an answer (plain text on the left, selectable; "Thinking…" until the
-/// first token, "Stopped" or the failure under it).
+/// A question (a grey bubble on the right) or an answer (New York on the left, selectable; a shimmering "Thinking…"
+/// until the first token; Copy, "Stopped" or the failure under it).
 private struct ChatMessageRow: View {
     let message: ChatMessage
     let retry: () -> Void
@@ -340,22 +419,27 @@ private struct ChatMessageRow: View {
             Text(message.text)
                 .padding(.horizontal, 15)
                 .padding(.vertical, 10)
-                .background(Color(.secondarySystemFill), in: .rect(cornerRadius: 20))
+                .background(Color(.secondarySystemFill), in: .rect(cornerRadius: 20, style: .continuous))
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.leading, 48)
         case .assistant:
             VStack(alignment: .leading, spacing: 8) {
                 if message.status == .thinking {
-                    Label("Thinking…", systemImage: "sparkles")
-                        .symbolEffect(.pulse)
-                        .foregroundStyle(.secondary)
+                    ThinkingShimmer()
                 } else if !message.text.isEmpty {
+                    // New York for what Gemma writes (as Claude's app sets its answers in a serif): reads as an answer,
+                    // set apart from the questions without a bubble of its own.
                     Text(message.rendered)
+                        .fontDesign(.serif)
+                        .lineSpacing(4)
                         .textSelection(.enabled)
                         .accessibilityIdentifier("ChatAnswer")
                 }
                 switch message.status {
+                case .done:
+                    ChatCopyButton(text: message.text)
+                        .padding(.leading, -8)                // the glyph, not its tap area, lines up with the text
                 case .stopped:
                     Text("Stopped").font(.footnote).foregroundStyle(.secondary)
                 case .failed(let reason):
@@ -369,6 +453,18 @@ private struct ChatMessageRow: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+/// A suggestion's glyph a little smaller and quieter than its text.
+private struct SuggestionLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 6) {
+            configuration.icon
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(.secondary)
+            configuration.title
         }
     }
 }

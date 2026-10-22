@@ -4,6 +4,46 @@
     "": {
       "shouldTranslate": false
     },
+    "What would you like to know?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was möchtest du wissen?"
+          }
+        }
+      }
+    },
+    "On this iPhone. Nothing leaves it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf diesem iPhone. Nichts verlässt es."
+          }
+        }
+      }
+    },
+    "Scroll to End": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zum Ende"
+          }
+        }
+      }
+    },
+    "Copied": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopiert"
+          }
+        }
+      }
+    },
     "What can you do?": {
       "localizations": {
         "de": {
