@@ -267,6 +267,11 @@ nonisolated final class FakeTextWriter: TextWriter, @unchecked Sendable {
         if let range = instructions.range(of: "Transcript:\n") {
             let first = instructions[range.upperBound...].prefix { $0 != "\n" }
             answer += " The transcript begins: \u{201C}\(first.prefix(60))\u{201D}."
+            // The bookmarked sentences listed before it (FED-137), counted, so a test sees they arrived.
+            if let marked = instructions.range(of: "bookmarked these sentences") {
+                let list = instructions[marked.upperBound..<range.lowerBound]
+                answer += " Highlights given: \(list.components(separatedBy: "\n- ").count - 1)."
+            }
         }
         if question.localizedCaseInsensitiveContains("long") {
             answer += "\n\nHere is a **longer** answer, to see how the chat scrolls:\n\n" +

@@ -527,7 +527,10 @@ struct RecordingDetailView: View {
         Button("Ask About Transcript", systemImage: "bubble.left") {
             titleFocused = false
             let text = TranscriptExport.plainText(recording.exportSnapshot(names: true, timestamps: false))
-            askChat = services.chat(about: ChatTranscript(id: recording.id, title: recording.name, text: text))
+            let highlights = Bookmarks.places(recording.bookmarks, words: recording.words, segments: recording.segments)
+                .map(\.sentence)
+            askChat = services.chat(about: ChatTranscript(id: recording.id, title: recording.name, text: text,
+                                                          highlights: highlights))
         }
         .accessibilityIdentifier("AskAboutTranscript")
     }

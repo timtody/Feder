@@ -4,6 +4,36 @@
     "": {
       "shouldTranslate": false
     },
+    "Dictate": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diktieren"
+          }
+        }
+      }
+    },
+    "Stop Dictating": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diktieren beenden"
+          }
+        }
+      }
+    },
+    "Can't Dictate": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diktieren nicht möglich"
+          }
+        }
+      }
+    },
     "Your Transcripts Couldn't Be Opened": {
       "localizations": {
         "de": {

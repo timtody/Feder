@@ -49,6 +49,8 @@ struct ChatTranscript: Equatable {
     let id: UUID
     var title: String
     var text: String
+    /// The sentences the user bookmarked while recording (Bookmarks.places), in time order: what mattered to them.
+    var highlights: [String] = []
 }
 
 /// A conversation with Gemma: Ask's (FED-17, a prototype to try the ergonomics), or one about a transcript (FED-137).
@@ -93,7 +95,24 @@ final class GemmaChat {
         let text = cut ? String(transcript.text.prefix(transcriptCharacters)) : transcript.text
         return instructions + " The user asks about the transcript of a recording below, titled “\(transcript.title)”. " +
             "Answer from it, and say so when it doesn't say. Name speakers as the transcript does." +
-            (cut ? " Only its beginning is given; the rest is cut." : "") + "\n\nTranscript:\n" + text
+            (cut ? " Only its beginning is given; the rest is cut." : "") + highlightsNote(transcript.highlights) +
+            "\n\nTranscript:\n" + text
+    }
+
+    /// The user's bookmarked sentences, ahead of the transcript so a cut never takes them, and what to do with them
+    /// (FED-137: Gemma ignored them when they were only marks in the text). At most `highlightCharacters`.
+    nonisolated static let highlightCharacters = 4_000
+    nonisolated static func highlightsNote(_ highlights: [String]) -> String {
+        var list: [String] = []
+        var size = 0
+        for sentence in highlights where size + sentence.count <= highlightCharacters {
+            list.append("- " + sentence)
+            size += sentence.count
+        }
+        guard !list.isEmpty else { return "" }
+        return "\n\nThe user bookmarked these sentences while recording; they are what matters most to them. " +
+            "Base your answers on them first, quote them when you use them, and use the rest of the transcript for " +
+            "context or when the question is about something else:\n" + list.joined(separator: "\n")
     }
 
     /// Send: appends the question and a pending answer and returns; the answer is written off the main actor.

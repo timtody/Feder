@@ -16,6 +16,12 @@ struct ChatView: View {
     /// The field grows with the text up to five lines; the button stays a 32 pt circle (as in Messages).
     @ScaledMetric(relativeTo: .body) private var minHeight: CGFloat = 44
     @State private var detent: PresentationDetent = .medium
+    /// The conversation's scroll position: to the end by its edge, which counts the field and keyboard over it
+    /// (a message's id as anchor left the last lines under the field now and then, FED-137).
+    @State private var position = ScrollPosition(edge: .bottom)
+    @State private var dictation = ChatDictation()
+    /// What was typed when dictation started: the dictated words follow it.
+    @State private var typedBefore = ""
 
     /// Whether Ask exists: DEBUG builds on an iPhone that runs Gemma (8 GB; the simulator with `-fakeGemma`).
     static var isAvailable: Bool {
@@ -52,6 +58,9 @@ struct ChatView: View {
                 }
         }
         .presentationDetents([.medium, .large], selection: $detent)
+        // One background at both heights: the system's goes from glass at half height to opaque at full, which read as
+        // the card changing colour while it was pulled up (FED-137).
+        .presentationBackground(.regularMaterial)
         .onAppear { InteractionTrace.shown("ask") }
         // Typing at half height: the card goes to full height, so the conversation keeps room over the keyboard.
         .onChange(of: isFocused) { _, focused in
@@ -60,8 +69,16 @@ struct ChatView: View {
         // A recording started from outside (the Action Button, Control Center): Gemma pauses, the keyboard goes, and
         // MainView closes the card for the recording's.
         .onChange(of: isRecording) { _, recording in
-            if recording { isFocused = false }
+            if recording {
+                isFocused = false
+                Task { await dictation.stop() }        // the microphone is the recording's
+            }
         }
+        // The keyboard, the card's height and the field's growth move the end of the conversation: to the end again
+        // once they have settled (the animations take about 0.4 s).
+        .onChange(of: isFocused) { scrollToEndSoon() }
+        .onChange(of: detent) { scrollToEndSoon() }
+        .onDisappear { Task { await dictation.stop() } }
     }
 
     @ViewBuilder private var content: some View {
@@ -116,36 +133,85 @@ struct ChatView: View {
     }
 
     private var conversation: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    ForEach(chat.messages) { message in
-                        ChatMessageRow(message: message, retry: chat.retry)
-                            .id(message.id)
-                    }
-                    // A recording started while the card was up (it closes for the recording's): said here meanwhile.
-                    if isRecording, !chat.messages.isEmpty {
-                        Label("Gemma pauses while you record.", systemImage: "pause.circle")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity)
-                            .id("paused")
-                    }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                ForEach(chat.messages) { message in
+                    ChatMessageRow(message: message, retry: chat.retry)
+                        .id(message.id)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                // A recording started while the card was up (it closes for the recording's): said here meanwhile.
+                if isRecording, !chat.messages.isEmpty {
+                    Label("Gemma pauses while you record.", systemImage: "pause.circle")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .id("paused")
+                }
             }
-            // Opens at the end, and stays there while the answer grows (as Messages follows a conversation).
-            .defaultScrollAnchor(.bottom)
-            .defaultScrollAnchor(.bottom, for: .sizeChanges)
-            .scrollDismissesKeyboard(.interactively)
-            .onChange(of: chat.messages.count) {
-                withAnimation(.snappy) { proxy.scrollTo(chat.messages.last?.id, anchor: .bottom) }
-            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        // Opens at the end, and stays there while the answer grows (as Messages follows a conversation).
+        .defaultScrollAnchor(.bottom)
+        .defaultScrollAnchor(.bottom, for: .sizeChanges)
+        .scrollPosition($position)
+        .scrollDismissesKeyboard(.interactively)
+        // The text under the field is blurred (the edge effect's hard style, as in Claude's app), not shown
+        // through the glass: the soft default left it readable.
+        .scrollEdgeEffectStyle(.hard, for: .bottom)
+        .onChange(of: chat.messages.count) {
+            withAnimation(.snappy) { position.scrollTo(edge: .bottom) }
+        }
+        .onChange(of: chat.draft.filter(\.isNewline).count) { scrollToEndSoon() }
+    }
+
+    private func scrollToEndSoon() {
+        Task {
+            try? await Task.sleep(for: .milliseconds(450))
+            withAnimation(.snappy) { position.scrollTo(edge: .bottom) }
         }
     }
 
     private var isRecording: Bool { services.identifier.isRecording }
+
+    /// Speak the question (ChatDictation): the words come into the field as they are heard, after what was typed.
+    /// Pressed again, it stops; Send stops it too.
+    private var microphoneButton: some View {
+        Button {
+            if dictation.isActive {
+                Task { await dictation.stop() }
+            } else {
+                typedBefore = chat.draft.trimmingCharacters(in: .whitespacesAndNewlines)
+                dictation.start(makeTranscriber: services.makeDictationTranscriber) { [chat, typedBefore] text in
+                    chat.draft = typedBefore.isEmpty ? text : typedBefore + " " + text
+                }
+            }
+        } label: {
+            Group {
+                if dictation.state == .preparing {
+                    ProgressView()
+                } else {
+                    Image(systemName: dictation.isActive ? "mic.fill" : "mic")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(dictation.isActive ? Color.red : Color.secondary)
+                        .symbolEffect(.pulse, isActive: dictation.isActive)
+                }
+            }
+            .frame(width: 32, height: 32)
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isRecording || services.identifier.isRecording)
+        .accessibilityLabel(dictation.isActive ? "Stop Dictating" : "Dictate")
+        .accessibilityIdentifier("ChatDictate")
+        .alert("Can't Dictate", isPresented: Binding(
+            get: { if case .failed = dictation.state { true } else { false } },
+            set: { _ in })) {
+            Button("OK", role: .cancel) { Task { await dictation.stop() } }
+        } message: {
+            if case .failed(let reason) = dictation.state { Text(reason) }
+        }
+    }
 
     /// The field at the bottom of the card, over the keyboard while typing: up to five lines, Return is a new line,
     /// ⌘↩ sends.
@@ -161,8 +227,13 @@ struct ChatView: View {
                 .padding(.trailing, 8)
                 .padding(.vertical, 11)
                 .accessibilityIdentifier("ChatField")
-            ChatSendButton(chat: chat, isRecording: isRecording)
-                .padding(6)
+            microphoneButton
+            ChatSendButton(chat: chat, isRecording: isRecording) {
+                dictation.detach()                       // its words would fill the field again after the send
+                Task { await dictation.stop() }
+            }
+            .padding(.trailing, 6)
+            .padding(.vertical, 6)
         }
         .frame(minHeight: minHeight)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: minHeight / 2))
@@ -177,6 +248,8 @@ struct ChatSendButton: View {
     @Environment(AppServices.self) private var services
     let chat: GemmaChat
     var isRecording = false
+    /// Before the question is sent: the card stops dictation here.
+    var beforeSend: () -> Void = {}
 
     private var canSend: Bool {
         !isRecording && services.betterSummaries.state == .ready
@@ -189,6 +262,7 @@ struct ChatSendButton: View {
                 chat.stop()
             } else {
                 InteractionTrace.begin("send"); InteractionTrace.shown("send")
+                beforeSend()
                 chat.send(chat.draft)
                 chat.draft = ""
             }

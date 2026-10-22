@@ -151,6 +151,57 @@ final class AskTests: ScribeUITestCase {
         XCTAssertTrue(app.staticTexts["Who owns what?"].appears(timeout: 5), "the transcript's chat is kept")
     }
 
+    /// The sentences bookmarked while recording go to Gemma as their own list (FED-137): the fake Gemma counts them.
+    /// `-seedBookmarks` gives Budget Review four bookmarks on three sentences.
+    @MainActor
+    func testAskGetsTheBookmarkedSentences() throws {
+        let app = launch(["-fakeGemma", "-seedBookmarks"])
+        open("Budget Review", in: app)
+        tapMenuItem("Ask About Transcript", in: app)
+        XCTAssertTrue(app.navigationBars["Ask Gemma"].appears(timeout: 10), "the Ask card")
+        let field = app.textFields["ChatField"]
+        field.tap()
+        dismissKeyboardTip(app)
+        field.typeText("What matters?")
+        app.buttons["Send"].tap()
+        XCTAssertTrue(app.buttons["Send"].appears(timeout: 15) && app.buttons["Stop Answer"].disappears(timeout: 15),
+                      "answered")
+        let answer = app.staticTexts["ChatAnswer"].firstMatch
+        XCTAssertTrue(answer.label.contains("Highlights given: 3"), "three sentences went along: \(answer.label)")
+    }
+
+    /// Speaking the question (FED-137): the microphone button fills the field with the words as they are heard (the
+    /// simulator's fake engine), pressed again it stops, and Send while listening sends what was heard and leaves the
+    /// field empty.
+    @MainActor
+    func testDictateTheQuestion() throws {
+        let app = launch(["-fakeGemma", "-resetVoiceRecognition"])
+        app.buttons["AskGemma"].tap()
+        XCTAssertTrue(app.navigationBars["Ask Gemma"].appears(timeout: 5))
+        let dictate = app.buttons["ChatDictate"]
+        let field = app.textFields["ChatField"]
+        XCTAssertTrue(dictate.appears(timeout: 5), "the microphone button")
+        dictate.tap()
+        XCTAssertTrue(waitFor(timeout: 15) { (field.value as? String)?.lowercased().contains("okay") == true },
+                      "the words came into the field: \(field.value ?? "")")
+        XCTAssertEqual(dictate.label, "Stop Dictating")
+        shot("Dictating a question", app)
+        dictate.tap()
+        XCTAssertTrue(waitFor { dictate.label == "Dictate" }, "stopped")
+        let heard = field.value as? String ?? ""
+        sleep(2)
+        XCTAssertEqual(field.value as? String, heard, "no more words after the stop")
+        // Send while listening: the question goes, the field stays empty.
+        app.buttons["Send"].tap()
+        XCTAssertTrue(app.staticTexts["ChatAnswer"].firstMatch.appears(timeout: 15), "answered")
+        dictate.tap()
+        XCTAssertTrue(waitFor(timeout: 15) { (field.value as? String)?.lowercased().contains("okay") == true })
+        app.buttons["Send"].tap()
+        sleep(2)
+        XCTAssertEqual(field.value as? String, "Ask Gemma", "the field is empty after the send (its placeholder)")
+        XCTAssertEqual(dictate.label, "Dictate")
+    }
+
     /// The field grows to five lines over the keyboard; a draft survives closing the card (a swipe down) and is sent
     /// when it is opened again. Pulled up by its grabber, the card goes to full height without the keyboard.
     @MainActor

@@ -384,6 +384,16 @@ final class AppServices {
         #endif
     }
 
+    /// The engine that turns speech into the Ask card's question (ChatDictation): the live words' Apple engine, the fake
+    /// on the simulator.
+    func makeDictationTranscriber() -> any Transcriber {
+        #if DEBUG && targetEnvironment(simulator)
+        FakeTranscriber()
+        #else
+        SpeechTranscriberEngine()
+        #endif
+    }
+
     /// A fresh session (fresh capture + transcriber) for every recording.
     func makeRecordingSession() -> RecordingSession {
         player.stop()                                  // recording and playback never overlap (both on AudioHardware)
