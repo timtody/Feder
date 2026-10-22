@@ -109,6 +109,9 @@ final class AppServices {
         return chat
     }
 
+    /// The store Feder had to set aside at this launch, until the user has answered (StoreRecoveryNotice).
+    var storeNotice: StoreRecovery.Notice? = StoreRecovery.notice
+
     init(container: ModelContainer) {
         self.container = container
         ModelRegistry.revisionOverrides = Self.modelRevisions

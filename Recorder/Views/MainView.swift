@@ -135,6 +135,12 @@ struct MainView: View {
         .sheet(isPresented: Binding(get: { !onboardingPages.isEmpty }, set: { if !$0 { onboardingPages = [] } })) {
             Onboarding(pages: onboardingPages)
         }
+        .sheet(item: Bindable(services).storeNotice) { notice in
+            StoreRecoveryNotice(notice: notice) {
+                StoreRecovery.dismissNotice()
+                services.storeNotice = nil
+            }
+        }
         .task { await offerOnboarding() }
         // Start and stop from outside the app: the Control Center control, the Action Button, Siri, Shortcuts
         // (RecordingIntents) and the lock screen widget's link. A start asked for while the app was launching waits
@@ -228,7 +234,8 @@ struct MainView: View {
         }
         guard !pages.isEmpty else { return }
         try? await Task.sleep(for: .seconds(1))
-        guard cardPhase == .closed, card.session == nil, !askOnScreen else { return }
+        // Not over the store notice (one sheet at a time): the pages come at the next launch.
+        guard cardPhase == .closed, card.session == nil, !askOnScreen, services.storeNotice == nil else { return }
         onboardingPages = pages
     }
 

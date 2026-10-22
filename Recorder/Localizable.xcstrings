@@ -4,6 +4,56 @@
     "": {
       "shouldTranslate": false
     },
+    "Your Transcripts Couldn't Be Opened": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Transkripte konnten nicht geöffnet werden"
+          }
+        }
+      }
+    },
+    "Feder started with a new, empty list and set the old one aside on this iPhone. Nothing was deleted. Your recordings are coming back as new transcripts called Recovered Recording: the words are transcribed again, but names, speakers, tags and edits aren't in them.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feder wurde mit einer neuen, leeren Liste gestartet und hat die alte auf diesem iPhone beiseitegelegt. Nichts wurde gelöscht. Deine Aufnahmen kommen als neue Transkripte mit dem Namen „Wiederhergestellte Aufnahme“ zurück: Die Wörter werden neu transkribiert, Namen, Sprecher, Tags und Änderungen sind darin aber nicht enthalten."
+          }
+        }
+      }
+    },
+    "Close Feder and open it again to try the old list.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schließe Feder und öffne es erneut, um die alte Liste zu versuchen."
+          }
+        }
+      }
+    },
+    "Try the Old List Again": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alte Liste erneut versuchen"
+          }
+        }
+      }
+    },
+    "Share Recovery Files": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiederherstellungsdateien teilen"
+          }
+        }
+      }
+    },
     "Recovered Recording": {
       "localizations": {
         "de": {
