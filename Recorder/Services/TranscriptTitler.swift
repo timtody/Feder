@@ -1,4 +1,5 @@
 import Foundation
+import NaturalLanguage
 
 /// What writes titles and summaries: Gemma 4 E2B (`LocalLanguageModel`), or on the simulator a stand-in
 /// (`FakeTextWriter`, DEBUG). Sendable: the requests are awaited from the main actor.
@@ -122,7 +123,7 @@ final class TranscriptTitler {
         #if DEBUG
         print("[Scribe] title (Gemma): \(text)")
         #endif
-        let answer = Self.parseLabelled(text)
+        let answer = await Self.parsed(text)
         guard let answer else { return nil }
         let summary = Self.plainSentences(answer.summary).trimmingCharacters(in: .whitespacesAndNewlines)
         guard let first = summary.first else { return nil }
@@ -240,7 +241,6 @@ final class TranscriptTitler {
         return (1...6).contains(words) ? title : nil
     }
 
-    /// The "Summary: …" and "Title: …" lines of a plain-text answer.
     /// The summary line of a plain-text answer as far as it is written (Gemma's three lines arrive token by token).
     nonisolated static func partialSummary(in text: String) -> String? {
         guard let match = lineBroken(text).firstMatch(of: /(?i)(?:summary|zusammenfassung)\s*\**:\s*\**([^\n]*)/)
@@ -259,21 +259,109 @@ final class TranscriptTitler {
         }
     }
 
+    /// The "Topics: …", "Summary: …" and "Title: …" lines of an answer; nil without a summary, and without a title
+    /// unless the summary ends a sentence (cut off at the token limit, it may end mid-sentence).
+    /// Without a "Title:" line (Gemma 4 E4B on LiteRT-LM left the label out in 2 of the 6 German answers of its bench
+    /// run and once more in a rerun, FED-142, and the transcript got no summary at all), a finished summary is kept with
+    /// an empty title, so the transcript keeps its name, or with the one line after it as the title when that line
+    /// reads as one (`unlabelledTitle`) and nothing else follows (with two lines, one may be the summary's own last
+    /// sentence). The summary must end a sentence for that too: otherwise the line may be the summary wrapped
+    /// ("… formt U-Täler und" / "Moränen hinterlassen …").
     nonisolated static func parseLabelled(_ text: String) -> TitleAndSummary? {
-        var title: String?, summary: String?, topics: [String] = []
-        var afterSummary: [String] = []                   // unlabelled lines after the summary, for a title without label
+        var title: String?, summary: String?, topics: [String] = [], topicLine = "", german = false
+        var afterSummary: [Substring] = []   // the non-empty lines after the summary's, labelled or not
         for line in lineBroken(text).split(whereSeparator: \.isNewline) {
             let trimmed = line.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "*")))
+            if summary != nil, !trimmed.isEmpty { afterSummary.append(line) }
             if let match = trimmed.firstMatch(of: /^(?i:title|titel)\s*\**:\s*\**(.*)/) { title = String(match.1) }
-            else if let match = trimmed.firstMatch(of: /^(?i:summary|zusammenfassung)\s*\**:\s*\**(.*)/) { summary = String(match.1) }
-            else if let match = trimmed.firstMatch(of: /^(?i:topics|themen)\s*\**:\s*\**(.*)/) { topics = topicList(String(match.1)) }
-            else if summary != nil, !trimmed.isEmpty { afterSummary.append(trimmed) }
+            if let match = trimmed.firstMatch(of: /^(?i:(summary|zusammenfassung))\s*\**:\s*\**(.*)/) {
+                summary = String(match.2)
+                german = match.1.lowercased() == "zusammenfassung"
+                afterSummary = []
+            }
+            if let match = trimmed.firstMatch(of: /^(?i:topics|themen)\s*\**:\s*\**(.*)/) {
+                topicLine = String(match.1)
+                topics = topicList(topicLine)
+            }
         }
-        // E4B sometimes leaves out "Titel:" and writes the title alone on the last line (FED-151); cleanTitle still
-        // checks it like any other.
-        if title == nil, let last = afterSummary.last, last.count <= 80 { title = last }
-        guard let title, let summary else { return nil }
+        guard let summary else { return nil }
+        if title == nil, let end = summary.trimmingCharacters(in: Self.closingMarks).last, ".!?…".contains(end) {
+            title = afterSummary.count == 1 ? unlabelledTitle(afterSummary[0], topicLine: topicLine, german: german) : nil
+            title = title ?? ""
+        }
+        guard let title else { return nil }
         return TitleAndSummary(topics: topics, summary: summary, title: title)
+    }
+
+    /// `parseLabelled` off the main actor: `hasVerb`'s tagger loads its model on first use (13 ms on an M-series Mac).
+    @concurrent nonisolated static func parsed(_ text: String) async -> TitleAndSummary? { parseLabelled(text) }
+
+    /// `line` as a title written without its "Title:" label, or nil when it may be anything else. Narrow on purpose:
+    /// a line taken wrongly replaces a default-named transcript's name, while nil keeps the summary and the name.
+    /// A title names the conversation's topics, so it must share a word with the Topics line, and with a colon both
+    /// halves must ("Kreditprojekt: Testphase und Abnahmeplanung" was one of the bench's unlabelled titles, shaped like
+    /// the prompt's example); that keeps out most lines of transcript ("Anna Schmidt: Bis Freitag"), other labels
+    /// ("Wichtig: …") and filler ("Alles klar") without closed lists, though not one whose words are topics too
+    /// ("Nächste Schritte: Abnahmeplanung" when "Nächste Schritte" is a topic). A title has no verb, a sentence does:
+    /// that keeps out the summary's own last sentence written without a period ("Die Abnahme folgt im November",
+    /// "Budget questions welcome"); verbless filler that names a topic ("Ende der Gletscher-Vorlesung") still passes.
+    /// The checks of its shape keep out list items, sentences and the summary's wrapped rest. A real title in one of
+    /// those shapes (with a comma, in lower case, with a verb, "## …", "1. Quartal: …") stays nil, as does one without
+    /// a Topics line.
+    nonisolated static func unlabelledTitle(_ line: Substring, topicLine: String, german: Bool) -> String? {
+        if line.firstMatch(of: /^\s*([-–—•+·▪]|\*\s|\d+[.)](?!\d))/) != nil { return nil }   // a list item
+        let trimmed = line.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "*")))
+        let core = trimmed.trimmingCharacters(in: closingMarks.union(CharacterSet(charactersIn: "„‚«‹")))
+        guard let first = core.first, let last = core.last, first.isUppercase || first.isNumber,
+              !".!?…:;,".contains(last), !core.contains(where: { ",;".contains($0) }),
+              core.firstMatch(of: /[.!?…]\s/) == nil else { return nil }
+        if core.firstMatch(of: /^(?i:title|titel|topics|themen|summary|zusammenfassung)\b/) != nil { return nil }
+        // The raw line, not `topicList`'s items: E4B often joins its topics with commas (3 of the bench run's 6 German
+        // answers), which leaves one item, dropped when it is longer than 60 characters.
+        let topicWords = matchWords(topicLine)
+        let namesTopic = { (part: Substring) in
+            matchWords(part).contains { word in topicWords.contains { $0.contains(word) || word.contains($0) } }
+        }
+        if let colon = core.firstIndex(of: ":") {
+            guard namesTopic(core[..<colon]), namesTopic(core[core.index(after: colon)...]) else { return nil }
+        } else if !namesTopic(core[...]) {
+            return nil
+        }
+        // A closing remark, which may name a topic ("Viel Erfolg mit dem Permafrost").
+        if core.firstMatch(of: /^(?i:viele?\s+(erfolg|spaß|glück)|alles\s+gute|ich\s+hoffe|hoffentlich|gerne?\b|danke|vielen\s+dank|good\s+luck|i\s+hope|hope\s+this|thanks|thank\s+you|let\s+me\s+know|have\s+fun|enjoy)\b/) != nil {
+            return nil
+        }
+        guard let title = cleanTitle(trimmed), title.split(whereSeparator: \.isWhitespace).count >= 2,
+              !hasVerb(core, german: german) else { return nil }
+        return trimmed
+    }
+
+    /// Whether `text` has a verb, by NLTagger's word classes in the summary's language (German or English, the app's
+    /// languages); true when the tagger has no word classes for it, so nothing unchecked passes. Tried on a Mac: the
+    /// bench's "Gletscherformen und Rückzug" and "Kreditprojekt: Testphase und Abnahmeplanung" have none; "Die Moränen
+    /// bleiben im Tal liegen", "Fazit Gletscher schmelzen" and "Budget questions welcome" have one.
+    nonisolated static func hasVerb(_ text: String, german: Bool) -> Bool {
+        let language: NLLanguage = german ? .german : .english
+        guard NLTagger.availableTagSchemes(for: .word, language: language).contains(.lexicalClass) else { return true }
+        let tagger = NLTagger(tagSchemes: [.lexicalClass])
+        tagger.string = text
+        tagger.setLanguage(language, range: text.startIndex..<text.endIndex)
+        var verb = false
+        tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .lexicalClass,
+                             options: [.omitWhitespace, .omitPunctuation]) { tag, _ in
+            verb = tag == .verb
+            return !verb
+        }
+        return verb
+    }
+
+    /// What may close a sentence or title after its last mark: spaces, quotes, brackets, Markdown emphasis.
+    nonisolated static let closingMarks = CharacterSet.whitespaces.union(CharacterSet(charactersIn: "\"'“”‘’»›`)]}*"))
+
+    /// The words that tie a title to a topic: lower case, at least 5 letters, so "und", "der" and "the" don't count;
+    /// matched by containment, so "Rückzug" names the topic "Gletscherrückzug".
+    nonisolated static func matchWords(_ text: some StringProtocol) -> [String] {
+        text.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init).filter { $0.count >= 5 }
     }
 
     /// The Topics line's items (kept for search): split at semicolons, Markdown and end punctuation removed, at
@@ -391,7 +479,7 @@ final class TranscriptTitler {
 
 /// A parsed answer: the topics are asked for first, so the summary of a long conversation covers more than its
 /// first part.
-nonisolated struct TitleAndSummary {
+nonisolated struct TitleAndSummary: Sendable {
     var topics: [String]
     var summary: String
     var title: String

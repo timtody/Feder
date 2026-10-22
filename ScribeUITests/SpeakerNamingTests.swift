@@ -93,6 +93,68 @@ final class SpeakerNamingTests: ScribeUITestCase {
         XCTAssertTrue(field.disappears(timeout: 5))
     }
 
+    /// The captions' counts in German: "1 Transkript", "2 Transkripte" (FED-88: they stayed "1 transcript", built as a
+    /// plain String). iOS 27 doesn't inflect German, so they come from the catalog's plural variation, as Settings ›
+    /// People's do (FED-78): one and other both checked.
+    @MainActor
+    func testRenameSheetCountsInGerman() throws {
+        let app = launch(["-AppleLanguages", "(de)", "-AppleLocale", "de_DE", "-seedLicencePlanning"])
+        checkCounts(app, one: "1 Transkript", other: "2 Transkripte", back: "Minimieren")
+    }
+
+    /// English's plural, "2 transcripts", which this view used to spell out itself and now gets from the inflection
+    /// (FED-88). Budget Review's sheet only: testRenameSheetCountsTranscripts has the singular, so the second sheet
+    /// would re-check it for 8 s more (20 s down to 12 s).
+    @MainActor
+    func testRenameSheetCountsPlural() throws {
+        let app = launch(["-seedLicencePlanning"])
+        checkCounts(app, one: nil, other: "2 transcripts", back: "Minimize")
+    }
+
+    /// `-seedLicencePlanning` gives Jonas Weber a second transcript: Budget Review's sheet shows him with two, Project
+    /// Kickoff's Lena Vogel with one (that second sheet only with `one`). Not `open(_:in:)`: its checks look for the
+    /// English labels. The field's focus is checked before each typing, so a sheet that never focuses it (seen once,
+    /// FED-88's first run; not in 16 later tries with Budget Review's sheet the first after launch) fails as that, not
+    /// as the typing after it.
+    @MainActor
+    private func checkCounts(_ app: XCUIApplication, one: String?, other: String, back: String) {
+        let field = nameField(app)
+        app.staticTexts["Budget Review"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["SpeakerHeader.0"].appears(timeout: 10), "Budget Review opened")
+        app.buttons["SpeakerHeader.0"].tap()                                  // Lena Vogel
+        XCTAssertTrue(field.appears(timeout: 5))
+        XCTAssertTrue(field.getsFocus(timeout: 5), "the name field is focused")
+        field.typeText("Jo")
+        let jonas = app.buttons["PersonChoice.Jonas Weber"]
+        XCTAssertTrue(jonas.appears(timeout: 5))
+        let two = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label ENDSWITH %@", " " + other), object: jonas)
+        XCTAssertEqual(XCTWaiter().wait(for: [two], timeout: 5), .completed, "his two transcripts: \(jonas.label)")
+        shot("Two transcripts", app)
+        app.buttons["CancelRename"].tap()
+        XCTAssertTrue(field.disappears(timeout: 5))
+        guard let one else { return }
+
+        app.buttons[back].tap()                                               // the card's back button
+        // Closed before the next tap: Budget Review has a SpeakerHeader.1 too (Anna Schmidt), whose sheet would fail
+        // as Lena's caption. The title field's value, not its label, which is "Titel" in German.
+        XCTAssertTrue(app.buttons[back].disappears(timeout: 5), "Budget Review's card closed")
+        app.staticTexts["Project Kickoff"].firstMatch.tap()
+        let kickoff = app.textFields.matching(NSPredicate(format: "value == %@", "Project Kickoff")).firstMatch
+        XCTAssertTrue(kickoff.appears(timeout: 10), "Project Kickoff opened")
+        XCTAssertTrue(app.buttons["SpeakerHeader.1"].appears(timeout: 10), "its speakers")
+        app.buttons["SpeakerHeader.1"].tap()                                  // Jonas Weber
+        XCTAssertTrue(field.appears(timeout: 5))
+        XCTAssertTrue(field.getsFocus(timeout: 5), "the name field is focused")
+        field.typeText("Le")
+        let lena = app.buttons["PersonChoice.Lena Vogel"]
+        XCTAssertTrue(lena.appears(timeout: 5))
+        let single = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label ENDSWITH %@", " " + one), object: lena)
+        XCTAssertEqual(XCTWaiter().wait(for: [single], timeout: 5), .completed, "her one transcript: \(lena.label)")
+        shot("One transcript", app)
+        app.buttons["CancelRename"].tap()
+        XCTAssertTrue(field.disappears(timeout: 5))
+    }
+
     /// Long-pressing a name row offers "Rename Speaker…" (the sheet for that speaker); long-pressing a paragraph keeps
     /// the system's text selection: its edit menu, whose Copy is pasted into the Add Tag field to check.
     @MainActor
@@ -171,7 +233,10 @@ final class SpeakerNamingTests: ScribeUITestCase {
         XCTAssertLessThan(header.frame.minY, tip.frame.minY, "under the first name, pointing at it")
         sleep(1)                                            // the keyboard's warm-up has run (KeyboardWarmup)
         XCTAssertTrue(tip.exists, "the warm-up leaves the tip up")
-        XCTAssertEqual(app.keyboards.count, 0, "and no keyboard")
+        // Keys left up are in the tree even off-screen behind the hardware keyboard, so a warm-up that leaves its field
+        // holding the keys fails here (taking out only the resign or only the removal doesn't: either gives them back).
+        // It can't see a flash (README › Performance, Rename); the ", keyboard warmed up" marker below shows it ran.
+        XCTAssertEqual(app.keyboards.count, 0, "the warm-up gave the keys back")
         // One tap: the tip lets taps through to the page (tipBackgroundInteraction), so the name renames at once.
         header.tap()
         let cancel = app.buttons["CancelRename"]

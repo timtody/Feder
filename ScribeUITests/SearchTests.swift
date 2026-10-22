@@ -147,6 +147,19 @@ final class SearchTests: ScribeUITestCase {
         let result = app.staticTexts["Budget Review"]
         XCTAssertTrue(result.exists)
         shot("Word results", app)
+        // A result's row has a third line, its speaker's name and the snippet: its separator still starts at the text
+        // (FED-84; FED-74 checked it on a screenshot only).
+        let row = app.cells.containing(.staticText, identifier: "Budget Review").firstMatch
+        let speaker = row.staticTexts["Lena Vogel"]
+        let snippet = row.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'budget' AND label != 'Budget Review'"))
+            .firstMatch
+        XCTAssertTrue(speaker.exists, "the snippet's speaker, in Budget Review's row")
+        XCTAssertTrue(snippet.exists, "the snippet with the word, in Budget Review's row")
+        note("Search row", "row \(row.frame), title \(result.frame), speaker \(speaker.frame), snippet \(snippet.frame)")
+        // Below the date line (the title's line is about 20 pt, the date line's another 20), the speaker beside it.
+        XCTAssertGreaterThan(snippet.frame.minY, result.frame.maxY + 15, "the snippet on a third line")
+        XCTAssertEqual(speaker.frame.minY, snippet.frame.minY, accuracy: 4, "the speaker's name on the snippet's first line")
+        assertSeparatorStartsAtText(under: "Budget Review", app)
         open("Budget Review", in: app)
         XCTAssertTrue(app.staticTexts["Match 1 of 2"].appears(timeout: 5))
         assertHitNavigatorInBottomBar(app)

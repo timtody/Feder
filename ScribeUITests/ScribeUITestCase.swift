@@ -8,6 +8,10 @@ import notify
 /// (and the app ignores `-seedSamples` there).
 /// Screenshots are kept as attachments of the result bundle (`shot`).
 class ScribeUITestCase: XCTestCase {
+    /// The seeded Budget Review's link (PreviewData.budgetID), as Reminders and the system open it: ActionItemsTests
+    /// reads it back from Reminders, TranscriptListTests opens it while another card is up.
+    static let budgetLink = "feder://transcript/5C0FFEE0-0000-4000-8000-000000000002"
+
     override func setUpWithError() throws {
         #if !targetEnvironment(simulator)
         throw XCTSkip("Feder's UI tests write to the app's own store: run them on a simulator, never on an iPhone with real data")
@@ -97,6 +101,19 @@ class ScribeUITestCase: XCTestCase {
             app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.1)).tap()
             RunLoop.current.run(until: .now + 1)
         }
+    }
+
+    /// Taps a row's only tag chip (a row of the Transcripts list or a person's page, the two that use it). VoiceOver
+    /// reads the meta line as one element (its chips are actions), so the chip is reached by position: the last one
+    /// shown ends the line (`MetaLineLayout` is as wide as what it shows).
+    @MainActor
+    func tapTag(_ tag: String, inRow title: String, _ app: XCUIApplication) {
+        let meta = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label ENDSWITH %@", "Tag: \(tag)")).allElementsBoundByIndex
+            .first { abs($0.frame.minY - app.staticTexts[title].frame.maxY) < 12 }
+        guard let meta else { return XCTFail("\(title)'s meta line with the tag \(tag)") }
+        meta.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: meta.frame.width - 12, dy: meta.frame.height / 2)).tap()
     }
 
     /// The back button closes the card; returns once it is gone.
@@ -228,18 +245,14 @@ class ScribeUITestCase: XCTestCase {
     /// from the region's median by more than 0.7 (crisp black text on white, or white on black, differs by about 1;
     /// text under the system's soft scroll edge is faded and blurred well below that).
     @MainActor
-    func crispShare(of rect: CGRect, in app: XCUIApplication) -> Double {
-        guard let image = app.screenshot().image.cgImage else { return 0 }
-        let scale = CGFloat(image.width) / app.windows.firstMatch.frame.width
-        let pixels = CGRect(x: rect.minX * scale, y: rect.minY * scale, width: rect.width * scale,
-                            height: rect.height * scale).integral
-        guard let cropped = image.cropping(to: pixels) else { return 0 }
-        let width = cropped.width, height = cropped.height
-        var gray = [UInt8](repeating: 0, count: width * height)
-        guard let context = CGContext(data: &gray, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width,
-                                      space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue)
-        else { return 0 }
-        context.draw(cropped, in: CGRect(x: 0, y: 0, width: width, height: height))
+    func crispShare(of rect: CGRect, in app: XCUIApplication,
+                    file: StaticString = #filePath, line: UInt = #line) -> Double {
+        // A failed read must not pass for "nothing crisp" (callers assert a share near 0); reported at the caller.
+        guard let pixels = grayPixels(of: rect, in: app) else {
+            XCTFail("no pixels in \(rect)", file: file, line: line)
+            return 1
+        }
+        let gray = pixels.values
         let median = Int(gray.sorted()[gray.count / 2])
         let crisp = gray.filter { abs(Int($0) - median) > 178 }.count
         return Double(crisp) / Double(max(gray.count, 1))
@@ -250,20 +263,15 @@ class ScribeUITestCase: XCTestCase {
     /// about 1. Comparing each column with itself keeps vertical edges (an inset grouped card's side) and plain
     /// backgrounds at about 0. XCUITest can't see separators, so the pixels have to tell.
     @MainActor
-    func lineShare(in rect: CGRect, _ app: XCUIApplication) -> Double {
-        guard let image = app.screenshot().image.cgImage else { return 0 }
-        let scale = CGFloat(image.width) / app.windows.firstMatch.frame.width
-        let lift = Int((2 * scale).rounded())
-        let pixels = CGRect(x: rect.minX * scale, y: rect.minY * scale - CGFloat(lift), width: rect.width * scale,
-                            height: rect.height * scale + CGFloat(lift)).integral
-        guard let cropped = image.cropping(to: pixels) else { return 0 }
-        let width = cropped.width, height = cropped.height
-        var gray = [UInt8](repeating: 0, count: width * height)
-        guard width > 0, height > lift,
-              let context = CGContext(data: &gray, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width,
-                                      space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue)
-        else { return 0 }
-        context.draw(cropped, in: CGRect(x: 0, y: 0, width: width, height: height))
+    func lineShare(in rect: CGRect, _ app: XCUIApplication,
+                   file: StaticString = #filePath, line: UInt = #line) -> Double {
+        // A failed read must not pass for "no line" (the check left of the text asserts a share near 0); reported at
+        // the caller.
+        guard let pixels = grayPixels(of: rect, lift: 2, in: app), pixels.height > pixels.lift else {
+            XCTFail("no pixels in \(rect)", file: file, line: line)
+            return 0
+        }
+        let gray = pixels.values, width = pixels.width, height = pixels.height, lift = pixels.lift
         var best = 0.0
         for y in lift..<height {
             let differing = (0..<width).count(where: { x in
@@ -272,6 +280,35 @@ class ScribeUITestCase: XCTestCase {
             best = max(best, Double(differing) / Double(width))
         }
         return best
+    }
+
+    /// Brightness 0-255 per pixel, row by row from the top; the first `lift` rows lie above the rect asked for.
+    private struct GrayPixels { var values: [UInt8]; var width: Int; var height: Int; var lift: Int }
+
+    /// A screenshot's pixels in `rect` (points) as brightness, with `lift` points more above it (lineShare compares
+    /// each row with the one 2 pt higher); nil for a rect off the screenshot, a screenshot without a CGImage or a
+    /// context that can't be made. The context draws into the array inside `withUnsafeMutableBytes`: the pointer
+    /// `&gray` gives CGContext's init is valid only during that call, and the context wrote through it later, in
+    /// `draw` (crispShare and lineShare each did so until FED-84).
+    @MainActor
+    private func grayPixels(of rect: CGRect, lift: CGFloat = 0, in app: XCUIApplication) -> GrayPixels? {
+        guard let image = app.screenshot().image.cgImage else { return nil }
+        let scale = CGFloat(image.width) / app.windows.firstMatch.frame.width
+        let liftPixels = Int((lift * scale).rounded())
+        let crop = CGRect(x: rect.minX * scale, y: rect.minY * scale - CGFloat(liftPixels), width: rect.width * scale,
+                          height: rect.height * scale + CGFloat(liftPixels)).integral
+        guard let cropped = image.cropping(to: crop), cropped.width > 0, cropped.height > 0 else { return nil }
+        let width = cropped.width, height = cropped.height
+        var gray = [UInt8](repeating: 0, count: width * height)
+        let drawn = gray.withUnsafeMutableBytes { buffer in
+            guard let context = CGContext(data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                                          bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(),
+                                          bitmapInfo: CGImageAlphaInfo.none.rawValue)
+            else { return false }
+            context.draw(cropped, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        return drawn ? GrayPixels(values: gray, width: width, height: height, lift: liftPixels) : nil
     }
 
     /// The separator under the row titled `title` starts at the row's text, as in Voice Memos, Settings and Contacts:
@@ -284,8 +321,8 @@ class ScribeUITestCase: XCTestCase {
         let row = app.cells.containing(.staticText, identifier: title).firstMatch
         let textX = app.staticTexts[title].firstMatch.frame.minX
         let y = row.frame.maxY
-        let left = lineShare(in: CGRect(x: 1, y: y - 2, width: textX - 4, height: 4), app)
-        let right = lineShare(in: CGRect(x: textX + 2, y: y - 2, width: 120, height: 4), app)
+        let left = lineShare(in: CGRect(x: 1, y: y - 2, width: textX - 4, height: 4), app, file: file, line: line)
+        let right = lineShare(in: CGRect(x: textX + 2, y: y - 2, width: 120, height: 4), app, file: file, line: line)
         note("Separator under \(title)",
              "row \(row.frame), text at x \(textX): line share left of the text \(left), right of it \(right)")
         XCTAssertLessThan(left, 0.2, "\(title): no separator left of the text (x 1-\(textX - 3))", file: file, line: line)
@@ -315,6 +352,13 @@ extension XCUIElement {
 
     @MainActor
     var hasFocus: Bool { keyboardFocus ?? false }
+
+    /// Has the keyboard focus within `timeout` (`hasKeyboardFocus`, polled as `appears`). `typeText` checks it only
+    /// once, at once.
+    @MainActor
+    func getsFocus(timeout: TimeInterval) -> Bool {
+        poll(timeout: timeout) { $0.keyboardFocus == true }
+    }
 
     /// `waitForNonExistence(timeout:)`, polled the same way.
     @MainActor

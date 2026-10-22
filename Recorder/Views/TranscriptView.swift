@@ -72,8 +72,9 @@ struct TranscriptView: View {
     #if DEBUG
     /// UI tests with tips (`-showTips`): "Tip popover closed at once" as the first name row's accessibility value once
     /// the rename took the tip's popover away itself (NameSpeakersTip.closePopoverAtOnce), since XCUITest can't time
-    /// the sheet; ", keyboard warmed up" when KeyboardWarmup had run while the tip was up. Empty when it found no popover: testNameSpeakersTip fails then, instead of an iOS that presents the
-    /// tip otherwise quietly bringing back the wait for its fade.
+    /// the sheet; ", keyboard warmed up" when KeyboardWarmup had run while the tip was up. Empty when it found no
+    /// popover: testNameSpeakersTip fails then, instead of an iOS that presents the tip otherwise quietly bringing back
+    /// the wait for its fade.
     @State private var tipClose = ""
     private static let marksTipClose = ProcessInfo.processInfo.arguments.contains("-showTips")
     #endif

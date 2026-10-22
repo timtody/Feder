@@ -211,7 +211,9 @@ struct SpeakerNameSheet: View {
                 return String(localized: "Already in this transcript")
             }
             guard let count else { return nil }
-            return count == 1 ? "1 transcript" : "\(count) transcripts"
+            // The key of Settings › People's counts, with its German plural variation (FED-78): a plain String here
+            // stayed "3 transcripts" on a German iPhone (FED-88). AttributedString applies the English inflection.
+            return String(AttributedString(localized: "^[\(count) transcript](inflect: true)").characters)
         }
     }
 

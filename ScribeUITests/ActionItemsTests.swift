@@ -9,7 +9,6 @@ import XCTest
 /// Review" is seeded with two items: "Send the numbers to finance" (Anna Schmidt, by Friday) and "Add the third-quarter
 /// forecast" (Anna Schmidt).
 final class ActionItemsTests: ScribeUITestCase {
-    static let budgetLink = "feder://transcript/5C0FFEE0-0000-4000-8000-000000000002"
     /// An item's row: the task with who and when under it, one accessibility element.
     @MainActor
     private func item(_ index: Int, _ app: XCUIApplication) -> XCUIElement {

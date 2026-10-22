@@ -203,18 +203,6 @@ final class PersonPageTests: ScribeUITestCase {
         XCTAssertTrue(app.buttons["Transcripts"].firstMatch.isSelected, "back on the tab Search was opened from")
     }
 
-    /// Taps a row's only tag chip. VoiceOver reads the meta line as one element (its chips are actions), so the chip is
-    /// reached by position: the last one shown ends the line (`MetaLineLayout` is as wide as what it shows).
-    @MainActor
-    private func tapTag(_ tag: String, inRow title: String, _ app: XCUIApplication) {
-        let meta = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label ENDSWITH %@", "Tag: \(tag)")).allElementsBoundByIndex
-            .first { abs($0.frame.minY - app.staticTexts[title].frame.maxY) < 12 }
-        guard let meta else { return XCTFail("\(title)'s meta line with the tag \(tag)") }
-        meta.coordinate(withNormalizedOffset: .zero)
-            .withOffset(CGVector(dx: meta.frame.width - 12, dy: meta.frame.height / 2)).tap()
-    }
-
     /// The same person twice in one stack (Anna, Lena, Anna: Go to Person from cards opened on the pages pushes, as
     /// Music's Go to Artist does): the top page's row opens the card and takes it back (the page under it has rows with
     /// their own zoom source ids), and Back goes through Lena to the first Anna.

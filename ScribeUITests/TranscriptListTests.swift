@@ -105,6 +105,95 @@ final class TranscriptListTests: ScribeUITestCase {
         XCTAssertTrue(app.staticTexts["Project Kickoff"].exists)
     }
 
+    /// A tag chip in a Transcripts row starts a search for that tag (FED-49): the Search tab, the tag as a token under
+    /// the field and no text, only the transcripts tagged with it. The row's card does not open: the chip is a button
+    /// of its own inside the row's. A chip that also opened the card fails here; on iOS 27 the chip keeps the tap even
+    /// without its `.borderless`, so this can't tell whether that is still needed (iOS 26.5 not checked).
+    @MainActor
+    func testTagChipInRowOpensSearch() throws {
+        let app = launch()
+        XCTAssertTrue(app.staticTexts["Budget Review"].appears(timeout: 5), "Budget Review (tagged finance) is listed")
+        tapTag("finance", inRow: "Budget Review", app)
+        let field = app.textFields["SearchField"]
+        XCTAssertTrue(field.appears(timeout: 5), "the Search tab")
+        // The token chip, not the card's tag line (also "Remove finance").
+        let token = app.buttons.matching(identifier: "SearchToken").firstMatch
+        XCTAssertTrue(token.appears(timeout: 5), "a token chip")
+        XCTAssertEqual(token.label, "Remove finance", "the tag as a token")
+        XCTAssertEqual(app.buttons.matching(identifier: "SearchToken").count, 1, "one token")
+        XCTAssertEqual(field.value as? String ?? "", field.placeholderValue ?? "", "no text")
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].disappears(timeout: 5), "only the transcripts tagged finance")
+        XCTAssertTrue(app.staticTexts["1 Transcript"].appears(timeout: 5), "one of them")
+        XCTAssertTrue(app.staticTexts["Budget Review"].exists, "Budget Review")
+        // A row's card would be up by now (it zooms up in about half a second).
+        RunLoop.current.run(until: .now + 1)
+        XCTAssertFalse(app.buttons["Minimize"].exists, "the row's card did not open")
+        XCTAssertFalse(app.textFields["Title"].exists, "no transcript card")
+        shot("Tag chip tapped in a row", app)
+        app.buttons["Close"].firstMatch.tap()
+        XCTAssertTrue(field.disappears(timeout: 5), "Search closed")
+        XCTAssertTrue(app.staticTexts["Project Kickoff"].appears(timeout: 5), "back in the whole list")
+    }
+
+    /// A transcript asked for while the card is still shrinking away waits until it is gone, then opens (FED-50,
+    /// MainView's `pendingCard`). The action item link `feder://transcript/<id>` for Budget Review, while Project
+    /// Kickoff's card is up, closes that card (cardPhase `.closing`) and asks for Budget Review in the same turn, so the
+    /// request takes that path every time (seen in a log of the run). A row tapped right after the back button or a
+    /// swipe to the right can't get there: XCUITest waits for the app to settle, and the tap came about 0.3 s after the
+    /// card was gone each time (three tries, October 2026). Budget Review's card ends up open, whole and alone, and
+    /// closes to the list. Whether Project Kickoff's card shrank away first shows only in some runs (below).
+    @MainActor
+    func testOpeningWhileCardClosesOpensTheNewOne() throws {
+        let app = launch()
+        open("Project Kickoff", in: app)
+        let asked = Date.now
+        // Through the system, to the running app: `app.open(_:)` relaunched it (a new process, no card up).
+        XCUIDevice.shared.system.open(URL(string: Self.budgetLink)!)
+        let returned = Date.now.timeIntervalSince(asked)
+        // The old card shrinks away still showing Project Kickoff: its title was read until 0.65-0.9 s after the link,
+        // Budget Review's from about 1 s on. `system.open` comes back after about 0.1 s in some runs; in the others only
+        // after about 0.9 s, the change then over (27 of 38 runs, October 2026), and this part can't tell. A card
+        // swapped in place instead (the open card not closed, or the request written into it while it closes) let it
+        // come back after 0.13-0.49 s, already showing Budget Review (28 of 28 runs failed). So: back within 0.6 s,
+        // Project Kickoff must still be there. 0.6 s lies under the earliest the old title was gone (0.65 s), so the
+        // right path can't fail it, and 0.1 s over the slowest break seen; that a break comes back early is measured,
+        // not guaranteed. The looks are `exists` queries, which don't wait for the app to settle (`snapshot()` did,
+        // 1.3 s), back to back; reading `value` after `exists` failed the test when the card went in between.
+        let titled = { (name: String) in
+            app.textFields.matching(NSPredicate(format: "label == 'Title' AND value == %@", name)).firstMatch
+        }
+        var oldCardSeen = false, oldCardLastSeen = 0.0
+        var opened = false
+        while !opened, Date.now.timeIntervalSince(asked) < 10 {
+            if titled("Project Kickoff").exists { oldCardSeen = true; oldCardLastSeen = Date.now.timeIntervalSince(asked) }
+            opened = titled("Budget Review").exists
+        }
+        XCTAssertTrue(opened, "Budget Review's card, once Project Kickoff's has shrunk away")
+        note("Closing card", "system.open came back after \(returned) s; Project Kickoff seen after that: \(oldCardSeen)"
+             + (oldCardSeen ? ", last at \(oldCardLastSeen) s" : ""))
+        if returned < 0.6 {
+            XCTAssertTrue(oldCardSeen, "Project Kickoff's card shrank away first, not turned into Budget Review in place "
+                          + "(system.open came back after \(returned) s)")
+        }
+        let title = app.textFields["Title"]
+        XCTAssertTrue(app.buttons["SpeakerHeader.0"].appears(timeout: 10), "with its text")
+        // Settled: the same card a moment later, not a second one coming up or the cover half-presented and empty.
+        RunLoop.current.run(until: .now + 1.5)
+        assertCard(app)
+        let named = { (name: String) in NSPredicate(format: "identifier == %@ OR label == %@", name, name) }
+        XCTAssertEqual(app.textFields.matching(named("Title")).count, 1, "one card")
+        XCTAssertEqual(app.buttons.matching(named("Minimize")).count, 1, "one back button")
+        XCTAssertEqual(title.value as? String, "Budget Review", "still Budget Review")
+        XCTAssertEqual(app.buttons["SpeakerHeader.0"].label, "Lena Vogel", "Budget Review's text: Lena speaks first")
+        shot("Opened while the last card closed", app)
+        closeCard(app)
+        XCTAssertTrue(app.cells.firstMatch.isHittable, "back in the list")
+        XCTAssertTrue(app.staticTexts["Budget Review"].appears(timeout: 5) && app.staticTexts["Project Kickoff"].exists)
+        RunLoop.current.run(until: .now + 1)
+        XCTAssertFalse(app.buttons["Minimize"].exists, "no card comes back")
+        XCTAssertTrue(transcribe(app).isHittable, "the accessory is back")
+    }
+
     /// Voice Memos' look, with and without tags: iOS draws wide pills with the title under them only for rows about
     /// 62-70 pt tall (shorter: capsules with the title inside; from 76 pt: round buttons), so every row is two lines
     /// (tags on the date line) and at least 62 pt, Voice Memos' height, whose pills are about 60 × 33 pt. As in Voice
@@ -140,6 +229,7 @@ final class TranscriptListTests: ScribeUITestCase {
     /// it to the list, where the new transcript is at the top with the start time.
     @MainActor
     func testRecordAccessoryFlow() throws {
+        let launched = Date.now                                             // Project Kickoff is seeded after this
         let app = launch()
         let record = transcribe(app)
         XCTAssertTrue(record.appears(timeout: 5), "the accessory says Transcribe")
@@ -154,7 +244,7 @@ final class TranscriptListTests: ScribeUITestCase {
         // The transcript's header already: its name and the start time (not the time of Stop) under it.
         let title = reachable(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'New Transcript '")))
         XCTAssertNotNil(title, "the name the transcript will get")
-        let date = reachable(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Today at '")))
+        let date = reachable(app.staticTexts.matching(dayLine(since: tapped, until: .now + 10, "label BEGINSWITH %@")))
         XCTAssertNotNil(date, "the date line")
         guard let title, let date else { return }
         let name = title.label, day = date.label
@@ -183,6 +273,7 @@ final class TranscriptListTests: ScribeUITestCase {
         let stop = app.buttons["Stop"].firstMatch
         XCTAssertGreaterThanOrEqual(stop.frame.width, 70, "the card's large Stop: \(stop.frame)")
         XCTAssertFalse(app.staticTexts["Listening…"].exists, "words were transcribed (or Stop discards it)")
+        let stopped = Date.now                      // the transcript is saved after this: its lines are drawn after it
         stop.tap()
 
         // The same card turns into the transcript with the name it showed. Read at once: the automatic title (after
@@ -205,9 +296,18 @@ final class TranscriptListTests: ScribeUITestCase {
         }
         // This simulator can't run Gemma (no -fakeGemma): no Action Items, the melt's layout without it.
         XCTAssertFalse(app.buttons["Action Items"].exists, "no Action Items without Gemma")
-        // Title and date line where the recording had them; the timer is now the duration beside the date.
-        let savedDate = reachable(app.staticTexts.matching(NSPredicate(format: "label == %@", day)), timeout: 5)
+        // Title and date line where the recording had them; the timer is now the duration beside the date. The query,
+        // polled for 5 s, looks that far ahead; the line it finds is then checked against the clock read after it. The
+        // line is first drawn after Stop, so "Today" passes only when Stop came before midnight, and "Yesterday" only
+        // once midnight has passed.
+        let savedDay = NSPredicate(format: "label IN %@",
+                                   sameStart(as: day, from: tapped, drawnAfter: stopped, until: .now + 5))
+        let savedDate = reachable(app.staticTexts.matching(savedDay), timeout: 5)
         XCTAssertNotNil(savedDate, "the transcript's date line has the start time \(day)")
+        if let saved = savedDate?.label {
+            XCTAssertTrue(sameStart(as: day, from: tapped, drawnAfter: stopped).contains(saved),
+                          "\(saved) for the start time \(day), stopped at \(stopped)")
+        }
         let duration = savedDate.flatMap { date in        // "0:12" on the date's line (not a turn's time further down)
             app.staticTexts.matching(NSPredicate(format: "label MATCHES '[0-9]+:[0-9][0-9]'")).allElementsBoundByIndex
                 .first { abs($0.frame.midY - date.frame.midY) < 4 && $0.isHittable }
@@ -229,18 +329,24 @@ final class TranscriptListTests: ScribeUITestCase {
         XCTAssertTrue(record.appears(timeout: 5), "the accessory is back to Transcribe")
         XCTAssertTrue(record.isHittable)
         // The new transcript tops the list, above Project Kickoff (seeded at launch, the newest until now), with the
-        // start time. Its title may already be the automatic one, so it is found by its place, not by its name.
-        let rows = app.buttons.matching(NSPredicate(format: "label CONTAINS ', Today at '"))
-        XCTAssertTrue(rows.firstMatch.appears(timeout: 5))
-        let newest = rows.element(boundBy: 0), kickoff = app.staticTexts["Project Kickoff"].firstMatch
+        // start time. Its title may already be the automatic one, so it is found by its place, not by its name. The
+        // query is built anew at each use, looking 5 s ahead (its longest wait), so a run that reaches midnight
+        // anywhere before the deletion at the end still finds rows redrawn as "Yesterday at …".
+        let rows = {
+            app.buttons.matching(self.dayLine(since: launched, until: .now + 5, "label CONTAINS %@", prefix: ", "))
+        }
+        XCTAssertTrue(rows().firstMatch.appears(timeout: 5))
+        let newest = rows().element(boundBy: 0), kickoff = app.staticTexts["Project Kickoff"].firstMatch
         XCTAssertFalse(newest.label.hasPrefix("Project Kickoff"), "the new transcript is at the top: \(newest.label)")
-        XCTAssertTrue(newest.label.contains(", \(day), "), "listed with the start time \(day): \(newest.label)")
+        let listed = newest.label                    // read before the clock; drawn after Stop, as the card's line
+        XCTAssertTrue(sameStart(as: day, from: tapped, drawnAfter: stopped).contains { listed.contains(", \($0), ") },
+                      "listed with the start time \(day): \(listed)")
         XCTAssertLessThan(newest.frame.minY, kickoff.frame.minY, "above Project Kickoff")
         shot("Back in the list", app)
 
         // Opened again from its row, then deleted, so recordings of earlier runs don't pile up in the simulator's
         // store (the tests only replace the seeded transcripts).
-        newest.tap()
+        rows().element(boundBy: 0).tap()
         assertCard(app)
         app.buttons["Delete Transcript"].tap()
         let confirm = app.buttons["Delete"].firstMatch
@@ -248,9 +354,10 @@ final class TranscriptListTests: ScribeUITestCase {
         confirm.tap()
         XCTAssertTrue(app.buttons["Minimize"].disappears(timeout: 5), "the card closes")
         XCTAssertTrue(kickoff.appears(timeout: 5))
-        let top = rows.element(boundBy: 0)
-        for _ in 0..<25 where !top.label.hasPrefix("Project Kickoff") { RunLoop.current.run(until: .now + 0.2) }
-        XCTAssertTrue(top.label.hasPrefix("Project Kickoff"), "deleted: Project Kickoff tops the list again: \(top.label)")
+        let top = { rows().element(boundBy: 0).label }
+        for _ in 0..<25 where !top().hasPrefix("Project Kickoff") { RunLoop.current.run(until: .now + 0.2) }
+        let topLabel = top()
+        XCTAssertTrue(topLabel.hasPrefix("Project Kickoff"), "deleted: Project Kickoff tops the list again: \(topLabel)")
     }
 
     /// Stop with nothing transcribed (`-fakeSilence`: the simulator's fake transcriber hears nothing) saves nothing:
@@ -298,10 +405,43 @@ final class TranscriptListTests: ScribeUITestCase {
     }
 
     /// The date line of a recording started just after `tapped` ("Today at 14:02", the app's `relativeDayText`: the
-    /// time in English with the region's 12/24-hour clock), in that minute or the next.
-    private func startTexts(from tapped: Date) -> [String] {
+    /// time in English with the region's 12/24-hour clock), in that minute or the next, as it may read by `now` when
+    /// drawn after `drawnAfter` (see dayWords).
+    private func startTexts(from tapped: Date, drawnAfter: Date? = nil, until now: Date = .now) -> [String] {
         let locale = Locale(identifier: "en_" + (Locale.current.region?.identifier ?? "US"))
-        return [0, 60].map { "Today at " + tapped.addingTimeInterval($0).formatted(.dateTime.hour().minute().locale(locale)) }
+        return [0, 60].flatMap { offset in
+            let start = tapped.addingTimeInterval(offset)
+            let time = start.formatted(.dateTime.hour().minute().locale(locale))
+            return dayWords(since: start, drawnAfter: drawnAfter, until: now).map { "\($0) at \(time)" }
+        }
+    }
+
+    /// The texts `day` (a date line read earlier from startTexts) may read as by `now`: the same start time, worded
+    /// for the day it is drawn on ("Today at 23:59" turns into "Yesterday at 23:59" once the line is drawn after
+    /// midnight).
+    private func sameStart(as day: String, from tapped: Date, drawnAfter: Date? = nil, until now: Date = .now)
+        -> [String] {
+        let time = day.range(of: " at ").map { String(day[$0.lowerBound...]) } ?? day
+        return startTexts(from: tapped, drawnAfter: drawnAfter, until: now).filter { $0.hasSuffix(time) }
+    }
+
+    /// The day words a line for `since` may show when it was drawn between `drawnAfter` (default `since`) and `until`:
+    /// the app words a date when it draws its line (`relativeDayText`) and doesn't redraw it at midnight, so a run
+    /// across midnight may show either for the same date. "Today" only when the line may have been drawn on `since`'s
+    /// day, "Yesterday" only when it may have been drawn after midnight; on any other day just "Today", as strict as
+    /// before (FED-51).
+    private func dayWords(since: Date, drawnAfter: Date? = nil, until: Date = .now) -> [String] {
+        let drawn = max(since, drawnAfter ?? since), read = max(drawn, until)
+        return (Calendar.current.isDate(since, inSameDayAs: drawn) ? ["Today"] : [])
+            + (Calendar.current.isDate(since, inSameDayAs: read) ? [] : ["Yesterday"])
+    }
+
+    /// A query predicate for a date line of something dated after `since`, read by `until`: `format` (with one %@) for
+    /// "Today at " and, across midnight, "Yesterday at " (dayWords), each after `prefix`.
+    private func dayLine(since: Date, until: Date, _ format: String, prefix: String = "") -> NSPredicate {
+        NSCompoundPredicate(orPredicateWithSubpredicates: dayWords(since: since, until: until).map {
+            NSPredicate(format: format, prefix + $0 + " at ")
+        })
     }
 
     /// A tap on a row opens the transcript card (zooming out of the row; no push): the back button at the top left, the
