@@ -107,18 +107,18 @@ struct ChatView: View {
         }
     }
 
-    /// The empty chat (FED-137): a sparkle in a slowly breathing glow (ChatGlow), the greeting in New York (the serif
-    /// of Gemma's answers), the transcript's title when the chat is about one, and a quiet line that it all stays here.
+    /// The empty chat (FED-137): a small grey sparkle in a slowly breathing glow (ChatGlow), the greeting, the
+    /// transcript's title when the chat is about one, and a quiet line that it all stays here. The app's own font
+    /// throughout (the user's rule: no serif here, though Claude's app sets its answers in one), and the sparkle quiet:
+    /// a larger accent-to-purple one that breathed was too much.
     private func hero(glow: Bool) -> some View {
         VStack(spacing: 10) {
             if glow {
                 ZStack {
                     ChatGlow()
                     Image(systemName: "sparkles")
-                        .font(.system(size: 34, weight: .medium))
-                        .foregroundStyle(LinearGradient(colors: [.accentColor, .purple], startPoint: .topLeading,
-                                                        endPoint: .bottomTrailing))
-                        .symbolEffect(.breathe, isActive: !reduceMotion)
+                        .font(.system(size: 22, weight: .regular))
+                        .foregroundStyle(.secondary)
                 }
                 .frame(height: 130)
             }
@@ -128,13 +128,11 @@ struct ChatView: View {
                     .foregroundStyle(.secondary)
                 Text(transcript.title)
                     .font(.title2.weight(.semibold))
-                    .fontDesign(.serif)
                     .multilineTextAlignment(.center)
                     .lineLimit(3)
             } else {
                 Text("What would you like to know?")
                     .font(.title2.weight(.semibold))
-                    .fontDesign(.serif)
                     .multilineTextAlignment(.center)
             }
             Label(isRecording ? "Gemma pauses while you record." : "On this iPhone. Nothing leaves it.",
@@ -407,7 +405,7 @@ struct ChatSendButton: View {
     }
 }
 
-/// A question (a grey bubble on the right) or an answer (New York on the left, selectable; a shimmering "Thinking…"
+/// A question (a grey bubble on the right) or an answer (plain text on the left, selectable; a shimmering "Thinking…"
 /// until the first token; Copy, "Stopped" or the failure under it).
 private struct ChatMessageRow: View {
     let message: ChatMessage
@@ -428,10 +426,9 @@ private struct ChatMessageRow: View {
                 if message.status == .thinking {
                     ThinkingShimmer()
                 } else if !message.text.isEmpty {
-                    // New York for what Gemma writes (as Claude's app sets its answers in a serif): reads as an answer,
-                    // set apart from the questions without a bubble of its own.
+                    // The app's font, with a little more air between lines than the questions' bubbles: reads as an
+                    // answer without a bubble of its own (no serif: the app keeps one font everywhere).
                     Text(message.rendered)
-                        .fontDesign(.serif)
                         .lineSpacing(4)
                         .textSelection(.enabled)
                         .accessibilityIdentifier("ChatAnswer")
