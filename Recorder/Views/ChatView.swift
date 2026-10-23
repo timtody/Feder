@@ -107,20 +107,15 @@ struct ChatView: View {
         }
     }
 
-    /// The empty chat (FED-137): a small grey sparkle in a slowly breathing glow (ChatGlow), the greeting, the
+    /// The empty chat (FED-137): Feder's feather over a soft glow of the icon's blues (FeatherMark), the greeting, the
     /// transcript's title when the chat is about one, and a quiet line that it all stays here. The app's own font
-    /// throughout (the user's rule: no serif here, though Claude's app sets its answers in one), and the sparkle quiet:
-    /// a larger accent-to-purple one that breathed was too much.
+    /// throughout (the user's rule: no serif here, though Claude's app sets its answers in one); no sparkles (a
+    /// breathing accent-to-purple one, then a small grey one, were removed: Feder's identity instead, if anything).
     private func hero(glow: Bool) -> some View {
         VStack(spacing: 10) {
             if glow {
-                ZStack {
-                    ChatGlow()
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 22, weight: .regular))
-                        .foregroundStyle(.secondary)
-                }
-                .frame(height: 130)
+                FeatherMark()
+                    .frame(height: 130)
             }
             if let transcript = chat.transcript {
                 Text("Ask About This Transcript")
@@ -348,7 +343,7 @@ struct ChatView: View {
 
     private var suggestionList: [(text: String, symbol: String)] {
         guard let transcript = chat.transcript else {
-            return [(String(localized: "What can you do?"), "sparkles"),
+            return [(String(localized: "What can you do?"), "questionmark.bubble"),
                     (String(localized: "Help me plan my day"), "calendar"),
                     (String(localized: "Explain something simply"), "lightbulb")]
         }

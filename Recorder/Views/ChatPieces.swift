@@ -2,26 +2,41 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
-/// The empty Ask card's glow (FED-137): a soft wash of colour behind the sparkle that turns once in 24 s and breathes in
-/// 6 s, too slowly to read as motion, as Apple Intelligence's and Claude's empty states feel alive without moving. Still
-/// with Reduce Motion. At 30 frames a second while the empty chat is on screen, nothing once the first question is
-/// asked (the view goes).
-struct ChatGlow: View {
+/// The empty Ask card's mark (FED-137): Feder's own feather (the icon's, as on the App Lock screen: AppLockFeather) in
+/// the icon's gradient, over a soft glow of the icon's two blues that breathes once in 6 s, too slowly to read as
+/// motion. Feder's identity rather than a generic AI sparkle and a rainbow glow, which the user had removed. Still with
+/// Reduce Motion; at 30 frames a second only while the empty chat is on screen.
+struct FeatherMark: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
 
+    /// The icon's gradient (AppIcon.icon's fill), top and bottom stop, light and dark.
+    private var iconBlues: [Color] {
+        colorScheme == .dark
+            ? [Color(red: 0.169, green: 0.356, blue: 0.756), Color(red: 0.043, green: 0.110, blue: 0.271)]
+            : [Color(red: 0.361, green: 0.609, blue: 0.933), Color(red: 0.092, green: 0.280, blue: 0.579)]
+    }
+
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
-            let time = context.date.timeIntervalSinceReferenceDate
-            let turn = reduceMotion ? 0 : time.truncatingRemainder(dividingBy: 24) / 24 * 360
-            let breath = reduceMotion ? 1 : 1 + 0.07 * sin(time * 2 * .pi / 6)
-            Circle()
-                .fill(AngularGradient(colors: [.blue, .indigo, .purple, .pink, .orange, .teal, .blue],
-                                      center: .center, angle: .degrees(turn)))
-                .frame(width: 150, height: 150)
-                .scaleEffect(breath)
-                .blur(radius: 42)
-                .opacity(colorScheme == .dark ? 0.42 : 0.28)
+        ZStack {
+            TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
+                let time = context.date.timeIntervalSinceReferenceDate
+                let breath = reduceMotion ? 1 : 1 + 0.06 * sin(time * 2 * .pi / 6)
+                Circle()
+                    .fill(RadialGradient(colors: iconBlues, center: .center, startRadius: 0, endRadius: 75))
+                    .frame(width: 150, height: 150)
+                    .scaleEffect(breath)
+                    .blur(radius: 44)
+                    .opacity(colorScheme == .dark ? 0.55 : 0.22)
+            }
+            Image(.appLockFeather)
+                .resizable()
+                .scaledToFit()
+                .frame(height: 52)
+                .foregroundStyle(LinearGradient(colors: colorScheme == .dark
+                                                    ? [Color.accentColor, iconBlues[0]]
+                                                    : iconBlues,
+                                                startPoint: .top, endPoint: .bottom))
         }
         .accessibilityHidden(true)
     }
