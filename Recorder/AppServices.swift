@@ -301,14 +301,17 @@ final class AppServices {
         #endif
     }
 
-    /// Once per launch, in the background: loads the downloaded Nemotron model before the first recording needs it.
+    /// Once per launch, in the background: loads the downloaded Nemotron model before the first recording needs it,
+    /// then Parakeet when it is the engine (one after the other, so the two loads don't add up at launch).
     /// After every new build iOS compiles CoreML models for the Neural Engine again on first use; measured on an
     /// iPhone 17 right after an install: Nemotron 178 s (then 0.1-0.4 s), pyannote 2.5 s (then 0.1 s; already loaded
     /// at launch by SpeakerIdentifier.prepareAndRetryPending). Without this the first recording after a build waited
-    /// minutes for its speakers. Utility priority; downloads nothing. (Parakeet, about 14 s the first time, is left
-    /// alone: it is optional and the fallback at most.)
-    /// While it runs, `identifier.isPreparingSpeakerModel` is set, so a recording stopped meanwhile says "Preparing
-    /// speaker model…" instead of an unexplained long "Refining speakers…".
+    /// minutes for its speakers. Parakeet (FED-212): its words step took 13-24 s for recordings of 6-22 s on the
+    /// iPhone (a cold load; warm, 18 s of audio took 1.1 s and 18 minutes 16 s), and the load was 10.1 s cold against
+    /// 0.1 s warm on an M5 Mac. It is loaded and freed again (ParakeetTranscriber.prewarm), as each job loads its own.
+    /// Utility priority; downloads nothing.
+    /// While Nemotron's runs, `identifier.isPreparingSpeakerModel` is set, so a recording stopped meanwhile says
+    /// "Preparing speaker model…" instead of an unexplained long "Refining speakers…".
     func prewarmModels() {
         guard !prewarmed else { return }
         prewarmed = true
@@ -324,18 +327,28 @@ final class AppServices {
             return
         }
         #endif
-        guard !usesFakes, NemotronDiarizer.isDownloaded else { return }
-        let nemotron = nemotronDiarizer
-        identifier.isPreparingSpeakerModel = true
+        guard !usesFakes else { return }
+        let nemotron = NemotronDiarizer.isDownloaded ? nemotronDiarizer : nil
+        let parakeet = ParakeetModel.isPreferred && self.parakeet.isReady
+        guard nemotron != nil || parakeet else { return }
+        if nemotron != nil { identifier.isPreparingSpeakerModel = true }
         Task { [identifier] in
             #if DEBUG
             let start = ContinuousClock.now
             #endif
-            await Task.detached(priority: .utility) { await nemotron.prewarm() }.value
-            identifier.isPreparingSpeakerModel = false
-            #if DEBUG
-            print("[Scribe] prewarm: Nemotron after \(ContinuousClock.now - start)")
-            #endif
+            if let nemotron {
+                await Task.detached(priority: .utility) { await nemotron.prewarm() }.value
+                identifier.isPreparingSpeakerModel = false
+                #if DEBUG
+                print("[Scribe] prewarm: Nemotron after \(ContinuousClock.now - start)")
+                #endif
+            }
+            if parakeet {
+                await Task.detached(priority: .utility) { await ParakeetTranscriber.prewarm() }.value
+                #if DEBUG
+                print("[Scribe] prewarm: Parakeet after \(ContinuousClock.now - start)")
+                #endif
+            }
         }
     }
 

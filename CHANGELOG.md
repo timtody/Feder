@@ -47,6 +47,7 @@ release carries a later version's features, its notes are the 1.0 text plus thos
   screen.
 - Two people speaking are Speaker 1 and Speaker 2 while you record, never Speaker 1 and Speaker 3.
 - If Feder is closed or crashes during a recording, the recording is no longer lost: it comes back as "Recovered Recording" the next time you open Feder, with its audio up to that point and a transcript.
+- With Parakeet, the first recording after an update gets its transcript up to about 13 seconds sooner: Feder prepares Parakeet when it opens instead of when the recording ends.
 - If Feder's list of transcripts is damaged and can't be opened, Feder now starts anyway instead of crashing every time: it sets the damaged list aside (nothing is deleted) and brings your recordings back from their audio as new transcripts. Names and edits of those are lost; the words come back. Feder tells you what happened and lets you share the set-aside files or try the old list again.
 - Your own words (Settings › Vocabulary) are spelled right in the transcript as soon as its words are in, and
   transcripts are finished sooner after Stop: there is no second pass over the recording any more.
@@ -95,6 +96,7 @@ release carries a later version's features, its notes are the 1.0 text plus thos
   schwarzen Fläche.
 - Zwei Personen sind während der Aufnahme Sprecher 1 und Sprecher 2, nie Sprecher 1 und Sprecher 3.
 - Wird Feder während einer Aufnahme beendet oder stürzt ab, geht die Aufnahme nicht mehr verloren: Beim nächsten Öffnen von Feder ist sie als „Wiederhergestellte Aufnahme“ da, mit dem Ton bis dahin und einem Transkript.
+- Mit Parakeet ist das Transkript der ersten Aufnahme nach einem Update bis zu etwa 13 Sekunden früher fertig: Feder bereitet Parakeet beim Öffnen vor statt erst nach der Aufnahme.
 - Ist die Transkriptliste von Feder beschädigt und lässt sich nicht öffnen, startet Feder jetzt trotzdem, statt bei jedem Start abzustürzen: Die beschädigte Liste wird beiseitegelegt (nichts wird gelöscht) und deine Aufnahmen kommen aus ihrem Ton als neue Transkripte zurück. Namen und Änderungen daran gehen verloren, die Wörter kommen zurück. Feder sagt dir, was passiert ist, und lässt dich die beiseitegelegten Dateien teilen oder die alte Liste erneut versuchen.
 - Deine eigenen Wörter (Einstellungen › Vokabular) stehen richtig geschrieben im Transkript, sobald seine Wörter da
   sind, und Transkripte sind nach dem Stoppen schneller fertig: Es gibt keinen zweiten Durchgang über die Aufnahme mehr.

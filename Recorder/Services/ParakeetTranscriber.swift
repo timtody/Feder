@@ -97,6 +97,11 @@ final class ParakeetModel {
             state = .ready
             UserDefaults.standard.set("parakeet", forKey: Self.engineKey)
             UserDefaults.standard.removeObject(forKey: Self.wantedKey)
+            #if DEBUG
+            if Self.fakesDownload { return }          // nothing on disk to load
+            #endif
+            // Compiled now rather than by the first recording after the download (FED-212).
+            Task.detached(priority: .utility) { await ParakeetTranscriber.prewarm() }
         } catch {
             // Off Wi-Fi now, or paused because Wi-Fi went: wait for it (a requested download goes on by itself); on
             // Wi-Fi it is a real failure.
@@ -148,6 +153,16 @@ enum ParakeetTranscriber {
     nonisolated static let alignmentOffset: TimeInterval = -0.12
 
     static func supports(_ locale: Locale) -> Bool { language(for: locale) != nil }
+
+    /// Loads the model once and frees it again (FED-212), so iOS has compiled it for the Neural Engine before the first
+    /// recording needs it: after every new build that compile is most of the words step (10.1 s cold against 0.1 s warm
+    /// on an M5 Mac; recordings of 6-22 s took 13-24 s on the iPhone 17). Launch (AppServices.prewarmModels) and a
+    /// finished download. Never downloads, never throws; off the main actor.
+    @concurrent nonisolated static func prewarm() async {
+        guard let models = try? await AsrModels.loadFromCache(version: ParakeetModel.version) else { return }
+        let manager = AsrManager(config: .default)
+        try? await manager.loadModels(models)
+    }
 
     static func transcribe(fileURL: URL, locale: Locale) async throws -> (words: [TranscriptWord], confidences: [Double]) {
         let models = try await AsrModels.loadFromCache(version: ParakeetModel.version)   // loaded per job, then freed
