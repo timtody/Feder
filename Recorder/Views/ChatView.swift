@@ -22,9 +22,6 @@ struct ChatView: View {
     @State private var position = ScrollPosition(edge: .bottom)
     /// Whether the conversation shows its end: scrolled up, a glass arrow takes it back (as Jump to Live does).
     @State private var isAtEnd = true
-    /// The conversation's visible height (the room between the title and the field or the keyboard): the empty chat's
-    /// glow only where it fits.
-    @State private var visibleHeight: CGFloat = 600
     @State private var dictation = ChatDictation()
     /// What was typed when dictation started: the dictated words follow it.
     @State private var typedBefore = ""
@@ -102,8 +99,24 @@ struct ChatView: View {
             }
         } else {
             // The empty chat's text over the (empty) conversation, not instead of it: swapping the views on the first
-            // Send put the keyboard away (iOS 27 simulator), and Messages keeps it up.
-            conversation
+            // Send put the keyboard away (iOS 27 simulator), and Messages keeps it up. The hero inside a GeometryReader,
+            // which has no minimum size of its own: as a plain ZStack sibling its fixed height (the glow, the greeting)
+            // won against the safe-area bar with the keyboard up, so the field stopped growing at two lines and its
+            // accessibility frames lagged 35 pt behind the drawing. Inside the scroll view, filling it with
+            // containerRelativeFrame, its size depended on the bar's and the keyboard's insets, which depend on the
+            // scroll geometry: the main thread laid out without end (a stack sample of a UI test's hang after New
+            // Chat). As the scroll view's background or overlay iOS 27 drew its images but none of its text.
+            ZStack {
+                conversation
+                if chat.messages.isEmpty {
+                    GeometryReader { geometry in
+                        hero(glow: !isFocused && geometry.size.height >= 380)   // the keyboard up: the greeting only
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                    }
+                    .allowsHitTesting(false)          // a drag over it reaches the scroll view and puts the keyboard away
+                    .transition(.opacity)
+                }
+            }
         }
     }
 
@@ -164,17 +177,6 @@ struct ChatView: View {
 
     private var conversation: some View {
         ScrollView {
-            // The empty chat's hero inside the scroll view, filling what it shows: beside it in a ZStack its fixed
-            // height (the glow, the greeting) won against the safe-area bar when the keyboard left little room, and
-            // the bar was squeezed: the field stopped growing at two lines, and its accessibility frames lagged 35 pt
-            // behind the drawing (taps landed on the keyboard's predictions). Scrolled content never pushes on the bar.
-            // As a background the greeting wasn't drawn at all (iOS 27 simulator).
-            if chat.messages.isEmpty {
-                hero(glow: visibleHeight >= 380)      // the keyboard up: no glow, the greeting stays
-                    .containerRelativeFrame([.horizontal, .vertical])
-                    .allowsHitTesting(false)          // a drag over it reaches the scroll view and puts the keyboard away
-                    .transition(.opacity)
-            }
             VStack(alignment: .leading, spacing: 18) {
                 ForEach(chat.messages) { message in
                     ChatMessageRow(message: message, retry: chat.retry)
@@ -194,7 +196,7 @@ struct ChatView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, chat.messages.isEmpty ? 0 : 12)   // empty: the hero alone fills the view, no scrolling
+            .padding(.vertical, 12)
             .animation(reduceMotion ? nil : .snappy(duration: 0.35), value: chat.messages.count)
         }
         // Opens at the end, and stays there while the answer grows (as Messages follows a conversation).
@@ -209,11 +211,6 @@ struct ChatView: View {
             geometry.visibleRect.maxY >= geometry.contentSize.height + geometry.contentInsets.bottom - 40
         } action: { _, atEnd in
             withAnimation(.smooth(duration: 0.25)) { isAtEnd = atEnd }
-        }
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            geometry.containerSize.height
-        } action: { _, height in
-            withAnimation(.smooth(duration: 0.25)) { visibleHeight = height }
         }
         .overlay(alignment: .bottom) {                // over the field: the safe-area bar is under this edge
             if !isAtEnd, !chat.messages.isEmpty {
