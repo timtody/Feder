@@ -301,8 +301,11 @@ final class AppServices {
         #endif
     }
 
-    /// Once per launch, in the background: loads the downloaded Nemotron model before the first recording needs it,
-    /// then Parakeet when it is the engine (one after the other, so the two loads don't add up at launch).
+    /// Once per launch, in the background: loads Parakeet when it is the engine, then the downloaded Nemotron model,
+    /// before the first recording needs them. One after the other: compiles at the same time slow each other down
+    /// (Nemotron 35 s alone, 178 s beside others), and the two loads don't add up in memory. Parakeet first, in the
+    /// order of the steps after Stop: a recording stopped while Nemotron still compiles gets its words at once and
+    /// waits only for the speakers, instead of loading Parakeet cold beside Nemotron's compile.
     /// After every new build iOS compiles CoreML models for the Neural Engine again on first use; measured on an
     /// iPhone 17 right after an install: Nemotron 178 s (then 0.1-0.4 s), pyannote 2.5 s (then 0.1 s; already loaded
     /// at launch by SpeakerIdentifier.prepareAndRetryPending). Without this the first recording after a build waited
@@ -310,7 +313,7 @@ final class AppServices {
     /// iPhone (a cold load; warm, 18 s of audio took 1.1 s and 18 minutes 16 s), and the load was 10.1 s cold against
     /// 0.1 s warm on an M5 Mac. It is loaded and freed again (ParakeetTranscriber.prewarm), as each job loads its own.
     /// Utility priority; downloads nothing.
-    /// While Nemotron's runs, `identifier.isPreparingSpeakerModel` is set, so a recording stopped meanwhile says
+    /// Until Nemotron's is done, `identifier.isPreparingSpeakerModel` is set, so a recording stopped meanwhile says
     /// "Preparing speaker model…" instead of an unexplained long "Refining speakers…".
     func prewarmModels() {
         guard !prewarmed else { return }
@@ -336,17 +339,17 @@ final class AppServices {
             #if DEBUG
             let start = ContinuousClock.now
             #endif
+            if parakeet {
+                await Task.detached(priority: .utility) { await ParakeetTranscriber.prewarm() }.value
+                #if DEBUG
+                print("[Scribe] prewarm: Parakeet after \(ContinuousClock.now - start)")
+                #endif
+            }
             if let nemotron {
                 await Task.detached(priority: .utility) { await nemotron.prewarm() }.value
                 identifier.isPreparingSpeakerModel = false
                 #if DEBUG
                 print("[Scribe] prewarm: Nemotron after \(ContinuousClock.now - start)")
-                #endif
-            }
-            if parakeet {
-                await Task.detached(priority: .utility) { await ParakeetTranscriber.prewarm() }.value
-                #if DEBUG
-                print("[Scribe] prewarm: Parakeet after \(ContinuousClock.now - start)")
                 #endif
             }
         }
