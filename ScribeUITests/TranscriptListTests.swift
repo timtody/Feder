@@ -219,6 +219,26 @@ final class TranscriptListTests: ScribeUITestCase {
         }
     }
 
+    /// While the steps after Stop run, a row's date line is the card's shimmering status line ("Refining speakers…" for
+    /// Weekly Sync, queued with live labels), with no badge at the row's end; when the last step ends the date line is
+    /// back. Rows that are done show their date line.
+    @MainActor
+    func testRowShowsPipelineStatusWhileImproving() throws {
+        let app = launch(["-seedPendingSample", "-fakeDiarizeSeconds", "8"])
+        let weekly = app.cells.containing(.staticText, identifier: "Weekly Sync").firstMatch
+        XCTAssertTrue(weekly.appears(timeout: 5))
+        let status = weekly.staticTexts["RowPipelineStatus"]
+        XCTAssertTrue(status.appears(timeout: 5), "the status line in the row")
+        XCTAssertEqual(status.label, "Refining speakers…")
+        let dateLine = weekly.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'Today at'")).firstMatch
+        XCTAssertFalse(dateLine.exists, "instead of the date line")
+        let kickoff = app.cells.containing(.staticText, identifier: "Project Kickoff").firstMatch
+        XCTAssertFalse(kickoff.staticTexts["RowPipelineStatus"].exists, "a finished transcript has none")
+        shot("Row while improving", app)
+        XCTAssertTrue(status.disappears(timeout: 60), "gone when the last step ends")
+        XCTAssertTrue(dateLine.appears(timeout: 5), "the date line is back")
+    }
+
     /// Recording like Music's "Now Playing": Transcribe (the accessory) opens the transcript card with the live view and
     /// a large Stop; at its top, like Voice Memos' recording sheet, the name the transcript will get ("New Transcript
     /// N") and its date line with the start time, where the transcript has them. Minimize (the back button) shrinks it back

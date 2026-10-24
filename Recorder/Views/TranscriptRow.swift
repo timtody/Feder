@@ -11,7 +11,6 @@ struct TranscriptRow: View {
     let addTagToken: (String) -> Void
 
     @Environment(AppServices.self) private var services
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack {
@@ -22,7 +21,23 @@ struct TranscriptRow: View {
                     .lineLimit(1)                              // two-line rows keep Voice Memos' swipe pills
                 // One line: date · duration (· place) and the people/tag chips that fit, "+n" for the rest. Keeps a row
                 // two lines tall, so iOS draws the swipe actions as Voice Memos' pills (see `minRowHeight`).
-                metaLine
+                // While any step after Stop runs (words, speakers, vocabulary, summary; also queued behind another
+                // transcript), the card's shimmering status line takes its place: "Transcribing…", "Identifying
+                // speakers…", "Writing summary…" (PipelineStatusLine). It replaced a pulsing people symbol at the row's
+                // end, which only covered the speakers and read as a random badge (the user's call); the date line
+                // comes back when the last step ends.
+                if let status = PipelineStatusLine.text(for: recording, identifier: services.identifier) {
+                    ShimmerText(text: status)
+                        .font(.subheadline)
+                        .lineLimit(1)
+                        .contentTransition(.opacity)
+                        .animation(.easeInOut(duration: 0.25), value: status)
+                        .transition(.opacity)
+                        .accessibilityIdentifier("RowPipelineStatus")
+                } else {
+                    metaLine
+                        .transition(.opacity)
+                }
                 if let snippet = result?.snippet {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         if recording.speakerStatus == .done, let speaker = snippet.speakerIndex {
@@ -44,17 +59,9 @@ struct TranscriptRow: View {
                         .padding(.top, 2)
                 }
             }
-            if recording.speakerStatus != .done {
-                Spacer()
-                // Pulsing while the transcript is being worked on, still while it waits (offline, model missing).
-                Image(systemName: "person.2.wave.2")
-                    .foregroundStyle(.secondary)
-                    .symbolEffect(.pulse, options: .repeating,
-                                  isActive: !reduceMotion && (services.identifier.inFlight.contains(recording.id)
-                                                              || services.identifier.progress[recording.id] != nil))
-                    .accessibilityLabel("Speakers not identified yet")
-            }
         }
+        .animation(.easeInOut(duration: 0.25),
+                   value: PipelineStatusLine.text(for: recording, identifier: services.identifier) == nil)
     }
 
     /// Date · duration, the place, the people/tag chips and "+n" counters for `MetaLineLayout`, which shows what fits.
